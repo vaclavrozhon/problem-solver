@@ -62,3 +62,5 @@ To further our understanding and potentially improve upon Dvořák's 3/8 bound o
 - Develop a formal argument or proof for the deliverable sublemma in the expander vs. sparse-cut dichotomy.
 - Design and execute a small-scale simulation or develop a mathematical model to investigate the potential for $Q_3$ density improvement.
 
+## Round 0004 — 2025-08-25T14:43:07.404420Z
+

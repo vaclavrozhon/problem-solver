@@ -28,8 +28,8 @@ if home_env.exists():
 console = Console()
 client = OpenAI()
 
-MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5-mini")
-MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5-mini")
+MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4-turbo-preview")
+MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4-turbo-preview")
 
 class NewFile(BaseModel):
     path: str = Field(..., description="Relative path under problem dir")
@@ -128,134 +128,157 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
     return "\n".join(context_parts)
 
 def call_prover(problem_dir: Path, round_idx: int) -> ProverOutput:
-    """Call the prover using simple Chat Completions."""
     console.print(f"[bold cyan]Calling Prover (Round {round_idx})...[/bold cyan]")
-    
+
     context = read_problem_context(problem_dir)
     round_tag = f"Round {round_idx:04d} — {datetime.now().isoformat()}Z"
-    
+
     system_prompt = """You are a research mathematician working on challenging problems.
 
-Your goal is **incremental progress**, not necessarily a full solution. Work cleanly and reproducibly.
-
-Before any derivations, write a 3-6 bullet mini-plan.
+Your goal is incremental progress, not necessarily a full solution. Work cleanly and reproducibly.
+Before any derivations, write a 3–6 bullet mini-plan.
 After each claim, write a one-line "How it can fail" and try a toy counterexample.
 
-**What counts as progress:**
-- Extracting useful lemmas from papers
-- Checking small cases and examples  
-- Building conflicting intuitions (arguments for "yes" vs "no")
-- Proving special cases or nontrivial bounds
-- Making an approach precise (even if it fails)
-
-You MUST respond with a JSON object with these exact fields:
+You MUST return a JSON object with these exact fields:
 {
-  "progress_md": "Your mathematical analysis starting with ## Round header",
+  "progress_md": "Append-only notes starting with '## {round_tag}' and at least 300 words total",
   "new_files": [],
   "requests_for_more_materials": [],
   "next_actions_for_prover": []
-}"""
+}
+"""
 
-    user_message = f"""Work on this problem:
+    user_message = f"""Work on this problem (attachments have been inlined as text for now):
 
 {context}
 
 Current round: {round_tag}
 
-Include the round tag in your progress_md header. Provide structured JSON output."""
+Constraints:
+- progress_md must start with "## {round_tag}" on the first line
+- include sections: Mini-plan; Small examples; Candidate lemmas; Obstacles; Next moves
+- minimum length: 300 words overall
+Return ONLY valid JSON (no markdown fences)."""
+
+    # STRICT JSON MODE — no need for regex extraction later
+    response = client.chat.completions.create(
+        model=MODEL_PROVER,                 # keep gpt-4-turbo-preview by default
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.4,
+        max_tokens=1800,
+    )
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_PROVER,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
-            max_completion_tokens=2000
-        )
-        
-        result_text = response.choices[0].message.content
-        result_data = extract_json_from_response(result_text)
-        
-        if result_data:
-            return ProverOutput(**result_data)
-        else:
-            # Fallback
-            return ProverOutput(
-                progress_md=f"## {round_tag}\n\n{result_text}",
-                new_files=[],
-                requests_for_more_materials=[],
-                next_actions_for_prover=[]
-            )
-            
-    except Exception as e:
-        console.print(f"[bold red]Error calling prover: {e}[/bold red]")
-        raise
+        data = json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Prover JSON decode error: {e}[/red]")
+        console.print(f"[dim]Raw response: {response.choices[0].message.content[:500]}[/dim]")
+        # Fallback
+        data = {
+            "progress_md": f"## {round_tag}\n\n(JSON Error) The model returned invalid JSON. Raw content:\n\n{response.choices[0].message.content}",
+            "new_files": [],
+            "requests_for_more_materials": [],
+            "next_actions_for_prover": []
+        }
+
+    # Guard against empty progress
+    pm = (data.get("progress_md") or "").strip()
+    if len(pm) < 100:
+        data["progress_md"] = f"## {round_tag}\n\n(Autofix) The model produced too little content; please expand next round."
+
+    # Ensure list fields exist
+    data.setdefault("new_files", [])
+    data.setdefault("requests_for_more_materials", [])
+    data.setdefault("next_actions_for_prover", [])
+
+    return ProverOutput(**data)
 
 def call_verifier(problem_dir: Path, round_idx: int) -> VerifierOutput:
-    """Call the verifier using simple Chat Completions."""
     console.print(f"[bold cyan]Calling Verifier (Round {round_idx})...[/bold cyan]")
-    
+
     context = read_problem_context(problem_dir)
-    
-    # Add the latest prover output
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     prover_json = round_dir / "prover.out.json"
     if prover_json.exists():
-        prover_data = json.loads(prover_json.read_text(encoding='utf-8'))
-        context += f"\n=== Latest Prover Output ===\n{prover_data['progress_md']}\n"
+        prover_data = json.loads(prover_json.read_text(encoding="utf-8"))
+        context += f"\n=== Latest Prover Output ===\n{prover_data.get('progress_md','')}\n"
 
     system_prompt = """You are a strict mathematical verifier and research manager.
 
-**Your tasks:**
-1. Audit correctness & rigor - identify gaps and unjustified claims
-2. Triage value - separate genuine progress from noise  
-3. Guide next steps - suggest actionable experiments
+Tasks:
+1) Audit correctness & rigor (identify gaps, unjustified steps, likely false statements)
+2) Triage value (separate genuine progress from noise)
+3) Guide next steps (actionable experiments/lemmas to increase confidence)
 
 Include a 3-row table:
 | Claim (short) | Status [OK/Unclear/Broken] | Why |
 
-You MUST respond with a JSON object with these exact fields:
+Return only JSON with fields:
 {
-  "feedback_md": "Detailed feedback for the prover",
-  "summary_md": "Concise summary for human (2-10 bullets)",
+  "feedback_md": "Detailed critique for the prover (≥150 words)",
+  "summary_md": "2–10 bullets: what works, what doesn't, and next steps",
   "verdict": "promising|uncertain|unlikely",
   "blocking_issues": []
-}"""
+}
+"""
 
-    user_message = f"""Audit the prover's work:
+    user_message = f"""Audit the prover's latest round and prior context:
 
 {context}
 
-Provide structured JSON feedback."""
+Constraints:
+- Be blunt but fair. Provide counterexamples or missing lemmas when possible.
+- Return ONLY valid JSON (no markdown fences).
+"""
+
+    response = client.chat.completions.create(
+        model=MODEL_VERIFIER,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.2,
+        max_tokens=1200,
+    )
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_VERIFIER,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
-            max_completion_tokens=1500
-        )
-        
-        result_text = response.choices[0].message.content
-        result_data = extract_json_from_response(result_text)
-        
-        if result_data:
-            return VerifierOutput(**result_data)
-        else:
-            # Fallback
-            return VerifierOutput(
-                feedback_md=result_text,
-                summary_md="Verifier analysis completed",
-                verdict="uncertain",
-                blocking_issues=[]
-            )
-            
-    except Exception as e:
-        console.print(f"[bold red]Error calling verifier: {e}[/bold red]")
-        raise
+        data = json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Verifier JSON decode error: {e}[/red]")
+        console.print(f"[dim]Raw response: {response.choices[0].message.content[:500]}[/dim]")
+        # Fallback
+        data = {
+            "feedback_md": f"(JSON Error) The verifier returned invalid JSON. Raw content:\n\n{response.choices[0].message.content}",
+            "summary_md": "Verifier JSON parsing failed",
+            "verdict": "uncertain",
+            "blocking_issues": ["JSON parsing error"]
+        }
+
+    # Fill defaults if the model omitted them
+    data.setdefault("blocking_issues", [])
+    if not data.get("summary_md"):
+        data["summary_md"] = "No summary provided."
+    
+    # Fix type issues - convert lists to strings if needed
+    if isinstance(data.get("summary_md"), list):
+        data["summary_md"] = "\n".join(f"• {item}" for item in data["summary_md"])
+    
+    if isinstance(data.get("feedback_md"), list):
+        data["feedback_md"] = "\n".join(data["feedback_md"])
+    
+    if isinstance(data.get("blocking_issues"), str):
+        data["blocking_issues"] = [data["blocking_issues"]]
+
+    # Soft guard for empty feedback
+    if len((data.get("feedback_md") or "").strip()) < 50:
+        data["feedback_md"] = "Feedback was too short; expand next round."
+
+    return VerifierOutput(**data)
 
 def run_round(problem_dir: Path, round_idx: int):
     """Execute one round of the prover-verifier loop."""

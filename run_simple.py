@@ -54,7 +54,7 @@ def main():
     print("🚀 Starting Streamlit UI...")
     ui_proc = subprocess.Popen([
         str(venv / "bin" / "streamlit"), 
-        "run", "web_app.py",
+        "run", "simple_ui.py",
         "--server.headless", "true"
     ], cwd=str(REPO))
     

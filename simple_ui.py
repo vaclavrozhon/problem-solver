@@ -19,7 +19,12 @@ from dataclasses import dataclass
 st.set_page_config(
     page_title="Automatic Researcher",
     page_icon="🔬", 
-    layout="wide"
+    layout="wide",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Load API key
@@ -150,6 +155,16 @@ if 'manager' not in st.session_state:
     st.session_state.manager = SimpleManager()
 
 manager = st.session_state.manager
+
+# Hide Streamlit elements
+st.markdown("""
+<style>
+    .stDeployButton {display:none;}
+    footer {visibility: hidden;}
+    .stDecoration {display:none;}
+    #MainMenu {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 
 # Main UI
 st.title("🔬 Automatic Researcher")
@@ -311,9 +326,10 @@ else:
             with col1:
                 # Checkbox for selection
                 selected = st.checkbox(
-                    "", 
+                    "Select", 
                     value=problem.name in st.session_state.selected_problems,
-                    key=f"select_{problem.name}"
+                    key=f"select_{problem.name}",
+                    label_visibility="hidden"
                 )
                 if selected:
                     st.session_state.selected_problems.add(problem.name)

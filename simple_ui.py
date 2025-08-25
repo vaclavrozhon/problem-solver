@@ -223,32 +223,71 @@ if 'viewing_problem' in st.session_state:
         if st.button("🔄 Refresh"):
             st.rerun()
     
-    # Show progress if available
-    if info['last_round']:
-        st.markdown("### Latest Progress")
+    # Show conversation if available
+    runs_dir = problem / "runs"
+    if runs_dir.exists():
+        rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
         
-        # Summary
-        summary_file = info['last_round'] / "verifier.summary.md"
-        if summary_file.exists():
-            st.markdown("**Verifier Summary:**")
-            st.markdown(summary_file.read_text(encoding="utf-8"))
-        
-        # Progress
-        progress_file = info['last_round'] / "progress.appended.md"
-        if progress_file.exists():
-            st.markdown("**Progress Added:**")
-            st.markdown(progress_file.read_text(encoding="utf-8"))
-        
-        # Verdict
-        verifier_json = info['last_round'] / "verifier.out.json"
-        if verifier_json.exists():
-            with open(verifier_json) as f:
-                data = json.load(f)
-            st.write(f"**Verdict:** `{data.get('verdict', 'unknown')}`")
+        if rounds:
+            st.markdown("### 💬 Prover ↔ Verifier Conversation")
             
-            issues = data.get('blocking_issues', [])
-            if issues:
-                st.write("**Issues:**", ", ".join(issues))
+            # Round selector
+            round_names = [r.name for r in rounds]
+            selected_round = st.selectbox(
+                "Select Round", 
+                round_names, 
+                index=len(round_names)-1,
+                key="round_selector"
+            )
+            
+            round_dir = runs_dir / selected_round
+            
+            # Show the conversation for this round
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🤖 Prover")
+                prover_json = round_dir / "prover.out.json"
+                if prover_json.exists():
+                    with open(prover_json, 'r', encoding='utf-8') as f:
+                        prover_data = json.load(f)
+                    
+                    progress_md = prover_data.get('progress_md', 'No progress content')
+                    st.markdown(progress_md)
+                else:
+                    st.write("*No prover output*")
+            
+            with col2:
+                st.markdown("#### 🔍 Verifier")
+                verifier_feedback = round_dir / "verifier.feedback.md"
+                if verifier_feedback.exists():
+                    feedback_content = verifier_feedback.read_text(encoding='utf-8')
+                    st.markdown(feedback_content)
+                else:
+                    st.write("*No verifier feedback*")
+                
+                # Show verdict and summary
+                verifier_json = round_dir / "verifier.out.json"
+                if verifier_json.exists():
+                    with open(verifier_json, 'r', encoding='utf-8') as f:
+                        verifier_data = json.load(f)
+                    
+                    verdict = verifier_data.get('verdict', 'unknown')
+                    verdict_colors = {
+                        'promising': '🟢',
+                        'uncertain': '🟡', 
+                        'unlikely': '🔴'
+                    }
+                    
+                    st.markdown(f"**Verdict:** {verdict_colors.get(verdict, '⚪')} {verdict}")
+                    
+                    issues = verifier_data.get('blocking_issues', [])
+                    if issues:
+                        st.markdown("**Blocking Issues:**")
+                        for issue in issues:
+                            st.write(f"• {issue}")
+        else:
+            st.info("No rounds completed yet. Click Run to start the conversation.")
     
     # Logs
     if runner.log_path and Path(runner.log_path).exists():

@@ -1,0 +1,4 @@
+- The prover's work on improving Dvořák's 3/8 bound lacks rigorous mathematical proofs and empirical evidence.
+- The relationship between block-wise color occupancy and global conductance needs formal proof.
+- The feasibility of increasing 'good' $Q_3$ subcube density beyond 1/2 is speculative without a clear methodology.
+- Proposed next steps suggest a more structured approach but lack detailed plans for formal proofs or empirical investigations.

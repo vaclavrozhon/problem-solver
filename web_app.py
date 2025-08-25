@@ -65,6 +65,7 @@ class ProblemRunner:
     current_round: int = 0
     last_update: Optional[datetime] = None
     error_message: str = ""
+    log_path: Optional[str] = None
     
     def get_id(self) -> str:
         """Generate unique ID for this problem."""
@@ -145,14 +146,24 @@ class ProblemManager:
                 "--start-round", str(start_round)
             ]
             
+            # Ensure runs directory exists for logs
+            runs_dir = problem_path / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Log to file to avoid pipe blocking
+            log_path = runs_dir / "orchestrator.log"
+            log_fp = open(log_path, "a", buffering=1)  # line-buffered log
+            
             runner.process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=log_fp,  # write to file, not PIPE
+                stderr=log_fp,
                 text=True,
-                env=os.environ.copy()
+                env=os.environ.copy(),
+                cwd=str(Path(__file__).parent)  # ensure orchestrator.py is found
             )
             
+            runner.log_path = str(log_path)
             runner.status = "running"
             runner.current_round = start_round
             runner.last_update = datetime.now()
@@ -458,6 +469,58 @@ else:
                     st.error(f"Error: {status['error_message']}")
                 
                 st.markdown("---")
+
+        # --- Inline details right below the grid, if a problem was selected ---
+        if 'selected_problem' in st.session_state:
+            problem = st.session_state.selected_problem
+            st.markdown("## 🔎 Details")
+            runs_dir = problem / "runs"
+            if not runs_dir.exists():
+                st.info("No runs available yet for this problem. Click ▶️ Start.")
+            else:
+                rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
+                if not rounds:
+                    st.info("No rounds found yet.")
+                else:
+                    latest = rounds[-1]
+                    st.markdown(f"**Latest round:** `{latest.name}`")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("#### 🎯 Verifier Summary")
+                        sf = latest / "verifier.summary.md"
+                        if sf.exists():
+                            st.markdown(sf.read_text(encoding="utf-8"))
+                        vj = latest / "verifier.out.json"
+                        if vj.exists():
+                            import json as _json
+                            data = _json.loads(vj.read_text(encoding="utf-8"))
+                            st.write({"verdict": data.get("verdict"), "blocking_issues": data.get("blocking_issues", [])})
+
+                    with col2:
+                        st.markdown("#### 📝 Progress Added")
+                        pf = latest / "progress.appended.md"
+                        if pf.exists():
+                            st.markdown(pf.read_text(encoding="utf-8"))
+
+                    st.markdown("#### 💬 Full Conversation (latest)")
+                    tab1, tab2 = st.tabs(["Prover Output (JSON)", "Verifier Feedback"])
+                    with tab1:
+                        pj = latest / "prover.out.json"
+                        if pj.exists():
+                            import json as _json
+                            st.json(_json.loads(pj.read_text(encoding="utf-8")))
+                    with tab2:
+                        vf = latest / "verifier.feedback.md"
+                        if vf.exists():
+                            st.markdown(vf.read_text(encoding="utf-8"))
+
+            # Optional: quick access to logs
+            runner = st.session_state.manager.get_or_create_runner(problem)
+            if runner.log_path and Path(runner.log_path).exists():
+                with st.expander("📄 Orchestrator Log (tail)"):
+                    tail = Path(runner.log_path).read_text(encoding="utf-8")[-4000:]
+                    st.code(tail)
     
     # Detailed View Tab
     with tab_details:

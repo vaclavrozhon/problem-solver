@@ -28,8 +28,8 @@ if home_env.exists():
 console = Console()
 client = OpenAI()
 
-MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4-turbo-preview")
-MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4-turbo-preview")
+MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5-mini")
+MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5-mini")
 
 class NewFile(BaseModel):
     path: str = Field(..., description="Relative path under problem dir")
@@ -171,8 +171,7 @@ Include the round tag in your progress_md header. Provide structured JSON output
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
             ],
-            temperature=0.4,
-            max_tokens=2000
+            max_completion_tokens=2000
         )
         
         result_text = response.choices[0].message.content
@@ -237,8 +236,7 @@ Provide structured JSON feedback."""
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
             ],
-            temperature=0.2,
-            max_tokens=1500
+            max_completion_tokens=1500
         )
         
         result_text = response.choices[0].message.content

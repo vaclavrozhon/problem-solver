@@ -1,0 +1,4 @@
+- The prover's work on improving Dvořák's 3/8 bound lacks rigorous proof and detailed analysis.
+- Claims about Dvořák's method, expander vs. sparse-cut dichotomy, and $Q_3$ density improvement are interesting but speculative.
+- Toy counterexamples provided are a good start but need systematic exploration.
+- Proposed next steps are appropriate but require a more structured and empirical approach.

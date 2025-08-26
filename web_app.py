@@ -409,40 +409,53 @@ else:
         
         # Problem status grid
         st.subheader("Problem Status")
+        st.markdown("Click on a problem name to view details:")
         
-        status_data = []
-        for problem in problems:
+        # Simple table using Streamlit columns to mimic table rows
+        # Header row
+        col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1.5, 1.5])
+        with col1:
+            st.markdown("**Problem**")
+        with col2:
+            st.markdown("**Status**")
+        with col3:
+            st.markdown("**Rounds**")
+        with col4:
+            st.markdown("**Latest Verdict**")
+        with col5:
+            st.markdown("**Last Update**")
+        
+        st.markdown("---")
+        
+        # Data rows
+        for i, problem in enumerate(problems):
             stats = get_problem_stats(problem)
             status = st.session_state.manager.check_status(problem)
             
-            status_data.append({
-                "Problem": problem.name,
-                "Status": status["status"].capitalize(),
-                "Rounds": stats["total_rounds"],
-                "Latest Verdict": status["latest_verdict"] or "—",
-                "Last Update": format_time_ago(stats["last_modified"])
-            })
-        
-        df = pd.DataFrame(status_data)
-        
-        # Make table clickable
-        st.markdown("Click on a problem row to view details")
-        selected = st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row"
-        )
-        
-        # Handle row selection
-        if selected and selected.selection.rows:
-            selected_idx = selected.selection.rows[0]
-            st.session_state.selected_problem = problems[selected_idx]
-            st.session_state.active_tab = "detailed"
-            st.success(f"Selected {problems[selected_idx].name} - switching to Detailed View...")
-            time.sleep(1)
-            st.rerun()
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1.5, 1.5])
+            
+            with col1:
+                if st.button(f"📁 {problem.name}", key=f"select_{i}", use_container_width=True):
+                    st.session_state.selected_problem = problem
+                    st.session_state.active_tab = "detailed"
+                    st.rerun()
+            
+            with col2:
+                status_emoji = {"running": "🟢", "stopped": "⚫", "error": "🔴"}.get(status["status"], "⚫")
+                st.write(f"{status_emoji} {status['status'].capitalize()}")
+            
+            with col3:
+                st.write(str(stats["total_rounds"]))
+            
+            with col4:
+                if status["latest_verdict"]:
+                    verdict_emoji = {"promising": "✅", "uncertain": "⚠️", "unlikely": "❌"}.get(status["latest_verdict"], "—")
+                    st.write(f"{verdict_emoji} {status['latest_verdict']}")
+                else:
+                    st.write("—")
+            
+            with col5:
+                st.write(format_time_ago(stats["last_modified"]))
     
     elif st.session_state.active_tab == 'detailed':
         # Detailed View Tab content

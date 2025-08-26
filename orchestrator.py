@@ -12,6 +12,8 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import argparse
 import sys
+import time
+import subprocess
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -59,6 +61,74 @@ class SummarizerOutput(BaseModel):
     highlights: List[str] = Field(default_factory=list)
     next_questions: List[str] = Field(default_factory=list)
 
+def _write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | None = None):
+    """Write live status so the UI can show current phase + since when."""
+    status = {
+        "phase": phase,                 # "prover" | "verifier" | "summarizer" | "idle"
+        "round": round_idx,
+        "ts": datetime.utcnow().isoformat() + "Z",
+        "models": {
+            "prover": MODEL_PROVER,
+            "verifier": MODEL_VERIFIER,
+            "summarizer": MODEL_SUMMARIZER,
+        }
+    }
+    if extra: status.update(extra)
+    (problem_dir / "runs").mkdir(parents=True, exist_ok=True)
+    (problem_dir / "runs" / "live_status.json").write_text(
+        json.dumps(status, indent=2), encoding="utf-8"
+    )
+
+def _gather_context_files(problem_dir: Path, round_idx: int) -> list[str]:
+    """List the files we send to Prover this round (approximate, matches read_problem_context)."""
+    files: list[str] = []
+    # task
+    for task_file in ["task.tex", "task.txt", "task.md"]:
+        p = problem_dir / task_file
+        if p.exists():
+            files.append(task_file)
+            break
+    # progress (tail)
+    if (problem_dir / "progress.md").exists():
+        files.append("progress.md (tail)")
+    # papers dir: show filenames (we do not parse PDFs here)
+    papers_dir = problem_dir / "papers"
+    if papers_dir.exists():
+        for paper in sorted(papers_dir.rglob("*")):
+            if paper.is_file():
+                files.append(str(paper.relative_to(problem_dir)))
+    # last 2 rounds of verifier feedback (these are added in read_problem_context)
+    runs_dir = problem_dir / "runs"
+    if runs_dir.exists():
+        for d in sorted([d for d in runs_dir.iterdir() if d.is_dir()])[-2:]:
+            vf = d / "verifier.feedback.md"
+            if vf.exists():
+                files.append(str(vf.relative_to(problem_dir)))
+    return files
+
+def _auto_commit_round(problem_dir: Path, round_idx: int, verdict: str):
+    """Auto-commit the round results to git if this is a git repo."""
+    try:
+        # Check if we're in a git repo
+        result = subprocess.run(["git", "rev-parse", "--git-dir"], 
+                              cwd=problem_dir.parent, capture_output=True, text=True)
+        if result.returncode != 0:
+            return  # Not a git repo
+        
+        # Add the problem directory
+        problem_name = problem_dir.name
+        subprocess.run(["git", "add", f"problems/{problem_name}/"], 
+                      cwd=problem_dir.parent, check=False)
+        
+        # Commit with a descriptive message
+        commit_msg = f"{problem_name} round-{round_idx:04d}: verdict={verdict}"
+        subprocess.run(["git", "commit", "-m", commit_msg], 
+                      cwd=problem_dir.parent, check=False)
+        
+        console.print(f"[green]Auto-committed: {commit_msg}[/green]")
+    except Exception as e:
+        console.print(f"[yellow]Git auto-commit failed: {e}[/yellow]")
+
 def extract_json_from_response(text: str) -> Optional[dict]:
     """Extract JSON from model response."""
     # Remove markdown code blocks
@@ -90,6 +160,23 @@ def extract_json_from_response(text: str) -> Optional[dict]:
     
     return None
 
+def _extract_pdf_text(pdf_path: Path) -> str:
+    """Extract text from PDF using pymupdf (fitz) for better paper access."""
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(pdf_path)
+        text = ""
+        for page_num in range(min(10, len(doc))):  # First 10 pages only
+            page = doc.load_page(page_num)
+            text += f"\n--- Page {page_num + 1} ---\n"
+            text += page.get_text()
+        doc.close()
+        return text[:20000]  # Limit to 20KB
+    except ImportError:
+        return "[PDF text extraction requires: pip install pymupdf]"
+    except Exception as e:
+        return f"[PDF extraction failed: {e}]"
+
 def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
     """Read problem files into a context string."""
     context_parts = []
@@ -110,7 +197,7 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
             content = "...\n" + content[-50000:]
         context_parts.append(f"=== progress.md ===\n{content}\n")
     
-    # Papers (as text only - no PDF parsing for now)
+    # Papers with PDF text extraction
     papers_dir = problem_dir / "papers"
     if papers_dir.exists() and include_pdfs:
         for paper in papers_dir.rglob("*"):
@@ -122,7 +209,9 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
                     except:
                         pass
                 elif paper.suffix.lower() == '.pdf':
-                    context_parts.append(f"=== {paper.name} ===\n[PDF file available for reference]\n")
+                    # Extract actual PDF text instead of just placeholder
+                    pdf_text = _extract_pdf_text(paper)
+                    context_parts.append(f"=== {paper.name} ===\n{pdf_text}\n")
     
     # Recent verifier feedback (last 2 rounds)
     runs_dir = problem_dir / "runs"
@@ -328,89 +417,80 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     return SummarizerOutput(**data)
 
 def run_round(problem_dir: Path, round_idx: int):
-    """Execute one round of the prover-verifier loop."""
+    """Execute one round of the prover-verifier-summarizer loop with timings."""
     console.print(f"\n[bold green]Starting Round {round_idx}[/bold green]")
-    
+
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Step 1: Call Prover
+
+    # Context files recorded for this round (for UI)
+    ctx_files = _gather_context_files(problem_dir, round_idx)
+    (round_dir / "context.files.json").write_text(json.dumps(ctx_files, indent=2), encoding="utf-8")
+
+    timings = {}
+
+    # ----- Step 1: Prover -----
+    _write_status(problem_dir, phase="prover", round_idx=round_idx)
+    t0 = time.perf_counter()
     prover_output = call_prover(problem_dir, round_idx)
-    
-    # Save prover output
-    (round_dir / "prover.out.json").write_text(
-        json.dumps(prover_output.model_dump(), indent=2),
-        encoding="utf-8"
-    )
-    
-    # Process progress with header guard
+    t1 = time.perf_counter()
+    timings["prover"] = {"model": MODEL_PROVER, "duration_s": round(t1 - t0, 3)}
+
+    (round_dir / "prover.out.json").write_text(json.dumps(prover_output.model_dump(), indent=2), encoding="utf-8")
+
     round_tag = f"## Round {round_idx:04d} — {datetime.now().isoformat()}Z"
     progress_content = prover_output.progress_md.strip()
-    
     if not progress_content.startswith("##"):
         progress_content = round_tag + "\n\n" + progress_content
-    
     appended_progress = progress_content + "\n\n"
     (round_dir / "progress.appended.md").write_text(appended_progress, encoding="utf-8")
-    
-    # Append to main progress.md
+
     progress_file = problem_dir / "progress.md"
-    existing_progress = ""
-    if progress_file.exists():
-        existing_progress = progress_file.read_text(encoding="utf-8")
-    
-    separator = "\n" if existing_progress and not existing_progress.endswith("\n") else ""
-    progress_file.write_text(
-        existing_progress + separator + appended_progress,
-        encoding="utf-8"
-    )
-    
-    # Create new files
-    for new_file in prover_output.new_files:
-        file_path = problem_dir / new_file.path
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(new_file.content, encoding="utf-8")
-        console.print(f"[green]Created file: {new_file.path}[/green]")
-    
-    # Step 2: Call Verifier
+    existing = progress_file.read_text(encoding="utf-8") if progress_file.exists() else ""
+    sep = "\n" if existing and not existing.endswith("\n") else ""
+    progress_file.write_text(existing + sep + appended_progress, encoding="utf-8")
+
+    for nf in prover_output.new_files:
+        fp = problem_dir / nf.path
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        fp.write_text(nf.content, encoding="utf-8")
+        console.print(f"[green]Created file: {nf.path}[/green]")
+
+    # ----- Step 2: Verifier -----
+    _write_status(problem_dir, phase="verifier", round_idx=round_idx, extra=timings)
+    t0 = time.perf_counter()
     verifier_output = call_verifier(problem_dir, round_idx)
-    
-    # Save verifier output
-    (round_dir / "verifier.out.json").write_text(
-        json.dumps(verifier_output.model_dump(), indent=2),
-        encoding="utf-8"
-    )
-    (round_dir / "verifier.feedback.md").write_text(
-        verifier_output.feedback_md,
-        encoding="utf-8"
-    )
-    (round_dir / "verifier.summary.md").write_text(
-        verifier_output.summary_md,
-        encoding="utf-8"
-    )
-    
-    # Step 3: Call Summarizer
+    t1 = time.perf_counter()
+    timings["verifier"] = {"model": MODEL_VERIFIER, "duration_s": round(t1 - t0, 3)}
+
+    (round_dir / "verifier.out.json").write_text(json.dumps(verifier_output.model_dump(), indent=2), encoding="utf-8")
+    (round_dir / "verifier.feedback.md").write_text(verifier_output.feedback_md, encoding="utf-8")
+    (round_dir / "verifier.summary.md").write_text(verifier_output.summary_md, encoding="utf-8")
+
+    # ----- Step 3: Summarizer -----
+    _write_status(problem_dir, phase="summarizer", round_idx=round_idx, extra=timings)
+    t0 = time.perf_counter()
     summarizer_output = call_summarizer(problem_dir, round_idx)
-    
-    # Save summarizer output
-    (round_dir / "summarizer.out.json").write_text(
-        json.dumps(summarizer_output.model_dump(), indent=2),
-        encoding="utf-8"
-    )
-    (round_dir / "summarizer.summary.md").write_text(
-        summarizer_output.summary_md,
-        encoding="utf-8"
-    )
-    
-    # Display summary
+    t1 = time.perf_counter()
+    timings["summarizer"] = {"model": MODEL_SUMMARIZER, "duration_s": round(t1 - t0, 3)}
+
+    (round_dir / "summarizer.out.json").write_text(json.dumps(summarizer_output.model_dump(), indent=2), encoding="utf-8")
+    (round_dir / "summarizer.summary.md").write_text(summarizer_output.summary_md, encoding="utf-8")
+
+    # Persist timings for the UI and mark idle
+    (round_dir / "timings.json").write_text(json.dumps(timings, indent=2), encoding="utf-8")
+    _write_status(problem_dir, phase="idle", round_idx=round_idx, extra={"last_round": round_idx, **timings})
+
+    # Auto-commit to git
+    _auto_commit_round(problem_dir, round_idx, verifier_output.verdict)
+
+    # Console summary
     console.print(f"\n[bold]Round {round_idx} Complete[/bold]")
     console.print(f"[yellow]Verdict: {verifier_output.verdict}[/yellow]")
-    
     if verifier_output.blocking_issues:
         console.print("[red]Blocking Issues:[/red]")
         for issue in verifier_output.blocking_issues:
             console.print(f"  • {issue}")
-    
     console.print("\n[bold]Summary for Human:[/bold]")
     console.print(verifier_output.summary_md)
 

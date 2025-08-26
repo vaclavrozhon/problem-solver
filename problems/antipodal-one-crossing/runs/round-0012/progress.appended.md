@@ -1,0 +1,27 @@
+## Round 0012 — 2025-08-26T15:30:50.340822Z
+To further our exploration into improving Dvořák's 3/8 bound on color changes in the $n$-cube, we will focus on refining our candidate lemmas and constructing more detailed examples. Our goal is to clarify our strategies and identify specific paths towards proving an improvement over the 3/8 bound. Here's the mini-plan for this round:
+
+### Mini-plan
+- **Construct Detailed Examples**: Create more intricate examples that illustrate the expander vs. sparse-cut dichotomy and the potential for a $Q_3$ density improvement.
+- **Refine Candidate Lemmas**: Based on insights from these examples, sharpen our candidate lemmas to directly target improvements over the 3/8 bound.
+- **Identify and Address Obstacles**: Clearly articulate potential challenges and strategize on how to overcome them.
+- **Outline Next Steps**: Based on our findings, plan further actions to progress towards our goal.
+
+### Detailed Examples
+We will construct examples of small cubes (e.g., $Q_2$, $Q_3$) to illustrate the principles behind the expander vs. sparse-cut dichotomy. For instance:
+- **Example 1**: A $Q_2$ cube with a specific 2-coloring that demonstrates a clear bias in color distribution across blocks, showing how this affects the number of switches.
+- **Example 2**: A $Q_3$ cube where we can classify the subcubes as 'good' or 'bad' based on their colorings, aiming to show that a significant fraction of 'good' $Q_3$ subcubes can exist.
+
+### Refined Candidate Lemmas
+From our detailed examples, we aim to propose the following candidate lemmas:
+1. **Conductance Lemma**: If a color occupies at least an $rac{1}{4}$-fraction of each $rac{1}{4}$-sized block for $(1-	heta)$ of the blocks, then that color has conductance $rac{1}{4}$ in the whole cube, leading to a reduction in switches.
+2. **Density Lemma**: In any 2-coloring of the cube, the fraction of 'good' $Q_3$ subcubes exceeds $rac{1}{2} + eta$ for some absolute $eta > 0$, improving the expected number of switches by $eta n$.
+
+### Obstacles
+- **Generalization**: Proving that local properties (like block-wise color majority) can be extended to the entire cube remains a challenge.
+- **Mathematical Rigor**: The complexity of formalizing our candidate lemmas into provable statements may present significant hurdles.
+
+### Next Steps
+- Conduct a detailed analysis of our candidate lemmas, attempting to prove them or identify specific conditions under which they hold.
+- Consider empirical testing of our examples to validate the hypotheses and refine our understanding of the problem.
+

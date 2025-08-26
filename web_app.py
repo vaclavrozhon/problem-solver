@@ -345,26 +345,6 @@ with st.sidebar:
         st.error("❌ No API Key Found")
         st.info("Add key to ~/.openai.env")
     
-    # Model selection
-    st.subheader("Model Configuration")
-    model_options = [
-        "gpt-4o-mini",
-        "gpt-4o", 
-        "gpt-4-turbo",
-        "gpt-4",
-        "o1-preview",
-        "o1-mini"
-    ]
-    
-    selected_model = st.selectbox(
-        "Select Model",
-        model_options,
-        index=0,  # default to gpt-4o-mini
-        help="Model used for prover, verifier, and summarizer"
-    )
-    
-    # Store in session state for orchestrator to use
-    st.session_state.selected_model = selected_model
 
 # Main content area
 problems = st.session_state.manager.discover_problems()
@@ -473,21 +453,38 @@ else:
             st.subheader(f"📋 {problem.name}")
             
             # Controls row (Run more rounds / Stop / Clear all)
-            c1, c2, c3, spacer = st.columns([2,1,1,5])
+            c1, c2, c3, c4, spacer = st.columns([1.5, 2, 1, 1, 3])
+            
             more = c1.number_input("Rounds to run", min_value=1, max_value=50, value=1, step=1)
-            if c2.button("▶ Run more rounds"):
-                selected_model = getattr(st.session_state, 'selected_model', 'gpt-4o-mini')
+            
+            # Model selection dropdown
+            model_options = [
+                "gpt-4o-mini",
+                "gpt-4o", 
+                "gpt-4-turbo",
+                "gpt-4",
+                "o1-preview",
+                "o1-mini"
+            ]
+            selected_model = c2.selectbox(
+                "Model",
+                model_options,
+                index=0,  # default to gpt-4o-mini
+                help="Model for prover, verifier, summarizer"
+            )
+            
+            if c3.button("▶ Run more rounds"):
                 st.session_state.manager.start_problem(problem, rounds=int(more), model=selected_model)
                 st.rerun()
             
             # show Stop if running
             status = st.session_state.manager.check_status(problem)
             if status["status"] == "running":
-                if c3.button("⏹ Stop"):
+                if c4.button("⏹ Stop"):
                     st.session_state.manager.stop_problem(problem)
                     st.rerun()
             else:
-                if c3.button("🧹 Clear all"):
+                if c4.button("🧹 Clear all"):
                     if st.session_state.manager.clear_problem(problem):
                         st.success("Cleared.")
                         time.sleep(1)

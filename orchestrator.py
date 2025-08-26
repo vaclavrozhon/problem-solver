@@ -28,8 +28,15 @@ if home_env.exists():
 console = Console()
 client = OpenAI()
 
-MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4-turbo-preview")
-MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4-turbo-preview")
+MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4o-mini")
+MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4o-mini")
+MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-4o-mini")
+
+PROMPTS_DIR = Path("prompts")
+
+def load_prompt(name: str, default: str) -> str:
+    p = PROMPTS_DIR / f"{name}.md"
+    return p.read_text(encoding="utf-8") if p.exists() else default
 
 class NewFile(BaseModel):
     path: str = Field(..., description="Relative path under problem dir")
@@ -46,6 +53,11 @@ class VerifierOutput(BaseModel):
     summary_md: str = Field(..., description="Concise summary")
     verdict: str = Field(..., description="promising|uncertain|unlikely")
     blocking_issues: List[str] = Field(default_factory=list)
+
+class SummarizerOutput(BaseModel):
+    summary_md: str = Field(..., description="Readable summary of the round")
+    highlights: List[str] = Field(default_factory=list)
+    next_questions: List[str] = Field(default_factory=list)
 
 def extract_json_from_response(text: str) -> Optional[dict]:
     """Extract JSON from model response."""
@@ -133,7 +145,7 @@ def call_prover(problem_dir: Path, round_idx: int) -> ProverOutput:
     context = read_problem_context(problem_dir)
     round_tag = f"Round {round_idx:04d} — {datetime.now().isoformat()}Z"
 
-    system_prompt = """You are a research mathematician working on challenging problems.
+    system_prompt = load_prompt("prover", """You are a research mathematician working on challenging problems.
 
 Your goal is incremental progress, not necessarily a full solution. Work cleanly and reproducibly.
 Before any derivations, write a 3–6 bullet mini-plan.
@@ -145,20 +157,14 @@ You MUST return a JSON object with these exact fields:
   "new_files": [],
   "requests_for_more_materials": [],
   "next_actions_for_prover": []
-}
-"""
+}""")
 
-    user_message = f"""Work on this problem (attachments have been inlined as text for now):
+    user_message = f"""Work on this problem context:
 
 {context}
 
-Current round: {round_tag}
-
-Constraints:
-- progress_md must start with "## {round_tag}" on the first line
-- include sections: Mini-plan; Small examples; Candidate lemmas; Obstacles; Next moves
-- minimum length: 300 words overall
-Return ONLY valid JSON (no markdown fences)."""
+Current round tag: {round_tag}
+Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_tag}'."""
 
     # STRICT JSON MODE — no need for regex extraction later
     response = client.chat.completions.create(
@@ -185,11 +191,11 @@ Return ONLY valid JSON (no markdown fences)."""
             "next_actions_for_prover": []
         }
 
-    # Guard against empty progress
+    # Guard against empty progress and ensure proper formatting
     pm = (data.get("progress_md") or "").strip()
-    if len(pm) < 100:
-        data["progress_md"] = f"## {round_tag}\n\n(Autofix) The model produced too little content; please expand next round."
-
+    if not pm.startswith("##"):
+        data["progress_md"] = f"## {round_tag}\n\n" + pm
+    
     # Ensure list fields exist
     data.setdefault("new_files", [])
     data.setdefault("requests_for_more_materials", [])
@@ -207,7 +213,7 @@ def call_verifier(problem_dir: Path, round_idx: int) -> VerifierOutput:
         prover_data = json.loads(prover_json.read_text(encoding="utf-8"))
         context += f"\n=== Latest Prover Output ===\n{prover_data.get('progress_md','')}\n"
 
-    system_prompt = """You are a strict mathematical verifier and research manager.
+    system_prompt = load_prompt("verifier", """You are a strict mathematical verifier and research manager.
 
 Tasks:
 1) Audit correctness & rigor (identify gaps, unjustified steps, likely false statements)
@@ -223,17 +229,13 @@ Return only JSON with fields:
   "summary_md": "2–10 bullets: what works, what doesn't, and next steps",
   "verdict": "promising|uncertain|unlikely",
   "blocking_issues": []
-}
-"""
+}""")
 
-    user_message = f"""Audit the prover's latest round and prior context:
+    user_message = f"""Audit the prover's latest round and the context:
 
 {context}
 
-Constraints:
-- Be blunt but fair. Provide counterexamples or missing lemmas when possible.
-- Return ONLY valid JSON (no markdown fences).
-"""
+Return ONLY valid JSON."""
 
     response = client.chat.completions.create(
         model=MODEL_VERIFIER,
@@ -279,6 +281,51 @@ Constraints:
         data["feedback_md"] = "Feedback was too short; expand next round."
 
     return VerifierOutput(**data)
+
+def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
+    console.print(f"[bold cyan]Calling Summarizer (Round {round_idx})...[/bold cyan]")
+
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    # Load the two previous artifacts
+    prover_json = json.loads((round_dir / "prover.out.json").read_text(encoding="utf-8"))
+    verifier_json = json.loads((round_dir / "verifier.out.json").read_text(encoding="utf-8"))
+
+    context = f"""=== Prover (progress_md) ===
+{prover_json.get('progress_md','')}
+
+=== Verifier (summary_md) ===
+{verifier_json.get('summary_md','')}
+=== Verifier (verdict) ===
+{verifier_json.get('verdict','')}
+"""
+
+    system_prompt = load_prompt("summarizer", "You are a round summarizer. Return JSON.")
+
+    response = client.chat.completions.create(
+        model=MODEL_SUMMARIZER,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": context},
+        ],
+        temperature=0.2,
+        max_tokens=600,
+    )
+
+    try:
+        data = json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Summarizer JSON decode error: {e}[/red]")
+        # Fallback
+        data = {
+            "summary_md": "Summarizer failed to parse JSON",
+            "highlights": [],
+            "next_questions": []
+        }
+
+    data.setdefault("highlights", [])
+    data.setdefault("next_questions", [])
+    return SummarizerOutput(**data)
 
 def run_round(problem_dir: Path, round_idx: int):
     """Execute one round of the prover-verifier loop."""
@@ -339,6 +386,19 @@ def run_round(problem_dir: Path, round_idx: int):
     )
     (round_dir / "verifier.summary.md").write_text(
         verifier_output.summary_md,
+        encoding="utf-8"
+    )
+    
+    # Step 3: Call Summarizer
+    summarizer_output = call_summarizer(problem_dir, round_idx)
+    
+    # Save summarizer output
+    (round_dir / "summarizer.out.json").write_text(
+        json.dumps(summarizer_output.model_dump(), indent=2),
+        encoding="utf-8"
+    )
+    (round_dir / "summarizer.summary.md").write_text(
+        summarizer_output.summary_md,
         encoding="utf-8"
     )
     

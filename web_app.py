@@ -34,6 +34,24 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    /* Hide Streamlit toolbar, deploy button, viewer badge, hamburger */
+    div[data-testid="stToolbar"] { display: none !important; }
+    div[data-testid="stDecoration"] { display: none !important; }
+    div[data-testid="stStatusWidget"] { display: none !important; }
+    #MainMenu { visibility: hidden !important; }
+    header[data-testid="stHeader"] { display: none !important; }
+    
+    /* Scrollable fixed-height panes */
+    .pane { 
+        height: 430px; 
+        overflow-y: auto; 
+        padding: 0.75rem; 
+        border: 1px solid #ddd; 
+        border-radius: 8px; 
+        background: #f8f9fa;
+        font-family: monospace;
+    }
+    
     .problem-card {
         padding: 1rem;
         border-radius: 0.5rem;
@@ -192,6 +210,22 @@ class ProblemManager:
         
         return False
     
+    def clear_problem(self, problem_path: Path) -> bool:
+        """Stop & delete all runs and progress for this problem."""
+        self.stop_problem(problem_path)
+        runs = problem_path / "runs"
+        prog = problem_path / "progress.md"
+        try:
+            if runs.exists():
+                import shutil
+                shutil.rmtree(runs)
+            if prog.exists():
+                prog.unlink()
+            return True
+        except Exception as e:
+            print("clear_problem error:", e)
+            return False
+    
     def check_status(self, problem_path: Path) -> dict:
         """Check the status of a problem."""
         runner = self.get_or_create_runner(problem_path)
@@ -304,44 +338,10 @@ with st.sidebar:
     else:
         st.error("❌ No API Key Found")
         st.info("Add key to ~/.openai.env")
-    
-    # Global controls
-    st.subheader("Global Actions")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Refresh All"):
-            st.rerun()
-    
-    with col2:
-        if st.button("🛑 Stop All"):
-            for problem in st.session_state.manager.discover_problems():
-                st.session_state.manager.stop_problem(problem)
-            st.rerun()
-    
-    # Settings
-    st.subheader("Settings")
-    default_rounds = st.number_input(
-        "Rounds per Run",
-        min_value=1,
-        max_value=20,
-        value=3,
-        help="Number of rounds to run when starting a problem"
-    )
-    
-    auto_refresh = st.checkbox(
-        "Auto Refresh",
-        value=False,
-        help="Automatically refresh the dashboard every 10 seconds"
-    )
-    
-    if auto_refresh:
-        st.empty()
-        time.sleep(10)
-        st.rerun()
 
 # Main content area
 problems = st.session_state.manager.discover_problems()
+default_rounds = 3  # Default value since we removed it from sidebar
 
 if not problems:
     st.warning("No problems found in the `problems/` directory")
@@ -530,129 +530,71 @@ else:
             problem = st.session_state.selected_problem
             st.subheader(f"📋 {problem.name}")
             
-            # Navigation
-            col1, col2 = st.columns([1, 5])
-            with col1:
-                if st.button("← Back"):
-                    del st.session_state.selected_problem
-                    st.rerun()
+            # Controls row (Run more rounds / Stop / Clear all)
+            c1, c2, c3, spacer = st.columns([2,1,1,5])
+            more = c1.number_input("Rounds to run", min_value=1, max_value=50, value=1, step=1)
+            if c2.button("▶ Run more rounds"):
+                st.session_state.manager.start_problem(problem, rounds=int(more))
+                st.rerun()
             
-            # Load all rounds
+            # show Stop if running
+            status = st.session_state.manager.check_status(problem)
+            if status["status"] == "running":
+                if c3.button("⏹ Stop"):
+                    st.session_state.manager.stop_problem(problem)
+                    st.rerun()
+            else:
+                if c3.button("🧹 Clear all"):
+                    if st.session_state.manager.clear_problem(problem):
+                        st.success("Cleared.")
+                        time.sleep(1)
+                        st.rerun()
+            
+            # Round selector
             runs_dir = problem / "runs"
             if not runs_dir.exists():
-                st.warning("No runs available for this problem")
-            else:
-                rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
-                
-                if not rounds:
-                    st.warning("No rounds found")
-                else:
-                    # Round selector
-                    round_options = [r.name for r in rounds]
-                    selected_round_name = st.selectbox(
-                        "Select Round",
-                        round_options,
-                        index=len(round_options)-1
-                    )
-                    
-                    selected_round = runs_dir / selected_round_name
-                    
-                    # Display round content
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("#### 🎯 Verifier Summary")
-                        summary_file = selected_round / "verifier.summary.md"
-                        if summary_file.exists():
-                            st.markdown(summary_file.read_text(encoding="utf-8"))
-                        
-                        # Verdict and issues
-                        verifier_json = selected_round / "verifier.out.json"
-                        if verifier_json.exists():
-                            with open(verifier_json) as f:
-                                verifier_data = json.load(f)
-                            
-                            verdict = verifier_data.get("verdict", "unknown")
-                            st.markdown(f"**Verdict:** `{verdict}`")
-                            
-                            issues = verifier_data.get("blocking_issues", [])
-                            if issues:
-                                st.markdown("**Blocking Issues:**")
-                                for issue in issues:
-                                    st.write(f"• {issue}")
-                    
-                    with col2:
-                        st.markdown("#### 📝 Progress Added")
-                        progress_file = selected_round / "progress.appended.md"
-                        if progress_file.exists():
-                            st.markdown(progress_file.read_text(encoding="utf-8"))
-                    
-                    # Full conversation view
-                    st.markdown("---")
-                    st.markdown("#### 💬 Full Conversation")
-                    
-                    tab1, tab2, tab3 = st.tabs(["Prover Output", "Verifier Feedback", "Raw JSON"])
-                    
-                    with tab1:
-                        prover_json = selected_round / "prover.out.json"
-                        if prover_json.exists():
-                            with open(prover_json) as f:
-                                prover_data = json.load(f)
-                            
-                            st.markdown("**Progress Notes:**")
-                            st.markdown(prover_data.get("progress_md", ""))
-                            
-                            if prover_data.get("requests_for_more_materials"):
-                                st.markdown("**Material Requests:**")
-                                for req in prover_data["requests_for_more_materials"]:
-                                    st.write(f"• {req}")
-                            
-                            if prover_data.get("next_actions_for_prover"):
-                                st.markdown("**Next Actions:**")
-                                for action in prover_data["next_actions_for_prover"]:
-                                    st.write(f"• {action}")
-                    
-                    with tab2:
-                        feedback_file = selected_round / "verifier.feedback.md"
-                        if feedback_file.exists():
-                            st.markdown(feedback_file.read_text(encoding="utf-8"))
-                    
-                    with tab3:
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown("**Prover JSON:**")
-                            if prover_json.exists():
-                                with open(prover_json) as f:
-                                    st.json(json.load(f))
-                        
-                        with col2:
-                            st.markdown("**Verifier JSON:**")
-                            if verifier_json.exists():
-                                with open(verifier_json) as f:
-                                    st.json(json.load(f))
-                    
-                    # Download options
-                    st.markdown("---")
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        progress_full = problem / "progress.md"
-                        if progress_full.exists():
-                            st.download_button(
-                                "📥 Download Full Progress",
-                                progress_full.read_text(encoding="utf-8"),
-                                file_name=f"{problem.name}_progress.md",
-                                mime="text/markdown"
-                            )
-                    
-                    with col2:
-                        if summary_file.exists():
-                            st.download_button(
-                                "📥 Download Summary",
-                                summary_file.read_text(encoding="utf-8"),
-                                file_name=f"{problem.name}_{selected_round_name}_summary.md",
-                                mime="text/markdown"
-                            )
+                st.warning("No runs yet for this problem.")
+                st.stop()
+            
+            rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
+            if not rounds:
+                st.warning("No rounds found.")
+                st.stop()
+            
+            round_options = [r.name for r in rounds]
+            sel_round_name = st.selectbox("Select round", round_options, index=len(round_options)-1)
+            sel = runs_dir / sel_round_name
+            
+            # Load files
+            pj = sel / "prover.out.json"
+            vj = sel / "verifier.out.json"
+            vf = sel / "verifier.feedback.md"
+            vs = sel / "verifier.summary.md"
+            sm = sel / "summarizer.summary.md"
+            
+            prover_md = ""
+            if pj.exists():
+                import json as _json
+                prover_md = _json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
+            
+            verifier_md = vf.read_text(encoding="utf-8") if vf.exists() else ""
+            summary_md  = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
+            
+            # Three column layout with fixed height scrollable panes
+            import html
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("**🧪 Prover**")
+                content = html.escape(prover_md).replace('\n', '<br>')
+                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+            with col2:
+                st.markdown("**🔎 Verifier**")
+                content = html.escape(verifier_md).replace('\n', '<br>')
+                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+            with col3:
+                st.markdown("**🧭 Summary (this round)**")
+                content = html.escape(summary_md).replace('\n', '<br>')
+                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")

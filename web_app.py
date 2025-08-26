@@ -472,18 +472,14 @@ else:
             
             # Model selection dropdown
             model_options = [
-                "gpt-4o-mini",
-                "gpt-4o", 
-                "gpt-4-turbo",
-                "gpt-4",
-                "o1-preview",
-                "o1-mini"
+                "gpt-4o-mini",  # Small model for testing
+                "o1-preview"    # GPT-5 Pro (thinking model)
             ]
             selected_model = c2.selectbox(
                 "Model",
                 model_options,
                 index=0,  # default to gpt-4o-mini
-                help="Model for prover, verifier, summarizer"
+                help="gpt-4o-mini: Fast & cheap for testing | o1-preview: Thinking model for serious work"
             )
             
             if c3.button("▶ Run more rounds"):

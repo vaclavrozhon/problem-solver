@@ -353,9 +353,8 @@ if not problems:
     """)
 else:
     # Create tabs for different views
-    tab_overview, tab_problems, tab_details = st.tabs([
+    tab_overview, tab_details = st.tabs([
         f"📊 Overview ({len(problems)} problems)",
-        "🎯 Problem Control",
         "📝 Detailed View"
     ])
     
@@ -399,128 +398,27 @@ else:
             })
         
         df = pd.DataFrame(status_data)
-        st.dataframe(
+        
+        # Make table clickable
+        st.markdown("Click on a problem row to view details")
+        selected = st.dataframe(
             df,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row"
         )
-    
-    # Problem Control Tab
-    with tab_problems:
-        st.subheader("Problem Management")
         
-        # Create a grid of problem cards
-        for i, problem in enumerate(problems):
-            stats = get_problem_stats(problem)
-            status = st.session_state.manager.check_status(problem)
-            
-            with st.container():
-                col1, col2, col3 = st.columns([3, 1, 1])
-                
-                with col1:
-                    # Problem info
-                    st.markdown(f"### 📁 {problem.name}")
-                    
-                    # Status badge
-                    status_color = {
-                        "running": "🟢",
-                        "stopped": "⚫",
-                        "error": "🔴"
-                    }
-                    st.write(f"{status_color.get(status['status'], '⚫')} **Status:** {status['status']}")
-                    
-                    # Stats
-                    if stats["total_rounds"] > 0:
-                        st.write(f"**Rounds:** {stats['total_rounds']} | **Last:** {format_time_ago(stats['last_modified'])}")
-                        if status["latest_verdict"]:
-                            verdict_class = f"verdict-{status['latest_verdict']}"
-                            st.markdown(
-                                f"**Verdict:** <span class='{verdict_class}'>{status['latest_verdict']}</span>",
-                                unsafe_allow_html=True
-                            )
-                    else:
-                        st.write("*No runs yet*")
-                
-                with col2:
-                    # Control buttons
-                    if status["status"] == "running":
-                        if st.button(f"⏹️ Stop", key=f"stop_{i}"):
-                            st.session_state.manager.stop_problem(problem)
-                            st.rerun()
-                    else:
-                        if st.button(f"▶️ Start", key=f"start_{i}"):
-                            st.session_state.manager.start_problem(problem, default_rounds)
-                            st.rerun()
-                
-                with col3:
-                    # View button
-                    if st.button(f"👁️ View", key=f"view_{i}"):
-                        st.session_state.selected_problem = problem
-                        st.success("Problem selected! Go to 'Detailed View' tab to see details.")
-                        st.rerun()
-                
-                # Latest summary (collapsible)
-                if status["latest_summary"]:
-                    with st.expander("Latest Summary", expanded=False):
-                        st.markdown(status["latest_summary"])
-                
-                # Error message if any
-                if status["error_message"]:
-                    st.error(f"Error: {status['error_message']}")
-                
-                st.markdown("---")
-
-        # --- Inline details right below the grid, if a problem was selected ---
-        if 'selected_problem' in st.session_state:
-            problem = st.session_state.selected_problem
-            st.markdown("## 🔎 Details")
-            runs_dir = problem / "runs"
-            if not runs_dir.exists():
-                st.info("No runs available yet for this problem. Click ▶️ Start.")
-            else:
-                rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
-                if not rounds:
-                    st.info("No rounds found yet.")
-                else:
-                    latest = rounds[-1]
-                    st.markdown(f"**Latest round:** `{latest.name}`")
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("#### 🎯 Verifier Summary")
-                        sf = latest / "verifier.summary.md"
-                        if sf.exists():
-                            st.markdown(sf.read_text(encoding="utf-8"))
-                        vj = latest / "verifier.out.json"
-                        if vj.exists():
-                            import json as _json
-                            data = _json.loads(vj.read_text(encoding="utf-8"))
-                            st.write({"verdict": data.get("verdict"), "blocking_issues": data.get("blocking_issues", [])})
-
-                    with col2:
-                        st.markdown("#### 📝 Progress Added")
-                        pf = latest / "progress.appended.md"
-                        if pf.exists():
-                            st.markdown(pf.read_text(encoding="utf-8"))
-
-                    st.markdown("#### 💬 Full Conversation (latest)")
-                    tab1, tab2 = st.tabs(["Prover Output (JSON)", "Verifier Feedback"])
-                    with tab1:
-                        pj = latest / "prover.out.json"
-                        if pj.exists():
-                            import json as _json
-                            st.json(_json.loads(pj.read_text(encoding="utf-8")))
-                    with tab2:
-                        vf = latest / "verifier.feedback.md"
-                        if vf.exists():
-                            st.markdown(vf.read_text(encoding="utf-8"))
-
-            # Optional: quick access to logs
-            runner = st.session_state.manager.get_or_create_runner(problem)
-            if runner.log_path and Path(runner.log_path).exists():
-                with st.expander("📄 Orchestrator Log (tail)"):
-                    tail = Path(runner.log_path).read_text(encoding="utf-8")[-4000:]
-                    st.code(tail)
+        # Handle row selection
+        if selected and selected.selection.rows:
+            selected_idx = selected.selection.rows[0]
+            st.session_state.selected_problem = problems[selected_idx]
+            st.session_state.switch_to_details = True
+            st.rerun()
+    
+    # Handle automatic switching to details tab when problem is selected
+    if 'switch_to_details' in st.session_state and st.session_state.switch_to_details:
+        st.session_state.switch_to_details = False
     
     # Detailed View Tab
     with tab_details:
@@ -585,16 +483,36 @@ else:
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown("**🧪 Prover**")
-                content = html.escape(prover_md).replace('\n', '<br>')
-                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                if prover_md:
+                    content = html.escape(prover_md).replace('\n', '<br>')
+                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div class='pane'>No prover output yet. Check if the model is running or if there was an API error.</div>", unsafe_allow_html=True)
             with col2:
                 st.markdown("**🔎 Verifier**")
-                content = html.escape(verifier_md).replace('\n', '<br>')
-                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                if verifier_md:
+                    content = html.escape(verifier_md).replace('\n', '<br>')
+                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div class='pane'>No verifier output yet. The verifier runs after the prover completes.</div>", unsafe_allow_html=True)
             with col3:
                 st.markdown("**🧭 Summary (this round)**")
-                content = html.escape(summary_md).replace('\n', '<br>')
-                st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                if summary_md:
+                    content = html.escape(summary_md).replace('\n', '<br>')
+                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div class='pane'>No summary yet. The summarizer runs after the verifier completes.</div>", unsafe_allow_html=True)
+            
+            # Show status message if process is running
+            if status["status"] == "running":
+                st.info("🔄 Process is currently running. The page will update when complete. You may need to refresh or wait a moment.")
+            
+            # Show log file if exists
+            log_file = runs_dir / "orchestrator.log"
+            if log_file.exists():
+                with st.expander("📋 View orchestrator log"):
+                    log_content = log_file.read_text(encoding="utf-8")
+                    st.text(log_content[-2000:] if len(log_content) > 2000 else log_content)
 
 # Footer
 st.markdown("---")

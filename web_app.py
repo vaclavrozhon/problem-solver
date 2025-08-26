@@ -19,9 +19,43 @@ import sys
 from dataclasses import dataclass, field
 import hashlib
 import pandas as pd
+from openai import OpenAI
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
+
+# --- Model presets ---
+MODEL_PRESETS = {
+    "gpt5": {
+        "label": "gpt5 (default)",
+        "prover": "o1-preview",
+        "verifier": "o1-preview", 
+        "summarizer": "gpt-4o-mini",
+    },
+    "fast": {
+        "label": "fast (test)",
+        "prover": "gpt-4o-mini",
+        "verifier": "gpt-4o-mini",
+        "summarizer": "gpt-4o-mini",
+    },
+}
+
+# small connectivity check
+@st.cache_data(show_spinner=False, ttl=60)
+def ping_model(model_name: str) -> dict:
+    try:
+        t0 = time.perf_counter()
+        client = OpenAI()
+        # 1-token, cheapest ping
+        _ = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=1,
+        )
+        dt = time.perf_counter() - t0
+        return {"ok": True, "latency_s": round(dt, 3)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # Page configuration
 st.set_page_config(
@@ -140,7 +174,7 @@ class ProblemManager:
             self.runners[problem_id] = ProblemRunner(problem_path)
         return self.runners[problem_id]
     
-    def start_problem(self, problem_path: Path, rounds: int = 1, model: str = "gpt-4o-mini") -> bool:
+    def start_problem(self, problem_path: Path, rounds: int = 1, preset: str = "gpt5") -> bool:
         """Start running a problem."""
         runner = self.get_or_create_runner(problem_path)
         
@@ -156,7 +190,7 @@ class ProblemManager:
                 if existing_rounds:
                     start_round = len(existing_rounds) + 1
             
-            # Start the orchestrator process with model selection
+            # Start the orchestrator process with model preset
             cmd = [
                 sys.executable, "orchestrator.py",
                 str(problem_path),
@@ -164,11 +198,12 @@ class ProblemManager:
                 "--start-round", str(start_round)
             ]
             
-            # Set model environment variables
+            # Set model environment variables from preset
             env = os.environ.copy()
-            env["OPENAI_MODEL_PROVER"] = model
-            env["OPENAI_MODEL_VERIFIER"] = model
-            env["OPENAI_MODEL_SUMMARIZER"] = model
+            preset_cfg = MODEL_PRESETS.get(preset, MODEL_PRESETS["gpt5"])
+            env["OPENAI_MODEL_PROVER"] = preset_cfg["prover"]
+            env["OPENAI_MODEL_VERIFIER"] = preset_cfg["verifier"]
+            env["OPENAI_MODEL_SUMMARIZER"] = preset_cfg["summarizer"]
             
             # Ensure runs directory exists for logs
             runs_dir = problem_path / "runs"
@@ -465,28 +500,27 @@ else:
             problem = st.session_state.selected_problem
             st.subheader(f"📋 {problem.name}")
             
-            # Controls row (Run more rounds / Stop / Clear all)
-            c1, c2, c3, c4, spacer = st.columns([1.5, 2, 1, 1, 3])
+            # Controls row (Run more rounds / preset / Stop / Clear all)
+            c1, c2, c3, c4, spacer = st.columns([1.2, 2.2, 1, 1, 4])
             
             more = c1.number_input("Rounds to run", min_value=1, max_value=50, value=1, step=1)
             
-            # Model selection dropdown
-            model_options = [
-                "gpt-4o-mini",  # Small model for testing
-                "o1-preview"    # GPT-5 Pro (thinking model)
-            ]
-            selected_model = c2.selectbox(
-                "Model",
-                model_options,
-                index=0,  # default to gpt-4o-mini
-                help="gpt-4o-mini: Fast & cheap for testing | o1-preview: Thinking model for serious work"
-            )
+            preset_labels = {k: v["label"] for k, v in MODEL_PRESETS.items()}
+            preset_keys = list(MODEL_PRESETS.keys())
+            default_idx = preset_keys.index("gpt5")
+            chosen_preset = c2.selectbox("Model preset", preset_keys, index=default_idx, format_func=lambda k: preset_labels[k])
+            
+            # Quick connectivity ping to the Prover model for this preset
+            ping = ping_model(MODEL_PRESETS[chosen_preset]["prover"])
+            if ping["ok"]:
+                c2.markdown(f"✅ Connected ({ping['latency_s']}s)")
+            else:
+                c2.markdown(f"❌ Connect error")
             
             if c3.button("▶ Run more rounds"):
-                st.session_state.manager.start_problem(problem, rounds=int(more), model=selected_model)
+                st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset)
                 st.rerun()
             
-            # show Stop if running
             status = st.session_state.manager.check_status(problem)
             if status["status"] == "running":
                 if c4.button("⏹ Stop"):
@@ -496,69 +530,94 @@ else:
                 if c4.button("🧹 Clear all"):
                     if st.session_state.manager.clear_problem(problem):
                         st.success("Cleared.")
-                        time.sleep(1)
-                        st.rerun()
+                        time.sleep(1); st.rerun()
             
-            # Round selector
+            # Current phase & since when
+            status_file = problem / "runs" / "live_status.json"
+            if status_file.exists():
+                live = json.loads(status_file.read_text(encoding="utf-8"))
+                phase = live.get("phase", "idle")
+                ts = live.get("ts")
+                elapsed = ""
+                try:
+                    if ts:
+                        dt = datetime.now() - datetime.fromisoformat(ts.replace("Z",""))
+                        elapsed = f" (elapsed {dt.seconds}s)"
+                except: pass
+                st.info(f"🧠 Current phase: **{phase}**{elapsed}")
+            
+            # Files sent to Prover (for latest round)
             runs_dir = problem / "runs"
-            if not runs_dir.exists():
-                st.warning("No runs yet for this problem.")
-                st.stop()
+            rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()]) if runs_dir.exists() else []
+            if rounds:
+                latest = rounds[-1]
+                ctxf = latest / "context.files.json"
+                if ctxf.exists():
+                    files = json.loads(ctxf.read_text(encoding="utf-8"))
+                    with st.expander("📦 Files included for Prover (latest round)"):
+                        for f in files:
+                            st.write("•", f)
             
-            rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
+            # ===== ALL ROUNDS (newest first) =====
             if not rounds:
-                st.warning("No rounds found.")
-                st.stop()
+                st.warning("No runs yet for this problem."); st.stop()
             
-            round_options = [r.name for r in rounds]
-            sel_round_name = st.selectbox("Select round", round_options, index=len(round_options)-1)
-            sel = runs_dir / sel_round_name
+            # CSS for panes already defined at top in your file (class 'pane').
+            st.markdown("### 🧪 Prover ↔ Verifier ↔ Summarizer — All Rounds")
             
-            # Load files
-            pj = sel / "prover.out.json"
-            vj = sel / "verifier.out.json"
-            vf = sel / "verifier.feedback.md"
-            vs = sel / "verifier.summary.md"
-            sm = sel / "summarizer.summary.md"
+            for rd in reversed(rounds):
+                colh1, colh2, colh3, colh4 = st.columns([2,1,1,2])
+                with colh1:
+                    st.markdown(f"**{rd.name}**")
+                # verdict + timings (if available)
+                verdict = None
+                vj = rd / "verifier.out.json"
+                if vj.exists():
+                    try:
+                        verdict = json.loads(vj.read_text(encoding="utf-8")).get("verdict")
+                    except: pass
+                if verdict:
+                    with colh2:
+                        emoji = {"promising":"✅","uncertain":"⚠️","unlikely":"❌"}.get(verdict,"—")
+                        st.markdown(f"**Verdict:** {emoji} {verdict}")
             
-            prover_md = ""
-            if pj.exists():
-                import json as _json
-                prover_md = _json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
+                timings = {}
+                tj = rd / "timings.json"
+                if tj.exists():
+                    timings = json.loads(tj.read_text(encoding="utf-8"))
+                with colh3:
+                    if timings:
+                        st.markdown("**Time (s):** " + ", ".join([f"{k[0].upper()}:{v['duration_s']}" for k,v in timings.items()]))
             
-            verifier_md = vf.read_text(encoding="utf-8") if vf.exists() else ""
-            summary_md  = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
+                # three scrollable panes
+                pj = rd / "prover.out.json"
+                vf = rd / "verifier.feedback.md"
+                sm = rd / "summarizer.summary.md"
+                vs = rd / "verifier.summary.md"
             
-            # Three column layout with fixed height scrollable panes
-            import html
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown("**🧪 Prover**")
-                if prover_md:
-                    content = html.escape(prover_md).replace('\n', '<br>')
-                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div class='pane'>No prover output yet. Check if the model is running or if there was an API error.</div>", unsafe_allow_html=True)
-            with col2:
-                st.markdown("**🔎 Verifier**")
-                if verifier_md:
-                    content = html.escape(verifier_md).replace('\n', '<br>')
-                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div class='pane'>No verifier output yet. The verifier runs after the prover completes.</div>", unsafe_allow_html=True)
-            with col3:
-                st.markdown("**🧭 Summary (this round)**")
-                if summary_md:
-                    content = html.escape(summary_md).replace('\n', '<br>')
-                    st.markdown(f"<div class='pane'>{content}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div class='pane'>No summary yet. The summarizer runs after the verifier completes.</div>", unsafe_allow_html=True)
+                prose = ""
+                if pj.exists():
+                    try:
+                        prose = json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
+                    except: pass
+                vtxt = vf.read_text(encoding="utf-8") if vf.exists() else ""
+                stxt = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
             
-            # Show status message if process is running
-            if status["status"] == "running":
-                st.info("🔄 Process is currently running. The page will update when complete. You may need to refresh or wait a moment.")
+                import html as _html
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown("**Prover**")
+                    st.markdown(f"<div class='pane'>{_html.escape(prose).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                with col2:
+                    st.markdown("**Verifier**")
+                    st.markdown(f"<div class='pane'>{_html.escape(vtxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                with col3:
+                    st.markdown("**Summary**")
+                    st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
             
-            # Show log file if exists
+                st.markdown("---")
+            
+            # Show log file if exists  
             log_file = runs_dir / "orchestrator.log"
             if log_file.exists():
                 with st.expander("📋 View orchestrator log"):

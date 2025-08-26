@@ -140,7 +140,7 @@ class ProblemManager:
             self.runners[problem_id] = ProblemRunner(problem_path)
         return self.runners[problem_id]
     
-    def start_problem(self, problem_path: Path, rounds: int = 1) -> bool:
+    def start_problem(self, problem_path: Path, rounds: int = 1, model: str = "gpt-4o-mini") -> bool:
         """Start running a problem."""
         runner = self.get_or_create_runner(problem_path)
         
@@ -156,13 +156,19 @@ class ProblemManager:
                 if existing_rounds:
                     start_round = len(existing_rounds) + 1
             
-            # Start the orchestrator process
+            # Start the orchestrator process with model selection
             cmd = [
                 sys.executable, "orchestrator.py",
                 str(problem_path),
                 "--rounds", str(rounds),
                 "--start-round", str(start_round)
             ]
+            
+            # Set model environment variables
+            env = os.environ.copy()
+            env["OPENAI_MODEL_PROVER"] = model
+            env["OPENAI_MODEL_VERIFIER"] = model
+            env["OPENAI_MODEL_SUMMARIZER"] = model
             
             # Ensure runs directory exists for logs
             runs_dir = problem_path / "runs"
@@ -177,7 +183,7 @@ class ProblemManager:
                 stdout=log_fp,  # write to file, not PIPE
                 stderr=log_fp,
                 text=True,
-                env=os.environ.copy(),
+                env=env,  # use updated environment with model settings
                 cwd=str(Path(__file__).parent)  # ensure orchestrator.py is found
             )
             
@@ -338,6 +344,27 @@ with st.sidebar:
     else:
         st.error("❌ No API Key Found")
         st.info("Add key to ~/.openai.env")
+    
+    # Model selection
+    st.subheader("Model Configuration")
+    model_options = [
+        "gpt-4o-mini",
+        "gpt-4o", 
+        "gpt-4-turbo",
+        "gpt-4",
+        "o1-preview",
+        "o1-mini"
+    ]
+    
+    selected_model = st.selectbox(
+        "Select Model",
+        model_options,
+        index=0,  # default to gpt-4o-mini
+        help="Model used for prover, verifier, and summarizer"
+    )
+    
+    # Store in session state for orchestrator to use
+    st.session_state.selected_model = selected_model
 
 # Main content area
 problems = st.session_state.manager.discover_problems()
@@ -352,14 +379,33 @@ if not problems:
     3. Optionally add papers in the same directory
     """)
 else:
-    # Create tabs for different views
-    tab_overview, tab_details = st.tabs([
-        f"📊 Overview ({len(problems)} problems)",
-        "📝 Detailed View"
-    ])
+    # Initialize active tab
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 'overview'
     
-    # Overview Tab
-    with tab_overview:
+    # Create tabs for different views
+    tab_names = [f"📊 Overview ({len(problems)} problems)", "📝 Detailed View"]
+    if st.session_state.active_tab == 'detailed':
+        selected_tab_idx = 1
+    else:
+        selected_tab_idx = 0
+        
+    # Use columns to simulate tab behavior with selection
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(tab_names[0], use_container_width=True, type="primary" if selected_tab_idx==0 else "secondary"):
+            st.session_state.active_tab = 'overview'
+            st.rerun()
+    with col2:
+        if st.button(tab_names[1], use_container_width=True, type="primary" if selected_tab_idx==1 else "secondary"):
+            st.session_state.active_tab = 'detailed'
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Show content based on active tab
+    if st.session_state.active_tab == 'overview':
+        # Overview Tab content
         # Summary metrics
         col1, col2, col3, col4 = st.columns(4)
         
@@ -413,15 +459,13 @@ else:
         if selected and selected.selection.rows:
             selected_idx = selected.selection.rows[0]
             st.session_state.selected_problem = problems[selected_idx]
-            st.session_state.switch_to_details = True
+            st.session_state.active_tab = "detailed"
+            st.success(f"Selected {problems[selected_idx].name} - switching to Detailed View...")
+            time.sleep(1)
             st.rerun()
     
-    # Handle automatic switching to details tab when problem is selected
-    if 'switch_to_details' in st.session_state and st.session_state.switch_to_details:
-        st.session_state.switch_to_details = False
-    
-    # Detailed View Tab
-    with tab_details:
+    elif st.session_state.active_tab == 'detailed':
+        # Detailed View Tab content
         if 'selected_problem' not in st.session_state:
             st.info("Select a problem from the Problem Control tab to view details")
         else:
@@ -432,7 +476,8 @@ else:
             c1, c2, c3, spacer = st.columns([2,1,1,5])
             more = c1.number_input("Rounds to run", min_value=1, max_value=50, value=1, step=1)
             if c2.button("▶ Run more rounds"):
-                st.session_state.manager.start_problem(problem, rounds=int(more))
+                selected_model = getattr(st.session_state, 'selected_model', 'gpt-4o-mini')
+                st.session_state.manager.start_problem(problem, rounds=int(more), model=selected_model)
                 st.rerun()
             
             # show Stop if running

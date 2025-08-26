@@ -1,4 +1,6 @@
-- The prover's work on improving Dvořák's 3/8 bound lacks rigorous proof and detailed analysis.
-- Claims about Dvořák's method, expander vs. sparse-cut dichotomy, and $Q_3$ density improvement are interesting but speculative.
-- Toy counterexamples provided are a good start but need systematic exploration.
-- Proposed next steps are appropriate but require a more structured and empirical approach.
+• Claims present interesting approaches but lack rigorous justification.
+• Conductance claim needs a stronger connection to block size.
+• Q3 density claim assumes uniformity without addressing specific colorings.
+• Local surgery claim requires detailed combinatorial arguments.
+• Fourier/junta stability needs clearer connections to switch reduction.
+• Refined random-geodesic coupling is speculative and needs empirical validation.

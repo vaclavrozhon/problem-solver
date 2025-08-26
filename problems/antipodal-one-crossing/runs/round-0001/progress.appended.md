@@ -1,37 +1,31 @@
-## Round 0001 — 2025-08-25T13:34:37.783920Z
+## Round 0001 — 2025-08-26T15:35:35.735033Z
+- Explore the expander vs. sparse-cut dichotomy at block scale.
+  - **Claim**: If a color occupies at least an $ho$-fraction of each $rac{1}{	heta}$ of the blocks, then that color has conductance $	ext{Ω}(ho)$ in the whole cube.
+  - **Why useful**: This lemma can help in establishing lower bounds on the number of switches in biased blocks.
+  - **How it can fail**: If the blocks are too small, the conductance may not hold.
+  - **Counterexample attempt**: Consider a coloring where each block is monochromatic but the overall cube has a balanced coloring.
 
-To approach the problem of improving Dvořák's 3/8 bound on color changes in the $n$-cube, we start by examining the possible approaches and technical ideas provided. Given the complexity of the problem, an incremental approach focusing on understanding and potentially extending these ideas seems most prudent. Here's a mini-plan for initial exploration:
+- Investigate the $Q_3$ density improvement over $1/2$.
+  - **Claim**: The fraction of good $Q_3$’s exceeds $1/2+eta$ for some absolute $eta>0$.
+  - **Why useful**: This would improve the expected savings, pushing the constant below $3/8$.
+  - **How it can fail**: If the coloring allows for many bad $Q_3$ configurations that dominate.
+  - **Counterexample attempt**: Construct a coloring that maximizes bad $Q_3$ configurations while keeping the overall density at $1/2$.
 
-- **Review and understand Dvořák's method** for achieving the $(3/8+o(1))n$ bound through random geodesic and $Q_3$-patching arguments.
-- **Examine the expander vs. sparse-cut dichotomy** at block scale, particularly focusing on the deliverable sublemma regarding color conductance in the cube.
-- **Investigate the potential for a $Q_3$ density improvement** over 1/2, which could directly impact the average number of switches needed.
+- Analyze local surgery with better defect-to-switch conversion.
+  - **Claim**: The number of switches is $	ext{≤} (2+o(1))ho n$.
+  - **Why useful**: This provides a direct method to reduce switches in nearly monochromatic segments.
+  - **How it can fail**: If defect clusters overlap significantly, leading to higher switch counts.
+  - **Counterexample attempt**: Create a segment with a high density of defects that do not cluster disjointly.
 
-### Understanding Dvořák's Method
+- Explore Fourier/junta stability for sparse colored boundaries.
+  - **Claim**: Most boundary measure concentrates on a small set of coordinates, leading to a long single-color burst.
+  - **Why useful**: This can yield a reduction in switches due to concentration effects.
+  - **How it can fail**: If the boundary does not concentrate effectively, leading to a high switch count.
+  - **Counterexample attempt**: Construct a scenario where the boundary is evenly distributed across many coordinates.
 
-**Claim:** Dvořák's method relies on analyzing random geodesics and identifying 'good' $Q_3$ subcubes for local color-change savings.
-
-*How it can fail:* If the distribution of 'good' $Q_3$ subcubes is not sufficiently uniform or if the savings are not significant enough, the method may not yield the desired bound improvement.
-
-*Toy counterexample:* Consider a coloring where 'good' $Q_3$ subcubes are clustered in a small region of the $n$-cube, potentially reducing the effectiveness of random geodesics in finding them.
-
-### Expander vs. Sparse-Cut Dichotomy
-
-**Claim:** In the case of many biased blocks, a strategy involving random starts and orderings within each block can lead to a significant reduction in the number of switches needed.
-
-*How it can fail:* If the bias in blocks is not as pronounced as assumed, or if the clustering of defects does not work as efficiently, the savings in switches may not be realized.
-
-*Toy counterexample:* A scenario where biases in blocks are minimal, making it difficult to achieve the expected reduction in switches through this strategy.
-
-### $Q_3$ Density Improvement
-
-**Claim:** Increasing the density of 'good' $Q_3$ subcubes beyond 1/2 could provide a direct way to reduce the average number of switches required.
-
-*How it can fail:* If 'good' $Q_3$ subcubes inherently cannot exceed a certain density due to structural constraints, this approach may not be viable.
-
-*Toy counterexample:* A 2-coloring scheme that maximizes the number of 'bad' $Q_3$ subcubes, challenging the assumption that a density improvement is possible.
-
-**Next Steps:**
-- Further explore the dichotomy between expander and sparse-cut cases at block scale, particularly focusing on the deliverable sublemma.
-- Develop a more detailed understanding of the potential for a $Q_3$ density improvement and how it might be achieved.
-- Consider small cases and examples to test the viability of these approaches.
+- Consider refined random-geodesic coupling.
+  - **Claim**: Bias the distribution toward orders that maximize overlap with biased blocks.
+  - **Why useful**: This can increase expected savings per step, leading to a reduction in total switches.
+  - **How it can fail**: If the bias does not significantly impact the overall structure of the path.
+  - **Counterexample attempt**: Analyze a case where uniform distribution yields better results than biased orders.
 

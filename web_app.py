@@ -364,6 +364,31 @@ def format_time_ago(dt: Optional[datetime]) -> str:
     else:
         return "Just now"
 
+def append_user_feedback(problem: Path, round_dir: Path, feedback_text: str):
+    """Persist user's feedback and ensure it is visible in future rounds."""
+    feedback_text = feedback_text.strip()
+    if not feedback_text:
+        return False
+
+    # 1) Save per-round user feedback file
+    uf = round_dir / "user.feedback.md"
+    stamp = datetime.now().isoformat() + "Z"
+    block = f"**User additional feedback ({stamp})**\n\n{feedback_text}\n"
+    existing = uf.read_text(encoding="utf-8") if uf.exists() else ""
+    uf.write_text(existing + ("" if existing.endswith("\n") else "\n") + block + "\n", encoding="utf-8")
+
+    # 2) Append into the round's summarizer summary (so the 'Summary' pane shows it)
+    sm = round_dir / "summarizer.summary.md"
+    base = sm.read_text(encoding="utf-8") if sm.exists() else ""
+    sm.write_text(base + ("\n\n---\n" if base else "") + block, encoding="utf-8")
+
+    # 3) Append into aggregated summary.md at problem root (so models see it next rounds)
+    agg = problem / "summary.md"
+    prev = agg.read_text(encoding="utf-8") if agg.exists() else ""
+    header = f"## {round_dir.name} — user's additional feedback — {stamp}\n"
+    agg.write_text(prev + ("" if prev.endswith("\n") else "\n") + header + feedback_text + "\n\n", encoding="utf-8")
+    return True
+
 # --------------------------
 # Main Interface
 # --------------------------
@@ -614,6 +639,31 @@ else:
                 with col3:
                     st.markdown("**Summary**")
                     st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+            
+                # --- Add feedback (human-in-the-loop) ---
+                st.markdown("#### ✍️ Add feedback")
+                fb_key = f"fb_{problem.name}_{rd.name}"
+                if st.button("➕ Add feedback", key=f"btn_{fb_key}"):
+                    st.session_state[f"show_{fb_key}"] = True
+
+                if st.session_state.get(f"show_{fb_key}"):
+                    fb_text = st.text_area("Write your feedback (will be appended to the round's summary):",
+                                           key=f"txt_{fb_key}", height=160)
+                    b1, b2 = st.columns([1,1])
+                    with b1:
+                        if st.button("OK", key=f"ok_{fb_key}"):
+                            if fb_text.strip():
+                                ok = append_user_feedback(problem, rd, fb_text)
+                                if ok:
+                                    st.success("Feedback added to the summary.")
+                                    st.session_state.pop(f"show_{fb_key}", None)
+                                    st.rerun()
+                            else:
+                                st.warning("Feedback is empty.")
+                    with b2:
+                        if st.button("Cancel", key=f"cancel_{fb_key}"):
+                            st.session_state.pop(f"show_{fb_key}", None)
+                            st.rerun()
             
                 st.markdown("---")
             

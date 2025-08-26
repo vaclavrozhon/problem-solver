@@ -197,6 +197,14 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
             content = "...\n" + content[-50000:]
         context_parts.append(f"=== progress.md ===\n{content}\n")
     
+    # Aggregated summaries (model + user feedback)
+    summary_path = problem_dir / "summary.md"
+    if summary_path.exists():
+        content = summary_path.read_text(encoding='utf-8')
+        if len(content) > 30000:
+            content = "...\n" + content[-30000:]
+        context_parts.append(f"=== summary.md ===\n{content}\n")
+    
     # Papers with PDF text extraction
     papers_dir = problem_dir / "papers"
     if papers_dir.exists() and include_pdfs:
@@ -476,6 +484,14 @@ def run_round(problem_dir: Path, round_idx: int):
 
     (round_dir / "summarizer.out.json").write_text(json.dumps(summarizer_output.model_dump(), indent=2), encoding="utf-8")
     (round_dir / "summarizer.summary.md").write_text(summarizer_output.summary_md, encoding="utf-8")
+
+    # Append model's summary for this round to aggregated summary.md
+    agg_summary = problem_dir / "summary.md"
+    prev = agg_summary.read_text(encoding="utf-8") if agg_summary.exists() else ""
+    hdr = f"## {round_dir.name} — model summary — {datetime.now().isoformat()}Z\n"
+    agg_summary.write_text(prev + ("" if prev.endswith("\n") else "\n") + hdr +
+                           summarizer_output.summary_md.strip() + "\n\n",
+                           encoding="utf-8")
 
     # Persist timings for the UI and mark idle
     (round_dir / "timings.json").write_text(json.dumps(timings, indent=2), encoding="utf-8")

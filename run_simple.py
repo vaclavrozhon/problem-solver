@@ -38,7 +38,7 @@ def main():
     ensure_env()
     
     # Create venv for dependencies (in root)
-    venv = REPO / ".venv"
+    venv = REPO / "venv"
     if not venv.exists():
         print("🐍 Creating virtual environment...")
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)

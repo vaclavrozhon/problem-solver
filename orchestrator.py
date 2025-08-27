@@ -8,7 +8,7 @@ import os
 import json
 import re
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict, Any, Optional
 import argparse
 import sys
@@ -16,6 +16,7 @@ import time
 import subprocess
 
 from openai import OpenAI
+import openai as _openai
 from pydantic import BaseModel, Field
 from rich.console import Console
 
@@ -36,9 +37,128 @@ MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-4o-mini")
 
 PROMPTS_DIR = Path("prompts")
 
-def load_prompt(name: str, default: str) -> str:
+def load_prompt(name: str) -> str:
     p = PROMPTS_DIR / f"{name}.md"
-    return p.read_text(encoding="utf-8") if p.exists() else default
+    return p.read_text(encoding="utf-8")
+
+def _enforce_no_additional_properties(schema_obj: dict) -> dict:
+    """Ensure every object node has additionalProperties: False, in place."""
+    def _visit(node: object):
+        if isinstance(node, dict):
+            node_type = node.get("type")
+            if node_type == "object" and "additionalProperties" not in node:
+                node["additionalProperties"] = False
+            for value in list(node.values()):
+                _visit(value)
+        elif isinstance(node, list):
+            for item in node:
+                _visit(item)
+    _visit(schema_obj)
+    return schema_obj
+
+def _enforce_required_all_properties(schema_obj: dict) -> dict:
+    """Ensure every object node lists all of its properties in 'required'."""
+    def _visit(node: object):
+        if isinstance(node, dict):
+            node_type = node.get("type")
+            if node_type == "object" and isinstance(node.get("properties"), dict):
+                props = list(node["properties"].keys())
+                node["required"] = props
+            for value in list(node.values()):
+                _visit(value)
+        elif isinstance(node, list):
+            for item in node:
+                _visit(item)
+    _visit(schema_obj)
+    return schema_obj
+
+def _normalize_schema_strict(schema_obj: dict) -> dict:
+    """Apply strict-mode normalizations required by Responses API."""
+    _enforce_no_additional_properties(schema_obj)
+    _enforce_required_all_properties(schema_obj)
+    return schema_obj
+
+def _dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
+             raw_dump: str, text: str):
+    """Save prompts and responses for debugging."""
+    (round_dir / f"{agent}.prompt.txt").write_text(
+        f"--- SYSTEM ---\n{system_prompt}\n\n--- USER ---\n{user_message}\n", encoding="utf-8")
+    (round_dir / f"{agent}.raw.json").write_text(raw_dump, encoding="utf-8")
+    (round_dir / f"{agent}.text.txt").write_text(text, encoding="utf-8")
+
+def _is_o_model(name: str) -> bool:
+    return name.lower().startswith("o")
+
+def _complete_text(model: str, system_prompt: str, user_message: str,
+                   max_tokens: int = 1500, temperature: float = 0.2,
+                   force_json: bool = False, json_schema_obj: dict | None = None) -> tuple[str, str]:
+    """
+    Returns (text, raw_dump_json_string). Uses Responses API for GPT-5/o-models,
+    Chat Completions for GPT-4o family.
+    If json_schema_obj is provided and we use Responses, we enforce strict JSON.
+    """
+    # Clamp requested output tokens to avoid API errors
+    # Default cap: allow higher for GPT-5/o-models, keep 16384 for others unless overridden by env
+    default_cap = 100000 if (model.startswith("gpt-5") or _is_o_model(model)) else 16384
+    try:
+        max_cap_env = int(os.environ.get("OPENAI_MAX_OUTPUT_TOKENS", str(default_cap)))
+    except ValueError:
+        max_cap_env = default_cap
+    effective_max = min(max_tokens, max_cap_env)
+    if max_tokens > effective_max:
+        try:
+            console.print(f"[yellow]Clamping max output tokens from {max_tokens} to {effective_max}[/yellow]")
+        except Exception:
+            pass
+
+    if model.startswith("gpt-5") or _is_o_model(model):
+        kwargs = {}
+        if force_json and json_schema_obj:
+            name = json_schema_obj.get("name", "structured_output")
+            schema = json_schema_obj.get("schema", {})
+            strict = json_schema_obj.get("strict", True)
+            kwargs["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": name,
+                    "schema": schema,
+                    "strict": strict,
+                },
+                # Encourage the model to emit visible text
+                "verbosity": "high",
+            }
+        # Use role-structured input for clarity
+        r = client.responses.create(
+            model=model,
+            reasoning={"effort": "high"},
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            max_output_tokens=effective_max,
+            **kwargs
+        )
+        text = getattr(r, "output_text", "") or ""
+        raw_dump = r.model_dump_json()
+        return text, raw_dump
+    else:
+        # Chat Completions branch (gpt-4o family)
+        kwargs = {}
+        if force_json:
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=temperature,
+            max_tokens=effective_max,
+            **kwargs
+        )
+        text = resp.choices[0].message.content or ""
+        raw_dump = json.dumps(resp.model_dump(), ensure_ascii=False)
+        return text, raw_dump
 
 class NewFile(BaseModel):
     path: str = Field(..., description="Relative path under problem dir")
@@ -66,7 +186,7 @@ def _write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | N
     status = {
         "phase": phase,                 # "prover" | "verifier" | "summarizer" | "idle"
         "round": round_idx,
-        "ts": datetime.utcnow().isoformat() + "Z",
+        "ts": int(time.time()),         # Unix timestamp for timezone-proof elapsed time
         "models": {
             "prover": MODEL_PROVER,
             "verifier": MODEL_VERIFIER,
@@ -91,12 +211,33 @@ def _gather_context_files(problem_dir: Path, round_idx: int) -> list[str]:
     # progress (tail)
     if (problem_dir / "progress.md").exists():
         files.append("progress.md (tail)")
-    # papers dir: show filenames (we do not parse PDFs here)
+    
+    # summary (tail)  
+    if (problem_dir / "summary.md").exists():
+        files.append("summary.md (tail)")
+    
+    # Non-PDF papers (txt/md files in papers/)
     papers_dir = problem_dir / "papers"
     if papers_dir.exists():
         for paper in sorted(papers_dir.rglob("*")):
-            if paper.is_file():
+            if paper.is_file() and paper.suffix.lower() in {'.txt', '.md'}:
                 files.append(str(paper.relative_to(problem_dir)))
+    
+    # Non-PDF files in root directory (txt/md next to task files)
+    for q in sorted(problem_dir.glob("*")):
+        if q.is_file() and q.name not in {"task.tex", "task.txt", "task.md", "progress.md", "summary.md"}:
+            if q.suffix.lower() in {".md", ".txt"}:
+                files.append(q.name)
+    
+    # Ensure PDFs are parsed and show them as parsed files
+    _ensure_pdfs_parsed(problem_dir)
+    papers_parsed_dir = problem_dir / "papers_parsed"
+    if papers_parsed_dir.exists():
+        for parsed_file in sorted(papers_parsed_dir.glob("*.txt")):
+            # Show as "paper.pdf (parsed)" to indicate it's the PDF content
+            pdf_name = parsed_file.stem + ".pdf"
+            files.append(f"{pdf_name} (parsed)")
+    
     # last 2 rounds of verifier feedback (these are added in read_problem_context)
     runs_dir = problem_dir / "runs"
     if runs_dir.exists():
@@ -161,21 +302,77 @@ def extract_json_from_response(text: str) -> Optional[dict]:
     return None
 
 def _extract_pdf_text(pdf_path: Path) -> str:
-    """Extract text from PDF using pymupdf (fitz) for better paper access."""
+    """Extract full text from PDF using pymupdf (fitz) - no limits."""
     try:
         import fitz  # PyMuPDF
         doc = fitz.open(pdf_path)
         text = ""
-        for page_num in range(min(10, len(doc))):  # First 10 pages only
+        for page_num in range(len(doc)):  # All pages
             page = doc.load_page(page_num)
             text += f"\n--- Page {page_num + 1} ---\n"
             text += page.get_text()
         doc.close()
-        return text[:20000]  # Limit to 20KB
+        return text  # No size limit
     except ImportError:
         return "[PDF text extraction requires: pip install pymupdf]"
     except Exception as e:
         return f"[PDF extraction failed: {e}]"
+
+def _ensure_pdfs_parsed(problem_dir: Path) -> None:
+    """Ensure all PDFs in problem directory are parsed and cached in papers_parsed/."""
+    papers_parsed_dir = problem_dir / "papers_parsed"
+    papers_parsed_dir.mkdir(exist_ok=True)
+    
+    # Find all PDFs in both papers/ and root directory
+    pdf_paths = []
+    
+    # PDFs in papers/ directory
+    papers_dir = problem_dir / "papers"
+    if papers_dir.exists():
+        pdf_paths.extend(papers_dir.rglob("*.pdf"))
+    
+    # PDFs in root directory (next to task files)
+    for pdf_file in problem_dir.glob("*.pdf"):
+        pdf_paths.append(pdf_file)
+    
+    for pdf_path in pdf_paths:
+        # Create parsed filename: paper.pdf -> paper.txt
+        parsed_filename = pdf_path.stem + ".txt"
+        parsed_path = papers_parsed_dir / parsed_filename
+        
+        # Check if we need to parse (file doesn't exist or PDF is newer)
+        should_parse = False
+        if not parsed_path.exists():
+            should_parse = True
+        else:
+            pdf_mtime = pdf_path.stat().st_mtime
+            parsed_mtime = parsed_path.stat().st_mtime
+            if pdf_mtime > parsed_mtime:
+                should_parse = True
+        
+        if should_parse:
+            console.print(f"[cyan]Parsing PDF: {pdf_path.name}[/cyan]")
+            extracted_text = _extract_pdf_text(pdf_path)
+            parsed_path.write_text(extracted_text, encoding="utf-8")
+        # else: already parsed and up to date
+
+def _get_parsed_pdf_content(problem_dir: Path) -> str:
+    """Get all parsed PDF content from papers_parsed/ directory."""
+    papers_parsed_dir = problem_dir / "papers_parsed"
+    if not papers_parsed_dir.exists():
+        return ""
+    
+    content_parts = []
+    for parsed_file in sorted(papers_parsed_dir.glob("*.txt")):
+        try:
+            content = parsed_file.read_text(encoding="utf-8")
+            # Use original PDF name for context headers
+            pdf_name = parsed_file.stem + ".pdf"
+            content_parts.append(f"=== {pdf_name} ===\n{content}\n")
+        except Exception as e:
+            content_parts.append(f"=== {parsed_file.name} ===\n[Error reading parsed content: {e}]\n")
+    
+    return "\n".join(content_parts)
 
 def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
     """Read problem files into a context string."""
@@ -205,21 +402,35 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
             content = "...\n" + content[-30000:]
         context_parts.append(f"=== summary.md ===\n{content}\n")
     
-    # Papers with PDF text extraction
+    # Non-PDF papers (txt/md files in papers/)
     papers_dir = problem_dir / "papers"
-    if papers_dir.exists() and include_pdfs:
+    if papers_dir.exists():
         for paper in papers_dir.rglob("*"):
-            if paper.is_file():
-                if paper.suffix.lower() in {'.txt', '.md'}:
-                    try:
-                        content = paper.read_text(encoding='utf-8')
-                        context_parts.append(f"=== {paper.name} ===\n{content[:5000]}\n")
-                    except:
-                        pass
-                elif paper.suffix.lower() == '.pdf':
-                    # Extract actual PDF text instead of just placeholder
-                    pdf_text = _extract_pdf_text(paper)
-                    context_parts.append(f"=== {paper.name} ===\n{pdf_text}\n")
+            if paper.is_file() and paper.suffix.lower() in {'.txt', '.md'}:
+                try:
+                    content = paper.read_text(encoding='utf-8')
+                    context_parts.append(f"=== {paper.name} ===\n{content}\n")
+                except:
+                    pass
+    
+    # Non-PDF files in root directory (txt/md next to task files)
+    for q in sorted(problem_dir.glob("*")):
+        if q.is_file() and q.name not in {"task.tex", "task.txt", "task.md", "progress.md", "summary.md"}:
+            if q.suffix.lower() in {".md", ".txt"}:
+                try:
+                    content = q.read_text(encoding="utf-8")
+                    context_parts.append(f"=== {q.name} ===\n{content}\n")
+                except:
+                    pass
+    
+    # PDF content (cached, all pages, no size limit)
+    if include_pdfs:
+        # Ensure all PDFs are parsed and cached
+        _ensure_pdfs_parsed(problem_dir)
+        # Get all parsed PDF content
+        pdf_content = _get_parsed_pdf_content(problem_dir)
+        if pdf_content:
+            context_parts.append(pdf_content)
     
     # Recent verifier feedback (last 2 rounds)
     runs_dir = problem_dir / "runs"
@@ -242,19 +453,7 @@ def call_prover(problem_dir: Path, round_idx: int) -> ProverOutput:
     context = read_problem_context(problem_dir)
     round_tag = f"Round {round_idx:04d} — {datetime.now().isoformat()}Z"
 
-    system_prompt = load_prompt("prover", """You are a research mathematician working on challenging problems.
-
-Your goal is incremental progress, not necessarily a full solution. Work cleanly and reproducibly.
-Before any derivations, write a 3–6 bullet mini-plan.
-After each claim, write a one-line "How it can fail" and try a toy counterexample.
-
-You MUST return a JSON object with these exact fields:
-{
-  "progress_md": "Append-only notes starting with '## {round_tag}' and at least 300 words total",
-  "new_files": [],
-  "requests_for_more_materials": [],
-  "next_actions_for_prover": []
-}""")
+    system_prompt = load_prompt("prover").replace("{ROUND_TAG}", round_tag)
 
     user_message = f"""Work on this problem context:
 
@@ -263,35 +462,53 @@ You MUST return a JSON object with these exact fields:
 Current round tag: {round_tag}
 Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_tag}'."""
 
-    # STRICT JSON MODE — no need for regex extraction later
-    response = client.chat.completions.create(
-        model=MODEL_PROVER,                 # keep gpt-4-turbo-preview by default
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0.4,
-        max_tokens=1800,
-    )
+    # Create JSON schema for GPT-5
+    schema = {
+        "name": "ProverOutput",
+        "schema": _normalize_schema_strict(ProverOutput.model_json_schema()),
+        "strict": True
+    }
 
+    text, dump = _complete_text(
+        MODEL_PROVER, system_prompt, user_message,
+        max_tokens=100000, temperature=0.4,
+        force_json=True,
+        json_schema_obj=schema if MODEL_PROVER.startswith("gpt-5") else None
+    )
+    
+    # Write raw IO for debugging
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    _dump_io(round_dir, "prover", system_prompt, user_message, dump, text)
+
+    # Parse JSON
     try:
-        data = json.loads(response.choices[0].message.content)
-    except json.JSONDecodeError as e:
-        console.print(f"[red]Prover JSON decode error: {e}[/red]")
-        console.print(f"[dim]Raw response: {response.choices[0].message.content[:500]}[/dim]")
-        # Fallback
+        data = json.loads(text) if not _is_o_model(MODEL_PROVER) or MODEL_PROVER.startswith("gpt-5") \
+               else extract_json_from_response(text)
+    except json.JSONDecodeError:
+        # Save raw non-JSON for debugging
+        (round_dir / "prover.nonjson.txt").write_text(text, encoding="utf-8")
+        data = None
+
+    if not data:
+        shown_text = text if text.strip() else "(the model did not return anything)"
         data = {
-            "progress_md": f"## {round_tag}\n\n(JSON Error) The model returned invalid JSON. Raw content:\n\n{response.choices[0].message.content}",
+            "progress_md": f"## {round_tag}\n\n(JSON parsing fallback)\n\n{shown_text}",
             "new_files": [],
             "requests_for_more_materials": [],
             "next_actions_for_prover": []
         }
 
-    # Guard against empty progress and ensure proper formatting
+    # Guard against empty/short progress but preserve raw output for debugging
     pm = (data.get("progress_md") or "").strip()
     if not pm.startswith("##"):
         data["progress_md"] = f"## {round_tag}\n\n" + pm
+        pm = (data.get("progress_md") or "").strip()
+    if len(pm) < 80:
+        shown_text = text if text.strip() else "(the model did not return anything)"
+        data["progress_md"] = (
+            f"## {round_tag}\n\n(Model returned too little; raw output below)\n\n{shown_text}"
+        )
     
     # Ensure list fields exist
     data.setdefault("new_files", [])
@@ -310,23 +527,7 @@ def call_verifier(problem_dir: Path, round_idx: int) -> VerifierOutput:
         prover_data = json.loads(prover_json.read_text(encoding="utf-8"))
         context += f"\n=== Latest Prover Output ===\n{prover_data.get('progress_md','')}\n"
 
-    system_prompt = load_prompt("verifier", """You are a strict mathematical verifier and research manager.
-
-Tasks:
-1) Audit correctness & rigor (identify gaps, unjustified steps, likely false statements)
-2) Triage value (separate genuine progress from noise)
-3) Guide next steps (actionable experiments/lemmas to increase confidence)
-
-Include a 3-row table:
-| Claim (short) | Status [OK/Unclear/Broken] | Why |
-
-Return only JSON with fields:
-{
-  "feedback_md": "Detailed critique for the prover (≥150 words)",
-  "summary_md": "2–10 bullets: what works, what doesn't, and next steps",
-  "verdict": "promising|uncertain|unlikely",
-  "blocking_issues": []
-}""")
+    system_prompt = load_prompt("verifier")
 
     user_message = f"""Audit the prover's latest round and the context:
 
@@ -334,25 +535,36 @@ Return only JSON with fields:
 
 Return ONLY valid JSON."""
 
-    response = client.chat.completions.create(
-        model=MODEL_VERIFIER,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0.2,
-        max_tokens=1200,
-    )
+    # Create JSON schema for GPT-5
+    schema = {
+        "name": "VerifierOutput",
+        "schema": _normalize_schema_strict(VerifierOutput.model_json_schema()),
+        "strict": True
+    }
 
+    text, dump = _complete_text(
+        MODEL_VERIFIER, system_prompt, user_message,
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_VERIFIER.startswith("gpt-5") else None
+    )
+    
+    # Write raw IO for debugging
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    _dump_io(round_dir, "verifier", system_prompt, user_message, dump, text)
+
+    # Parse JSON
     try:
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(text) if not _is_o_model(MODEL_VERIFIER) or MODEL_VERIFIER.startswith("gpt-5") \
+               else extract_json_from_response(text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Verifier JSON decode error: {e}[/red]")
-        console.print(f"[dim]Raw response: {response.choices[0].message.content[:500]}[/dim]")
+        console.print(f"[dim]Raw response: {text[:500]}[/dim]")
+        # Save raw non-JSON for debugging
+        (round_dir / "verifier.nonjson.txt").write_text(text, encoding="utf-8")
         # Fallback
         data = {
-            "feedback_md": f"(JSON Error) The verifier returned invalid JSON. Raw content:\n\n{response.choices[0].message.content}",
+            "feedback_md": f"(JSON fallback)\n\n{text}",
             "summary_md": "Verifier JSON parsing failed",
             "verdict": "uncertain",
             "blocking_issues": ["JSON parsing error"]
@@ -362,6 +574,10 @@ Return ONLY valid JSON."""
     data.setdefault("blocking_issues", [])
     if not data.get("summary_md"):
         data["summary_md"] = "No summary provided."
+    
+    # Make 'verdict' robust - ensure it's always one of the valid values
+    if data.get("verdict") not in {"promising", "uncertain", "unlikely"}:
+        data["verdict"] = "uncertain"
     
     # Fix type issues - convert lists to strings if needed
     if isinstance(data.get("summary_md"), list):
@@ -396,26 +612,36 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
 {verifier_json.get('verdict','')}
 """
 
-    system_prompt = load_prompt("summarizer", "You are a round summarizer. Return JSON.")
+    system_prompt = load_prompt("summarizer")
 
-    response = client.chat.completions.create(
-        model=MODEL_SUMMARIZER,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": context},
-        ],
-        temperature=0.2,
-        max_tokens=600,
+    # Create JSON schema for GPT-5
+    schema = {
+        "name": "SummarizerOutput",
+        "schema": _normalize_schema_strict(SummarizerOutput.model_json_schema()),
+        "strict": True
+    }
+
+    text, dump = _complete_text(
+        MODEL_SUMMARIZER, system_prompt, context,
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_SUMMARIZER.startswith("gpt-5") else None
     )
+    
+    # Write raw IO for debugging
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    _dump_io(round_dir, "summarizer", system_prompt, context, dump, text)
 
+    # Parse JSON
     try:
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
+               else extract_json_from_response(text)
     except json.JSONDecodeError as e:
-        console.print(f"[red]Summarizer JSON decode error: {e}[/red]")
+        console.print(f"[red]Summarizer JSON decode error: {e}")
+        (round_dir / "summarizer.nonjson.txt").write_text(text, encoding="utf-8")
         # Fallback
         data = {
-            "summary_md": "Summarizer failed to parse JSON",
+            "summary_md": f"Summarizer JSON fallback\n\n{text}",
             "highlights": [],
             "next_questions": []
         }
@@ -537,6 +763,7 @@ def main():
     console.print(f"[bold]Simple Prover-Verifier Loop[/bold]")
     console.print(f"Problem: {problem_dir}")
     console.print(f"Models: {MODEL_PROVER} / {MODEL_VERIFIER}")
+    console.print(f"OpenAI SDK: {_openai.__version__}")
     
     # Run rounds
     for round_num in range(args.start_round, args.start_round + args.rounds):

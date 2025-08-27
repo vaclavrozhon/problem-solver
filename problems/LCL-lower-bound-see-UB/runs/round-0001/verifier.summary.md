@@ -1,5 +1,6 @@
-• The mini-plan is repetitive and lacks new insights.
-• Key lemmas need to be extracted and applied concretely.
-• Automaton properties should be analyzed with explicit examples.
-• Reductions from NEXPTIME-hard problems need rigorous construction.
-• Implications of output alphabet size require detailed analysis.
+• The mini-plan is well-structured but needs more depth in analysis.
+• Understanding the PSPACE-hardness proof is critical; avoid misinterpretations.
+• The NEXPTIME algorithm analysis must be cautious about generalizations.
+• Reductions from NEXPTIME-hard problems need careful alignment with LCL structure.
+• Exploration of LCL cases should be systematic to ensure complexity representation.
+• Formulate lemmas with rigorous testing against edge cases for validity.

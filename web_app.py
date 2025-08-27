@@ -28,9 +28,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 MODEL_PRESETS = {
     "gpt5": {
         "label": "gpt5 (default)",
-        "prover": "o1-preview",
-        "verifier": "o1-preview", 
-        "summarizer": "gpt-4o-mini",
+        "prover": "gpt-5",
+        "verifier": "gpt-5", 
+        "summarizer": "gpt-5-mini",
     },
     "fast": {
         "label": "fast (test)",
@@ -46,16 +46,25 @@ def ping_model(model_name: str) -> dict:
     try:
         t0 = time.perf_counter()
         client = OpenAI()
-        # 1-token, cheapest ping
-        _ = client.chat.completions.create(
-            model=model_name,
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=1,
-        )
+        if model_name.startswith("gpt-5") or model_name.lower().startswith("o"):
+            # Use Responses API for GPT-5 and o-models with max reasoning
+            r = client.responses.create(
+                model=model_name, 
+                reasoning={"effort": "high"},
+                input="ping"
+            )
+            # just touch the text to ensure the request succeeded
+            _ = getattr(r, "output_text", None)
+        else:
+            _ = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            )
         dt = time.perf_counter() - t0
         return {"ok": True, "latency_s": round(dt, 3)}
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 # Page configuration
 st.set_page_config(
@@ -535,16 +544,18 @@ else:
             default_idx = preset_keys.index("gpt5")
             chosen_preset = c2.selectbox("Model preset", preset_keys, index=default_idx, format_func=lambda k: preset_labels[k])
             
-            # Quick connectivity ping to the Prover model for this preset
-            ping = ping_model(MODEL_PRESETS[chosen_preset]["prover"])
-            if ping["ok"]:
-                c2.markdown(f"✅ Connected ({ping['latency_s']}s)")
-            else:
-                c2.markdown(f"❌ Connect error")
-            
             if c3.button("▶ Run more rounds"):
-                st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset)
-                st.rerun()
+                # Test connectivity before starting
+                ping = ping_model(MODEL_PRESETS[chosen_preset]["prover"])
+                if ping["ok"]:
+                    c3.markdown("🔄 Working...")
+                    st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset)
+                    st.rerun()
+                else:
+                    # Show error and don't start
+                    c3.markdown(f"❌ Connect error")
+                    c3.error(f"Model connectivity failed: {ping.get('error', 'Unknown error')}")
+                    # Don't append anything to conversation or start process
             
             status = st.session_state.manager.check_status(problem)
             if status["status"] == "running":
@@ -564,11 +575,22 @@ else:
                 phase = live.get("phase", "idle")
                 ts = live.get("ts")
                 elapsed = ""
-                try:
-                    if ts:
-                        dt = datetime.now() - datetime.fromisoformat(ts.replace("Z",""))
-                        elapsed = f" (elapsed {dt.seconds}s)"
-                except: pass
+                if ts:
+                    if isinstance(ts, (int, float)):
+                        # Unix timestamp (new format)
+                        secs = max(0, int(time.time() - ts))
+                        elapsed = f" (elapsed {secs}s)"
+                    else:
+                        # ISO datetime string (old format, for compatibility)
+                        try:
+                            from datetime import timezone
+                            started = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            now_utc = datetime.now(timezone.utc)
+                            dt = now_utc - started
+                            secs = max(0, int(dt.total_seconds()))
+                            elapsed = f" (elapsed {secs}s)"
+                        except:
+                            pass
                 st.info(f"🧠 Current phase: **{phase}**{elapsed}")
             
             # Files sent to Prover (for latest round)

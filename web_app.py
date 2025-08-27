@@ -675,15 +675,37 @@ else:
                 # Display status
                 st.info(f"🧠 Current phase: **{phase}**{elapsed}")
             
-            # Notes.md viewer
+            # Notes.md and output.md viewers
             notes_path = problem / "notes.md"
-            if notes_path.exists():
-                with st.expander("📓 notes.md"):
-                    import html as _html
-                    notes_txt = notes_path.read_text(encoding="utf-8")
-                    st.markdown(f"<div class='pane'>{_html.escape(notes_txt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
-            else:
-                st.caption("notes.md not present yet.")
+            output_path = problem / "output.md"
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if notes_path.exists():
+                    with st.expander("📓 notes.md"):
+                        import html as _html
+                        notes_txt = notes_path.read_text(encoding="utf-8")
+                        if notes_txt.strip():
+                            st.markdown(f"<div class='pane'>{_html.escape(notes_txt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                        else:
+                            st.caption("Currently empty")
+                else:
+                    with st.expander("📓 notes.md"):
+                        st.caption("Currently empty")
+            
+            with col2:
+                if output_path.exists():
+                    with st.expander("📋 output.md"):
+                        import html as _html
+                        output_txt = output_path.read_text(encoding="utf-8")
+                        if output_txt.strip():
+                            st.markdown(f"<div class='pane'>{_html.escape(output_txt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                        else:
+                            st.caption("Currently empty")
+                else:
+                    with st.expander("📋 output.md"):
+                        st.caption("Currently empty")
             
             # Files sent to Prover (for latest round)
             runs_dir = problem / "runs"

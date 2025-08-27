@@ -1,0 +1,136 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and outputs.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- outputs.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading.
+- outputs.md: should be concise and rigorous. Keep only proven theorems with clear proofs. If a statement is flawed and you cannot fix it, remove it from outputs.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to outputs.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|uncertain|nothing so far"
+}
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "## Audit of outputs.md (correctness and small clarifications)\n- The closure-based proof of Dirac\u2019s theorem is complete and correct. Lemma 3 (path\u2011closing), Lemma 4 (single\u2011edge closure equivalence), Lemma 5 (iteration to K_n under \u03b4 \u2265 n/2), and Theorem 6 (Dirac) form a logically tight chain.\n- Proposition 1 (connectivity) and Proposition 2 (2\u2011connectivity) are sound. A minor clarity option for Prop. 1: explicitly note that \u201cdisconnected\u201d implies at least two components, hence two of size \u2265 s \u2265 n/2+1 would already exceed n.\n- Lemma 3 indexing is carefully handled: A = {1,\u2026,n\u22122} and B = {2,\u2026,n\u22121} ensure |A| = deg(u), |B| = deg(v) under uv \u2209 E. The counting yielding |A|+|B| \u2264 n\u22121 when A\u2229B=\u2205 is correct.\n- Theorem 11 (Bondy\u2013Chv\u00e1tal closure) proof properly uses monotonicity of \u03a6 (degrees only increase) to establish uniqueness/order\u2011independence and chains Lemma 4 to get equivalence.\n- No gaps or errors detected in outputs.md.\n\n## New, small results and refinements to consider adding\n1) Minimal\u2011counterexample proof of Ore\u2019s Theorem (short alternative)\n- Statement (Ore): If for every nonadjacent u,v we have deg(u)+deg(v) \u2265 n, then G is Hamiltonian.\n- Proof idea: Suppose not, and let G be a minimal (by edges) counterexample. Then for some nonedge uv, G+uv has strictly more edges and still satisfies Ore\u2019s condition for remaining nonedges (degrees increased). By minimality, G+uv is Hamiltonian. By Lemma 4 (single\u2011edge closure equivalence), G would then be Hamiltonian, a contradiction. Hence no counterexample exists. Why useful: Distills the role of Lemma 4 to a one\u2011line argument; complements the iterative proof already in outputs.md.\n\n2) Corollary (closing any Hamiltonian path under \u03b4 \u2265 n/2)\n- Statement: If G has a Hamiltonian path with endpoints u,v and \u03b4(G) \u2265 n/2, then G has a Hamiltonian cycle.\n- Proof: Apply Lemma 3 with deg(u)+deg(v) \u2265 n (since each \u2265 n/2). Why useful: An immediate, often\u2011used corollary worth stating explicitly.\n\n3) Perfect matching consequences\n- Corollary (even n): If n is even and \u03b4(G) \u2265 n/2, then G has a perfect matching.\n  Proof: Take a Hamiltonian cycle (Theorem 6) and alternate its edges.\n- Corollary (odd n): If n is odd and \u03b4(G) \u2265 n/2, then G has a near\u2011perfect matching of size (n\u22121)/2.\n  Proof: Remove any vertex from a Hamiltonian cycle and alternate along the remaining path. Why useful: Provides immediate structural consequences often needed in applications.\n\n4) Algorithmic extraction of a Hamiltonian cycle (formalized)\n- Given G with \u03b4 \u2265 n/2 and adjacency access, the reverse\u2011closure method yields a Hamiltonian cycle in O(n^2) time (with adjacency matrix; O(m+n^2) with lists):\n  \u2022 Compute the closure (here one application of \u03a6 suffices to reach K_n), recording added edges in order e_1,\u2026,e_t.\n  \u2022 Start with any n\u2011cycle C_t in K_n.\n  \u2022 For i = t, t\u22121, \u2026, 1: if e_i \u2209 E(C_i) set C_{i\u22121} = C_i; else let e_i = uv, delete uv from C_i to get a Hamiltonian u\u2013v path P in G_{i\u22121}, and apply Lemma 3 to re\u2011close P into a Hamiltonian cycle C_{i\u22121} of G_{i\u22121}.\n  \u2022 Output C_0.\n  Correctness invariant: At step i we maintain a Hamiltonian cycle in G_i; Lemma 3 ensures we can eliminate the dependence on e_i if it is used. Why useful: Converts the existential proof into a constructive one with a clear complexity bound.\n\n5) Circumference viewpoint (alternative route; optional for appendix)\n- Theorem (Dirac\u2019s circumference bound): If G is 2\u2011connected on n vertices with minimum degree \u03b4, then its circumference c(G) \u2265 min{n, 2\u03b4}. Under \u03b4 \u2265 n/2 this gives c(G) \u2265 n, i.e., Hamiltonian.\n- Why useful here: Provides a classic alternative proof strategy; stating this as an appendix (with reference or a sketch) situates Dirac\u2019s theorem among standard extremal cycle results.\n\n## Examples / sanity checks\n- Balanced bipartite K_{n/2,n/2}: \u03b4 = n/2, Hamiltonian, triangle\u2011free, and closure adds all intra\u2011part edges in one step to reach K_n; consistent with Lemma 4.\n- Sharpness (already in outputs.md): K_{k\u22121,k+1} (even n) and K_{k,k+1} (odd n) are non\u2011Hamiltonian at \u03b4 = \u230an/2\u230b \u2212 1 and \u03b4 = \u230an/2\u230b respectively.\n\n## Obstacles / delicate points\n- Pancyclic strengthening (Bondy): Proving that \u03b4 \u2265 n/2 implies pancyclicity unless G \u2245 K_{n/2,n/2} requires additional nontrivial arguments (rotation\u2013extension or specialized closure analysis). This is beyond the current scope but is a natural next target.\n\n## Next steps for outputs.md\n- Optionally append: (i) the short minimal\u2011counterexample proof of Ore; (ii) the \u201cclose any Hamiltonian path\u201d corollary; (iii) perfect/near\u2011perfect matching corollaries; and (iv) the formal algorithmic construction and its complexity. These are short, checkable additions that enhance applicability without altering the main proof."}, {"prover_id": "02", "progress_md": "## Audit of outputs.md (correctness and minor refinements)\n- Overall: The closure-based proof of Dirac\u2019s theorem is complete and correct. Lemma 3 (path-closing), Lemma 4 (single-edge closure equivalence), Lemma 5 (iterative augmentation), and Theorem 6 (Dirac) are logically tight. The added corollaries (two common neighbors; diameter \u2264 2), Ore\u2019s theorem, and the Bondy\u2013Chv\u00e1tal closure equivalence are also correct as stated and proved.\n- Proposition 1 (connectivity): The final sentence could be made more explicit. Let s be the size of the smallest component and assume s \u2265 n/2 + 1. Since there is another component and by minimality all components have size \u2265 s, pick any other component C\u2032; then |C| + |C\u2032| \u2265 2s > n, contradiction. (Equivalently, if there are exactly two components, n \u2212 s \u2265 s must hold by minimality, forcing s \u2264 n/2; contradiction to s \u2265 n/2 + 1.) The current proof hints at this but does not state \u201cthe other component has size \u2265 s by minimality.\u201d\n- Lemma 3 (path-closing): The indexing and counting are sound. A small clarity note: explicitly mention that B indexes neighbors of v via i \u21a6 i \u2212 1, so |B| = deg(v); this is already indicated but worth one explicit sentence in outputs.md.\n- Theorem 11 (closure equivalence): The monotonicity and order-independence arguments are correct. The decomposition of \u03a6-steps into single-edge additions is valid since eligibility persists under degree increases.\n\n## New, small results and why useful\n1) Lemma (Triangle or balanced bipartite under Dirac). Let G be on n \u2265 3 vertices with \u03b4(G) \u2265 n/2. Then either G contains a triangle, or n is even and G \u2245 K_{n/2,n/2}.\n- Proof: If G is triangle-free, Mantel\u2019s theorem gives e(G) \u2264 \u230an^2/4\u230b. But e(G) \u2265 n\u03b4(G)/2 \u2265 n(n/2)/2 = n^2/4, hence e(G) = n^2/4 and G attains Mantel\u2019s extremal case, so G \u2245 K_{\u230an/2\u230b, \u2308n/2\u2309}. Under \u03b4 \u2265 n/2 this forces n even and \u03b4 = n/2, hence G \u2245 K_{n/2,n/2}. Otherwise G has a triangle. \u220e\n- Why useful: This is a first structural dichotomy toward Bondy\u2019s pancyclicity strengthening (Dirac graphs are pancyclic unless G \u2245 K_{n/2,n/2}). It also supplies a quick certificate of non-bipartiteness for most Dirac graphs.\n\n2) Worked example validating Lemma 3 (path-closing) on a tight instance.\n- Let G = K_4 \u2212 x_0x_3 (the \u201cdiamond\u201d), n = 4. Take P = x_0, x_1, x_2, x_3 with u = x_0, v = x_3. Here deg(u) = deg(v) = 2 and uv \u2209 E(G), so deg(u) + deg(v) = 4 = n. Compute A = {i \u2208 {1,2} : u \u223c x_i} = {1,2}; B = {i \u2208 {2,3} : v \u223c x_{i\u22121}} = {2,3}. Then A \u2229 B contains i = 2, providing the Hamiltonian cycle x_0, x_2, x_3, x_1, x_0 as in Lemma 3. This illustrates the indexing and the closing mechanism at the threshold.\n\n3) Algorithmic note (constructing a Hamiltonian cycle under \u03b4 \u2265 n/2)\n- Idea: Use the closure chain and reverse it, maintaining a Hamiltonian cycle at each step.\n- Outline:\n  1) Build a sequence G = G_0 \u2286 G_1 \u2286 \u2026 \u2286 G_m = K_n where each G_{i+1} = G_i + u_iv_i with deg_{G_i}(u_i) + deg_{G_i}(v_i) \u2265 n (existence by Lemma 5).\n  2) Pick any Hamiltonian cycle C_m in K_n (e.g., 1\u20132\u2013\u2026\u2013n\u20131).\n  3) For i = m \u2212 1 down to 0: if C_{i+1} uses u_iv_i, delete that edge to get a Hamiltonian u_i\u2013v_i path in G_{i+1}; by Lemma 3 applied in G_i (note deg_{G_i}(u_i) + deg_{G_i}(v_i) \u2265 n), reclose to a Hamiltonian cycle C_i in G_i avoiding u_iv_i. If C_{i+1} does not use u_iv_i, set C_i = C_{i+1}.\n- Invariant: At each step we maintain a Hamiltonian cycle of the current graph. Complexity: O(n^2)\u2013O(n^3) depending on data structures (closure computation O(n^2) nonedge checks; each step\u2019s reclosure is O(n)).\n- Why useful: Gives a constructive certificate and a concrete procedure implementable from the curated lemmas.\n\n## Examples and sanity checks\n- C_4 (n = 4) has \u03b4 = 2 = n/2 and is Hamiltonian; the closure adds both diagonals (each nonedge has degree-sum 4), yielding K_4, consistent with Lemma 5 and Theorem 6.\n- Balanced bipartite extremal: K_{n/2,n/2} (n even) has \u03b4 = n/2 and is Hamiltonian but not pancyclic (no odd cycles); it realizes equality in Corollary 8 with large common neighborhoods and matches Lemma (1) when triangle-free.\n\n## Obstacles and cautions\n- Pancyclicity: The closure equivalence does not by itself preserve pancyclicity, so one cannot immediately lift pancyclic cycles from K_n back to G via Lemma 3. Bondy\u2019s theorem on pancyclicity at e(G) \u2265 n^2/4 addresses this; a careful proof requires additional arguments beyond the current toolkit.\n- Equality m = n^2/4: There exist \u03b4-regular Dirac graphs with \u03b4 = n/2 and e(G) = n^2/4 that are not bipartite; Mantel\u2019s extremal characterization applies only under triangle-free assumption.\n\n## Next steps (suggested additions to outputs.md)\n- Add Lemma (Triangle or balanced bipartite under Dirac) with the short Mantel-based proof above.\n- Optionally add the constructive algorithm note with a brief invariant proof (as above) and a complexity remark.\n- Plan a pancyclicity strengthening: Record Bondy\u2019s theorem (1971): If G is Hamiltonian and e(G) \u2265 n^2/4, then G is pancyclic unless G \u2245 K_{n/2,n/2}; outline a route to adapt/curate a proof, using the triangle lemma and rotation\u2013extension or Bondy\u2013Chv\u00e1tal techniques.\n"}]
+
+Current notes.md:
+- Adopt closure-based proof as the primary route to Dirac: (1) prove path-closing lemma from a Hamiltonian path under deg-sum ≥ n; (2) deduce single-edge equivalence; (3) iterate to K_n under δ ≥ n/2.
+- Normalize indexing to x0,…,x_{n−1} with u = x0, v = x_{n−1}. State and use A = {i∈{1,…,n−2}: u~x_i} and B = {i∈{2,…,n−1}: v~x_{i−1}} with |A| = deg(u), |B| = deg(v).
+- Include short proofs of connectivity and 2-connectivity under δ ≥ n/2; include sharpness examples K_{k−1,k+1} and K_{k,k+1}; state n ≥ 3 up front.
+- Optional appendix: direct Pósa/Ore-style proof; keep the ‘two common neighbors’ claim there if used.
+Refinements and recorded tools for the closure route to Dirac
+
+Setting: Finite, simple, undirected graphs on n = |V(G)| ≥ 3; δ(G) is minimum degree. We index Hamiltonian paths as P = x_0,x_1,…,x_{n−1} with u = x_0 and v = x_{n−1}.
+
+Path-closing lemma (indexing we will use): If P is Hamiltonian and deg(u)+deg(v) ≥ n, then G has a Hamiltonian cycle. If uv ∈ E, the path closes immediately. Otherwise define
+- A = { i ∈ {1,…,n−2} : u is adjacent to x_i },
+- B = { i ∈ {2,…,n−1} : v is adjacent to x_{i−1} }.
+Because P spans all vertices and uv ∉ E, |A| = deg(u) and |B| = deg(v). For i ∈ {2,…,n−2}, the simultaneous occurrence i ∈ A ∩ B yields the Hamiltonian cycle u−x_i−…−v−x_{i−1}−…−u. If A ∩ B = ∅, then |A|+|B| ≤ (n−3) + 1 + 1 = n−1, contradicting deg(u)+deg(v) ≥ n. Hence A ∩ B ≠ ∅ and the cycle exists.
+
+Single-edge closure equivalence: If uv ∉ E(G) with deg(u)+deg(v) ≥ n, then G is Hamiltonian iff G+uv is Hamiltonian. The backward direction uses the path-closing lemma after removing uv from a Hamiltonian cycle in G+uv.
+
+Closure under δ ≥ n/2: If δ(G) ≥ n/2, every nonedge uv satisfies deg(u)+deg(v) ≥ n. Adding all such nonedges (degrees only increase) yields K_n. By the equivalence at each step, Hamiltonicity is preserved.
+
+Immediate consequences recorded
+- Connectivity: δ ≥ n/2 ⇒ G is connected.
+- 2-connectivity: δ ≥ n/2 ⇒ G has no cut-vertex.
+- Common neighbors under δ ≥ n/2: For nonadjacent u,v, |N(u)∪N(v)| ≤ n−2, so |N(u)∩N(v)| ≥ deg(u)+deg(v) − (n−2) ≥ 2. Thus any nonadjacent pair has at least two common neighbors. Useful for rotation–extension arguments.
+
+Sharpness: For even n=2k, K_{k−1,k+1} has δ = k−1 = n/2−1 and is non-Hamiltonian (bipartite imbalance). For odd n=2k+1, K_{k,k+1} has δ = k = ⌊n/2⌋ and is non-Hamiltonian (all cycles even). Thus Dirac’s bound can’t be lowered.
+
+What’s next
+- Add Ore’s theorem as a corollary of the single-edge equivalence (no full closure needed).
+- Prove the full Bondy–Chvátal closure theorem cl(G) is Hamiltonian iff G is.
+- Optional: Pancyclicity strengthening (Bondy) under δ ≥ n/2, and a constructive extraction of a Hamiltonian cycle via closure plus the path-closing lemma.
+Additions appended to outputs (all rigorously proven there)
+
+- Corollary (two common neighbors under δ ≥ n/2): For any nonadjacent u, v we have |N(u) ∩ N(v)| ≥ 2. Proof idea: N(u), N(v) ⊆ V \ {u, v}, so |N(u) ∪ N(v)| ≤ n − 2; inclusion–exclusion with deg(u) + deg(v) ≥ n gives |N(u) ∩ N(v)| ≥ 2.
+- Corollary (diameter ≤ 2 under δ ≥ n/2): Every pair of vertices is either adjacent or has a common neighbor; thus diam(G) ≤ 2.
+- Ore’s theorem via Lemma 4: If every nonadjacent pair satisfies deg(u) + deg(v) ≥ n in G, then iteratively adding any nonedge uv preserves Hamiltonicity equivalence (degrees only increase), reaching K_n and implying G is Hamiltonian.
+- Bondy–Chvátal closure equivalence: Define Φ(H) by adding all nonedges with current degree sum ≥ n. Iterating Φ from G stabilizes at cl(G). Monotonicity of Φ gives order-independence (any maximal one-by-one process yields the same cl(G)) and provides a chain from G to cl(G) adding one eligible edge at a time; applying Lemma 4 at each step gives G Hamiltonian iff cl(G) Hamiltonian.
+
+Algorithmic note (constructing a Hamiltonian cycle under δ ≥ n/2)
+- Compute the closure (here it is K_n) while recording the added edges in order.
+- Start with any Hamiltonian cycle in K_n.
+- Traverse the added edges in reverse: if the current cycle uses the last added edge uv, delete uv to get a Hamiltonian u–v path in the previous graph and re-close it by the path-closing lemma; otherwise keep the cycle. Invariants: at each step you maintain a Hamiltonian cycle in the current graph. This yields a Hamiltonian cycle in the original G.
+
+Sanity checks
+- Threshold examples K_{n/2,n/2} (even n) and small n (n = 3, 4) behave as expected under the closure and the corollaries.
+
+Next objectives
+- Prove Bondy’s pancyclicity strengthening (either closure-based or via rotation–extension), and, if included, give sharp exceptions.
+- Optional: quantify the complexity of the constructive procedure; record a brief pseudocode and complexity O(n^2)–O(n^3) depending on data structures.
+
+
+Current output.md (if any):
+Definitions and standing assumptions
+- Graphs are finite, simple, undirected. Let n = |V(G)| ≥ 3. Write δ(G) for the minimum degree. A Hamiltonian path/cycle is a path/cycle on all n vertices.
+
+Proposition 1 (Connectivity). If δ(G) ≥ n/2, then G is connected.
+Proof. Suppose G is disconnected, and let C be a smallest component with |C| = s. Any v ∈ C has deg(v) ≤ s−1. If s ≤ n/2 then deg(v) ≤ n/2−1 < n/2, contradicting δ(G) ≥ n/2. Hence s ≥ n/2+1, but then the union of two components already has more than n vertices, a contradiction. ∎
+
+Proposition 2 (2-connectivity). If δ(G) ≥ n/2, then G has no cut-vertex.
+Proof. Suppose w is a cut-vertex. Let the components of G−w be H_1,…,H_t with t ≥ 2, and set s = min_i |V(H_i)|. For any x in a smallest component, x has neighbors only within that component and possibly w, so deg(x) ≤ (s−1)+1 = s. Since s ≤ (n−1)/2, we get deg(x) ≤ (n−1)/2 < n/2, contradicting δ(G) ≥ n/2. ∎
+
+Lemma 3 (Path-closing). Let P = x_0,x_1,…,x_{n−1} be a Hamiltonian path in G with endpoints u = x_0 and v = x_{n−1}. If deg(u)+deg(v) ≥ n, then G has a Hamiltonian cycle.
+Proof. If uv ∈ E(G), adding uv closes P into a Hamiltonian cycle. Assume uv ∉ E(G). Define
+A = { i ∈ {1,…,n−2} : u is adjacent to x_i },
+B = { i ∈ {2,…,n−1} : v is adjacent to x_{i−1} }.
+Because P spans all vertices and uv ∉ E(G), every neighbor of u (resp. v) lies among x_1,…,x_{n−2}, so |A| = deg(u) and |B| = deg(v). For i ∈ {2,…,n−2}, if both u∼x_i and v∼x_{i−1} hold (i.e., i ∈ A ∩ B), then the cycle
+u, x_i, x_{i+1}, …, x_{n−1}(=v), x_{i−1}, x_{i−2}, …, x_0(=u)
+uses edges of P plus the two chords and spans all vertices. If A ∩ B = ∅, then among the (n−3) indices i ∈ {2,…,n−2} at most one of i ∈ A or i ∈ B can occur each time, and additionally index 1 can contribute only to A and index n−1 only to B. Hence |A|+|B| ≤ (n−3)+1+1 = n−1, contradicting deg(u)+deg(v) = |A|+|B| ≥ n. Therefore A ∩ B ≠ ∅ and the Hamiltonian cycle exists. ∎
+
+Lemma 4 (Single-edge closure equivalence). Let uv ∉ E(G) with deg(u)+deg(v) ≥ n, and let G′ = G + uv. Then G is Hamiltonian if and only if G′ is Hamiltonian.
+Proof. If G is Hamiltonian then so is the supergraph G′. Conversely, suppose G′ has a Hamiltonian cycle. If the cycle avoids uv, it is a Hamiltonian cycle of G. If it uses uv, then deleting uv yields a Hamiltonian path in G with endpoints u and v; apply Lemma 3 to conclude that G is Hamiltonian. ∎
+
+Lemma 5 (Closure to K_n under δ ≥ n/2). If δ(G) ≥ n/2, then for every nonedge {u,v} we have deg(u)+deg(v) ≥ n. Iteratively adding all such nonedges yields K_n.
+Proof. Under δ(G) ≥ n/2, any two vertices satisfy deg(u) ≥ n/2 and deg(v) ≥ n/2, so deg(u)+deg(v) ≥ n. Adding a nonedge can only increase degrees, so the degree-sum condition persists for remaining nonedges. After finitely many additions, all nonedges are added and the resulting graph is K_n. ∎
+
+Theorem 6 (Dirac’s theorem). Let G be a graph on n ≥ 3 vertices. If δ(G) ≥ n/2, then G is Hamiltonian.
+Proof. By Lemma 5 we may add all nonedges with degree-sum at least n to obtain K_n. By Lemma 4, Hamiltonicity is preserved (equivalently) at each addition, so G is Hamiltonian if and only if K_n is. Since K_n has a Hamiltonian cycle for n ≥ 3, G is Hamiltonian. ∎
+
+Proposition 7 (Sharpness of the bound). The threshold n/2 cannot be lowered.
+(a) For even n = 2k, the graph K_{k−1, k+1} has δ = k−1 = n/2−1 and is not Hamiltonian (a Hamiltonian cycle in a bipartite graph must alternate evenly, impossible with parts of different sizes).
+(b) For odd n = 2k+1, the graph K_{k, k+1} has δ = k = ⌊n/2⌋ and is not Hamiltonian (all cycles in bipartite graphs are even, but n is odd).
+Thus the bound n/2 is best possible up to rounding. ∎
+Corollary 8 (Two common neighbors under δ ≥ n/2). Let G be a graph on n ≥ 3 vertices with δ(G) ≥ n/2. If u and v are nonadjacent, then |N(u) ∩ N(v)| ≥ 2.
+Proof. Since N(u), N(v) ⊆ V(G) \ {u, v}, we have |N(u) ∪ N(v)| ≤ n − 2. Hence
+|N(u) ∩ N(v)| = deg(u) + deg(v) − |N(u) ∪ N(v)| ≥ n − (n − 2) = 2. ∎
+
+Corollary 9 (Diameter ≤ 2 under δ ≥ n/2). If δ(G) ≥ n/2, then diam(G) ≤ 2.
+Proof. For any two vertices u, v, either uv ∈ E(G), giving distance 1, or uv ∉ E(G), in which case by Corollary 8 they share a neighbor and have distance 2. ∎
+
+Theorem 10 (Ore’s theorem). Let G be a graph on n ≥ 3 vertices such that for every nonadjacent pair u, v we have deg(u) + deg(v) ≥ n. Then G is Hamiltonian.
+Proof. Enumerate the nonedges of G arbitrarily and add them one by one. Degrees only increase, so at each step the current nonedge uv being added satisfies deg(u) + deg(v) ≥ n in the current graph. By Lemma 4, each single addition preserves Hamiltonicity equivalence. The final graph is K_n, which is Hamiltonian; thus the original G is Hamiltonian. ∎
+
+Theorem 11 (Bondy–Chvátal closure equivalence). Let G be a graph on n ≥ 3 vertices. Define the operator Φ by
+Φ(H) = H + { uv ∉ E(H) : deg_H(u) + deg_H(v) ≥ n }.
+Let cl(G) = Φ^m(G) for any m large enough that Φ^m(G) = Φ^{m+1}(G) (this stabilization occurs since the edge set is finite). Then G is Hamiltonian if and only if cl(G) is Hamiltonian. Moreover, cl(G) is the unique graph obtainable from G by repeatedly adding nonedges uv with deg(current u) + deg(current v) ≥ n until none remain, independent of the order of additions.
+Proof. Uniqueness/order-independence: Consider the chain H_0 = G, H_{t+1} = Φ(H_t). Since |E| is finite, H_t stabilizes at some m with H_m = Φ(H_m); set cl(G) = H_m. Let G = G_0 ⊂ G_1 ⊂ ··· ⊂ G_s = H be any maximal chain obtained by adding one eligible nonedge at each step, stopping when no such pair remains. First, by monotonicity of Φ we have G_i ⊆ Φ^i(G) for all i (induction: if G_i ⊆ Φ^i(G), then G_{i+1} ⊆ Φ(G_i) ⊆ Φ(Φ^i(G)) = Φ^{i+1}(G)). Hence H ⊆ Φ^s(G) ⊆ cl(G). Conversely, since H has no eligible nonedges, Φ(H) = H; thus for all k, Φ^k(G) ⊆ Φ^k(H) = H by monotonicity, and in particular cl(G) ⊆ H. Therefore H = cl(G), proving order-independence and uniqueness.
+Equivalence of Hamiltonicity: At each stage, the set Φ(H_t) \ E(H_t) consists of nonedges uv whose degree sums are ≥ n in H_t. Enumerating these edges one by one yields a chain of single-edge additions from H_t to H_{t+1}; concatenating over t = 0, 1, …, m − 1 gives a chain from G to cl(G) where each added edge satisfies the degree-sum condition in the current graph. By Lemma 4, each addition preserves Hamiltonicity equivalence; composing these equivalences yields that G is Hamiltonian iff cl(G) is. ∎

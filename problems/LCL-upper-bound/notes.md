@@ -29,3 +29,35 @@ Remark: Ext equality alone does not determine |t| (e.g., with E self-loops and A
 
 C) Enumeration fix
 In the BFS over types, key the dictionary by the full Type(t), including k_flag. After the first transition to k_flag=≥4, all descendants remain in k_flag=≥4 and subsequent δ updates are length-agnostic.
+Additions: Stage-1 and Stage-2 specifications at the Ext level (r=1, oriented paths)
+
+Notation. Σ_out has size β. For an input word t with bits b_in(t) ∈ {0,1}^{|t|}, let Ext_t ⊆ Σ_out^4 denote the set of boundary quadruples (L1,L2,R2,R1) = (o[1],o[2],o[|t|-1],o[|t|]) that admit an interior completion o consistent with node constraints o[i]∈A_{b_in(t)[i]} and edge constraints (o[i],o[i+1])∈E. Types are Type(t)=(Ext_t, k_flag(t)), where k_flag∈{1,2,3,≥4} encodes short-length degeneracies. Concatenation of types τ⊙σ is defined by the Ext-level concatenation rule (see outputs.md) and k_flag update.
+
+Stage-1 (Ω(n) vs o(n)): type-level feasible function
+- Universe: the finite set of types T obtained by BFS from k=1 under the append-one-bit updates (keyed by (Ext,k_flag)). For τ,σ∈T, the Ext of τ⊙σ is defined by Ext-level concatenation.
+- Definition (feasible f). A function f: T × {0,1}^2 × T → Σ_out^2 mapping (τ_L, s, τ_R) to (α1,α2) is feasible if:
+  (i) Node/window constraints: αi ∈ A_{s[i]} for i=1,2 and (α1,α2) ∈ E (i.e., E(α1,α2) holds).
+  (ii) Universal extendibility across two separators: for all τ_a,τ_b,τ_c,τ_d∈T and s1,s2∈{0,1}^2, letting α_L := second component of f(τ_a,s1,τ_b) and α_R := first component of f(τ_c,s2,τ_d), we require
+      ∃ (o1,o2,o3,o4) ∈ Ext_{τ_b ⊙ τ_c} with E(α_L,o1) and E(o4,α_R).
+  Comment: The quantification over τ_a and τ_d is stronger than necessary but safe; a weaker version quantifies only over τ_b,τ_c and s1,s2. Indexing uses our convention (L1,L2,R2,R1); thus o1 and o4 are the first and last outputs of the middle block of type τ_b⊙τ_c.
+- NEXPTIME check: deterministically enumerate T and all Ext_{τ} and on-demand Ext_{τ⊙σ}; nondeterministically guess f; verify (i) and (ii) exhaustively. Complexity is 2^{poly(N)} in the problem description size N.
+- Status: We still owe a self-contained proof that “o(n) algorithm exists iff a feasible f exists” at the Ext level (the intended replacement of the paper’s feasible-function lemma). This will rely only on our Ext-append and Ext-concat lemmas and a standard pumping argument specialized to r=1.
+
+Stage-2 (O(1) vs Ω(log* n)): per-type boundary-interface witness
+- For each τ∈T with k_flag(τ)≥4, guess Q_τ=(L1_τ,L2_τ,R2_τ,R1_τ) with Q_τ ∈ Ext_τ. Enforce:
+  (a) Local consistency and tiling: E(L1_τ,L2_τ), E(R2_τ,R1_τ), and wrap E(R1_τ,L1_τ). Intuition: long blocks of type τ can be tiled by copies using the same boundary outputs.
+  (b) Bridging across any middle type (including empty): for all τ_left,τ_S,τ_right ∈ T, require either
+      - if τ_S has k_flag≥1: ∃ (o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_{τ_left},o1) and E(o4,L1_{τ_right}); or
+      - if τ_S is empty: E(R1_{τ_left},L1_{τ_right}).
+- Decision logic: if witnesses {Q_τ} exist and pass (a)–(b), classify O(1). Else, if a Stage-1 feasible f exists, classify Θ(log* n). Otherwise, classify Θ(n).
+- Status: We still owe a concrete constant-radius construction on oriented paths from {Q_τ} (e.g., a partition/tiling routine parametrized by fixed radii ℓ_width, ℓ_pattern, ℓ_count) and a proof that the produced labeling is legal. Short types (k_flag<4) are treated as separators τ_S in (b).
+
+Faster concatenation (proven and moved to outputs.md)
+- Precompute for each τ the 3D slices: Left_τ[o1,o2,x4] := ∃x3 (o1,o2,x3,x4)∈Ext_τ, and Right_τ[x1′,o3′,o4′] := ∃x2′ (x1′,x2′,o3′,o4′)∈Ext_τ.
+- Then (o1,o2,o3′,o4′)∈Ext_{τ⊙σ} iff ∃x4,x1′: Left_τ[o1,o2,x4] ∧ E(x4,x1′) ∧ Right_σ[x1′,o3′,o4′]. This allows computing Ext_{τ⊙σ} in O(β^6) time after O(β^4) precomputation per type.
+
+Sanity checks (kept as examples)
+- Trivial LCL (A_0=A_1=Σ_out, E complete): Ext_τ=Σ_out^4 for all τ; Stage-2 witness exists trivially ⇒ O(1).
+- Equality LCL (E={(x,x)}): take Q_τ=(c,c,c,c) ⇒ O(1).
+- Proper 2-coloring: Stage-2 fails; Stage-1 feasible f should exist ⇒ Θ(log* n).
+- Linear cases with incompatible seams: Stage-1 fails ⇒ Ω(n).

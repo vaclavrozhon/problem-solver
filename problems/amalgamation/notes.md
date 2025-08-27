@@ -30,3 +30,39 @@ Computational plan (to settle |A|=3 and |A|=4)
 
 Constructive ansatz to test
 - Try x_{ij}=w_iw_j with w_i:=p^B_i·p^C_i for i∈A. For T={i,j,k} this gives a triple (w_iw_j,w_iw_k,w_jw_k) of product +1. If this never yields O5 for any (p^B_k,p^C_k), it provides a uniform construction for all |A| (worth testing; not proved).
+Addendum: explicit S5 action, corrections, and computation plan
+
+1) Explicit ε-formula for the S5 action (implementation aid)
+For τ ∈ S5 and i ∈ {1,…,5}, write j := τ^{-1}(i) and define
+c_j(τ) := |{k<j : τ(k) > τ(j)}| + |{k>j : τ(k) < τ(j)}|.
+Then the sign multiplier in the action p′_i = ε_i(τ)·p_{τ^{-1}(i)} equals
+ε_i(τ) = sgn(τ)·(−1)^{c_j(τ)}.
+Sketch of justification: Let τ′ be the induced bijection from [5]\{j} to [5]\{i}. Its inversion count is inv(τ′) = inv(τ) − c_j(τ) because the inversions of τ decompose into those not involving j (which biject with the inversions of τ′) and those involving j (counted by c_j). Hence sgn(τ′) = (−1)^{inv(τ′)} = (−1)^{inv(τ)−c_j} = sgn(τ)·(−1)^{c_j}. By definition ε_i(τ) = sgn(τ′). A immediate corollary is the product identity ∏_{i=1}^5 ε_i(τ) = sgn(τ), since Σ_j c_j(τ) = 2·inv(τ).
+
+Practical note: This eliminates ambiguity about ε and supports a robust IsO5 enumerator.
+
+2) Correction to the “fully aligned” claim
+The statement “If p^B_k = p^C_k for all k then setting all x_{ij}=δ makes p(Y_k) constant δ for all k” is false unless the common pattern (p^B_k)_{k∈A} is itself constant with value δ. Counterexample: take p^B=p^C=(+,+,−,+) and δ=+. Then for k=3 the fixed coordinates are (−,−) while the three variables are +, so p(Y_3) is not constant. A correct (weaker) statement is: if p^B_k = p^C_k = δ for all k, then x_{ij}≡δ makes every p(Y_k) constant δ, hence non-O5.
+
+3) F(α,β) tables: compute all four cases
+Define F(α,β) ⊆ {±1}^3 as the set of triples (x,y,z) for which p=(α,β,x,y,z) is non-O5. Do not assume F(+,+)=F(−,−) or F(+,-)=F(−,+) a priori; compute all four cases. This is an 8×4=32-evaluation task. Record each F(α,β) explicitly along with any observed symmetries (e.g., invariance under permuting x,y,z).
+
+Consequence: |A|=3 reduces to checking that for each (α,β) there exists at least one triple in F(α,β). Archive one such triple per case.
+
+4) |A|=4 CSP protocol (profiles and ansatz)
+- Use the already-recorded CSP with variables x_{ij} on the six edges of K4 and four constraints Y_k. For any concrete pair (B,C) over A with B∩C=A and both omitting O5, determine the four pairs (p^B_k,p^C_k) and require the corresponding triangle-triple to lie in F(p^B_k,p^C_k).
+- Profiles to test early:
+  • P1: p^B≡+, p^C≡+. The corrected alignment lemma (constant case) gives the assignment x_{ij}≡+.
+  • P2: p^B≡+, p^C≡−. Try the perfect-matching assignment x_{12}=x_{34}=+, others −; check all four Y_k via IsO5.
+  • P3: p^B≡+, p^C drawn from an H5 labeling consistent on A; try ansatz x_{ij}=w_i w_j with w_i=p^B_i p^C_i.
+  • P4: both sides H5 aligned on A; by the corrected alignment lemma with δ=+, x_{ij}≡+ works if the common 4-bit pattern on A is constant +.
+- Constructive ansatz: x_{ij}:=w_i w_j where w_i:=p^B_i p^C_i. For T={i,j,k}, the triple is (w_i w_j, w_i w_k, w_j w_k) with product +1. Test this uniformly across enumerated cases; if it always avoids O5, it suggests a uniform construction for general |A|.
+
+5) Unit tests for IsO5
+- p=(+,+,+,+,+) should classify non-O5; p=(+,−,−,−,−) should classify O5; p=(+,−,+,−,+) should classify non-O5 (H5). Also verify that for a transposition τ, ∏_i p′_i flips sign (product identity) and that orbit membership is invariant under the action.
+
+6) Checklist for the next round
+- Implement IsO5 with the ε-formula; report the size of the O5 orbit found by enumeration.
+- Compute and list F(α,β) for all four cases; confirm |A|=3.
+- Run the |A|=4 CSP on P1–P4 first, then extend to representatives modulo S4 on A; archive satisfying/unsatisfying assignments.
+- Report whether the ansatz x_{ij}=w_i w_j succeeds in all tested instances.

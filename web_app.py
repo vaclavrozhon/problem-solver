@@ -788,27 +788,6 @@ else:
                         st.markdown("**Summary**")
                         st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
 
-                    # Writer artifacts
-                    wjson = rd / "writer.out.json"
-                    pdf_path = problem / "outputs.pdf"
-                    clog = rd / "outputs.compile.log"
-                    if wjson.exists() or pdf_path.exists() or clog.exists():
-                        st.markdown("#### 🖋 Writer")
-                        cols = st.columns([2,2,2])
-                        with cols[0]:
-                            if wjson.exists():
-                                try:
-                                    wdata = json.loads(wjson.read_text(encoding="utf-8"))
-                                    st.code(json.dumps(wdata, indent=2))
-                                except:
-                                    st.write("writer.out.json present")
-                        with cols[1]:
-                            if pdf_path.exists():
-                                st.download_button("Download outputs.pdf", data=pdf_path.read_bytes(), file_name="outputs.pdf", mime="application/pdf")
-                        with cols[2]:
-                            if clog.exists():
-                                st.text_area("LaTeX compile log", value=clog.read_text(encoding="utf-8")[-4000:], height=160)
-            
                     # --- Add feedback (human-in-the-loop) ---
                     st.markdown("#### ✍️ Add feedback")
                     fb_key = f"fb_{problem.name}_{rd.name}"

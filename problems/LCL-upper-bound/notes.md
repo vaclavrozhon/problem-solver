@@ -61,3 +61,30 @@ Sanity checks (kept as examples)
 - Equality LCL (E={(x,x)}): take Q_τ=(c,c,c,c) ⇒ O(1).
 - Proper 2-coloring: Stage-2 fails; Stage-1 feasible f should exist ⇒ Θ(log* n).
 - Linear cases with incompatible seams: Stage-1 fails ⇒ Ω(n).
+Updates and clarifications (r=1, oriented paths)
+
+1) Base-case updates finalized
+- k=1→2 is special and cannot be derived from the general append recurrence without over-constraining x1=x2; we record an explicit rule in outputs.md.
+- k=3→4 is also added explicitly (although it follows from the same recurrence if stated for k≥2). This ensures δ can move from short types to k_flag≥4 deterministically.
+
+2) Type-count bound corrected
+Type(t) consists of (Ext_t, k_flag(t)) only; boundary input bits are not part of Type. Hence the number of types satisfies
+  |T| ≤ 4 · 2^{β^4}.
+The earlier 16 · 2^{β^4} bound mixed in boundary input bits unnecessarily.
+
+3) δ well-defined and BFS enumeration
+- Seeds: k=1 types for b∈{0,1} (Ext_{(b)} = {(x,x,x,x): x∈A_b}).
+- Transitions: use base-cases for k<4 (1→2, 2→3, 3→4) and Lemma 1 for k≥4. By congruence, δ(Type, a) depends only on (Ext, k_flag) and a.
+- Termination and complexity: at most |T| ≤ 4·2^{β^4} insertions; each append is O(β^5) in the k≥4 regime (base-cases are ≤ O(β^4)); total time/space 2^{poly(β)}.
+
+4) Reversal operator (optional but helpful)
+Define Rev(τ) = (Ext_τ^R, k_flag(τ)) with Ext_τ^R := { (y1,y2,y3,y4) : (y4,y3,y2,y1) ∈ Ext_τ }. Then Rev(Rev(τ))=τ and Ext_{Rev(τ) ⊙ Rev(σ)} = (Ext_{σ ⊙ τ})^R.
+
+5) Stage-1 and Stage-2 (status)
+- Stage-1 (Ω(n) vs o(n)): the feasible function f: T × {0,1}^2 × T → Σ_out^2 with the universal Ext-based check (seams E(α_L, o1), E(o4, α_R), using the (L1,L2,R2,R1) ordering) is the right formal object. We still need a fully self-contained proof of the equivalence “o(n) iff such f exists”.
+- Stage-2 (O(1) vs Ω(log* n)): the per-type witness Q_τ∈Ext_τ for k_flag≥4 with tiling and universal bridging checks is plausible. A complete constant-radius construction on oriented paths remains to be written and verified.
+
+6) Sanity and regression items
+- β=2 trivial LCLs and equality LCL check the base-cases and concatenation routines.
+- Reconfirm the 3-color counterexample for R-composition via ∃m.
+- Maintain an indexing reminder: Ext quadruples are ordered (L1,L2,R2,R1); in seam checks across a middle block of type τ_b⊙τ_c, the left seam meets o1 and the right seam meets o4.

@@ -577,7 +577,13 @@ else:
             
             with col4:
                 if status["latest_verdict"]:
-                    verdict_emoji = {"promising": "✅", "uncertain": "⚠️", "unlikely": "❌"}.get(status["latest_verdict"], "—")
+                    verdict_emoji = {
+                        "promising": "✅", 
+                        "uncertain": "⚠️", 
+                        "unlikely": "❌",
+                        "success": "🎉",
+                        "nothing so far": "⭕"
+                    }.get(status["latest_verdict"], "—")
                     st.write(f"{verdict_emoji} {status['latest_verdict']}")
                 else:
                     st.write("—")
@@ -818,7 +824,13 @@ else:
                         except: pass
                     if verdict:
                         with colh2:
-                            emoji = {"promising":"✅","uncertain":"⚠️","unlikely":"❌"}.get(verdict,"—")
+                            emoji = {
+                                "promising": "✅",
+                                "uncertain": "⚠️", 
+                                "unlikely": "❌",
+                                "success": "🎉",
+                                "nothing so far": "⭕"
+                            }.get(verdict, "—")
                             st.markdown(f"**Verdict:** {emoji} {verdict}")
             
                     timings = {}

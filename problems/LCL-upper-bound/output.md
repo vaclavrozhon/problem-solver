@@ -34,3 +34,32 @@ Then for all (o1,o2,o3′,o4′),
   (o1,o2,o3′,o4′) ∈ Ext_{τ⊙σ} ⇔ ∃x4,x1′: Left_τ[o1,o2,x4] ∧ E(x4,x1′) ∧ Right_σ[x1′,o3′,o4′].
 Moreover, after precomputing Left_τ and Right_σ for all τ,σ in O(β^4) time per type, Ext_{τ⊙σ} can be computed in O(β^6) time by scanning all (o1,o2,o3′,o4′)∈Σ_out^4 and testing the existential condition over (x4,x1′)∈Σ_out^2.
 Proof. The equivalence is immediate from Lemma 2 by eliminating the existential witnesses x3 and x2′ into the definitions of Left_τ and Right_σ. Complexity: each 3D table has O(β^3) entries and can be filled in O(β) time per entry (by checking ∃ over one coordinate), giving O(β^4). Computing Ext_{τ⊙σ} requires O(β^4) target entries and an O(β^2) search over (x4,x1′) per entry, hence O(β^6). □
+Proposition 6 (Base-case update; k=1→2).
+Let t=(b) be a length-1 input and t′:=t·a the length-2 input obtained by appending a∈{0,1}. For all (x1,x2,x3,x4)∈Σ_out^4,
+  (x1,x2,x3,x4) ∈ Ext_{t′} ⇔ [ x1 = x3, x2 = x4, x1 ∈ A_b, x2 ∈ A_a, and E(x1,x2) ].
+Proof. A legal labeling on t′ has outputs (o1,o2) with o1∈A_b, o2∈A_a and E(o1,o2); its boundary tuple is (o1,o2,o1,o2), giving the stated equalities and constraints. The converse is immediate. □
+
+Proposition 7 (Base-case update; k=3→4).
+Let t=(b1,b2,b3) be a length-3 input and t′:=t·a the length-4 input obtained by appending a∈{0,1}. For all (x1,x2,x3,x4)∈Σ_out^4,
+  (x1,x2,x3,x4) ∈ Ext_{t′} ⇔ [ x1∈A_{b1}, x2∈A_{b2}, x3∈A_{b3}, x4∈A_a, and E(x1,x2), E(x2,x3), E(x3,x4) ].
+Proof. Unfold the definition: Ext_{t′} collects exactly the boundary tuples of legal labelings on the 4-node path with the given input bits, which are precisely those satisfying the listed node and edge constraints. □
+
+Lemma 8 (Type-count bound).
+With Type(t):=(Ext_t, k_flag(t)) and Ext_t⊆Σ_out^4, the number of distinct types obeys
+  |T| ≤ 4 · 2^{β^4}.
+Proof. For each of the four values of k_flag∈{1,2,3,≥4}, Ext_t can be any subset of Σ_out^4 (subject to feasibility), so the total number of pairs (Ext, k_flag) is at most 4·2^{|Σ_out^4|} = 4·2^{β^4}. □
+
+Proposition 9 (δ well-defined; deterministic BFS enumeration in 2^{poly(β)} time/space).
+Let δ map a type τ and an appended bit a∈{0,1} to the type of the one-bit extension. Define δ by:
+- If k_flag(τ)=1 and input bit inside τ is b (implicitly recoverable as A_b = { x : (x,x,x,x) ∈ Ext_τ }), compute Ext of the 2-node type by Proposition 6.
+- If k_flag(τ)=2, use the explicit k=2→3 update (already in outputs.md).
+- If k_flag(τ)=3, use Proposition 7.
+- If k_flag(τ)≥4, use Lemma 1.
+Then δ(τ,a) depends only on τ and a (by Proposition 3), not on the particular representative. A deterministic BFS that starts from all length-1 seeds (t=(0) and t=(1)), repeatedly applies δ(·,0) and δ(·,1), and interns types by equality of (Ext, k_flag), halts after at most |T| insertions and enumerates all reachable types. Each transition costs O(β^5) in the k_flag≥4 regime (base-cases are ≤O(β^4)). Since |T| ≤ 4·2^{β^4}, the total time and space are 2^{poly(β)}. □
+
+Lemma 10 (Reversal operator; basic properties).
+Define, for any type τ=(Ext_τ,k_flag(τ)), the reversed type Rev(τ):=(Ext_τ^R, k_flag(τ)), where
+  Ext_τ^R := { (y1,y2,y3,y4) ∈ Σ_out^4 : (y4,y3,y2,y1) ∈ Ext_τ }.
+Then Rev(Rev(τ))=τ. Moreover, for any types τ,σ with k_flag≥4,
+  Ext_{Rev(τ) ⊙ Rev(σ)} = (Ext_{σ ⊙ τ})^R.
+Proof. The involution Rev(Rev(τ))=τ is immediate from the definition. For concatenation, note that reversing P·Q swaps the order and reverses boundary coordinates. Applying Lemma 2 to σ⊙τ and then reversing both sides yields the stated identity. □

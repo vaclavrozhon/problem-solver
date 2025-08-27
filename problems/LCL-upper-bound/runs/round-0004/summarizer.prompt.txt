@@ -1,0 +1,98 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+Status and audit of outputs.md (Round 0004)
+
+- What is solid: outputs.md now contains the core r=1 primitives with complete proofs: (i) append-one-bit recurrence for k_flag ≥ 4; (ii) the key concatenation lemma at the Ext level; (iii) the congruence lemma (Type preserved under append); (iv) an explicit counterexample showing R-composition via ∃m is unsound; (v) an O(β^6) concatenation routine via 3D slices.
+- Gaps to fill: (A) Base-case update k=1→2 is missing (only k=2→3 is written), yet it is needed to seed δ; (B) Deterministic enumeration of types T and the δ-transition correctness/complexity bounds are not yet in outputs.md; (C) Stage-1 trichotomy step (Ω(n) vs o(n)): definition of the type-level feasible function f, the precise universal verification condition using Ext_{τ⊙σ}, and the equivalence proof (o(n) iff f exists) are absent; (D) Stage-2 trichotomy step (O(1) vs Ω(log* n)): the per-type boundary interface witness Q_τ, its verification conditions, and a constant-round construction are not yet recorded; (E) The standard type-count upper bound |T| ≤ 16·2^{β^4} for r=1 is missing; (F) A reversal operator Rev(τ) (needed if any check uses reversed windows) is not stated here (though not strictly necessary on globally oriented paths).
+
+Additions proposed for outputs.md
+
+1) Base case k=1→2 (explicit rule)
+For t=(b) and t′=t·a, for any (x1,x2,x3,x4)∈Σ_out^4,
+  (x1,x2,x3,x4)∈Ext_{t′} ⇔ [x1=x3, x2=x4, x1∈A_b, x2∈A_a, E(x1,x2)].
+Why: This complements the already stated k=2→3 update; together with Lemma 1 (k_flag≥4) the three base cases (k=1,2,3) make the append DP fully constructive from scratch.
+
+2) Type-count bound and δ well-defined, with deterministic enumeration (DP over Ext)
+Lemma (Type-count for r=1). The number of distinct types (Ext,k_flag) is at most 16·2^{β^4}.
+Sketch. D1∪D2 has four boundary nodes, with 2^4 choices of boundary input bits implicitly encoded in Ext_t; extendibility over Σ_out^4 yields ≤ 2^{β^4} possibilities. Thus |T| ≤ 16·2^{β^4}.
+Proposition (δ well-defined and BFS enumeration). Key the dictionary by Type=(Ext,k_flag). From seeds |t|∈{1,2,3,4}, update by: k_flag<4 use the explicit base cases (k=1→2, k=2→3), k_flag≥4 use Lemma 1. By the congruence lemma, if Type(P)=Type(Q) then Type(P·a)=Type(Q·a); hence δ depends only on Type and a. BFS closure over a∈{0,1} halts after ≤|T| insertions. Complexity: each append costs O(β^5); total deterministic time/space 2^{poly(β)}.
+
+3) Reversal operator (for completeness)
+Definition. Rev maps τ=(Ext_τ,k_flag) to τ^R=(Ext_τ^R,k_flag) with Ext_τ^R := { (y1,y2,y3,y4): (y4,y3,y2,y1)∈Ext_τ }. Then Rev(Rev(τ))=τ. If needed, Ext_{Rev(τ)⊙Rev(σ)} = (Ext_{σ⊙τ})^R.
+
+4) Precise Stage-1 (Ω(n) vs o(n)) at the type level
+Definition (feasible function, oriented r=1). Let T be the enumerated types. A table f: T×{0,1}^2×T→Σ_out^2 is feasible if for all triples (τ_L,s,τ_R):
+- Local window legality: if f(τ_L,s,τ_R)=(α1,α2), then αi∈A_{s[i]} for i=1,2 and E(α1,α2).
+- Universal extendibility across two separators: for all τ_a,τ_b,τ_c,τ_d∈T and s1,s2∈{0,1}^2, letting α_L := second component of f(τ_a,s1,τ_b) and α_R := first component of f(τ_c,s2,τ_d), we require
+  ∃(o1,o2,o3,o4)∈Ext_{τ_b⊙τ_c} s.t. E(α_L,o1) and E(o4,α_R).
+Indexing note. Our Ext quadruples are ordered (L1,L2,R2,R1). Thus o1 is the leftmost output of the middle block (adjacent to α_L), and o4 is the rightmost output of the middle block (adjacent to α_R); the seam checks E(α_L,o1), E(o4,α_R) are the correct edges.
+Theorem (equivalence). The LCL has deterministic complexity o(n) on globally oriented paths iff a feasible f exists.
+- Only if. Let A be an o(n)-round algorithm. Fix ℓ_pump=|T|. For any w with |w|∈[1,ℓ_pump], pump to w^+ of length Θ(s) (s≫runtime) preserving Type, assign IDs so that A’s view on the 2r-window depends only on (τ_L,s,τ_R), and define f(τ_L,s,τ_R) as A’s output on the window. Validity of the universal check follows since Ext_{τ_b⊙τ_c} depends only on Types (by Lemma 2 and concatenation), and A labels the middle consistently across any two separators.
+- If. Given feasible f, decompose the path into two separators and a middle (adversarial) block; fill both separators using f, and fill the middle using the existential witness in Ext_{τ_b⊙τ_c}. This yields an O(log* n)-round algorithm via the standard MIS-based sparse placement of separators (as in the paper’s Lemma 16), specialized to oriented paths.
+NEXPTIME verification. Deterministically precompute T, and Ext_{τ⊙σ} by Proposition 5; guess f (size |T|^2·4 entries), and verify all constraints in time 2^{poly(β)}.
+
+5) Precise Stage-2 (O(1) vs Ω(log* n)) with a constant-round construction
+Witness. For each τ∈T with k_flag≥4, pick Q_τ=(L1_τ,L2_τ,R2_τ,R1_τ)∈Ext_τ.
+Checks.
+(a) Tiling feasibility (per τ): E(L1_τ,L2_τ), E(R2_τ,R1_τ), and wrap-around E(R1_τ,L1_τ). (Membership in Ext_τ ensures the boundary outputs are consistent with the interior inputs; explicit E checks are kept for clarity.)
+(b) Middle bridging (universal): for all τ_left, τ_S, τ_right ∈ T, require either
+  - if k_flag(τ_S)≥1: ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(R1_{τ_left},o1) and E(o4,L1_{τ_right}); or
+  - if S is empty: E(R1_{τ_left},L1_{τ_right}).
+Theorem (constant-time labeling from {Q_τ}). There exists an O(1)-round deterministic labeling algorithm on oriented paths if such {Q_τ} pass (a)–(b).
+Construction (constant-radius). Choose constants ℓ_width=ℓ_pattern=ℓ_pump and ℓ_count=2ℓ_pump+2. Compute in O(1) rounds an (ℓ_width,ℓ_count,ℓ_pattern)-partition (the directed-path version of Lemma 22 holds in O(1)): 
+- Long periodic blocks P have Type τ with k_flag≥4 and a primitive input pattern of period ≤ℓ_pump repeated ≥ℓ_count. Label P by tiling copies whose boundary output is Q_τ: interior feasibility follows from Q_τ∈Ext_τ; seam E(R1_τ,L1_τ) ensures joins.
+- Separator blocks S (short or aperiodic; any k_flag) are filled by the existential witness in Ext_{τ_S} so that the left seam matches the R1 of the preceding long block and the right seam matches the L1 of the following long block (condition (b)). End segments at path endpoints need no extra seam check.
+Legality: All node memberships and edge constraints hold by Ext-membership inside blocks plus explicit seam E checks. Runtime is O(1) as the partition and local fillings use only constant radii.
+NEXPTIME verification. Guess {Q_τ} for τ with k_flag≥4 and check (a)–(b) universally using Ext tables; time 2^{poly(β)}.
+
+6) S=∅ case in Stage-1 and Stage-2
+Optionally define Ext_{∅} via the seam-edge constraint: (o1,o2,o3,o4)∈Ext_{∅} iff o2=o1 and o3=o4 and E(o2,o3); then both stages unify “empty middle” into a single Ext lookup.
+
+7) Small sanity checks and regression items
+- k=1→2 base: β=2, E complete, A_0=A_1=Σ_out: Ext_{(b)} = {(x,x,x,x): x∈Σ_out}; appending a gives Ext_{(b,a)}={(x,y,x,y): x∈A_b, y∈A_a, E(x,y)} as expected.
+- Ext concatenation vs R-composition: retain the 3-color a→b→c counterexample; confirm that (a,c)∉R_{P·Q} although (a,b)∈R_P and (b,c)∈R_Q.
+- Reversal: for symmetric E and A, Ext=Ext^R; verify Rev(Rev(τ))=τ and Ext_{Rev(τ)⊙Rev(σ)}=(Ext_{σ⊙τ})^R.
+
+8) Complexity recap (toward the target NEXPTIME algorithm)
+- Precompute T by BFS over append: ≤16·2^{β^4} types; O(β^5) per transition; time/space 2^{poly(β)}.
+- Precompute Left_τ, Right_τ per τ in O(β^4) and Ext_{τ⊙σ} in O(β^6) per pair (or on-demand with caching).
+- Stage-1: guess f of size O(|T|^2) entries; verify O(|T|^4·4) universal constraints with O(1) Ext lookups each → 2^{poly(β)} time.
+- Stage-2: guess {Q_τ} for τ with k_flag≥4; verify O(|T| + |T|^3) constraints via Ext → 2^{poly(β)} time.
+
+Action items for outputs.md
+- Add the k=1→2 base rule and the Type-count and δ-enumeration proposition with explicit complexity.
+- Insert the Stage-1 feasible-function definition, the precise Ext-based universal check (with indexing note), and the equivalence theorem (both directions) specialized to oriented paths.
+- Insert the Stage-2 witness definition and the constant-round construction and proof sketch, restricted to k_flag≥4 types for witnesses and treating short types as separators.
+- Optionally add Rev(·) to complete the algebra of types and help prevent indexing mistakes in future extensions.
+
+Potential pitfalls and how we address them
+- Off-by-one at seams: we explicitly match α_L to the leftmost element o1 of Ext_{τ_b⊙τ_c}, and α_R to the rightmost element o4; we state this to avoid ambiguity.
+- Reliance on boundary inputs: our use of Ext_t eliminates any need to carry the boundary input bits in Type, since Ext encodes node memberships implicitly. The congruence and concatenation lemmas ensure that replacement by same-Type contexts is sound.
+- Short-type witnesses: we restrict Q_τ to k_flag≥4 and treat k_flag<4 cases as separators in the universal bridging checks.
+
+Next steps
+- Promote the items in Sections 1–5 into outputs.md with full statements and brief proofs (the equivalence theorem can mirror the paper’s Lemmas 17–18 but stated purely with Ext and Types; constants ℓ_pump, ℓ_count should be fixed in the statements).
+- Provide a short appendix with the O(β^6) concatenation implementation details (Left/Right slices) and a small API sketch for type enumeration and Ext operations, to make the verifier code straightforward.
+- Prepare a tiny regression suite (β∈{2,3}) to test base cases and concatenation, catching the k=2 update glitch and seam indexing.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+success
+

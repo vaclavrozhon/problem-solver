@@ -1,0 +1,1 @@
+Overall, this is a strong round: the core r=1 algebra (append recurrence, Ext-level concatenation, congruence, R-composition counterexample, and the O(β^6) concatenation routine) is in outputs.md with correct and sufficiently detailed proofs. The proposed additions by Prover 01 are mostly on target, but a few points need tightening or correction.

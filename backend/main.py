@@ -117,6 +117,22 @@ def get_file(path: str, token: str):
         raise HTTPException(404, "not found")
     return {"path": path, "content": full.read_text(encoding="utf-8")}
 
+@app.get("/ls")
+def list_dir(path: str, token: str):
+    uid = require_user(token)
+    full = (user_dir(uid) / path).resolve()
+    if not str(full).startswith(str(user_dir(uid).resolve())):
+        raise HTTPException(403, "invalid path")
+    if not full.exists() or not full.is_dir():
+        raise HTTPException(404, "not found")
+    items = []
+    for it in sorted(full.iterdir()):
+        items.append({
+            "name": it.name,
+            "is_dir": it.is_dir(),
+        })
+    return {"path": path, "items": items}
+
 class CreateProblemPayload(BaseModel):
     name: str
     task_text: str

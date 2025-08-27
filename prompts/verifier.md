@@ -24,5 +24,5 @@ Tasks:
   "new_notes_append": "True|False" If true, above text is only appended to notes. If False, the notes are replaced with the new text. Be careful with False!
   "new_outputs_md": text (markdown, Katex allowed) appended to outputs.md (or replacing, see below)
   "new_outputs_append": "True|False" If true, above text is only appended to outputs. If False, the outputs are replaced with the new text. Be careful with False!
-  "verdict": "promising|uncertain|unlikely".
+  "verdict": "success|uncertain|nothing so far" -- success means that you have something rigorous written up in outputs.md. Use sparingly! Nothing so far means that you don't have anything interesting to show for. Most of the time, I am expecting this as the verdict. Uncertain means that you feel you are up to something. Perhaps there is >80% chance that you can add something rigorously proven to outputs.md. 
 }

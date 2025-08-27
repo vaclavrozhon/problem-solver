@@ -1,0 +1,8 @@
+- Converging design: Adopt P02’s Offer/NoOffer seam with two S-side palettes (S1∈{VT,VF,⊥}, S2∈{O1,O2,O3,⊥}), and P01’s nearest-block barrier so F2 is automatic without trivializing F1.
+- Fix P01’s S-palette inconsistency and ensure activation codes are truly radius-1 by locally forwarding predecessor input bits.
+- Exclusivity (Eq vs Neq) is sound in concept across all reports; instantiate pointer-integrity tiles to preclude spoofed bits and start-state branching.
+- Forbid ⊥ at S on active contexts: needs explicit Cout–out seam tables enumerating allowed pairs and CertStart/CAP/PAD conduits; current text is high-level only.
+- F2: Prefer “barriers stop cursors one block away from S” over P03’s RepeatPAD-in-repeats; prove cursors cannot cross barriers and repeated blocks tile independently.
+- Avoid adding a tester clause j*: it risks adding non-neutral constraints to F1. Seek type separation via clauses from C or internal extendibility distinctions.
+- Provide a B=2 explicit DP trace (~12 nodes) for one ON and one OFF pair to sanity-check all seam interactions and sign gating.
+- Yes: mapping SAT(C) to a dichotomy {Θ(log* n), Θ(n)} is sufficient for hardness of the 3-way classifier; O(1) need not be realized by this family.

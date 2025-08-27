@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { signup, login, setKey, listProblems, createProblem, runRound, getStatus } from './api'
+import ProblemDetail from './ProblemDetail'
 
 export default function App() {
   const [email, setEmail] = useState('')
@@ -93,7 +94,7 @@ export default function App() {
                 <button onClick={onRun}>Run round</button>
                 <button onClick={onCheck}>Check status</button>
               </div>
-              <pre style={{ background: '#f6f8fa', padding: 8, borderRadius: 6 }}>{JSON.stringify(status, null, 2)}</pre>
+              <ProblemDetail name={selected} />
             </div>
           )}
         </div>

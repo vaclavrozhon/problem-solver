@@ -163,7 +163,7 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
             strict = json_schema_obj.get("strict", True)
             kwargs["text"] = {
                 "format": {
-                    "type": "json_schema",
+                "type": "json_schema",
                     "name": name,
                     "schema": schema,
                     "strict": strict,
@@ -225,9 +225,7 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
         raise last_err
 
 class ProverOutput(BaseModel):
-    progress_md: str = Field(..., description="Append-only progress notes")
-    requests_for_more_materials: List[str] = Field(default_factory=list)
-    next_actions_for_prover: List[str] = Field(default_factory=list)
+    markdown_md: str = Field(..., description="Markdown answer for the verifier (KaTeX allowed)")
 
 class VerifierOutput(BaseModel):
     feedback_md: str = Field(..., description="Detailed feedback")
@@ -256,6 +254,14 @@ class VerifierCombinedOutput(BaseModel):
     per_prover: List[PerProverFeedback] = Field(default_factory=list)
     notes_update: Optional[NotesUpdate] = None
     output_update: Optional[OutputUpdate] = None
+
+class VerifierNewSchema(BaseModel):
+    feedback_md: str
+    new_notes_md: str
+    new_notes_append: str
+    new_outputs_md: str
+    new_outputs_append: str
+    verdict: str
 
 # Writer removed for now; we keep rigorous outputs in output.md via verifier
 
@@ -599,7 +605,10 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
 {context}
 
 Current round tag: {round_tag}
-Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_tag}'."""
+Return ONLY valid JSON with a single field:
+{ "markdown_md": "<your markdown answer for the verifier, KaTeX allowed>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside markdown_md."""
 
     schema = {
         "name": "ProverOutput",
@@ -628,23 +637,10 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
     if not data:
         shown_text = text if text.strip() else "(the model did not return anything)"
         data = {
-            "progress_md": f"## {round_tag}\n\n(JSON parsing fallback)\n\n{shown_text}",
-            "requests_for_more_materials": [],
-            "next_actions_for_prover": []
+            "markdown_md": shown_text
         }
 
-    pm = (data.get("progress_md") or "").strip()
-    if not pm.startswith("##"):
-        data["progress_md"] = f"## {round_tag}\n\n" + pm
-        pm = (data.get("progress_md") or "").strip()
-    if len(pm) < 80:
-        shown_text = text if text.strip() else "(the model did not return anything)"
-        data["progress_md"] = (
-            f"## {round_tag}\n\n(Model returned too little; raw output below)\n\n{shown_text}"
-        )
-
-    data.setdefault("requests_for_more_materials", [])
-    data.setdefault("next_actions_for_prover", [])
+    # No further shaping; pass through
 
     out = ProverOutput(**data)
     (round_dir / f"prover-{prover_idx:02d}.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
@@ -671,8 +667,8 @@ Prover reports (JSON):
 """ + json.dumps(reports) + "\n\nCurrent notes.md:\n" + notes_md + "\n\nCurrent output.md (if any):\n" + (outputs_tex or "")
 
     schema = {
-        "name": "VerifierCombinedOutput",
-        "schema": _normalize_schema_strict(VerifierCombinedOutput.model_json_schema()),
+        "name": "VerifierNewSchema",
+        "schema": _normalize_schema_strict(VerifierNewSchema.model_json_schema()),
         "strict": True
     }
 
@@ -699,26 +695,37 @@ Prover reports (JSON):
         }
 
     data = cast(Dict[str, Any], data)
-    # Normalize occasional list-valued fields into strings
-    if isinstance(data.get("summary_md"), list):
-        data["summary_md"] = "\n".join(f"• {item}" for item in data["summary_md"])
-    if isinstance(data.get("feedback_md"), list):
-        data["feedback_md"] = "\n".join(str(x) for x in data["feedback_md"])
-    out = VerifierCombinedOutput(**data)
-    _apply_notes_update(problem_dir, out.notes_update)
-    # Apply output update
-    if out.output_update and out.output_update.content_md:
+    vnew = VerifierNewSchema(**data)
+    # Apply notes
+    notes_update = NotesUpdate(
+        mode="append" if (vnew.new_notes_append.strip().lower() == "true") else "replace",
+        content_md=vnew.new_notes_md or ""
+    )
+    _apply_notes_update(problem_dir, notes_update)
+    # Apply outputs
+    outputs_mode = "append" if (vnew.new_outputs_append.strip().lower() == "true") else "replace"
+    if vnew.new_outputs_md:
         out_path = problem_dir / "output.md"
         existing = out_path.read_text(encoding="utf-8") if out_path.exists() else ""
-        if out.output_update.mode == "replace":
-            out_path.write_text(out.output_update.content_md, encoding="utf-8")
+        if outputs_mode == "replace":
+            out_path.write_text(vnew.new_outputs_md, encoding="utf-8")
         else:
             sep = "\n" if existing and not existing.endswith("\n") else ""
-            out_path.write_text(existing + sep + out.output_update.content_md, encoding="utf-8")
-    (round_dir / "verifier.feedback.md").write_text(out.feedback_md, encoding="utf-8")
-    (round_dir / "verifier.summary.md").write_text(out.summary_md, encoding="utf-8")
-    (round_dir / "verifier.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
-    return out
+            out_path.write_text(existing + sep + vnew.new_outputs_md, encoding="utf-8")
+    # Persist feedback/summary in files for UI
+    (round_dir / "verifier.feedback.md").write_text(vnew.feedback_md, encoding="utf-8")
+    (round_dir / "verifier.summary.md").write_text(vnew.feedback_md.split("\n\n")[0][:1000], encoding="utf-8")
+    (round_dir / "verifier.out.json").write_text(json.dumps(vnew.model_dump(), indent=2), encoding="utf-8")
+    # Build object for downstream
+    return VerifierCombinedOutput(
+        feedback_md=vnew.feedback_md,
+        summary_md=vnew.feedback_md.split("\n\n")[0][:1000],
+        verdict=vnew.verdict,
+        blocking_issues=[],
+        per_prover=[],
+        notes_update=None,
+        output_update=None
+    )
 
 def call_writer(*args, **kwargs):
     raise RuntimeError("Writer is disabled. Verifier updates output.md directly.")
@@ -768,28 +775,9 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
 
     if not data:
         shown_text = text if text.strip() else "(the model did not return anything)"
-        data = {
-            "progress_md": f"## {round_tag}\n\n(JSON parsing fallback)\n\n{shown_text}",
-            "new_files": [],
-            "requests_for_more_materials": [],
-            "next_actions_for_prover": []
-        }
+        data = { "markdown_md": shown_text }
 
-    # Guard against empty/short progress but preserve raw output for debugging
-    pm = (data.get("progress_md") or "").strip()
-    if not pm.startswith("##"):
-        data["progress_md"] = f"## {round_tag}\n\n" + pm
-        pm = (data.get("progress_md") or "").strip()
-    if len(pm) < 80:
-        shown_text = text if text.strip() else "(the model did not return anything)"
-        data["progress_md"] = (
-            f"## {round_tag}\n\n(Model returned too little; raw output below)\n\n{shown_text}"
-        )
-    
-    # Ensure list fields exist
-    data.setdefault("new_files", [])
-    data.setdefault("requests_for_more_materials", [])
-    data.setdefault("next_actions_for_prover", [])
+    # No shaping; pass through markdown
 
     return ProverOutput(**data)
 
@@ -801,7 +789,7 @@ def call_verifier(problem_dir: Path, round_idx: int) -> VerifierOutput:
     prover_json = round_dir / "prover.out.json"
     if prover_json.exists():
         prover_data = json.loads(prover_json.read_text(encoding="utf-8"))
-        context += f"\n=== Latest Prover Output ===\n{prover_data.get('progress_md','')}\n"
+        context += f"\n=== Latest Prover Output ===\n{prover_data.get('markdown_md','')}\n"
 
     system_prompt = load_prompt("verifier")
 
@@ -832,7 +820,7 @@ Return ONLY valid JSON."""
     # Parse JSON
     try:
         data_any = json.loads(text) if not _is_o_model(MODEL_VERIFIER) or MODEL_VERIFIER.startswith("gpt-5") \
-                  else extract_json_from_response(text)
+               else extract_json_from_response(text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Verifier JSON decode error: {e}[/red]")
         console.print(f"[dim]Raw response: {text[:500]}[/dim]")
@@ -881,25 +869,17 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     for pfile in sorted(round_dir.glob("prover-*.out.json")):
         try:
             pdata = json.loads(pfile.read_text(encoding="utf-8"))
-            prover_blocks.append(f"=== {pfile.name} (progress_md) ===\n{pdata.get('progress_md','')}\n")
+            prover_blocks.append(f"=== {pfile.name} (markdown_md) ===\n{pdata.get('markdown_md','')}\n")
         except Exception:
             continue
 
     verifier_json = json.loads((round_dir / "verifier.out.json").read_text(encoding="utf-8"))
-    writer_path = round_dir / "writer.out.json"
-    writer_block = ""
-    if writer_path.exists():
-        try:
-            wdata = json.loads(writer_path.read_text(encoding="utf-8"))
-            writer_block = f"\n=== Writer (status) ===\n{wdata.get('status','')}\n"
-        except Exception:
-            writer_block = "\n=== Writer ===\n(unreadable)\n"
 
     context = (
         ("\n".join(prover_blocks) if prover_blocks else "")
         + f"\n=== Verifier (summary_md) ===\n{verifier_json.get('summary_md','')}\n"
         + f"=== Verifier (verdict) ===\n{verifier_json.get('verdict','')}\n"
-        + writer_block
+        
     )
 
     system_prompt = load_prompt("summarizer")
@@ -925,7 +905,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     # Parse JSON
     try:
         data_any = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
-                  else extract_json_from_response(text)
+               else extract_json_from_response(text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Summarizer JSON decode error: {e}")
         (round_dir / "summarizer.nonjson.txt").write_text(text, encoding="utf-8")
@@ -964,9 +944,9 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
         for fut in as_completed(futures):
             out = fut.result()
             prover_outputs.append(out)
-            # Append each prover's progress to progress.md
+            # Append each prover's markdown to progress.md (for human trace)
             round_tag = f"## Round {round_idx:04d} — {datetime.now().isoformat()}Z"
-            progress_content = out.progress_md.strip()
+            progress_content = out.markdown_md.strip()
             if not progress_content.startswith("##"):
                 progress_content = round_tag + "\n\n" + progress_content
             appended_progress = progress_content + "\n\n"

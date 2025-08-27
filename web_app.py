@@ -261,16 +261,23 @@ class ProblemManager:
         return False
     
     def clear_problem(self, problem_path: Path) -> bool:
-        """Stop & delete all runs and progress for this problem."""
+        """Stop & delete all runs, progress, notes, and outputs for this problem."""
         self.stop_problem(problem_path)
-        runs = problem_path / "runs"
-        prog = problem_path / "progress.md"
+        files_to_clear = [
+            problem_path / "runs",
+            problem_path / "progress.md",
+            problem_path / "notes.md",
+            problem_path / "output.md",
+            problem_path / "summary.md"
+        ]
         try:
-            if runs.exists():
-                import shutil
-                shutil.rmtree(runs)
-            if prog.exists():
-                prog.unlink()
+            for item in files_to_clear:
+                if item.exists():
+                    if item.is_dir():
+                        import shutil
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
             return True
         except Exception as e:
             print("clear_problem error:", e)
@@ -607,10 +614,39 @@ else:
                     st.session_state.manager.stop_problem(problem)
                     st.rerun()
             else:
-                if c4.button("🧹 Clear all"):
-                    if st.session_state.manager.clear_problem(problem):
-                        st.success("Cleared.")
-                        time.sleep(1); st.rerun()
+                # Clear all button with confirmation
+                clear_confirm_key = f"clear_confirm_{problem.name}"
+                if clear_confirm_key not in st.session_state:
+                    st.session_state[clear_confirm_key] = False
+                
+                if not st.session_state[clear_confirm_key]:
+                    if c4.button("🧹 Clear all"):
+                        st.session_state[clear_confirm_key] = True
+                        st.rerun()
+                else:
+                    # Show confirmation dialog
+                    st.warning("⚠️ Do you really want to clear all conversation thus far?")
+                    st.write("This will delete:")
+                    st.write("• All rounds (prover/verifier/summarizer outputs)")
+                    st.write("• Progress notes (progress.md)")
+                    st.write("• Research notes (notes.md)")
+                    st.write("• Verified outputs (output.md)")
+                    st.write("• Summary (summary.md)")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✅ Yes, clear all", key=f"confirm_yes_{problem.name}"):
+                            if st.session_state.manager.clear_problem(problem):
+                                st.success("All conversation data cleared.")
+                                st.session_state[clear_confirm_key] = False
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("Failed to clear data.")
+                    with col2:
+                        if st.button("❌ Cancel", key=f"confirm_no_{problem.name}"):
+                            st.session_state[clear_confirm_key] = False
+                            st.rerun()
             
             # Current phase & since when
             status_file = problem / "runs" / "live_status.json"

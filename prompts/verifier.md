@@ -12,7 +12,7 @@ Inputs:
 - outputs.md (rigorously proven results so far)
 
 Guidelines:
-- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading.
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
 - outputs.md: should be concise and rigorous. Keep only proven theorems with clear proofs. If a statement is flawed and you cannot fix it, remove it from outputs.md and instead add it to notes.md with explanation.
 - Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
 

@@ -202,3 +202,83 @@ Next steps (for outputs.md)
 ## Next steps for outputs.md
 - Optionally append: (i) the “≥2 common neighbors” and “diameter ≤ 2” corollaries; (ii) Ore’s theorem with the short proof above; (iii) the Bondy–Chvátal closure equivalence statement (compact proof via Lemma 4). These are short and strengthen the exposition without altering the main Dirac proof.
 
+## Audit of outputs.md (correctness and small clarifications)
+- The closure-based proof of Dirac’s theorem is complete and correct. Lemma 3 (path‑closing), Lemma 4 (single‑edge closure equivalence), Lemma 5 (iteration to K_n under δ ≥ n/2), and Theorem 6 (Dirac) form a logically tight chain.
+- Proposition 1 (connectivity) and Proposition 2 (2‑connectivity) are sound. A minor clarity option for Prop. 1: explicitly note that “disconnected” implies at least two components, hence two of size ≥ s ≥ n/2+1 would already exceed n.
+- Lemma 3 indexing is carefully handled: A = {1,…,n−2} and B = {2,…,n−1} ensure |A| = deg(u), |B| = deg(v) under uv ∉ E. The counting yielding |A|+|B| ≤ n−1 when A∩B=∅ is correct.
+- Theorem 11 (Bondy–Chvátal closure) proof properly uses monotonicity of Φ (degrees only increase) to establish uniqueness/order‑independence and chains Lemma 4 to get equivalence.
+- No gaps or errors detected in outputs.md.
+
+## New, small results and refinements to consider adding
+1) Minimal‑counterexample proof of Ore’s Theorem (short alternative)
+- Statement (Ore): If for every nonadjacent u,v we have deg(u)+deg(v) ≥ n, then G is Hamiltonian.
+- Proof idea: Suppose not, and let G be a minimal (by edges) counterexample. Then for some nonedge uv, G+uv has strictly more edges and still satisfies Ore’s condition for remaining nonedges (degrees increased). By minimality, G+uv is Hamiltonian. By Lemma 4 (single‑edge closure equivalence), G would then be Hamiltonian, a contradiction. Hence no counterexample exists. Why useful: Distills the role of Lemma 4 to a one‑line argument; complements the iterative proof already in outputs.md.
+
+2) Corollary (closing any Hamiltonian path under δ ≥ n/2)
+- Statement: If G has a Hamiltonian path with endpoints u,v and δ(G) ≥ n/2, then G has a Hamiltonian cycle.
+- Proof: Apply Lemma 3 with deg(u)+deg(v) ≥ n (since each ≥ n/2). Why useful: An immediate, often‑used corollary worth stating explicitly.
+
+3) Perfect matching consequences
+- Corollary (even n): If n is even and δ(G) ≥ n/2, then G has a perfect matching.
+  Proof: Take a Hamiltonian cycle (Theorem 6) and alternate its edges.
+- Corollary (odd n): If n is odd and δ(G) ≥ n/2, then G has a near‑perfect matching of size (n−1)/2.
+  Proof: Remove any vertex from a Hamiltonian cycle and alternate along the remaining path. Why useful: Provides immediate structural consequences often needed in applications.
+
+4) Algorithmic extraction of a Hamiltonian cycle (formalized)
+- Given G with δ ≥ n/2 and adjacency access, the reverse‑closure method yields a Hamiltonian cycle in O(n^2) time (with adjacency matrix; O(m+n^2) with lists):
+  • Compute the closure (here one application of Φ suffices to reach K_n), recording added edges in order e_1,…,e_t.
+  • Start with any n‑cycle C_t in K_n.
+  • For i = t, t−1, …, 1: if e_i ∉ E(C_i) set C_{i−1} = C_i; else let e_i = uv, delete uv from C_i to get a Hamiltonian u–v path P in G_{i−1}, and apply Lemma 3 to re‑close P into a Hamiltonian cycle C_{i−1} of G_{i−1}.
+  • Output C_0.
+  Correctness invariant: At step i we maintain a Hamiltonian cycle in G_i; Lemma 3 ensures we can eliminate the dependence on e_i if it is used. Why useful: Converts the existential proof into a constructive one with a clear complexity bound.
+
+5) Circumference viewpoint (alternative route; optional for appendix)
+- Theorem (Dirac’s circumference bound): If G is 2‑connected on n vertices with minimum degree δ, then its circumference c(G) ≥ min{n, 2δ}. Under δ ≥ n/2 this gives c(G) ≥ n, i.e., Hamiltonian.
+- Why useful here: Provides a classic alternative proof strategy; stating this as an appendix (with reference or a sketch) situates Dirac’s theorem among standard extremal cycle results.
+
+## Examples / sanity checks
+- Balanced bipartite K_{n/2,n/2}: δ = n/2, Hamiltonian, triangle‑free, and closure adds all intra‑part edges in one step to reach K_n; consistent with Lemma 4.
+- Sharpness (already in outputs.md): K_{k−1,k+1} (even n) and K_{k,k+1} (odd n) are non‑Hamiltonian at δ = ⌊n/2⌋ − 1 and δ = ⌊n/2⌋ respectively.
+
+## Obstacles / delicate points
+- Pancyclic strengthening (Bondy): Proving that δ ≥ n/2 implies pancyclicity unless G ≅ K_{n/2,n/2} requires additional nontrivial arguments (rotation–extension or specialized closure analysis). This is beyond the current scope but is a natural next target.
+
+## Next steps for outputs.md
+- Optionally append: (i) the short minimal‑counterexample proof of Ore; (ii) the “close any Hamiltonian path” corollary; (iii) perfect/near‑perfect matching corollaries; and (iv) the formal algorithmic construction and its complexity. These are short, checkable additions that enhance applicability without altering the main proof.
+
+## Audit of outputs.md (correctness and minor refinements)
+- Overall: The closure-based proof of Dirac’s theorem is complete and correct. Lemma 3 (path-closing), Lemma 4 (single-edge closure equivalence), Lemma 5 (iterative augmentation), and Theorem 6 (Dirac) are logically tight. The added corollaries (two common neighbors; diameter ≤ 2), Ore’s theorem, and the Bondy–Chvátal closure equivalence are also correct as stated and proved.
+- Proposition 1 (connectivity): The final sentence could be made more explicit. Let s be the size of the smallest component and assume s ≥ n/2 + 1. Since there is another component and by minimality all components have size ≥ s, pick any other component C′; then |C| + |C′| ≥ 2s > n, contradiction. (Equivalently, if there are exactly two components, n − s ≥ s must hold by minimality, forcing s ≤ n/2; contradiction to s ≥ n/2 + 1.) The current proof hints at this but does not state “the other component has size ≥ s by minimality.”
+- Lemma 3 (path-closing): The indexing and counting are sound. A small clarity note: explicitly mention that B indexes neighbors of v via i ↦ i − 1, so |B| = deg(v); this is already indicated but worth one explicit sentence in outputs.md.
+- Theorem 11 (closure equivalence): The monotonicity and order-independence arguments are correct. The decomposition of Φ-steps into single-edge additions is valid since eligibility persists under degree increases.
+
+## New, small results and why useful
+1) Lemma (Triangle or balanced bipartite under Dirac). Let G be on n ≥ 3 vertices with δ(G) ≥ n/2. Then either G contains a triangle, or n is even and G ≅ K_{n/2,n/2}.
+- Proof: If G is triangle-free, Mantel’s theorem gives e(G) ≤ ⌊n^2/4⌋. But e(G) ≥ nδ(G)/2 ≥ n(n/2)/2 = n^2/4, hence e(G) = n^2/4 and G attains Mantel’s extremal case, so G ≅ K_{⌊n/2⌋, ⌈n/2⌉}. Under δ ≥ n/2 this forces n even and δ = n/2, hence G ≅ K_{n/2,n/2}. Otherwise G has a triangle. ∎
+- Why useful: This is a first structural dichotomy toward Bondy’s pancyclicity strengthening (Dirac graphs are pancyclic unless G ≅ K_{n/2,n/2}). It also supplies a quick certificate of non-bipartiteness for most Dirac graphs.
+
+2) Worked example validating Lemma 3 (path-closing) on a tight instance.
+- Let G = K_4 − x_0x_3 (the “diamond”), n = 4. Take P = x_0, x_1, x_2, x_3 with u = x_0, v = x_3. Here deg(u) = deg(v) = 2 and uv ∉ E(G), so deg(u) + deg(v) = 4 = n. Compute A = {i ∈ {1,2} : u ∼ x_i} = {1,2}; B = {i ∈ {2,3} : v ∼ x_{i−1}} = {2,3}. Then A ∩ B contains i = 2, providing the Hamiltonian cycle x_0, x_2, x_3, x_1, x_0 as in Lemma 3. This illustrates the indexing and the closing mechanism at the threshold.
+
+3) Algorithmic note (constructing a Hamiltonian cycle under δ ≥ n/2)
+- Idea: Use the closure chain and reverse it, maintaining a Hamiltonian cycle at each step.
+- Outline:
+  1) Build a sequence G = G_0 ⊆ G_1 ⊆ … ⊆ G_m = K_n where each G_{i+1} = G_i + u_iv_i with deg_{G_i}(u_i) + deg_{G_i}(v_i) ≥ n (existence by Lemma 5).
+  2) Pick any Hamiltonian cycle C_m in K_n (e.g., 1–2–…–n–1).
+  3) For i = m − 1 down to 0: if C_{i+1} uses u_iv_i, delete that edge to get a Hamiltonian u_i–v_i path in G_{i+1}; by Lemma 3 applied in G_i (note deg_{G_i}(u_i) + deg_{G_i}(v_i) ≥ n), reclose to a Hamiltonian cycle C_i in G_i avoiding u_iv_i. If C_{i+1} does not use u_iv_i, set C_i = C_{i+1}.
+- Invariant: At each step we maintain a Hamiltonian cycle of the current graph. Complexity: O(n^2)–O(n^3) depending on data structures (closure computation O(n^2) nonedge checks; each step’s reclosure is O(n)).
+- Why useful: Gives a constructive certificate and a concrete procedure implementable from the curated lemmas.
+
+## Examples and sanity checks
+- C_4 (n = 4) has δ = 2 = n/2 and is Hamiltonian; the closure adds both diagonals (each nonedge has degree-sum 4), yielding K_4, consistent with Lemma 5 and Theorem 6.
+- Balanced bipartite extremal: K_{n/2,n/2} (n even) has δ = n/2 and is Hamiltonian but not pancyclic (no odd cycles); it realizes equality in Corollary 8 with large common neighborhoods and matches Lemma (1) when triangle-free.
+
+## Obstacles and cautions
+- Pancyclicity: The closure equivalence does not by itself preserve pancyclicity, so one cannot immediately lift pancyclic cycles from K_n back to G via Lemma 3. Bondy’s theorem on pancyclicity at e(G) ≥ n^2/4 addresses this; a careful proof requires additional arguments beyond the current toolkit.
+- Equality m = n^2/4: There exist δ-regular Dirac graphs with δ = n/2 and e(G) = n^2/4 that are not bipartite; Mantel’s extremal characterization applies only under triangle-free assumption.
+
+## Next steps (suggested additions to outputs.md)
+- Add Lemma (Triangle or balanced bipartite under Dirac) with the short Mantel-based proof above.
+- Optionally add the constructive algorithm note with a brief invariant proof (as above) and a complexity remark.
+- Plan a pancyclicity strengthening: Record Bondy’s theorem (1971): If G is Hamiltonian and e(G) ≥ n^2/4, then G is pancyclic unless G ≅ K_{n/2,n/2}; outline a route to adapt/curate a proof, using the triangle lemma and rotation–extension or Bondy–Chvátal techniques.
+

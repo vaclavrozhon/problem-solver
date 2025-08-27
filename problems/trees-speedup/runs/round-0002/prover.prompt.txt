@@ -1,0 +1,666 @@
+--- SYSTEM ---
+You are a research mathematician. Goal: **incremental, auditable progress**, not a full solution.
+
+What counts as progress:
+- Extract small lemmas/heuristics from the literature in hand, and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+
+**Discipline.** Start with a 3–6 bullet *Mini-plan*. For each claim: add "How it can fail" and one quick test/counterexample attempt.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Append-only notes; start with '## {ROUND_TAG}' on the first line",
+  "new_files": [],
+  "requests_for_more_materials": [],
+  "next_actions_for_prover": []
+}
+
+--- USER ---
+Work on this problem context:
+
+=== task.md ===
+Generalize the speedup theorem Theorem 1.5 from the attached paper to (nonoriented) trees. 
+
+It is enough to prove the following: Any LCL solvable in O(1) rounds in deterministic online local model on bounded-degree trees can be solved in O(log* n) rounds of standard local model.
+
+
+=== 2406.19430v2.pdf ===
+
+--- Page 1 ---
+Invitation to Local Algorithms
+Václav Rozhoň
+December 2023
+Abstract
+This text provides an introduction to the field of distributed local algorithms – an area at the in-
+tersection of theoretical computer science and discrete mathematics. We collect many recent results in
+the area and demonstrate how they lead to a clean theory. We also discuss many connections of local
+algorithms to areas such as parallel, distributed, and sublinear algorithms, or descriptive combinatorics.
+Contents
+1
+Local Complexity Fundamentals
+2
+1.1
+First Example . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2
+1.2
+Formal Definitions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+3
+1.3
+Sequential vs Distributed Local Complexity . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6
+1.4
+Derandomization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+8
+1.5
+Network Decompositions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+10
+1.6
+Bounds for Concrete Problems
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+14
+1.6.1
+Maximal Independent Set . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+14
+2
+The Bounded-Degree Regime
+15
+2.1
+The Symmetry-Breaking Regime . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+15
+2.1.1
+Fast Coloring Algorithm and its Implications . . . . . . . . . . . . . . . . . . . . . . .
+16
+2.1.2
+Lower bound for coloring via round elimination . . . . . . . . . . . . . . . . . . . . . .
+18
+2.2
+The Lovász Local Lemma Regime . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+20
+2.2.1
+Fast Algorithms for the Local Lemma . . . . . . . . . . . . . . . . . . . . . . . . . . .
+21
+2.2.2
+Lower Bound via Round Elimination . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+24
+2.3
+Speedups and Slowdowns
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+27
+2.3.1
+Slowdowns
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+27
+2.3.2
+Speedups
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+28
+2.4
+Classification of Local Problems . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+32
+2.4.1
+Sequential local complexities
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+33
+2.4.2
+Classification of Local Problems for Concrete Graph Classes . . . . . . . . . . . . . . .
+34
+3
+Applications
+36
+3.1
+Distributed Computing (CONGEST) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+36
+3.2
+Local Computation Algorithms and the Volume Model . . . . . . . . . . . . . . . . . . . . . .
+37
+3.3
+PRAM . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+38
+3.4
+Massively Parallel Computing (MPC)
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+38
+3.5
+Descriptive Combinatorics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+39
+3.6
+Other Models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+40
+1
+arXiv:2406.19430v2  [cs.DC]  21 Nov 2024
+
+--- Page 2 ---
+1
+Local Complexity Fundamentals
+The field of local algorithms is an area on the border of theoretical computer science and discrete mathematics
+where a lot of progress has happened in the past decade. This text is trying to serve as an introductory
+material presenting a certain view of the field. It aims to be helpful to beginning researchers in the area or
+researchers working in adjacent areas.
+There are already many resources on various aspects of local algorithms: the classical book of Peleg
+[Pel00], survey of Suomela [Suo13], book of Barenboim and Elkin [BE13], lecture notes by Ghaffari, Mohsen
+[Gha20], introductory text of Suomela [Suo20], or a recent book by Hirvonen and Suomela [HS20]. Unlike
+other texts, this one primarily explores the field’s conceptual framework and complexity-theoretical aspects,
+rather than delving into individual problems. If you find errors in the text, please let me know – this is the
+first version of it so there will be many! Several researchers generously gave me feedback on a preliminary
+version of this text; my thanks go to Anton Bernshteyn, Yi-Jun Chang, Jan Grebík, Yannic Maus, Seth
+Pettie, Jukka Suomela, and Goran Zuzic, and especially to Mohsen Ghaffari and Seri Khoury.
+In the first section, we introduce local algorithms and local problems in Section 1.1. We then carefully
+discuss the appropriate formal definitions in Section 1.2. The following sections Sections 1.3 to 1.5 discuss
+the basic theory of local algorithms and aim to convey that we are after a very clean, fundamental, and
+robust concept. Finally, Section 1.6 surveys some known results for concrete local problems.
+1.1
+First Example
+Consider a very long oriented cycle that we want to properly color with as few colors as possible (see Figure 1).
+Two colors are enough if the number of vertices n is even, otherwise we need three colors. However, there is
+something uneasy about the 2-coloring solution even when it is possible – the solution lacks any flexibility.
+A decision to color any particular vertex with one of the two colors already implies how all the other vertices
+are going to be colored.
+This lack of flexibility can be undesirable for all kinds of reasons, typically when we want to design a
+coloring algorithm that is in some way parallel or distributed. If we enlarge our palette to three colors, the
+problem seems to go away though: Now, coloring one vertex red still implies that its neighbors are not red,
+but other vertices can have an arbitrary color.
+Imagine that there is a computer in every vertex of the cycle and neighboring computers can communicate.
+The computers are trying to solve the coloring problem together. How many rounds of communication are
+needed until each computer outputs its color? A message-passing algorithm of this sort is known as a local
+algorithm and we define it formally in Section 1.2.
+It is possible to convince oneself that in the case of the 2-coloring problem, at least around n{4 rounds
+are necessary to solve it, even if n is divisible by two.1 But what about the 3-coloring scenario? Can we
+solve that problem in 10 rounds of communication? Or Oplog nq? Or is it similarly hard to 2-coloring?
+There indeed is a simple randomized local algorithm that solves our 3-coloring problem after Oplog nq
+rounds of exchanging messages. Let’s describe it next. The algorithm should serve as an example that
+nontrivial local algorithms are indeed possible, though we will later see a better algorithm for the coloring
+problem.
+The 3-coloring algorithm has two phases. In the first phase, every computer flips a coin and selects itself
+with probability 1/2 (top picture in Figure 1). Subsequently, the vertex asks its neighbors whether they are
+also selected. If at least one neighbor is selected, the vertex unselects itself (middle picture in Figure 1).
+In the second phase of the algorithm, every selected vertex first colors itself red. Then, it is responsible for
+coloring the yet uncolored vertices until the next red vertex. The red node sends a message in the direction
+of edges, asking the subsequent vertices to color themselves by alternating the two remaining colors (see the
+bottom picture in Figure 1). This algorithm properly colors the oriented cycle with 3 colors and the number
+of communication rounds that it needs is asymptotically at most as large as the length of the longest run of
+non-red vertices in our coloring.
+1Consider two opposing nodes u, v in the cycle graph: In less than n{4 rounds of communication, there is no third node that
+could send a message to both u and v. Intuitively, the two vertices then cannot know whether their distance is even or odd.
+This argument can be made into a rigorous lower bound after the model of local algorithms is properly defined in Section 1.2.
+2
+
+--- Page 3 ---
+Random selection
+Unselect if you have neighbors
+Fill in the gap to the next selected node
+Figure 1: An example local algorithm that uses three colors to color a long cycle, a small part of which is shown.
+First, every vertex flips a coin and selects itself with probability 1{2. Second, a vertex unselects itself whenever a
+neighbor is selected. Third, selected vertices color themselves red and each selected vertex is then responsible for
+coloring the subsequent vertices until the next selected one with alternating colors.
+To understand this quantity, consider any run of ℓconsecutive nodes and let us upper bound the proba-
+bility that the run does not contain any red node. This is done by splitting the run into consecutive triples
+of vertices. For every triple, we know that with probability 1{8, its middle node is initially selected, while its
+two neighbors are not. The selected middle node then remains selected after the end of the first phase and is
+colored red. Making this argument for every triple and using that the appropriate events are independent,
+we conclude that the probability of no red node in the run is at most p7{8qtℓ{3u. Taking ℓ“ Oplog nq and
+union bounding over all n different runs of vertices of length ℓ, we conclude that all of them contain at least
+one red node with 1 ´ 1{ polypnq probability. We will call this guarantee “with high probability” later on.
+That is, our algorithm finishes after Oplog nq communication rounds, with high probability.
+Surprisingly, the fastest local algorithm for the 3-coloring problem has a much better, albeit not constant
+complexity of Oplog˚ nq.2 However, instead of focusing on specific algorithms, this text is trying to give a
+bit more general understanding of what is going on here. For example, it turns out that if we come up with
+any local algorithm with complexity Oplog nq for any reasonable problem defined on the cycle as we just did,
+there is a general theory that can turn this algorithm into a faster, Oplog˚ nq-round, algorithm for the very
+same problem (see Theorem 2.30). Clearly, something interesting is going on here!
+1.2
+Formal Definitions
+In this section, we formally define local problems and algorithms.
+Local problems: We will be mostly interested in the so-called local problems. Informally speaking, these
+are the problems on graphs such that if the solution is incorrect, we can find out by looking at a small
+neighborhood of one vertex.
+Given a graph G and its node u P V pGq, the ball BGpu, rq3 around u of radius r is the subgraph of nodes
+around u up to distance r. More generally, an r-hop neighborhood is a graph with one highlighted node v
+such that the radius of that graph measured from v is at most r.
+Definition 1.1 (A local problem). Local problem4 Π with checkability radius r is formally a triplet pS, r, Pq.
+Here, S is a finite set of allowed labels and each P is a set of allowed S-colored r-hop neighborhoods. A
+solution to Π in a graph G is an assignment of color from S to every vertex of G such that for every u P V pGq
+we have BGpu, rq P P.
+2The function log˚ n measures how many times we need to take the logarithm of n until we get a value of size at most 2,
+i.e., log˚ 22 “ 1, log˚ 222 “ 2 and so on.
+3We write Bpu, rq when G is clear from the context.
+4Our definition is a simplified variant of the definition of the so-called locally checkable labeling problem by Naor and
+Stockmeyer [NS95], discussed later in Section 2.4.2.
+3
+
+--- Page 4 ---
+42
+69
+73
+47
+3
+42
+77
+43
+12
+3
+...
+Function from local neighborhoods to output labels
+Message-passing distributed algorithm
+42
+77
+43
+8
+42
+77
+43
+12
+3
+8
+Figure 2: This picture shows the two fundamentally different ways of understanding local algorithms.
+Left: A tpnq-round local algorithm can be seen as a distributed protocol where in each round, each node can send
+any message to any of its neighbors. The computers start with the knowledge of their unique identifier (or a random
+string).
+Right: A local algorithm with round complexity tpnq can be seen as a function that maps each possible tpnq-hop
+neighborhood to an output label. Applying this function to every vertex of the input graph always has to solve our
+problem: For example, if our problem is a coloring problem, the first two local neighborhoods in the above table need
+to map the two vertices with labels 77 and 43 to different colors, since the two labeled 2-hop neighborhoods could be
+a part of the same graph (which is, in fact, shown on the left).
+For example, 3-coloring is a local problem for S “ tR, G, Bu, r “ 1, and P containing all properly colored
+1-hop neighborhoods. On the other hand, a non-example of a local problem is coloring an input graph
+on n vertices with n colors: the local problem should not have different constraints for graphs of different
+sizes. Of course, while the theory of local algorithms is simplest for local problems as we defined them, the
+applications of local algorithms are not limited to local problems.
+Local algorithms: There are two equivalent ways of thinking about local algorithms5 and both of them
+are important (see Figure 2). An intuitive, algorithmic definition was already sketched in Section 1.1: We
+assume that there is a computing device at every node. For simplicity, these devices are assumed to have
+unbounded computational power, thus excluding Turing machines from the definitions. A tpnq-round local
+algorithm is a protocol where these devices communicate for tpnq synchronous message-passing rounds using
+the edges of the input graph to send messages. At the beginning, the device in each node starts only with
+the information about its identifier/random string and the size of the graph, n. When the protocol finishes,
+each device outputs its part of the solution (e.g., its color).
+It will also be helpful to understand an alternative and equivalent definition that extracts the essence of
+what we are measuring with local algorithms. In this alternative definition, a local algorithm with round
+complexity tpnq is simply a function that we can apply to every ball Bpu, tpnqq of the input graph to compute
+the output at a given node u. Let us state it formally.
+Definition 1.2 (Local algorithm). A local algorithm A with a round complexity of tpnq is a function that
+accepts two inputs: firstly, the value n, and secondly, a labeled tpnq-hop neighborhood.
+5In the literature, these algorithms are often referred to as “distributed algorithms in the LOCAL model of computing”. We
+use the shorter and less formal term “local algorithm” for better readability.
+4
+
+--- Page 5 ---
+When we use this second definition, running a local algorithm on an input graph G simply means
+coloring each node u P V pGq with the output of AnpBGpu, tpnqqq where we used the first parameter of a local
+algorithm, the size of the underlying graph n “ |V pGq|, as a subscript. Solving a problem Π on G simply
+means that after running An on G, the output colors satisfy constraints P on all vertices of G.
+Moreover, in the case of deterministic local algorithms, we assume that the nodes of the input graph
+are additionally labeled with unique identifiers from the range rnOp1qs “ t1, 2, . . . , nOp1qu.6 In the case of
+randomized local algorithms, we assume that the nodes of the input graph are labeled with infinite bit
+strings. Solving a problem then means solving it with overall error probability at most 1{nOp1q, if the bit
+strings are sampled independently randomly.7
+We notice that if there is a deterministic local algorithm solving some problem with round complexity
+tpnq, there is also a randomized local algorithm solving the same problem with the same round complexity.
+This is because any randomized algorithm can start by each node generating a random identifier from
+the range rnCs: The probability that these identifiers are not unique, i.e., some two nodes have the same
+identifier, is at most n2 ¨
+1
+nC . Choosing C large enough, this error probability can be made as small as any
+polynomial function of n.
+Finally, we remark that we can talk about local algorithms solving problems on graphs with additional
+structure (e.g. directed graphs) or on concrete graph classes. For example, in our introductory example from
+Section 1.1, it makes sense to think of all definitions relative not to the class of all graphs but to the class
+of graphs that are oriented paths. One interesting setup that we discuss mostly in Section 2 is the class of
+bounded-degree graphs where we fix some constant ∆and analyze the class of graphs of degree at most ∆.
+Notice that on these graphs, the set P from the definition of local problems, as well as the support of the
+function A from the definition of local algorithms, are finite.
+Equivalence of the two definitions: Let’s see a proof sketch of why the two definitions are equivalent.
+On the one hand, let’s say we are given a function A that maps tpnq-hop neighborhoods to output labels and
+we want to construct a tpnq-round message-passing protocol. Consider the protocol where in the i-th round,
+each vertex u sends its neighbors everything there is to know about the ball Bpu, iq: How the graph looks
+like and the values of identifiers/random strings at every node of Bpu, iq. Each node v can then internally
+use this information from its neighbors to learn everything there is to know about the ball Bpu, i ` 1q. After
+tpnq rounds of communication, each vertex v thus knows its whole tpnq-hop neighborhood Bpv, tpnqq. At this
+point, the vertices stop communicating and each one applies the function A locally to its ball which solves
+the problem solved by A.
+On the other hand, assume that we have a tpnq-round communication protocol and want to turn it into a
+function A that takes tpnq-hop neighborhood as inputs. We notice that if we know the tpnq-hop neighborhood
+Bpu, tpnqq of a node u, we can simulate the first round of the protocol in that ball and get to know the state
+of all vertices in Bpu, tpnq ´ 1q after the first round. Continuing like this inductively, we conclude that
+starting with the knowledge of Bpu, tpnqq, we can learn the state of the protocol at the center node u after
+tpnq rounds.
+There are two different but equivalent ways of understanding local algorithms.
+1. They are message-passing protocols running for some number of rounds.
+2. The output at each node is a function of its local neighborhood.
+Importantly, it will be very helpful for us to keep both definitions in mind: When we design local
+algorithms, the message-passing definition is more helpful as it is natural to think as “first, we run the
+protocol A1, then the protocol A2”. On the other hand, when we prove lower bounds, the formal definition of
+Definition 1.2 is easier to use. When we think of applications to distributed/parallel algorithms, the protocol-
+design definition is preferable since this is how the actual parallel/distributed algorithms are implemented.
+6While assuming polynomial-range identifiers may look a bit arbitrary, we will see in Section 2 that the notion of deterministic
+algorithms is very robust. We simply need a way of breaking the potential symmetry of the input graph – think of what happens
+when you run a local algorithm on a vertex-transitive graph such as a cycle without any identifiers or randomness!
+7Formally-minded readers may feel uneasy about the definitions not specifying the constant in the nOp1q expressions. We
+will see later in Theorem 2.20 that the exact constant in the definition typically does not matter. Formally, when we say that
+there is a local algorithm, it means that for every C there is an algorithm in the setup where we require the size of identifiers
+to be at most nC (or the error probability to be at most 1{nC).
+5
+
+--- Page 6 ---
+In some other applications, like applications to descriptive combinatorics, the formal definition is perhaps a
+bit more natural.
+1.3
+Sequential vs Distributed Local Complexity
+This section presents one of
+
+=== quantum.pdf ===
+
+--- Page 1 ---
+What Can Be Observed Locally?⋆
+Round-Based Models for Quantum Distributed Computing
+Cyril Gavoille1, Adrian Kosowski1,2, and Marcin Markiewicz3
+1 LaBRI - University of Bordeaux
+2 Dept of Algorithms and System Modeling, Gda´nsk University of Technology
+3 Institute of Theoretical Physics and Astrophysics, University of Gda´nsk
+Abstract. We consider the question of locality in distributed comput-
+ing in the context of quantum information. Speciﬁcally, we focus on the
+round complexity of quantum distributed algorithms, with no bounds
+imposed on local computational power or on the bit size of messages.
+Linial’s LOCAL model of a distributed system is augmented through
+two types of quantum extensions: (1) initialization of the system in a
+quantum entangled state, and/or (2) application of quantum communi-
+cation channels. For both types of extensions, we discuss proof-of-concept
+examples of distributed problems whose round complexity is in fact re-
+duced through genuinely quantum eﬀects. Nevertheless, we show that
+even such quantum variants of the LOCAL model have non-trivial lim-
+itations, captured by a very simple (purely probabilistic) notion which
+we call “physical locality” (ϕ-LOCAL). While this is strictly weaker
+than the “computational locality” of the classical LOCAL model, it
+nevertheless leads to a generic view-based analysis technique for con-
+structing lower bounds on round complexity. It turns out that the best
+currently known lower time bounds for many distributed combinatorial
+optimization problems, such as Maximal Independent Set, bounds cannot
+be broken by applying quantum processing, in any conceivable way.
+1
+Introduction
+The introduction of computational models based on quantum computing, start-
+ing from the works of Deutsch in the 1980’s [11], has led to the advent of a new
+branch of complexity theory. Many studies have for instance focused on the com-
+plexity class BQP of problems solvable on a quantum computer in polynomial
+time with bounded error probability, and its relation to the classical complex-
+ity classes. One of the best known algorithmic results in this respect is Shor’s
+polynomial-time method of integer factorization [37] based on the Quantum
+Fourier Transform, which has recently been partially tested in an experimental
+set-up for very small values of problem input. Nevertheless, application of quan-
+tum information in centralized computing scenarios still proves extremely costly
+and is riddled with technological diﬃculties resulting from quantum decoherence
+⋆Supported by the ANR project “ALADDIN”, by the INRIA ´equipe-project
+“C´EPAGE”, and by the KBN Grant 4 T11C 047 25.
+I. Keidar (Ed.): DISC 2009, LNCS 5805, pp. 243–257, 2009.
+c
+⃝Springer-Verlag Berlin Heidelberg 2009
+
+--- Page 2 ---
+244
+C. Gavoille, A. Kosowski, and M. Markiewicz
+eﬀects. On the other hand, in an even wider time-frame, properties of quantum-
+mechanical systems have proven to be of interest from the perspective of game
+theory [4,13,2], information theory [31,22,3], and distributed systems [4,9].
+A major line of study (which we brieﬂy look at in the related work section)
+concerns the application of quantum eﬀects to reduce communication complex-
+ity, i.e., to decrease the number of communication bits required to solve a speciﬁc
+task performed within a system graph with several distributed agents. The in-
+ﬂuence of quantum information on the computing power of distributed systems
+with node anonymity and distributed systems in the presence of faults has also
+been studied.
+This paper focuses on a diﬀerent aspect of quantum distributed computing:
+we do not impose any bounds on the size of communicated messages, but assume
+that the system operates in synchronous rounds, and ask to what extent quantum
+eﬀects can reduce the number of rounds required to solve combinatorial optimi-
+sation problems. The starting point for considerations is the well-established
+LOCAL model a.k.a. Linial’s Free model [25,26]. We provide a comparison of
+the “computational power” of the quantum and non-quantum models, formalis-
+ing the notion of locality in quantum distributed computing, and showing how
+it essentially diﬀers from the understanding of locality in the LOCAL model.
+1.1
+Related Work
+One of the most intensively studied problems related to multi-agent quantum sce-
+narios, when expressed in the language of distributed computing, is roughly try-
+ing to address the question: Can quantum eﬀects be used to enhance distributed
+computations with messages of bounded size, i.e., in settings inspired by the
+CONGEST distributed model? (See [35] for an introduction to the CONGEST
+model.) The quantum variant of CONGEST , widely studied in physics, is known
+as the Local Operations and Classical Communication (LOCC) model. It ex-
+ploits the key quantum-mechanical concept of an entangled state (see e.g. [31]).
+This is achieved by altering the initialization phase of the system to allow for a
+starting state entangled among all the processors, which are locally given quan-
+tum computation capabilities; however, communication between processors is
+still restricted to the exchange of classical information, only. This application
+of pre-entanglement has been shown to decrease the number of communication
+bits required to solve certain distributed problems with output collected from
+one node, and consequently, to decrease the number of required communication
+rounds when message sizes are bounded. The ﬁrst proof-of-concept example was
+provided in [6], where the computation of a speciﬁc function of input data dis-
+tributed among three parties was shown to require at least 3 communicated bits
+in the classical case, but only 2 communicated bits if the system is initialized in
+a speciﬁc quantum entangled state. Many related results and reﬁnements of this
+scenario are surveyed in e.g. [7,39].
+Other works on the subject have focused on characterising the physical evo-
+lution of states attainable in the LOCC model [30,32,8], while other authors
+have dealt with the combinatorial complexity of distributing the entangled state
+
+--- Page 3 ---
+What Can Be Observed Locally?
+245
+over the whole system in the initialization phase [38]. Other modiﬁcations of
+the model attempt to show that a denser coding of information in transmit-
+ted messages is possible when using quantum channels, as compared to classical
+communication links (see e.g. [5,36]).
+Very recently, some authors have begun to study the impact of quantum eﬀects
+on fundamental concepts of the theory of distributed computing. An overview of
+this line of research is contained in the recent survey paper [9]. The advantages of
+applying quantum communication in games against a dynamic adversary are dis-
+played in [1], where it is shown that a constant number of computational rounds
+is suﬃcient to solve the quantum Byzantine agreement problem for an n-node
+system with less than n/3 faulty nodes in such a dynamic setting; corresponding
+classical algorithms require Ω(√n) rounds. Another especially interesting result
+is that the leader election problem can be solved in distributed systems with
+quantum links, but no pre-entanglement [40,23]. Some authors have also claimed
+that problems related to leader election [33,12] and distributed consensus [12,21]
+can be solved in distributed systems aided by quantum pre-entanglement.
+1.2
+Outline of the Paper
+In Subsection 1.3 we brieﬂy outline the LOCAL model and its extensions,
+obtained by modifying the initialization of the system set-up and/or adding
+quantum communication capabilities on the edges. Whereas this discussion is
+self-contained, we also provide a formal mathematical deﬁnition of the cor-
+responding notions in an extended version of the paper [19]. Subsection 1.4
+introduces some notation used when comparing computational models.
+In Section 2 we compare the computational power of models based on the
+proposed extensions of LOCAL. In particular, we prove that adding quantum
+extensions to the LOCAL model decreases the round complexity of certain dis-
+tributed problems. This is achieved through simple proof-of-concept examples.
+Most importantly, in Section 3 we introduce a probabilistic framework for
+proving lower bounds on the distributed time complexity of computational prob-
+lems in any quantum (or other unconventional) models based on LOCAL. This
+is directly applied to obtain such lower bounds for many combinatorial optimiza-
+tion problems, including Maximal Independent Set, Greedy Graph Coloring, and
+problems of spanner construction. As a side eﬀect, the simple concept of “physi-
+cal locality” formulated in this section, leads to the deﬁnition of a computational
+model we call ϕ-LOCAL, which appears to be of independent interest.
+Finally, in Section 4 we make an attempt to clarify issues with some of the
+related work on quantum distributed computing as surveyed by [9]. Making
+use of the framework of computational models deﬁned in the previous sections,
+we explain why certain claims, saying that problems such as Leader Election
+or Distributed Consensus beneﬁt from the application of quantum processing,
+should be approached with caution.
+Section 5 contains some concluding remarks and suggests directions of future
+studies.
+
+--- Page 4 ---
+246
+C. Gavoille, A. Kosowski, and M. Markiewicz
+1.3
+Preliminaries: Description of Computation Models
+The LOCAL Model. The LOCAL model has been the subject of intensive
+study in the last 20 years, starting from the seminal works [25,29]. It is assumed
+that the distributed system consists of a set of processors V (with |V | = n) and
+operates in a sequence of synchronous rounds, each of which involves unbounded
+computations on the local state variables of the processors, and a subsequent ex-
+change of messages of arbitrary size between pairs of processors which are con-
+nected by links (except for round 0, which involves local computations, only).
+Nodes can identify their neighbours using integer labels assigned successively
+to communication ports. The local computation procedures encoded in all pro-
+cessors are necessarily the same, and initially all local state variables have the
+same value for all processors, except for one distinguished local variable x(v) of
+each processor v which encodes input data. The input of a problem is deﬁned
+in the form of a labeled graph Gx, where G = (V, E) is the system graph, while
+x : V →N is an assignment of labels to processors. The output of the algorithm
+is given in the form of a vector of local variables y : V →N, and the algorithm
+is assumed to terminate once all variables y(v) are deﬁnitely ﬁxed. Herein we
+assume that faults do not appear on processors and links, that local computa-
+tion procedures may be randomized (with processors having access to their own
+generators of random variables), and that the input labels x need not in general
+be distinct for all processors.
+In our considerations, it is convenient to assume that the set of processors
+V is given before the input is deﬁned. This is used for convenience of notation,
+and neither aﬀects the model, nor the anonymity of nodes in the considered
+problems.
+Extensions of System Initialization (+S and +E). In the LOCAL model, it
+is assumed that the initial set-up of all the processors is identical. This assump-
+tion can be relaxed by allowing the processors to obtain some information from
+a central helper, but only before the start of the distributed process (i.e., inde-
+pendently of the input Gx). The initialization procedure is an integral part of
+the algorithm used for solving the distributed problem. Several diﬀerent forms of
+initialization can be naturally deﬁned; for clarity of discussion, we consider only
+two extensions of the model: the +S extension (for Separable state), which allows
+for the most general form of initialization possible in a classical computational
+setting, and the more powerful +E extension (for Entangled state), which allows
+for the most general form of initialization available in a quantum distributed
+system.
+The +S extension. We say that a computational model is equipped with the +S
+extension if the following modiﬁcations are introduced:
+– For any computational problem, the computational procedure consists of
+the distributed algorithm applied by all the processors during the rounds
+of computation, and an additional (randomized) procedure executed in a
+centralized way in the initialization phase. The result of the initialization
+
+--- Page 5 ---
+What Can Be Observed Locally?
+247
+procedure is an assignment h : V →N of helper variables to the set of
+processors. The helper variables are independent1 of the input Gx.
+– For each processor v ∈V , at the start of round 0, its input label x(v) is
+augmented by the value h(v), stored in a helper register of the local memory.
+It is straightforward to show that the above formulation has two equivalent char-
+acterizations. From a computational perspective, we may equivalently say that
+for each processor v, the helper initialization value h(v) encodes: (1) a unique
+identiﬁer of v from the range {1, . . . , n}, (2) the value of n, (3) the value of a
+random number, chosen from an arbitrarily large range, and shared by all pro-
+cessors. All further helper information is unnecessary, since it can be computed
+by the processors in round 0 of the distributed computations (simulation of the
+centralized assignment of further helper information can be simulated based on
+random bits and starting information which is common to all processors).
+Alternatively, we may say that through the randomized initialization, accord-
+ing to some probability distribution we choose some deterministic initialization
+of the set of states of individual processors. This intuition precisely corresponds
+to the notion of a state with uncertainty in classical statistical physics, referred
+to in quantum-mechanical discussions as a (mixed) separable state of the sys-
+tem. It is obviously true to say that whenever a problem is solved in a model
+with the +S extension, it may beneﬁt solely from the modiﬁcation of the system
+initialization, and not from the laws of quantum mechanics.
+The +E extension. Unlike in classical physics, in quantum mechanics not every
+initialization of the system has to follow the above pattern. Consider a scenario in
+which we centrally create an initial global state of the whole system of processors,
+and spatially distribute “parts” of it to the individual processors (for example,
+by sharing out among the nodes a set of quantum-correlated photons). Then,
+each of the processors can perform operations on the “part” of the state assigned
+to its spatial location; by a loose analogy to processing of classical information,
+this is sometimes referred to as each processor “manipulating its own quantum
+bits (qubits)”. Given a general initial state of the system, the outcome of such
+a physical process, as determined by the processors, may display correlations
+which cannot be described using any classical probabilistic framework. Initial
+states which can be lead to display such properties are called non-separable, or
+entangled states. Quantum entanglement is without doubt one of the predom-
+inant topics studied in quantum-mechanical literature of the last decades; we
+refer the interested reader to e.g. [31] for an extensive introduction to the topic.
+We say that a computational model is equipped with the +E extension if all
+processors are equipped with helper quantum information registers h, and the
+computational procedure used to solve a problem sets in the initialization phase
+in a centralized way some chosen, possibly entangled, quantum state over the
+set of quantum information registers h of all processors, in a way independent
+of the input graph Gx.
+1 Helper variables that do depend on the inputs are referred to in the literature as
+Oracles [16,15]. Such extensions are not discussed in this paper.
+
+--- Page 6 ---
+248
+C. Gavoille, A. Kosowski, and M. Markiewicz
+Extension of Communication Capabilities (+Q). Whereas the application
+of local quantum operations in each processor does not increase the power of the
+LOCAL model as such, the situation changes when the processors can interact
+with each other using quantum communication channels. Intuitively, such chan-
+nels allow for the distribution of an entangled state by a processor over several
+of its neighbours in one communication round; such an eﬀect cannot be achieved
+using classical communication links.
+We say that a computational model is equipped with the +Q extension if all
+communication links between processors in the system graph are replaced by
+quantum communication channels.
+Models with the Extensions. Modiﬁcations to the initialization and commu-
+nication capabilities of the system are completely independent of each other. For
+initialization, we can apply no extension, use a separable state (+S), or an en-
+tangled state (+E). For communication, we can apply no extension, or use quan-
+tum channels (+Q). Hence, we obtain 6 possible models (LOCAL, LOCAL+S,
+LOCAL+E, LOCAL+Q, LOCAL+Q+S, LOCAL+Q+E), which are discussed in
+the following section. (Some of these models collapse onto each other.)
+1.4
+Notation for Comparing the Power of Computational Models
+In order to compare the computational power of diﬀerent models, we introduce
+two basic notions: that of the problem being solved, and of an outcome of the
+computational process.
+Deﬁnition 1. A problem P is a mapping Gx →{yi}, which assigns to each
+input graph Gx a set of permissable output vectors yi : V →N.
+Instead of explicitly saying that we are interested in ﬁnding eﬃcient (possibly
+randomized) distributed algorithms for solving problems within the considered
+computational models, we characterize the behavior of such procedures through
+the probability distribution of output vectors which they may lead to, known as
+an outcome. In fact, such a probability distribution is necessarily well deﬁned,
+whereas formally describing the computational process may be diﬃcult in some
+unconventional settings (see e.g. the ϕ-LOCAL model in Section 3).
+Deﬁnition 2. An outcome O is a mapping Gx →{(yi, pi)}, which assigns to
+each input graph Gx a normalized discrete probability distribution {pi}, such
+that: ∀i pi > 0 and 
+i pi = 1, with pi representing the probability of obtaining
+yi : V →N as the output vector of the distributed system.
+Deﬁnition 3. For any outcome O in a computational model M which is a variant
+of LOCAL, we will write O ∈M[t] if within model M there exists a distributed
+procedure which yields outcome O after at most t rounds of computation.
+We will say that an outcome O is a solution to problem P with probability p if
+for all Gx, we have: 
+{(yi,pi)∈O(Gx) : yi∈P(Gx)} pi ≥p. When p = 1, we will
+simply call O a solution to P (with certainty).
+
+--- Page 7 ---
+What Can Be Observed Locally?
+249
+By a slight abuse of notation, for a problem P we will write P ∈M[t] (re-
+spectively, P ∈M[t, p]) if there exists an outcome O ∈M[t] which is a solution
+to problem P (respectively, a solution to problem P with probability p).
+For two computational models M1, M2, we say that M1 is not more powerful
+than M2 (denoted M1 ⊆M2) if for every problem P, for all t ∈N and p > 0,
+P ∈M1[t, p]
+=⇒
+P ∈M2[t, p]. The relation ⊆induces a partial order
+of models which is naturally extended to say that M1 and M2 are equivalent
+(M1 = M2), or that M1 is less powerful than M2 (M1 ⊊M2).
+It can easily be proved that M1 ⊆M2 if and only if for every outcome O, for
+all t ∈N, O ∈M1[t] =⇒O ∈M2[t]. Such an outcome-based characterisation
+of models is occasionally more intuitive, since it is not explicitly parameterised
+by probability p.
+In all further considerations, when proving that M1 ⊊M2, we will do so in
+a stronger, deterministic sense, by showing that there exist a problem P and
+t ∈N such that P ∈M2[t] and P /∈M1[t].
+2
+Hierarchy of Quantum Models
+The most natural variants of LOCAL which are based on the extensions proposed
+in the 
+
+
+Current round tag: Round 0002 — 2025-08-27T05:51:51.361783Z
+Return ONLY valid JSON (no fences). Ensure progress_md starts with '## Round 0002 — 2025-08-27T05:51:51.361783Z'.

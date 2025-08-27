@@ -5,11 +5,13 @@ No complex file search or assistants - just works.
 """
 
 import os
+import random
 import json
 import re
 from pathlib import Path
 from datetime import datetime, UTC
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 import sys
 import time
@@ -34,6 +36,12 @@ client = OpenAI()
 MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4o-mini")
 MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4o-mini")
 MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-4o-mini")
+
+# Prover temperature (overridable via AR_PROVER_TEMPERATURE)
+try:
+    PROVER_TEMPERATURE = float(os.environ.get("AR_PROVER_TEMPERATURE", "0.4"))
+except ValueError:
+    PROVER_TEMPERATURE = 0.4
 
 PROMPTS_DIR = Path("prompts")
 
@@ -111,6 +119,42 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
         except Exception:
             pass
 
+    # Retry/backoff settings
+    try:
+        max_retries = int(os.environ.get("AR_RETRY_MAX_RETRIES", "5"))
+    except ValueError:
+        max_retries = 5
+    try:
+        base_sleep = float(os.environ.get("AR_RETRY_BASE_S", "5"))
+    except ValueError:
+        base_sleep = 5.0
+    try:
+        max_sleep = float(os.environ.get("AR_RETRY_MAX_SLEEP_S", "180"))
+    except ValueError:
+        max_sleep = 180.0
+
+    def _maybe_rate_limit(e: Exception) -> bool:
+        msg = str(e).lower()
+        return ("rate limit" in msg) or ("429" in msg) or ("rate_limit_exceeded" in msg)
+
+    def _sleep_backoff(attempt: int, err_msg: str):
+        # Try to extract a suggested delay like "try again in 4.368s"
+        delay = base_sleep * (2 ** attempt)
+        if "try again in" in err_msg.lower():
+            try:
+                part = err_msg.lower().split("try again in", 1)[1].split("s", 1)[0]
+                seconds = float(part.strip().split()[-1])
+                delay = max(delay, seconds)
+            except Exception:
+                pass
+        delay = min(delay, max_sleep)
+        delay += random.uniform(0, 1.0)
+        try:
+            console.print(f"[yellow]Rate limited. Backing off {delay:.1f}s (attempt {attempt+1}/{max_retries})[/yellow]")
+        except Exception:
+            pass
+        time.sleep(delay)
+
     if model.startswith("gpt-5") or _is_o_model(model):
         kwargs = {}
         if force_json and json_schema_obj:
@@ -128,37 +172,57 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
                 "verbosity": "high",
             }
         # Use role-structured input for clarity
-        r = client.responses.create(
-            model=model,
-            reasoning={"effort": "high"},
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            max_output_tokens=effective_max,
-            **kwargs
-        )
-        text = getattr(r, "output_text", "") or ""
-        raw_dump = r.model_dump_json()
-        return text, raw_dump
+        last_err: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                r = client.responses.create(
+                    model=model,
+                    reasoning={"effort": "high"},
+                    input=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message},
+                    ],
+                    max_output_tokens=effective_max,
+                    **kwargs
+                )
+                text = getattr(r, "output_text", "") or ""
+                raw_dump = r.model_dump_json()
+                return text, raw_dump
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries or not _maybe_rate_limit(e):
+                    raise
+                _sleep_backoff(attempt, str(e))
+        assert last_err is not None
+        raise last_err
     else:
         # Chat Completions branch (gpt-4o family)
         kwargs = {}
         if force_json:
             kwargs["response_format"] = {"type": "json_object"}
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=temperature,
-            max_tokens=effective_max,
-            **kwargs
-        )
-        text = resp.choices[0].message.content or ""
-        raw_dump = json.dumps(resp.model_dump(), ensure_ascii=False)
-        return text, raw_dump
+        last_err: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                resp = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message},
+                    ],
+                    temperature=temperature,
+                    max_tokens=effective_max,
+                    **kwargs
+                )
+                text = resp.choices[0].message.content or ""
+                raw_dump = json.dumps(resp.model_dump(), ensure_ascii=False)
+                return text, raw_dump
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries or not _maybe_rate_limit(e):
+                    raise
+                _sleep_backoff(attempt, str(e))
+        assert last_err is not None
+        raise last_err
 
 class NewFile(BaseModel):
     path: str = Field(..., description="Relative path under problem dir")
@@ -175,6 +239,34 @@ class VerifierOutput(BaseModel):
     summary_md: str = Field(..., description="Concise summary")
     verdict: str = Field(..., description="promising|uncertain|unlikely")
     blocking_issues: List[str] = Field(default_factory=list)
+
+class PerProverFeedback(BaseModel):
+    prover_id: str = Field(..., description="Prover identifier, e.g., 01")
+    brief_feedback: str = Field(..., description="Short targeted feedback")
+    score: str = Field(..., description="promising|uncertain|unlikely")
+
+class NotesUpdate(BaseModel):
+    mode: str = Field(..., description="append|replace")
+    content_md: str = Field("", description="Markdown to write to notes.md")
+
+class CallWriter(BaseModel):
+    run: bool = Field(False, description="Whether to invoke the Writer")
+    task_md: Optional[str] = Field(None, description="Instruction for the Writer")
+
+class VerifierCombinedOutput(BaseModel):
+    feedback_md: str
+    summary_md: str
+    verdict: str
+    blocking_issues: List[str] = Field(default_factory=list)
+    per_prover: List[PerProverFeedback] = Field(default_factory=list)
+    notes_update: Optional[NotesUpdate] = None
+    call_writer: Optional[CallWriter] = None
+
+class WriterOutput(BaseModel):
+    status: str = Field(..., description="success|failed")
+    action: str = Field(..., description="replace")
+    tex_content: str = Field("", description="Full LaTeX document content")
+    errors_md: str = Field("", description="Compile or rigor errors, if any")
 
 class SummarizerOutput(BaseModel):
     summary_md: str = Field(..., description="Readable summary of the round")
@@ -304,7 +396,7 @@ def extract_json_from_response(text: str) -> Optional[dict]:
 def _extract_pdf_text(pdf_path: Path) -> str:
     """Extract full text from PDF using pymupdf (fitz) - no limits."""
     try:
-        import fitz  # PyMuPDF
+        import fitz  # type: ignore  # PyMuPDF
         doc = fitz.open(pdf_path)
         text = ""
         for page_num in range(len(doc)):  # All pages
@@ -447,6 +539,225 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
     
     return "\n".join(context_parts)
 
+def _apply_notes_update(problem_dir: Path, update: Optional[NotesUpdate]) -> None:
+    if not update or not update.content_md:
+        return
+    notes_path = problem_dir / "notes.md"
+    existing = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
+    if update.mode == "replace":
+        notes_path.write_text(update.content_md, encoding="utf-8")
+    else:
+        sep = "\n" if existing and not existing.endswith("\n") else ""
+        notes_path.write_text(existing + sep + update.content_md, encoding="utf-8")
+
+def _compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
+    """Compile outputs.tex with pdflatex; returns (ok, log_text)."""
+    tex_path = problem_dir / "outputs.tex"
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    log_path = round_dir / "outputs.compile.log"
+    if not tex_path.exists():
+        log_path.write_text("[outputs.tex not found]", encoding="utf-8")
+        return False, "outputs.tex not found"
+    try:
+        # Run pdflatex twice in nonstop mode
+        last = None
+        for _ in range(2):
+            proc = subprocess.run(
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    "-output-directory",
+                    str(problem_dir),
+                    str(tex_path),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+                text=True,
+            )
+            last = proc
+        out = last.stdout if last else ""
+        log_path.write_text(out, encoding="utf-8")
+        pdf_ok = (problem_dir / "outputs.pdf").exists()
+        return pdf_ok, out
+    except Exception as e:
+        log_path.write_text(f"[compile error] {e}", encoding="utf-8")
+        return False, str(e)
+
+def _read_notes_and_outputs(problem_dir: Path) -> tuple[str, str]:
+    notes = (problem_dir / "notes.md").read_text(encoding="utf-8") if (problem_dir / "notes.md").exists() else ""
+    outputs = (problem_dir / "outputs.tex").read_text(encoding="utf-8") if (problem_dir / "outputs.tex").exists() else ""
+    return notes, outputs
+
+def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: int) -> ProverOutput:
+    console.print(f"[bold cyan]Calling Prover {prover_idx:02d}/{total} (Round {round_idx})...[/bold cyan]")
+
+    context = read_problem_context(problem_dir)
+    notes_md, outputs_tex = _read_notes_and_outputs(problem_dir)
+    if notes_md:
+        context += f"\n=== notes.md ===\n{notes_md}\n"
+    if outputs_tex:
+        context += f"\n=== outputs.tex ===\n{outputs_tex}\n"
+    round_tag = f"Round {round_idx:04d} — {datetime.now().isoformat()}Z"
+
+    system_prompt = load_prompt("prover").replace("{ROUND_TAG}", round_tag)
+
+    user_message = f"""Work on this problem context:
+
+{context}
+
+Current round tag: {round_tag}
+Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_tag}'."""
+
+    schema = {
+        "name": "ProverOutput",
+        "schema": _normalize_schema_strict(ProverOutput.model_json_schema()),
+        "strict": True
+    }
+
+    text, dump = _complete_text(
+        MODEL_PROVER, system_prompt, user_message,
+        max_tokens=100000, temperature=PROVER_TEMPERATURE,
+        force_json=True,
+        json_schema_obj=schema if MODEL_PROVER.startswith("gpt-5") else None
+    )
+
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    _dump_io(round_dir, f"prover-{prover_idx:02d}", system_prompt, user_message, dump, text)
+
+    try:
+        data = json.loads(text) if not _is_o_model(MODEL_PROVER) or MODEL_PROVER.startswith("gpt-5") \
+               else extract_json_from_response(text)
+    except json.JSONDecodeError:
+        (round_dir / f"prover-{prover_idx:02d}.nonjson.txt").write_text(text, encoding="utf-8")
+        data = None
+
+    if not data:
+        shown_text = text if text.strip() else "(the model did not return anything)"
+        data = {
+            "progress_md": f"## {round_tag}\n\n(JSON parsing fallback)\n\n{shown_text}",
+            "new_files": [],
+            "requests_for_more_materials": [],
+            "next_actions_for_prover": []
+        }
+
+    pm = (data.get("progress_md") or "").strip()
+    if not pm.startswith("##"):
+        data["progress_md"] = f"## {round_tag}\n\n" + pm
+        pm = (data.get("progress_md") or "").strip()
+    if len(pm) < 80:
+        shown_text = text if text.strip() else "(the model did not return anything)"
+        data["progress_md"] = (
+            f"## {round_tag}\n\n(Model returned too little; raw output below)\n\n{shown_text}"
+        )
+
+    data.setdefault("new_files", [])
+    data.setdefault("requests_for_more_materials", [])
+    data.setdefault("next_actions_for_prover", [])
+
+    out = ProverOutput(**data)
+    (round_dir / f"prover-{prover_idx:02d}.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
+    return out
+
+def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) -> 'VerifierCombinedOutput':
+    console.print(f"[bold cyan]Calling Verifier (Combined, Round {round_idx})...[/bold cyan]")
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    reports = []
+    for i in range(1, num_provers + 1):
+        p = round_dir / f"prover-{i:02d}.out.json"
+        if p.exists():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                reports.append({"prover_id": f"{i:02d}", **data})
+            except Exception:
+                pass
+    notes_md, outputs_tex = _read_notes_and_outputs(problem_dir)
+
+    system_prompt = load_prompt("verifier")
+    user_message = """You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Optionally update notes and decide whether to call the writer.
+
+Prover reports (JSON):
+""" + json.dumps(reports) + "\n\nCurrent notes.md:\n" + notes_md + "\n\nCurrent outputs.tex (if any):\n" + (outputs_tex or "")
+
+    schema = {
+        "name": "VerifierCombinedOutput",
+        "schema": _normalize_schema_strict(VerifierCombinedOutput.model_json_schema()),
+        "strict": True
+    }
+
+    text, dump = _complete_text(
+        MODEL_VERIFIER, system_prompt, user_message,
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_VERIFIER.startswith("gpt-5") else None
+    )
+    _dump_io(round_dir, "verifier", system_prompt, user_message, dump, text)
+
+    try:
+        data = json.loads(text) if not _is_o_model(MODEL_VERIFIER) or MODEL_VERIFIER.startswith("gpt-5") \
+               else extract_json_from_response(text)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Verifier JSON decode error: {e}[/red]")
+        (round_dir / "verifier.nonjson.txt").write_text(text, encoding="utf-8")
+        data = {
+            "feedback_md": f"(JSON fallback)\n\n{text}",
+            "summary_md": "Verifier JSON parsing failed",
+            "verdict": "uncertain",
+            "blocking_issues": ["JSON parsing error"],
+            "per_prover": []
+        }
+
+    data = cast(Dict[str, Any], data)
+    # Normalize occasional list-valued fields into strings
+    if isinstance(data.get("summary_md"), list):
+        data["summary_md"] = "\n".join(f"• {item}" for item in data["summary_md"])
+    if isinstance(data.get("feedback_md"), list):
+        data["feedback_md"] = "\n".join(str(x) for x in data["feedback_md"])
+    out = VerifierCombinedOutput(**data)
+    _apply_notes_update(problem_dir, out.notes_update)
+    (round_dir / "verifier.feedback.md").write_text(out.feedback_md, encoding="utf-8")
+    (round_dir / "verifier.summary.md").write_text(out.summary_md, encoding="utf-8")
+    (round_dir / "verifier.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
+    return out
+
+def call_writer(problem_dir: Path, round_idx: int, task_md: str) -> 'WriterOutput':
+    console.print(f"[bold cyan]Calling Writer (Round {round_idx})...[/bold cyan]")
+    notes_md, outputs_tex = _read_notes_and_outputs(problem_dir)
+    system_prompt = load_prompt("writer")
+    context = f"=== notes.md ===\n{notes_md}\n\n=== outputs.tex (current) ===\n{outputs_tex}"
+
+    schema = {
+        "name": "WriterOutput",
+        "schema": _normalize_schema_strict(WriterOutput.model_json_schema()),
+        "strict": True
+    }
+    text, dump = _complete_text(
+        MODEL_SUMMARIZER,  # reuse summarizer model for writer unless a dedicated model is set
+        system_prompt,
+        f"Task for writer:\n\n{task_md}\n\nContext:\n\n{context}",
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_SUMMARIZER.startswith("gpt-5") else None
+    )
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    _dump_io(round_dir, "writer", system_prompt, task_md, dump, text)
+    try:
+        data = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
+               else extract_json_from_response(text)
+    except json.JSONDecodeError:
+        data = {"status": "failed", "action": "replace", "tex_content": "", "errors_md": f"Writer JSON parse failed. Raw: {text}"}
+    data = cast(Dict[str, Any], data)
+    out = WriterOutput(**data)
+    if out.status == "success":
+        (problem_dir / "outputs.tex").write_text(out.tex_content, encoding="utf-8")
+        ok, _ = _compile_latex(problem_dir, round_idx)
+        if not ok and not out.errors_md:
+            out.errors_md = "LaTeX compilation failed; see outputs.compile.log"
+    (round_dir / "writer.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
+    return out
+
 def call_prover(problem_dir: Path, round_idx: int) -> ProverOutput:
     console.print(f"[bold cyan]Calling Prover (Round {round_idx})...[/bold cyan]")
 
@@ -471,7 +782,7 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
 
     text, dump = _complete_text(
         MODEL_PROVER, system_prompt, user_message,
-        max_tokens=100000, temperature=0.4,
+        max_tokens=100000, temperature=PROVER_TEMPERATURE,
         force_json=True,
         json_schema_obj=schema if MODEL_PROVER.startswith("gpt-5") else None
     )
@@ -555,20 +866,21 @@ Return ONLY valid JSON."""
 
     # Parse JSON
     try:
-        data = json.loads(text) if not _is_o_model(MODEL_VERIFIER) or MODEL_VERIFIER.startswith("gpt-5") \
-               else extract_json_from_response(text)
+        data_any = json.loads(text) if not _is_o_model(MODEL_VERIFIER) or MODEL_VERIFIER.startswith("gpt-5") \
+                  else extract_json_from_response(text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Verifier JSON decode error: {e}[/red]")
         console.print(f"[dim]Raw response: {text[:500]}[/dim]")
         # Save raw non-JSON for debugging
         (round_dir / "verifier.nonjson.txt").write_text(text, encoding="utf-8")
         # Fallback
-        data = {
+        data_any = {
             "feedback_md": f"(JSON fallback)\n\n{text}",
             "summary_md": "Verifier JSON parsing failed",
             "verdict": "uncertain",
             "blocking_issues": ["JSON parsing error"]
         }
+    data = cast(Dict[str, Any], data_any)
 
     # Fill defaults if the model omitted them
     data.setdefault("blocking_issues", [])
@@ -599,18 +911,31 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     console.print(f"[bold cyan]Calling Summarizer (Round {round_idx})...[/bold cyan]")
 
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-    # Load the two previous artifacts
-    prover_json = json.loads((round_dir / "prover.out.json").read_text(encoding="utf-8"))
+    # Load artifacts: all prover-* reports, combined verifier, and writer (if present)
+    prover_blocks: list[str] = []
+    for pfile in sorted(round_dir.glob("prover-*.out.json")):
+        try:
+            pdata = json.loads(pfile.read_text(encoding="utf-8"))
+            prover_blocks.append(f"=== {pfile.name} (progress_md) ===\n{pdata.get('progress_md','')}\n")
+        except Exception:
+            continue
+
     verifier_json = json.loads((round_dir / "verifier.out.json").read_text(encoding="utf-8"))
+    writer_path = round_dir / "writer.out.json"
+    writer_block = ""
+    if writer_path.exists():
+        try:
+            wdata = json.loads(writer_path.read_text(encoding="utf-8"))
+            writer_block = f"\n=== Writer (status) ===\n{wdata.get('status','')}\n"
+        except Exception:
+            writer_block = "\n=== Writer ===\n(unreadable)\n"
 
-    context = f"""=== Prover (progress_md) ===
-{prover_json.get('progress_md','')}
-
-=== Verifier (summary_md) ===
-{verifier_json.get('summary_md','')}
-=== Verifier (verdict) ===
-{verifier_json.get('verdict','')}
-"""
+    context = (
+        ("\n".join(prover_blocks) if prover_blocks else "")
+        + f"\n=== Verifier (summary_md) ===\n{verifier_json.get('summary_md','')}\n"
+        + f"=== Verifier (verdict) ===\n{verifier_json.get('verdict','')}\n"
+        + writer_block
+    )
 
     system_prompt = load_prompt("summarizer")
 
@@ -634,24 +959,25 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
 
     # Parse JSON
     try:
-        data = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
-               else extract_json_from_response(text)
+        data_any = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
+                  else extract_json_from_response(text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Summarizer JSON decode error: {e}")
         (round_dir / "summarizer.nonjson.txt").write_text(text, encoding="utf-8")
         # Fallback
-        data = {
+        data_any = {
             "summary_md": f"Summarizer JSON fallback\n\n{text}",
             "highlights": [],
             "next_questions": []
         }
 
+    data = cast(Dict[str, Any], data_any)
     data.setdefault("highlights", [])
     data.setdefault("next_questions", [])
     return SummarizerOutput(**data)
 
-def run_round(problem_dir: Path, round_idx: int):
-    """Execute one round of the prover-verifier-summarizer loop with timings."""
+def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
+    """Execute one round of the multi-prover → verifier → optional-writer → summarizer loop."""
     console.print(f"\n[bold green]Starting Round {round_idx}[/bold green]")
 
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
@@ -663,46 +989,53 @@ def run_round(problem_dir: Path, round_idx: int):
 
     timings = {}
 
-    # ----- Step 1: Prover -----
+    # ----- Step 1: Provers (parallel-ish; sequential for now) -----
     _write_status(problem_dir, phase="prover", round_idx=round_idx)
     t0 = time.perf_counter()
-    prover_output = call_prover(problem_dir, round_idx)
+    prover_outputs: list[ProverOutput] = []
+    # Run provers in parallel threads (IO-bound HTTP calls)
+    with ThreadPoolExecutor(max_workers=num_provers) as ex:
+        futures = {ex.submit(call_prover_one, problem_dir, round_idx, i, num_provers): i for i in range(1, num_provers + 1)}
+        for fut in as_completed(futures):
+            out = fut.result()
+            prover_outputs.append(out)
+            # Append each prover's progress to progress.md
+            round_tag = f"## Round {round_idx:04d} — {datetime.now().isoformat()}Z"
+            progress_content = out.progress_md.strip()
+            if not progress_content.startswith("##"):
+                progress_content = round_tag + "\n\n" + progress_content
+            appended_progress = progress_content + "\n\n"
+            (round_dir / "progress.appended.md").write_text(appended_progress, encoding="utf-8")
+            progress_file = problem_dir / "progress.md"
+            existing = progress_file.read_text(encoding="utf-8") if progress_file.exists() else ""
+            sep = "\n" if existing and not existing.endswith("\n") else ""
+            progress_file.write_text(existing + sep + appended_progress, encoding="utf-8")
+            # Write any new files from this prover
+            for nf in out.new_files:
+                fp = problem_dir / nf.path
+                fp.parent.mkdir(parents=True, exist_ok=True)
+                fp.write_text(nf.content, encoding="utf-8")
+                console.print(f"[green]Created file: {nf.path}[/green]")
     t1 = time.perf_counter()
-    timings["prover"] = {"model": MODEL_PROVER, "duration_s": round(t1 - t0, 3)}
+    timings["provers"] = {"model": MODEL_PROVER, "count": num_provers, "duration_s": round(t1 - t0, 3)}
 
-    (round_dir / "prover.out.json").write_text(json.dumps(prover_output.model_dump(), indent=2), encoding="utf-8")
-
-    round_tag = f"## Round {round_idx:04d} — {datetime.now().isoformat()}Z"
-    progress_content = prover_output.progress_md.strip()
-    if not progress_content.startswith("##"):
-        progress_content = round_tag + "\n\n" + progress_content
-    appended_progress = progress_content + "\n\n"
-    (round_dir / "progress.appended.md").write_text(appended_progress, encoding="utf-8")
-
-    progress_file = problem_dir / "progress.md"
-    existing = progress_file.read_text(encoding="utf-8") if progress_file.exists() else ""
-    sep = "\n" if existing and not existing.endswith("\n") else ""
-    progress_file.write_text(existing + sep + appended_progress, encoding="utf-8")
-
-    for nf in prover_output.new_files:
-        fp = problem_dir / nf.path
-        fp.parent.mkdir(parents=True, exist_ok=True)
-        fp.write_text(nf.content, encoding="utf-8")
-        console.print(f"[green]Created file: {nf.path}[/green]")
-
-    # ----- Step 2: Verifier -----
+    # ----- Step 2: Verifier (combined) -----
     _write_status(problem_dir, phase="verifier", round_idx=round_idx, extra=timings)
     t0 = time.perf_counter()
-    verifier_output = call_verifier(problem_dir, round_idx)
+    v_out = call_verifier_combined(problem_dir, round_idx, num_provers)
     t1 = time.perf_counter()
     timings["verifier"] = {"model": MODEL_VERIFIER, "duration_s": round(t1 - t0, 3)}
 
-    (round_dir / "verifier.out.json").write_text(json.dumps(verifier_output.model_dump(), indent=2), encoding="utf-8")
-    (round_dir / "verifier.feedback.md").write_text(verifier_output.feedback_md, encoding="utf-8")
-    (round_dir / "verifier.summary.md").write_text(verifier_output.summary_md, encoding="utf-8")
+    # ----- Step 3: Writer (optional) -----
+    writer_ran = False
+    if v_out.call_writer and v_out.call_writer.run:
+        writer_ran = True
+        task_md = v_out.call_writer.task_md or ""
+        w_out = call_writer(problem_dir, round_idx, task_md)
+        # persist was done inside call_writer; we can pass outcome to summarizer via files
 
-    # ----- Step 3: Summarizer -----
-    _write_status(problem_dir, phase="summarizer", round_idx=round_idx, extra=timings)
+    # ----- Step 4: Summarizer -----
+    _write_status(problem_dir, phase="summarizer", round_idx=round_idx, extra={**timings, "writer_ran": writer_ran})
     t0 = time.perf_counter()
     summarizer_output = call_summarizer(problem_dir, round_idx)
     t1 = time.perf_counter()
@@ -724,23 +1057,26 @@ def run_round(problem_dir: Path, round_idx: int):
     _write_status(problem_dir, phase="idle", round_idx=round_idx, extra={"last_round": round_idx, **timings})
 
     # Auto-commit to git
-    _auto_commit_round(problem_dir, round_idx, verifier_output.verdict)
+    _auto_commit_round(problem_dir, round_idx, v_out.verdict)
 
     # Console summary
     console.print(f"\n[bold]Round {round_idx} Complete[/bold]")
-    console.print(f"[yellow]Verdict: {verifier_output.verdict}[/yellow]")
-    if verifier_output.blocking_issues:
+    console.print(f"[yellow]Verdict: {v_out.verdict}[/yellow]")
+    if v_out.blocking_issues:
         console.print("[red]Blocking Issues:[/red]")
-        for issue in verifier_output.blocking_issues:
+        for issue in v_out.blocking_issues:
             console.print(f"  • {issue}")
     console.print("\n[bold]Summary for Human:[/bold]")
-    console.print(verifier_output.summary_md)
+    console.print(v_out.summary_md)
 
 def main():
     parser = argparse.ArgumentParser(description="Simple Prover-Verifier Loop")
     parser.add_argument("problem_dir", type=str, help="Problem directory")
     parser.add_argument("--rounds", type=int, default=1, help="Number of rounds")
     parser.add_argument("--start-round", type=int, default=1, help="Starting round")
+    # Allow override via AR_NUM_PROVERS env (used by web_app)
+    default_provers = int(os.environ.get("AR_NUM_PROVERS", "2")) if os.environ.get("AR_NUM_PROVERS") else 2
+    parser.add_argument("--provers", type=int, default=default_provers, help="Number of parallel provers (1-10)")
     
     args = parser.parse_args()
     
@@ -766,9 +1102,10 @@ def main():
     console.print(f"OpenAI SDK: {_openai.__version__}")
     
     # Run rounds
+    provers = max(1, min(10, args.provers))
     for round_num in range(args.start_round, args.start_round + args.rounds):
         try:
-            run_round(problem_dir, round_num)
+            run_round(problem_dir, round_num, num_provers=provers)
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted[/yellow]")
             break

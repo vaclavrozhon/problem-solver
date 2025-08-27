@@ -1,0 +1,8 @@
+- Both reports give a correct, complete proof of Dirac via the Bondy–Chvátal single-edge closure; core lemmas check out.
+- 2-connectivity from δ ≥ n/2 is proved correctly via component-size counting; keep this as a short preliminary.
+- The path-closing lemma is sound; clarify the neighbor–index bijection and index ranges to avoid off-by-one worries.
+- The closure equivalence (G Hamiltonian iff G+uv Hamiltonian for deg-sum ≥ n) is correctly deduced; iteration to K_n is valid since degrees only increase.
+- Sharpness examples K_{k−1,k+1} (even n) and K_{k,k+1} (odd n) are correct; avoid citing K_{k,k} as a counterexample.
+- Minor polish: unify indexing (x0..x_{n−1} or x1..xn) across lemmas; state n ≥ 3 explicitly.
+- Optional: include the direct Pósa/Ore-style proof as a cross-check; then Claim on two common neighbors becomes relevant.
+- Next steps: produce the clean LaTeX writeup of Lemma (path-closing), single-edge closure, and Dirac via closure; add sharpness and small-n sanity checks.

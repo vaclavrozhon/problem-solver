@@ -1,0 +1,4 @@
+- Adopt closure-based proof as the primary route to Dirac: (1) prove path-closing lemma from a Hamiltonian path under deg-sum ≥ n; (2) deduce single-edge equivalence; (3) iterate to K_n under δ ≥ n/2.
+- Normalize indexing to x0,…,x_{n−1} with u = x0, v = x_{n−1}. State and use A = {i∈{1,…,n−2}: u~x_i} and B = {i∈{2,…,n−1}: v~x_{i−1}} with |A| = deg(u), |B| = deg(v).
+- Include short proofs of connectivity and 2-connectivity under δ ≥ n/2; include sharpness examples K_{k−1,k+1} and K_{k,k+1}; state n ≥ 3 up front.
+- Optional appendix: direct Pósa/Ore-style proof; keep the ‘two common neighbors’ claim there if used.

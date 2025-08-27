@@ -1,0 +1,7 @@
+- The finite-state type abstraction and the single-exponential bound in β look correct and useful; this keeps all search tables and verification at size 2^{poly(β)}.
+- Major soundness gap: composing macro relations R_t via an intermediate color m is wrong; you must form concatenated summaries (Ext) and derive R for the concatenation before testing bridging. A small 3-color counterexample breaks the m-composition.
+- The append-one-bit transition δ is the linchpin: prove it is well-defined on types (congruence) and implement the correct DP that maps Ext_t to Ext_{t′} with precise boundary indexing; current formulas are incorrect/underspecified.
+- Stage 1 (Ω(n) vs o(n)) is promising if rephrased to use concatenation of summaries; Prover 02’s version is close to correct once δ is fixed.
+- Stage 2 (O(1) vs Ω(log* n)) via boundary interfaces is plausible but needs a clear equivalence proof to the paper’s feasible-function framework; otherwise, be ready to augment the witness.
+- Complexity: NEXPTIME membership is well supported. Avoid claiming EXPTIME without an explicit deterministic solver for the existential witnesses.
+- Next: formalize δ and concatenation lemmas, implement the summary closure, and test on counterexamples that distinguish R-composition from summary-concatenation; then write the Stage 1/2 verifiers against the corrected primitives.

@@ -1,6 +1,7 @@
-• The mini-plan is well-structured but needs more depth in analysis.
-• Understanding the PSPACE-hardness proof is critical; avoid misinterpretations.
-• The NEXPTIME algorithm analysis must be cautious about generalizations.
-• Reductions from NEXPTIME-hard problems need careful alignment with LCL structure.
-• Exploration of LCL cases should be systematic to ensure complexity representation.
-• Formulate lemmas with rigorous testing against edge cases for validity.
+- The gating idea (Prover 02) is essential: without it, (F1)’s “all ordered pairs” quantification breaks 01’s existential-pointer plan. Adopt gating plus 01’s window anchoring.
+- Two claims are untenable as stated: (i) deriving 2^B distinct types from only 2 boundary nodes; (ii) validating clause triples in O(1) local steps. Both must be replaced with interior, poly(s)-length, radius-1 tableaus inside wb/wc.
+- Window-anchoring is sound and useful; ⊥-plumbing to trivialize (F2) seems feasible if seams are fully absorbing and independent of S.
+- The reduction needs a precise lemma that mismatched active pairs are OFF and always completable, while matched pairs are ON and enforce literal satisfaction.
+- Provide explicit C_in–out/C_out–out tables for the 4 boundary nodes and the conduits (OFF→PAD, ON→CAP), plus the clause-evaluation tableau.
+- Prove a formal type-separation lemma that guarantees ≥2^B variable types and ≥2^B clause types via differing boundary-extendibility, not boundary-only signatures.
+- Validate by a complete B=2 example and DP simulation; then scale the parameter bookkeeping (β, tableau length, |Σ_out|) to poly(s).

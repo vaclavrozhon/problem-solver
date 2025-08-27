@@ -674,109 +674,109 @@ else:
                         st.markdown(f"**{rd.name}**")
                     # verdict + timings (if available)
                     verdict = None
-                    vj = rd / "verifier.out.json"
-                    if vj.exists():
+                vj = rd / "verifier.out.json"
+                if vj.exists():
+                    try:
+                        verdict = json.loads(vj.read_text(encoding="utf-8")).get("verdict")
+                    except: pass
+                if verdict:
+                    with colh2:
+                        emoji = {"promising":"✅","uncertain":"⚠️","unlikely":"❌"}.get(verdict,"—")
+                        st.markdown(f"**Verdict:** {emoji} {verdict}")
+            
+                timings = {}
+                tj = rd / "timings.json"
+                if tj.exists():
+                    timings = json.loads(tj.read_text(encoding="utf-8"))
+                with colh3:
+                    if timings:
+                        st.markdown("**Time (s):** " + ", ".join([f"{k[0].upper()}:{v['duration_s']}" for k,v in timings.items()]))
+            
+                # three scrollable panes
+                pj = rd / "prover.out.json"
+                # Detect multi-prover artifacts
+                provers_multi = sorted(rd.glob("prover-*.out.json"))
+                vf = rd / "verifier.feedback.md"
+                sm = rd / "summarizer.summary.md"
+                vs = rd / "verifier.summary.md"
+            
+                # Build prover pane content
+                prover_markdown = ""
+                if provers_multi:
+                    for pfile in provers_multi:
                         try:
-                            verdict = json.loads(vj.read_text(encoding="utf-8")).get("verdict")
-                        except: pass
-                    if verdict:
-                        with colh2:
-                            emoji = {"promising":"✅","uncertain":"⚠️","unlikely":"❌"}.get(verdict,"—")
-                            st.markdown(f"**Verdict:** {emoji} {verdict}")
+                            pdata = json.loads(pfile.read_text(encoding="utf-8"))
+                            prover_markdown += f"### {pfile.name}\n\n" + pdata.get("progress_md", "") + "\n\n"
+                        except:
+                            pass
+                else:
+                    if pj.exists():
+                        try:
+                            prover_markdown = json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
+                        except:
+                            pass
+                vtxt = vf.read_text(encoding="utf-8") if vf.exists() else ""
+                stxt = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
             
-                    timings = {}
-                    tj = rd / "timings.json"
-                    if tj.exists():
-                        timings = json.loads(tj.read_text(encoding="utf-8"))
-                    with colh3:
-                        if timings:
-                            st.markdown("**Time (s):** " + ", ".join([f"{k[0].upper()}:{v['duration_s']}" for k,v in timings.items()]))
-            
-                    # three scrollable panes
-                    pj = rd / "prover.out.json"
-                    # Detect multi-prover artifacts
-                    provers_multi = sorted(rd.glob("prover-*.out.json"))
-                    vf = rd / "verifier.feedback.md"
-                    sm = rd / "summarizer.summary.md"
-                    vs = rd / "verifier.summary.md"
-            
-                    # Build prover pane content
-                    prover_markdown = ""
-                    if provers_multi:
-                        for pfile in provers_multi:
-                            try:
-                                pdata = json.loads(pfile.read_text(encoding="utf-8"))
-                                prover_markdown += f"### {pfile.name}\n\n" + pdata.get("progress_md", "") + "\n\n"
-                            except:
-                                pass
-                    else:
-                        if pj.exists():
-                            try:
-                                prover_markdown = json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
-                            except:
-                                pass
-                    vtxt = vf.read_text(encoding="utf-8") if vf.exists() else ""
-                    stxt = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
-            
-                    import html as _html
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.markdown("**Prover**")
-                        st.markdown(f"<div class='pane'>{_html.escape(prover_markdown).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
-                    with col2:
-                        st.markdown("**Verifier**")
-                        st.markdown(f"<div class='pane'>{_html.escape(vtxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
-                    with col3:
-                        st.markdown("**Summary**")
-                        st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                import html as _html
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown("**Prover**")
+                    st.markdown(f"<div class='pane'>{_html.escape(prover_markdown).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                with col2:
+                    st.markdown("**Verifier**")
+                    st.markdown(f"<div class='pane'>{_html.escape(vtxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                with col3:
+                    st.markdown("**Summary**")
+                    st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
 
-                    # Writer artifacts
-                    wjson = rd / "writer.out.json"
-                    pdf_path = problem / "outputs.pdf"
-                    clog = rd / "outputs.compile.log"
-                    if wjson.exists() or pdf_path.exists() or clog.exists():
-                        st.markdown("#### 🖋 Writer")
-                        cols = st.columns([2,2,2])
-                        with cols[0]:
-                            if wjson.exists():
-                                try:
-                                    wdata = json.loads(wjson.read_text(encoding="utf-8"))
-                                    st.code(json.dumps(wdata, indent=2))
-                                except:
-                                    st.write("writer.out.json present")
-                        with cols[1]:
-                            if pdf_path.exists():
-                                st.download_button("Download outputs.pdf", data=pdf_path.read_bytes(), file_name="outputs.pdf", mime="application/pdf")
-                        with cols[2]:
-                            if clog.exists():
-                                st.text_area("LaTeX compile log", value=clog.read_text(encoding="utf-8")[-4000:], height=160)
+                # Writer artifacts
+                wjson = rd / "writer.out.json"
+                pdf_path = problem / "outputs.pdf"
+                clog = rd / "outputs.compile.log"
+                if wjson.exists() or pdf_path.exists() or clog.exists():
+                    st.markdown("#### 🖋 Writer")
+                    cols = st.columns([2,2,2])
+                    with cols[0]:
+                        if wjson.exists():
+                            try:
+                                wdata = json.loads(wjson.read_text(encoding="utf-8"))
+                                st.code(json.dumps(wdata, indent=2))
+                            except:
+                                st.write("writer.out.json present")
+                    with cols[1]:
+                        if pdf_path.exists():
+                            st.download_button("Download outputs.pdf", data=pdf_path.read_bytes(), file_name="outputs.pdf", mime="application/pdf")
+                    with cols[2]:
+                        if clog.exists():
+                            st.text_area("LaTeX compile log", value=clog.read_text(encoding="utf-8")[-4000:], height=160)
             
-                    # --- Add feedback (human-in-the-loop) ---
-                    st.markdown("#### ✍️ Add feedback")
-                    fb_key = f"fb_{problem.name}_{rd.name}"
-                    if st.button("➕ Add feedback", key=f"btn_{fb_key}"):
-                        st.session_state[f"show_{fb_key}"] = True
+                # --- Add feedback (human-in-the-loop) ---
+                st.markdown("#### ✍️ Add feedback")
+                fb_key = f"fb_{problem.name}_{rd.name}"
+                if st.button("➕ Add feedback", key=f"btn_{fb_key}"):
+                    st.session_state[f"show_{fb_key}"] = True
 
-                    if st.session_state.get(f"show_{fb_key}"):
-                        fb_text = st.text_area("Write your feedback (will be appended to the round's summary):",
-                                               key=f"txt_{fb_key}", height=160)
-                        b1, b2 = st.columns([1,1])
-                        with b1:
-                            if st.button("OK", key=f"ok_{fb_key}"):
-                                if fb_text.strip():
-                                    ok = append_user_feedback(problem, rd, fb_text)
-                                    if ok:
-                                        st.success("Feedback added to the summary.")
-                                        st.session_state.pop(f"show_{fb_key}", None)
-                                        st.rerun()
-                                else:
-                                    st.warning("Feedback is empty.")
-                        with b2:
-                            if st.button("Cancel", key=f"cancel_{fb_key}"):
-                                st.session_state.pop(f"show_{fb_key}", None)
-                                st.rerun()
+                if st.session_state.get(f"show_{fb_key}"):
+                    fb_text = st.text_area("Write your feedback (will be appended to the round's summary):",
+                                           key=f"txt_{fb_key}", height=160)
+                    b1, b2 = st.columns([1,1])
+                    with b1:
+                        if st.button("OK", key=f"ok_{fb_key}"):
+                            if fb_text.strip():
+                                ok = append_user_feedback(problem, rd, fb_text)
+                                if ok:
+                                    st.success("Feedback added to the summary.")
+                                    st.session_state.pop(f"show_{fb_key}", None)
+                                    st.rerun()
+                            else:
+                                st.warning("Feedback is empty.")
+                    with b2:
+                        if st.button("Cancel", key=f"cancel_{fb_key}"):
+                            st.session_state.pop(f"show_{fb_key}", None)
+                            st.rerun()
             
-                    st.markdown("---")
+                st.markdown("---")
             
             # Show log file if exists  
             log_file = runs_dir / "orchestrator.log"

@@ -127,6 +127,7 @@ class ProblemRunner:
     last_update: Optional[datetime] = None
     error_message: str = ""
     log_path: Optional[str] = None
+    total_rounds_requested: int = 0
     
     def get_id(self) -> str:
         """Generate unique ID for this problem."""
@@ -189,6 +190,9 @@ class ProblemManager:
         
         if runner.process and runner.process.poll() is None:
             return False  # Already running
+        
+        # Store total rounds requested for this run
+        runner.total_rounds_requested = rounds
         
         try:
             # Determine starting round
@@ -687,15 +691,28 @@ else:
                 elif phase == "idle":
                     current_agent = "System idle"
                 
-                # Calculate remaining rounds (if we can determine it from runs)
+                # Calculate remaining rounds
                 runs_dir = problem / "runs"
                 completed_rounds = len([d for d in runs_dir.iterdir() if d.is_dir()]) if runs_dir.exists() else 0
+                runner = st.session_state.manager.get_or_create_runner(problem)
+                total_requested = runner.total_rounds_requested
+                
+                # Calculate remaining rounds
+                remaining_info = ""
+                if total_requested > 0:
+                    if phase != "idle":
+                        remaining = max(0, total_requested - current_round + 1)
+                        remaining_info = f" ({remaining} rounds until end)"
+                    else:
+                        remaining = max(0, total_requested - completed_rounds)
+                        if remaining > 0:
+                            remaining_info = f" ({remaining} rounds until end)"
                 
                 # Display enhanced status
                 if phase != "idle":
-                    st.info(f"🧠 **Round {current_round}** • **{current_agent}**{elapsed}")
+                    st.info(f"🧠 **Round {current_round}** • **{current_agent}**{elapsed}{remaining_info}")
                 else:
-                    st.info(f"🧠 **{phase.title()}** • {completed_rounds} rounds completed{elapsed}")
+                    st.info(f"🧠 **{phase.title()}** • {completed_rounds} rounds completed{elapsed}{remaining_info}")
             
             # Notes.md and output.md viewers
             notes_path = problem / "notes.md"

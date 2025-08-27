@@ -1,0 +1,104 @@
+## Round 0001 — 2025-08-27T10:32:01.431305Z
+
+Mini-plan
+- Specialize the feasible-function framework of the paper to radius-1, β-normalized LCLs on globally oriented paths, and isolate a finite-state summary (types) that is exponential but not doubly exponential in β.
+- Show we can deterministically compute all reachable types and a successor function δ(Type, bit) in time 2^{poly(β)} by dynamic programming on boundary-extendibility tables.
+- Define, for each type t, a macro relation R_t ⊆ Σ_out × Σ_out that summarizes “what boundary output labels can be bridged across a block of type t”.
+- Give a NEXPTIME (indeed EXPTIME) decision procedure for the ω(log* n)—o(n) gap by nondeterministically guessing a small table F on contexts of the form (leftType, 2-bit S, rightType) and verifying extendibility using the R_t relations.
+- Give a NEXPTIME decision procedure for the ω(1)—o(log* n) gap by nondeterministically guessing boundary quadruples per type (first/second/second-last/last outputs) and verifying the wrap-around and bridging conditions via R_t and local checks.
+- Validate with toy examples and note failure modes; identify concrete next steps to formalize the type-update computation and the verification routines.
+
+Context and notation (radius 1, β-normalized)
+- Inputs: Σ_in = {0,1}. Outputs: Σ_out with |Σ_out| = β. Legality: (in, out) ∈ C_in–out and (out, out′) ∈ C_out–out on each directed edge.
+- Let E ⊆ Σ_out × Σ_out denote the directed edge relation from C_out–out. Let A_0, A_1 ⊆ Σ_out denote allowed outputs per input bit (rows of C_in–out).
+- For a (long) input block P (string over {0,1}), write its type Type(P) as in the paper: r = 1 ⇒ D1 are the two endpoints; D2 are their immediate neighbors; extendibility is captured by which assignments of output labels to the four boundary nodes D1 ∪ D2 can be extended to a full legal labeling on the interior D3.
+
+Claim 1 (Type-count bound specialized to r = 1)
+Statement. The number of distinct types (equivalence classes ⋆∼) is at most ℓ_pump ≤ 16 · 2^{β^4}.
+Why useful here. This bounds the state space of our finite abstraction by a single-exponential function of β, enabling 2^{poly(β)} algorithms.
+Sketch. For r = 1, D1 ∪ D2 contains 4 boundary nodes. There are 2^4 choices of boundary input bits. For each, the extendibility predicate is a Boolean function over assignments of 4 boundary output labels, i.e., a subset of Σ_out^4, hence at most 2^{β^4} possibilities. Multiplying gives ≤ 16 · 2^{β^4}.
+How it can fail. If radius r > 1 were needed, the exponent would grow as β^{4r}, but still single-exponential for constant r. No failure for r=1.
+Quick test. With β=2, bound is 16·2^{16} ≈ 1M types (a rough upper bound); fine for theoretical complexity, impractical to enumerate in practice but enough for 2^{poly(β)} complexity.
+
+Claim 2 (Deterministically computing all reachable types and δ in 2^{poly(β)} time)
+Statement. We can compute the set T of all types reachable from length-≤4 words under appending bits, together with a deterministic successor function δ: T × {0,1} → T, in deterministic time 2^{poly(β)}.
+Why useful here. Avoids enumerating 2^{ℓ_pump} strings. Once T and δ are known, all further checks quantify only over T (singly exponential), not over words (doubly exponential).
+Construction and verification.
+- Represent a type t ∈ T by (Lbits, Rbits, Ext_t), where Lbits, Rbits ∈ {0,1}^2 are the 2-bit prefix/suffix of any representative, and Ext_t ⊆ Σ_out^4 is the set of boundary 4-tuples (o_L1, o_L2, o_R2, o_R1) that are extendible to a full legal labeling inside.
+- Initialization. Enumerate all input strings P of length k ∈ {1,2,3,4} (≤ 16 of them). For each, compute Ext_{Type(P)} exactly by dynamic programming on the tiny interior: enumerate all 4-tuples of boundary outputs consistent with C_in–out on boundary nodes and E on boundary edges; check extendibility of the (empty or short) interior by brute force (cost β^{O(4)} per P). Insert the resulting canonical type into a dictionary keyed by (Lbits, Rbits, Ext_t).
+- Update (δ). Given t = (Lbits, Rbits, Ext_t) and a ∈ {0,1}, we can compute t′ = δ(t, a) as follows: t′ has Lbits′ = first two bits of (Lbits concatenated if current length<2 else unchanged), Rbits′ = updated last-two-bits after appending a, and Ext_{t′} is obtained by a constant-size “boundary-augmentation” DP: a boundary 4-tuple (o_L1, o_L2, o_R2′, o_R1′) is in Ext_{t′} iff there exist o_R2, o_R1 and an output label o_new for the appended node such that
+  (i) (o_L1, o_L2, o_R2, o_R1) ∈ Ext_t,
+  (ii) membership constraints at the new last node: o_new ∈ A_a,
+  (iii) E-edges: (o_R1, o_new) ∈ E, and then set o_R2′=o_new (the new second-last), o_R1′ = ?
+  Careful: after appending one node, the new last two boundary outputs are (old last, new), so interpret indexes accordingly. Full derivation requires casework for short representatives (k < 4), but all cases are constant and handled locally.
+- BFS enumeration. Starting from the set of types derived for k ≤ 4, add δ(t,0) and δ(t,1) for each discovered t until closure. Each δ-computation runs in β^{O(4)} time (constant-factor DP over Σ_out^4). The number of types discovered is ≤ ℓ_pump. Thus total time ≤ ℓ_pump · poly(β) = 2^{poly(β)}.
+How it can fail. The update must be consistent for small-k degeneracies (k < 4) where D1∪D2 overlaps; if mishandled, one might compute inconsistent Ext sets. We mitigate by bootstrapping directly from exact computation for k ≤ 4 and carefully distinguishing cases in the update.
+Quick test. For a trivial LCL where E is complete and A_0=A_1=Σ_out, Ext_t=Σ_out^4 for all t. Then δ creates only 16 distinct types (Lbits,Rbits, full Ext). BFS closes after O(1) expansions—consistent and fast.
+
+Claim 3 (Macro bridging relation R_t)
+Statement. For each type t, we can compute a relation R_t ⊆ Σ_out × Σ_out such that (x, y) ∈ R_t iff there exists a legal labeling of some block P of type t that bridges the outer boundary labels x → y, in the sense: there exist boundary outputs (o_L1,o_L2,o_R2,o_R1) ∈ Ext_t with E-edges (x, o_L1) and (o_R1, y).
+Why useful here. R_t summarizes the net effect of an unlabeled block of type t on the neighboring outside outputs. It collapses an entire block to a β×β boolean matrix for later composition checks.
+Computation. For each t and each (x,y) ∈ Σ_out^2, test whether ∃ (o_L1,o_L2,o_R2,o_R1) ∈ Ext_t such that (x, o_L1) ∈ E and (o_R1, y) ∈ E. This costs O(β^4) per (x,y), hence O(β^6) per t.
+How it can fail. If we misinterpret boundary directions (left/right), the composition in later checks breaks. We fix orientation globally: x is the output immediately before the block on the left, y is the output immediately after the block on the right.
+Quick test. If E has a self-loop at c and c ∈ A_0∩A_1 at all boundary nodes, then (c,c) ∈ R_t for all t, since boundary tuple (c,c,c,c) is valid: sanity check.
+
+Claim 4 (NEXPTIME decision for ω(log* n)—o(n): existence of a context-local f on 2-node windows)
+Statement. There is a nondeterministic algorithm running in time 2^{poly(β)} that decides whether a feasible function f (in the sense of Section 4.2 of the paper) exists; equivalently, whether the LCL has deterministic LOCAL complexity o(n) instead of Ω(n).
+Why useful here. This separates Ω(n) from o(n) in NEXPTIME, as requested.
+Definition (specialized). For r=1, f takes as input a triple (t_L, S, t_R) where t_L, t_R ∈ T are types of the left/right contexts, and S ∈ {0,1}^2 is the 2-bit middle window; f outputs L_S ∈ Σ_out^2 for S, with (i) (S[1], L_S[1]) ∈ C_in–out, (S[2], L_S[2]) ∈ C_in–out, and (ii) (L_S[1], L_S[2]) ∈ E.
+Verification condition (extendibility). For all quadruples (t_a, t_b, t_c, t_d) ∈ T^4, there exist orientation choices for S1,S2 (i.e., optionally reverse them; this toggles which side of L_S we use as boundary) such that, writing s1_last as the output of the last node of S1 under f and s2_first as the output of the first node of S2 under f, we have
+  ∃ m ∈ Σ_out: (s1_last, m) ∈ R_{t_b} and (m, s2_first) ∈ R_{t_c}.
+Algorithm.
+1) Deterministically compute T, δ, and all R_t (Claim 2 and 3) in 2^{poly(β)} time.
+2) Nondeterministically guess a table F: T × {0,1}^2 × T → Σ_out^2 assigning outputs to the 2-node window for every context. Enforce local per-node legality and (L_S[1],L_S[2]) ∈ E.
+3) Deterministically verify the extendibility condition above for all |T|^4 quadruples (trying the 4 orientation choices for S1,S2 and scanning m ∈ Σ_out).
+Complexity. |T| ≤ ℓ_pump ≤ 16·2^{β^4}. Step 3 costs O(|T|^4 · β), hence 2^{poly(β)}. The guess size |F| is |T|^2·4 entries, each an ordered pair in Σ_out^2: total certificate size 2^{poly(β)}.
+Correctness sketch. This is the paper’s feasible-function notion specialized to r=1; replace arbitrary words by their types (Lemma 10/11), and label only the 2-node windows. The R_t composition exactly captures the existence of fillings for the unlabeled blocks w_b and w_c between S1 and S2. If such F exists, the o(n) construction of Section 4.2 yields an O(log* n)-round algorithm; if not, the problem has complexity Ω(n).
+How it can fail. Two pitfalls: (i) Orientation/reversal: when we choose to label S1 or SR_1 we must use the appropriate context (swap t_a and t_b, and reverse the 2-bit S; our check enumerates both options). (ii) Using types: one must ensure the type-invariance lemma (Lemma 10/11) applies; here it does, since we only rely on boundary extendibility.
+Quick test. Consider an LCL where A_0 ∩ A_1 = ∅ and E disallows any edge between outputs allowed by 0 and those by 1. Then R_t is empty whenever the block contains both 0 and 1 near its boundary, and no F can satisfy the bridging, so we correctly conclude Ω(n).
+
+Claim 5 (NEXPTIME decision for ω(1)—o(log* n): existence of wrap-around boundary quadruples per type)
+Statement. There is a nondeterministic algorithm running in time 2^{poly(β)} that decides whether the LCL has complexity O(1) vs Ω(log* n), assuming it is o(n) (i.e., Claim 4’s test passed).
+Why useful here. This separates the two sublinear regimes in NEXPTIME, completing the trichotomy decision.
+Witness to guess.
+- For each type t ∈ T, guess a boundary quadruple Q_t = (L1_t, L2_t, R2_t, R1_t) ∈ Σ_out^4 intended to be the outputs on the first two and last two nodes of any block labeled by the constant-time scheme (cf. Section 4.4 of the paper).
+- Reuse the table F from Claim 4 (or guess a fresh f for 2-node windows; both lead to 2^{poly(β)} guesses).
+Checks.
+(i) Local and wrap-around validity per type. For each t with boundary input bits (ℓ1,ℓ2) at the left and (r2,r1) at the right, enforce
+  - L1_t ∈ A_{ℓ1}, L2_t ∈ A_{ℓ2}, R2_t ∈ A_{r2}, R1_t ∈ A_{r1};
+  - (L1_t, L2_t) ∈ E, (R2_t, R1_t) ∈ E;
+  - (L1_t, L2_t, R2_t, R1_t) ∈ Ext_t (so the interior is fillable);
+  - wrap-around across repetitions: (R1_t, L1_t) ∈ E.
+(ii) Bridging via 2-node windows. For all pairs (t_b, t_c) ∈ T^2 and for all S ∈ {00,01,10,11}, there exist 2-node outputs L_S (these can be taken from F(t_b, S, t_c) if we reuse F) satisfying per-node legality and (L_S[1], L_S[2]) ∈ E, such that
+  ∃ m ∈ Σ_out: (R1_{t_b}, m) ∈ R_{t_b} and (m, L1_{t_c}) ∈ R_{t_c}, with the boundaries of S chosen appropriately (last of S feeds into t_b, first of S feeds from t_c). Equivalently, there exists a labeling of S whose last/first outputs connect to the block boundary outputs via R_{t_b} and R_{t_c}.
+Complexity. The number of checks is O(|T| + |T|^2·4) = 2^{poly(β)}. Each check costs poly(β). Guess size is O(|T|·log β^4) plus the 2-node window table as in Claim 4.
+Correctness sketch. This mirrors Section 4.4–4.5: the quadruple Q_t guarantees we can tile long periodic parts by repeating the chosen boundary scheme (wrap-around holds), and the 2-node windows with F stitch the remaining short/irregular parts. The R_t matrices certify fillability of the unlabeled blocks adjacent to the 2-node windows. If such witnesses exist, the O(1)-round construction follows; otherwise Ω(log* n).
+How it can fail. Subtlety: for very short representatives (length < 4), Ext_t must be computed accurately so that (L1_t, L2_t, R2_t, R1_t) ∈ Ext_t truly guarantees interior extendibility. This is covered by the initialization in Claim 2.
+Quick test. Suppose E has a self-loop at c and c ∈ A_0 ∩ A_1. Pick Q_t = (c,c,c,c) for all t and L_S = (c,c) for all S. Then all constraints pass, classifying the problem as O(1), which is correct (output c everywhere).
+
+Toy examples
+- Example A (No constant-time solution, Ω(n)). Let β=2, Σ_out={a,b}, A_0={a}, A_1={b}, and E = {(a,b), (b,a)} (alternating). Then any legal labeling forces alternation matching the input’s parity; stitching arbitrary 2-node windows across arbitrary blocks fails because R_t is empty for many contexts. Claim 4 rejects F, giving Ω(n).
+- Example B (Constant-time trivial). Let A_0 = A_1 = Σ_out and E complete. Then O(1) holds with Q_t=(a,a,a,a) and L_S=(a,a) (for any fixed a). Claims 4 and 5 accept.
+
+Why the naive algorithm is doubly exponential and how we avoid it
+- Naively, checking feasibility would range over all words w with |w| ≤ ℓ_pump; since ℓ_pump itself is exponential in β, the total number of words is doubly exponential in β. The paper’s decidability argument (“feasible function exists”) is based on types but, if implemented by enumerating domain strings of f, becomes 2^{2^{poly(β)}}.
+- Our approach collapses all universal quantification over words to universal quantification over types, whose number is ℓ_pump ≤ 2^{poly(β)}. All witnesses (F, boundary quadruples) are tables indexed by types (and the 4 possible 2-bit S), of size 2^{poly(β)}. All checks boil down to iterating over |T|^{O(1)} combinations and scanning β-sized alphabets—total time 2^{poly(β)}.
+- Moreover, computing T and δ deterministically by DP on boundary-extendibility tables avoids guessing exponentially many representatives.
+
+Complexity summary (in terms of input size N = poly(β))
+- Compute T, δ, Ext_t, and R_t: time 2^{poly(β)} = 2^{poly(N)}.
+- Stage 1 (Ω(n) vs o(n)): nondeterministically guess F of size 2^{poly(N)} and verify in time 2^{poly(N)}.
+- Stage 2 (O(1) vs Ω(log* n)): nondeterministically guess Q_t (and optionally reuse F) of size 2^{poly(N)} and verify in time 2^{poly(N)}.
+Hence: a NEXPTIME (indeed EXPTIME) trichotomy decision procedure for β-normalized, radius-1 LCLs on globally oriented paths.
+
+Limits and open technical points (to be finalized)
+- Type update (δ) for short representatives. We outlined casework; formalizing the exact DP for k ∈ {1,2,3} is needed to ensure correctness at the base.
+- Reversal handling. When allowing reversed 2-node windows, we must consistently use the reversed type t^R (swap L/R bits and reverse boundary order). Precomputing t ↦ t^R is straightforward from Ext_t.
+- Proof detail that the chosen Q_t and F suffice to reconstruct the O(1) algorithm exactly as in the paper’s Section 4.5. Our checks mirror their feasible-function definition; we will write the full reduction argument for completeness.
+
+Next concrete steps
+- Formalize the dynamic programming that computes Ext_{t′} from Ext_t and a new bit a (cleanly handling all small-k cases), and write a proof of its correctness (specialized Lemma 12 made algorithmic).
+- Implement the computation of T, δ and R_t (pseudo-code sketch), and quantify exact polynomial exponents in β for time/memory.
+- Write the precise verification routines for Stage 1 and Stage 2, including the reversal operator on types and on the 2-node window table F.
+- Exercise the routines on a few canonical LCLs (e.g., 2-coloring over oriented paths, trivial constant labeling, parity constraints) to sanity-check the checks.
+

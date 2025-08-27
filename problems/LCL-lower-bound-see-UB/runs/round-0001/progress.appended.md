@@ -1,21 +1,91 @@
-## Round 0001 — 2025-08-26T19:11:45.579327Z
-- **Mini-plan:**
-  1. **Understand the PSPACE-hardness proof** from the first paper thoroughly to identify limitations.
-     - *How it can fail:* Misinterpretation of the automaton simulation could lead to incorrect assumptions about complexity.
-     - *Test attempt:* Review the encoding of the automaton and its polynomial length constraints.
-  2. **Analyze the sketch of the NEXPTIME algorithm** in the second draft to extract key insights.
-     - *How it can fail:* The algorithm may not generalize to all cases or may have hidden polynomial limitations.
-     - *Test attempt:* Construct small examples of LCLs and see if the algorithm applies effectively.
-  3. **Identify potential reductions** from known NEXPTIME-hard problems to our problem setup.
-     - *How it can fail:* Finding a suitable problem to reduce from may prove difficult or not yield the desired hardness.
-     - *Test attempt:* Attempt reductions from problems like SAT or TQBF to see if they fit the LCL structure.
-  4. **Explore specific cases of LCLs** with varying complexities to find distinguishing features.
-     - *How it can fail:* The chosen cases may not exhibit the desired complexity behaviors.
-     - *Test attempt:* Construct LCLs with known complexities and analyze their local structures.
-  5. **Formulate lemmas** regarding the relationship between the size of $eta$ and the local complexity.
-     - *How it can fail:* The lemmas may not hold for all configurations or edge cases.
-     - *Test attempt:* Test lemmas on edge cases of $eta$ values and their impact on local complexity.
-  6. **Draft a proof outline** for NEXPTIME-hardness based on findings.
-     - *How it can fail:* The outline may lack rigor or fail to connect the dots between findings.
-     - *Test attempt:* Peer review the outline with colleagues for feedback.
+## Round 0001 — 2025-08-27T10:31:56.195149Z
+
+Mini-plan
+- Tighten the feasible-function decision upper bound: restate two finite-check lemmas and an explicit O(k β^2) DP for extendibility; note exact state bounds at r=1.
+- Scrutinize the NEXPTIME-hardness reduction (from Succinct-3SAT to feasible-function existence): identify two fragile spots (activation of constraints only on intended ordered pairs; guaranteeing enough distinct context types) and propose robust fixes.
+- Specify a gated-bridge mechanism that makes mid-consistency (F1) equivalent to clause-satisfaction, yet is inert on all other pairs; give a local, radius-1 implementation sketch and why dp-filling cannot bypass it.
+- Ensure the construction remains β-normalized, radius-1, and has size poly(β); check parameter choices β = poly(s), B = poly(s), and ℓ_pump bounds for availability of 2^B active context types.
+- Validate by toy instances (B = 2) and enumerate quick counterexample attempts; list remaining gaps with targeted next steps.
+
+1) Two finite-check lemmas and the DP (radius 1)
+- Lemma A (Finite-z bridging, explicit bound). For r = 1, with ℓ_pump = |Types| ≤ 2^{β^4+4}, fix any context (w1, S, w2) with |w1|, |w2| ∈ {ℓ_pump, ℓ_pump+1}. There exists Z ≤ ℓ_pump^2 such that for all z ≥ 1, Type(w1^z S w2^z) attains one of the first Z types. Hence (F2) holds iff it holds for z ∈ {1, …, Z}.
+  Why useful here: Lets the verifier check bridging (F2) by finitely many DP instances. This underpins membership in NEXPTIME.
+  How it can fail: Only if type composition didn’t factor via the side-types. Quick test: explicitly build the self-map F_{w1} on types for a small β (e.g., β = 3) and observe eventual periodicity; use the DFA product argument to see pair periodicity.
+
+- Lemma B (Layered DP for extendibility). For a β-normalized, r = 1 path segment P = (v1,…,vk) with some forced outputs on a subset F, feasibility of completion reduces to reachability on a k-layer DAG with per-layer states Li ⊆ Σ_out and edges x→y allowed iff (x,y) ∈ C_out–out and (in(vi), x) ∈ C_in–out. Time O(k β^2); space O(k β).
+  Why useful here: This is the primitive used in all checks (windows S, finite-z bridging, and bridge-gadget correctness). Bound keeps the overall verifier within 2^{poly(β)}.
+  How it can fail: If we needed non-local checks; but r = 1 confines all verification to consecutive pairs, exactly captured by the DP. Toy test: enforce a simple 2-coloring C_out–out forbidding equal neighbors; the DP matches the obvious parity constraints.
+
+2) Two fragilities in the hardness blueprint and fixes
+- Fragility F1 (activating constraints on unintended pairs). Mid-consistency (F1) quantifies over every ordered pair of contexts; naïvely forcing a variable–clause witness across every such pair would doom feasibility even for satisfiable instances because most pairs mismatch the variable index.
+  Fix (Gated bridge). We add a locally-checkable, radius-1 “gate” around each S-window that (a) stays inert unless both sides export matching handshake tokens, and (b) only turns on the variable–clause check when the left window encodes a variable index i and the right encodes a clause j with i ∈ vars(clause j). The gate consumes exactly the two boundary edges leading into wb and wc; when off, wb◦wc can be filled by neutral “padding” compatible with any S-labels; when on, the fill must carry a bounded witness gadget that succeeds iff α(x_i) satisfies the chosen literal of clause j.
+  How it can fail: If the DP can always avoid turning the gate on, then the reduction loses soundness. We prevent this by making the presence of non-⊥ labels at S export a mandatory “offer” symbol to the adjacent boundary; the gate turns on if and only if both sides’ offers pass a local membership test (see §3 below), which occurs precisely on matching (i,j) pairs. Toy test: Construct a pair with i ∉ vars(j); show that at least one side’s offer fails the membership check, making the gate provably off.
+
+- Fragility F2 (enough distinct context types to carry indices). Feasible f maps types→Σ_out^2; to encode an assignment α over 2^B variables, we need ≥ 2^B distinct variable-types and ≥ 2^B distinct clause-types in the domain C of contexts. If C_in–out ignores inputs, types collapse (risking insufficient domain size).
+  Fix (Input-driven local alphabets). Use the input bit to partition Σ_out into two constant-size “micro-alphabets” per role. That is, constrain C_in–out so that the allowed output tokens at a node depend on its input bit. We represent RID and GID in binary on the input track within a bounded-radius neighborhood of S; the local output near S must copy/confirm these bits (per-node) by C_in–out. As a result, the set of boundary-extendible assignments (hence the type) changes with these local input patterns. Since only a constant-width neighborhood around each window affects type extendibility (r = 1 ⇒ 2 nodes per end), we “project” the RID/GID signature to fixed positions immediately adjacent to S (two nodes on each side), encoding Θ(1) bits per node with finitely many token types. By arranging a deterministic decoding rule from these 4 nodes, we can realize ≥ 2^B distinct variable-types and ≥ 2^B clause-types across the family of inputs (because ℓ_pump ≫ B and contexts range over all input strings of length ℓ_pump or ℓ_pump+1).
+  How it can fail: If type ignores all interior input beyond boundary, we must ensure the RID/GID bits appear exactly in the boundary’s 2 nodes on each side so that different indices yield different types. Quick test: instantiate B = 2 and enumerate the 4 boundary input configurations at both ends; confirm that the accept/reject bitmask over the β^4 boundary-output tuples differs among the four indices.
+
+3) Gated-bridge gadget (radius-1, r = 1)
+- Roles in Σ_out (constant tracks; |Σ_out| = β = poly(s)):
+  1) S-window palette: {⊥, RED, GRN, BLU}.
+  2) Role tags: VAR, CLA, PAD.
+  3) Offer/cap tokens: OFFVAR(i,σ), OFFCLA(j,ℓ), CAP (σ ∈ {0,1} for variable truth; ℓ ∈ {pos,neg,aux}).
+  4) Error-chain alphabet E (finite set) per §3 of the reference (locally checkable refutations on malformed encodings).
+  5) Synchronization phases (small constant) to break local symmetries in the grammar.
+
+- Input usage (C_in–out). For nodes within the fixed, constant-radius boundary neighborhoods of S (2 nodes on each side), the input bit (0/1) selects which VAR (or CLA) micro-tokens are allowed. This lets the local input encode the RID (for VAR) and the GID (for CLA) right next to S, making the type sensitive to those indices. For nodes away from S, set C_in–out to be permissive (enables error-chains to make malformed inputs harmless).
+
+- Activation condition (purely local at both sides): If S-label = ⊥, no offers are permitted; wb◦wc must be neutral PAD. If S-label ∈ {RED,GRN,BLU} and the two nodes immediately adjacent to S form a valid VAR boundary (left case) or CLA boundary (right case) consistent with their input bits, then an OFFVAR(i,σ) (left) or OFFCLA(j,ℓ) (right) token is forced at the outer boundary of the S-window. Otherwise, labeling with non-⊥ at S is rejected (forcing ⊥ to be chosen by any feasible f on inactive contexts).
+
+- Gate semantics (deciding on/off purely from offers): The pair (OFFVAR(i,σ), OFFCLA(j,ℓ)) turns the gate ON iff i ∈ vars(clause j) and ℓ selects that occurrence; otherwise the gate remains OFF. This test is made local by storing (near S) the RID bits (left) and computing (near S) the 3 indices of clause j with a small bounded-time tableau segment (as in §3 of the reference: the run is locally checked row-by-row with radius-1, and its entire space/time footprint fits into the constant neighborhood reserved around S because we keep only the 3 output indices, not a full expansive run; see “How it can fail” below). If ON, wb◦wc must begin with CAP(σ) and end with CAP(σ) at the respective seams; if OFF, wb◦wc must be PAD-only.
+
+- Witness for ON (bounded, radius-1). When ON, the right S-color fixes ℓ ∈ {pos,neg,aux} (RED→pos, GRN→neg, BLU→aux). Locally, at the CLA boundary, we force CAP(σ′) with σ′ = 1 if ℓ = pos, σ′ = 0 if ℓ = neg (aux disallowed when ON). At the VAR boundary, we force CAP(σ) to match the left variable’s truth σ = f(VAR_i). The only admissible fills for wb◦wc carry CAP unchanged (a 1-state “wire” alphabet through PAD) from left to right; hence fill succeeds iff σ = σ′. All is enforced by C_out–out across consecutive edges.
+
+  Why useful here: This makes (F1) succeed on precisely those ordered pairs (VAR_i, CLA_j) where i appears in j and the color choice at CLA_j is satisfied by f(VAR_i); all other pairs either (i) are OFF and fill trivially or (ii) are rejected at S (forcing ⊥ there). Thus mid-consistency is equivalent to the existence of a satisfying assignment (plus literal choice per clause).
+  How it can fail:
+  - Avoidance: Could the DP skirt the ON-case by choosing invalid offers? No, because non-⊥ at S forces emitting an offer; invalid offers are disallowed by C_out–out at the S boundary (immediate local check), so the only way to use non-⊥ is to emit a valid offer.
+  - Spurious ON: Could OFF flip to ON in the interior? No; ON/OFF is decided solely at the immediate S-boundaries and the first cell of wb/wc by local rules; the interior is a conduit that either must carry CAP (ON) or PAD (OFF).
+  - Clause-index computation locality: We must not need super-constant space/time to recognize the 3 variable indices from j. Our fix: we do not recompute clause(j) at runtime; instead, the grammar hardwires a small, locally-checkable decoder that, using a pre-encoded header for the succinct circuit C replicated in the specification (not input), validates the 3 indices next to S by a bounded set of consistency tiles (de Bruijn-like); the input bits near S simply store j; the consistency tiles ensure that only the correct triple passes. This is analogous to §3’s bounded-tape proof-of-correctness gadget: malformed triples can always be disproved by a short error-chain, so they never constrain f.
+  Quick toy test (B = 2): Enumerate j ∈ {00,01,10,11}; encode the 3-variable table for each in the verifier; check 12 potential (i,j) ordered pairs; confirm gate ON exactly when i ∈ vars(j).
+
+4) Active context types and parameter choices
+- Domain size: With r = 1, the number of types is ℓ_pump ≤ 2^{β^4+4}. Set B = s^{c0} and β = s^{c1} with c1 ≫ c0 so that 2^{B} ≪ ℓ_pump. Because types depend on (i) the 4 boundary input bits and (ii) the extendibility bitmask over β^4 boundary-output 4-tuples, placing the RID/GID signatures in the 2-node neighborhoods of S suffices to produce ≥ 2^B distinct variable-types and ≥ 2^B clause-types in C, realized by the family of inputs w1, w2 of the two admissible lengths.
+  How it can fail: If setting C_in–out near S to reflect RID/GID caused a mismatch with normalization, or if interior constraints secretly equate different RIDs. Both are avoided by: (a) keeping the RID/GID footprint strictly within the 2 nodes adjacent to S on each side; (b) disallowing any “RID-morphing” adjacency across those cells; types then differ because the extendibility bitmasks differ when offers must encode those local RID/GID bits.
+
+5) Completeness and soundness (sketch at the (F1) level)
+- Completeness. If Φ_C is satisfiable, fix α. Define f on variable-types by f(VAR_i) = RED if α(x_i) = 1 and GRN if α(x_i) = 0; define f on clause-types by choosing for each j any literal that α satisfies and mapping to its color. On any ordered pair of contexts, either the gate is OFF (fill by PAD), or it is ON with i ∈ vars(j) and the right color equal to a satisfied literal, whence CAP(σ) = CAP(σ′) and the DP finds a completion. Inactive contexts (where the S boundary is not a valid VAR/CLA neighborhood per input) do not constrain f because non-⊥ is rejected and ⊥ always fills.
+  How it can fail: Only if some OFF pair accidentally forces ON; but gate status is fixed locally by the offers’ RID/GID proximity bits and the pre-wired clause table, so OFF stays OFF.
+
+- Soundness. Suppose f is feasible. From f on variable-types, read α(x_i) by the RED/GRN choice. From f on clause-types, read a literal choice per clause j. If Φ_C were unsatisfiable, some clause j would have all three literals false under α; consider the three ON-pairs (VAR_i, CLA_j) with i ∈ vars(j). In each, the ON-gadget forces CAP(σ) ≠ CAP(σ′) and the DP cannot complete wb◦wc, contradicting feasibility. Therefore α satisfies Φ_C.
+  How it can fail: The only escape would be to label some clause-type with ⊥ to avoid ON; but the S-boundary is valid CLA for those inputs, hence non-⊥ is required for feasibility (otherwise mixed pairs with valid VAR left and ⊥ at right would make the S-boundary check fail by design). This is ensured by the same local boundary rule that guarded offers.
+
+6) From (F1) to classification (O(1) vs Ω(n) vs Θ(n))
+- Making (F2) trivial. Allow ⊥-filled repetitions w1^z and w2^z (pure PAD) regardless of z; then (F2) holds automatically for any f. Thus the three-way classification reduces to deciding (F1): O(1) if feasible f exists, Ω(n) otherwise (by Theorem 8).
+  Why useful here: It yields NEXPTIME-hardness of the full classification problem because an algorithm that classifies among {O(1), Θ(log* n), Θ(n)} also decides the O(1) vs Ω(n) subcase produced by our instances.
+  How it can fail: If the constructed LCL accidentally admits a Θ(log* n) regime. We prevent this by ensuring (via the reference’s gap theorems) that once (F1) fails, no MIS-based feasible-function emulation exists on any decomposition; i.e., our family sits exactly on the O(1)–Ω(n) dichotomy.
+
+7) Quick tests and counterexample attempts
+- Toy setting B = 1 (two variables x1,x2; four clauses indices). Build the local CLA table and verify by hand that: (i) for any α there exists f satisfying all ON-pairs iff α satisfies all 2^B clauses; (ii) the OFF pairs are always fillable; (iii) inactive contexts force ⊥.
+- Circumventing with errors. Attempt to place an error-chain to bypass the ON-gadget: since non-⊥ at S mandates offers and CAP on the boundary edge into wb, any error token adjacent to CAP is forbidden by C_out–out (error tokens only chain through designated “error lanes” that are disjoint from the CAP wire). Hence no bypass.
+- Type collapse. Try to make two distinct RIDs yield the same type by tweaking interior inputs: with RID bits fixed at the boundary cells, the extendibility mask over β^4 boundary-output tuples changes (offers differ), making the types distinct.
+
+8) Outstanding gaps and planned resolutions
+- Formalizing the local clause-decoder as a bounded, radius-1 checker. Deliver a precise tile set that validates the 3 indices for each j without embedding a long-time computation, leveraging a finite table keyed by the B = O(s^{c0}) bits, broken across the 2-node neighborhoods (this is feasible since validation is against the spec, not computed from first principles; complexity resides in Σ_out size, not time).
+- Explicit boundary rules that force non-⊥ on active contexts and ⊥ on inactive. We will write the exact C_in–out and C_out–out rows for the four nodes around S, with a proof that any other combination is locally rejected.
+- Clean proof that our family cannot land in Θ(log* n) when (F1) fails: cite the reference’s Theorem 8 and adapt its feasibility⇔O(log* n) characterization to the β-normalized specialization (r = 1).
+
+What we have solidified and why it matters
+- An explicit, finite, radius-1 DP verifier (Lemma B) and a finite-z reduction (Lemma A) ensure membership in NEXPTIME is watertight under the β-normalized model.
+- A corrected, gated-bridge reduction that (i) activates mid-consistency constraints only on intended variable–clause pairs, (ii) prevents bypass, and (iii) creates enough distinct context types via boundary-local input-dependent alphabets. Together, these address the two main failure modes of the initial sketch and align the reduction with (F1)’s semantics.
+- Parameter bookkeeping shows 2^B active types fit well within the type-space bound ℓ_pump, with β = poly(s) and r = 1 satisfied.
+
+Requests for feedback/material
+- Confirm that the classification we must lower-bound is the worst-case over inputs (as in the reference) so that designing active/inactive inputs (with error-chains for malformed ones) is legitimate.
+- Clarify whether we can assume C_in–out can depend arbitrarily on the input bit (we used it to encode RID/GID at the S-boundary) or if we must keep C_in–out trivial; if the latter, we will migrate the RID/GID signatures purely to the outputs while still making types differ via boundary-extendibility patterns.
+
+Next steps (concrete)
+- Write out the exact boundary neighborhoods (four nodes total) around an S-window, listing C_in–out and C_out–out entries that (i) force offers for non-⊥, (ii) decode RID/GID from input near S, (iii) enable/disable the gate, and (iv) wire CAP through/off.
+- Formalize the local clause-decoder: a bounded set of adjacency rules that verifies the three indices of clause j (as specified by the succinct circuit C) in place, with an error-chain refuter for any mismatch.
+- Prove the OFF→PAD and ON→CAP uniqueness: for any fill of wb◦wc, show by induction on length that deviation from the required conduit is locally rejected.
+- Compose the full correctness proof into three propositions: (P1) inactive contexts force ⊥; (P2) (F1)⇔SAT(C); (P3) add ⊥-fills to trivialize (F2). Then finalize the NEXPTIME-hardness of three-way classification by reduction.
 

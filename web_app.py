@@ -538,6 +538,8 @@ else:
             c1, c2, c3, c4, spacer = st.columns([1.2, 2.2, 1, 1, 4])
             
             more = c1.number_input("Rounds to run", min_value=1, max_value=50, value=1, step=1)
+            provers = c1.number_input("Provers", min_value=1, max_value=10, value=2, step=1)
+            temp = c1.slider("Prover temperature", min_value=0.0, max_value=1.0, value=0.4, step=0.05)
             
             preset_labels = {k: v["label"] for k, v in MODEL_PRESETS.items()}
             preset_keys = list(MODEL_PRESETS.keys())
@@ -549,6 +551,9 @@ else:
                 ping = ping_model(MODEL_PRESETS[chosen_preset]["prover"])
                 if ping["ok"]:
                     c3.markdown("🔄 Working...")
+                    # Pass provers via environment var understood by orchestrator CLI
+                    os.environ["AR_NUM_PROVERS"] = str(int(provers))
+                    os.environ["AR_PROVER_TEMPERATURE"] = str(float(temp))
                     st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset)
                     st.rerun()
                 else:
@@ -592,6 +597,16 @@ else:
                         except:
                             pass
                 st.info(f"🧠 Current phase: **{phase}**{elapsed}")
+            
+            # Notes.md viewer
+            notes_path = problem / "notes.md"
+            if notes_path.exists():
+                with st.expander("📓 notes.md"):
+                    import html as _html
+                    notes_txt = notes_path.read_text(encoding="utf-8")
+                    st.markdown(f"<div class='pane'>{_html.escape(notes_txt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+            else:
+                st.caption("notes.md not present yet.")
             
             # Files sent to Prover (for latest round)
             runs_dir = problem / "runs"
@@ -638,15 +653,27 @@ else:
             
                 # three scrollable panes
                 pj = rd / "prover.out.json"
+                # Detect multi-prover artifacts
+                provers_multi = sorted(rd.glob("prover-*.out.json"))
                 vf = rd / "verifier.feedback.md"
                 sm = rd / "summarizer.summary.md"
                 vs = rd / "verifier.summary.md"
             
-                prose = ""
-                if pj.exists():
-                    try:
-                        prose = json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
-                    except: pass
+                # Build prover pane content
+                prover_markdown = ""
+                if provers_multi:
+                    for pfile in provers_multi:
+                        try:
+                            pdata = json.loads(pfile.read_text(encoding="utf-8"))
+                            prover_markdown += f"### {pfile.name}\n\n" + pdata.get("progress_md", "") + "\n\n"
+                        except:
+                            pass
+                else:
+                    if pj.exists():
+                        try:
+                            prover_markdown = json.loads(pj.read_text(encoding="utf-8")).get("progress_md","")
+                        except:
+                            pass
                 vtxt = vf.read_text(encoding="utf-8") if vf.exists() else ""
                 stxt = sm.read_text(encoding="utf-8") if sm.exists() else (vs.read_text(encoding="utf-8") if vs.exists() else "")
             
@@ -654,13 +681,34 @@ else:
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.markdown("**Prover**")
-                    st.markdown(f"<div class='pane'>{_html.escape(prose).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='pane'>{_html.escape(prover_markdown).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
                 with col2:
                     st.markdown("**Verifier**")
                     st.markdown(f"<div class='pane'>{_html.escape(vtxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
                 with col3:
                     st.markdown("**Summary**")
                     st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+
+                # Writer artifacts
+                wjson = rd / "writer.out.json"
+                pdf_path = problem / "outputs.pdf"
+                clog = rd / "outputs.compile.log"
+                if wjson.exists() or pdf_path.exists() or clog.exists():
+                    st.markdown("#### 🖋 Writer")
+                    cols = st.columns([2,2,2])
+                    with cols[0]:
+                        if wjson.exists():
+                            try:
+                                wdata = json.loads(wjson.read_text(encoding="utf-8"))
+                                st.code(json.dumps(wdata, indent=2))
+                            except:
+                                st.write("writer.out.json present")
+                    with cols[1]:
+                        if pdf_path.exists():
+                            st.download_button("Download outputs.pdf", data=pdf_path.read_bytes(), file_name="outputs.pdf", mime="application/pdf")
+                    with cols[2]:
+                        if clog.exists():
+                            st.text_area("LaTeX compile log", value=clog.read_text(encoding="utf-8")[-4000:], height=160)
             
                 # --- Add feedback (human-in-the-loop) ---
                 st.markdown("#### ✍️ Add feedback")

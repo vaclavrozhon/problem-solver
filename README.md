@@ -211,3 +211,106 @@ cat runs/round-0001/timings.json        # Performance metrics
 ```
 
 All outputs preserved even if rounds fail - nothing is lost.
+
+## Multi-Prover + Combined Verifier + Writer Workflow (Planned/Enabled)
+
+This system supports running multiple Provers in parallel, a single combined Verifier pass, an optional Writer pass that generates rigorous LaTeX, and a final Summarizer.
+
+### Controls
+- Provers in parallel: integer in [1, 10], default 2.
+- Model preset: unchanged.
+
+### Round Flow
+1) Provers (parallel)
+   - N independent Provers run with the same problem context.
+   - Context includes: `task.*`, non-PDF sources, parsed PDFs, `progress.md` (tail), `summary.md` (tail), persistent `notes.md`, current `outputs.tex` (if exists), and last round Verifier/Writer artifacts.
+   - Artifacts per prover i (1-indexed):
+     - `runs/round-XXXX/prover-ii.prompt.txt|raw.json|text.txt|out.json`
+
+2) Verifier (combined)
+   - Consumes all Prover outputs from this round, plus `notes.md` and `outputs.tex`.
+   - Produces a single combined verdict and feedback.
+   - Can update `notes.md` via structured fields (append or replace).
+   - Can decide to call the Writer.
+   - Artifacts:
+     - `runs/round-XXXX/verifier.prompt.txt|raw.json|out.json|feedback.md|summary.md`
+
+3) Writer (optional)
+   - Triggered only if the Verifier requests it.
+   - Input: only `notes.md` and the Verifier-provided task. Also receives existing `outputs.tex` content if present.
+   - Output: rigorous LaTeX (`outputs.tex` replace-only), plus a structured status.
+   - The system runs `pdflatex` locally after write; PDF (if compiled) is offered for download; errors are captured and included in artifacts and passed to next round.
+   - Artifacts:
+     - `runs/round-XXXX/writer.prompt.txt|raw.json|out.json`
+     - `outputs.tex` (replaced), `outputs.pdf` (if compilation succeeds), `outputs.compile.log` (always saved)
+
+4) Summarizer
+   - Reports what happened in this round: direction chosen by Verifier, whether Writer ran and its outcome, and key highlights.
+   - Artifacts:
+     - `runs/round-XXXX/summarizer.prompt.txt|raw.json|out.json|summary.md`
+
+### Persistent Files
+- `notes.md`: persistent research log curated by the Verifier.
+- `outputs.tex`: rigorous LaTeX document produced by the Writer (replace-only).
+- `outputs.pdf`: compiled PDF (if compilation succeeds).
+
+### Verifier Output Schema (combined)
+```json
+{
+  "feedback_md": "string",           
+  "summary_md": "string",            
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["string"],
+  "per_prover": [
+    {
+      "prover_id": "string",        
+      "brief_feedback": "string",
+      "score": "promising|uncertain|unlikely"
+    }
+  ],
+  "notes_update": {
+    "mode": "append|replace",        
+    "content_md": "string"           
+  },
+  "call_writer": {
+    "run": true,
+    "task_md": "string"              
+  }
+}
+```
+- Policy: Verifier is encouraged to use `append` for `notes_update` (replace is allowed when justified).
+
+### Writer Output Schema
+```json
+{
+  "status": "success|failed",
+  "action": "replace",               
+  "tex_content": "string",           
+  "errors_md": "string"              
+}
+```
+- Writer always replaces `outputs.tex` atomically when `status=success`.
+- On failure, `outputs.tex` is not changed; `errors_md` explains gaps/flaws.
+
+### Summarizer Output Schema
+```json
+{
+  "summary_md": "string",
+  "highlights": ["string"],
+  "next_questions": ["string"],
+  "metadata": {
+    "chosen_direction": "string",
+    "writer_ran": true
+  }
+}
+```
+
+### UI Behavior
+- Prover pane shows N sub-panels (Prover 01..NN) with raw and parsed artifacts.
+- Verifier pane shows the combined feedback and per-prover capsule verdicts; displays and applies `notes_update`.
+- Writer pane (only when run) shows the task, LaTeX diff/content, compile status, and downloadable `outputs.pdf`.
+- Summarizer pane reports the round narrative.
+
+### Notes and LaTeX Handling
+- `notes.md` is persistent and versioned by round; the Verifier’s `notes_update` is applied after the combined check.
+- `outputs.tex` is replace-only; the Writer must supply the full LaTeX document (with preamble/macros as needed). The system compiles with `pdflatex` (non-interactive); logs/errors are stored and surfaced.

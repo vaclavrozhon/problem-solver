@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -115,4 +116,39 @@ def get_file(path: str, token: str):
     if not full.exists():
         raise HTTPException(404, "not found")
     return {"path": path, "content": full.read_text(encoding="utf-8")}
+
+class CreateProblemPayload(BaseModel):
+    name: str
+    task_text: str
+    task_ext: str = "md"  # md|txt|tex
+
+@app.post("/problems")
+def create_problem(p: CreateProblemPayload, token: str):
+    uid = require_user(token)
+    pdir = user_dir(uid) / "problems" / p.name
+    pdir.mkdir(parents=True, exist_ok=True)
+    task_name = f"task.{p.task_ext.strip().lower()}"
+    (pdir / task_name).write_text(p.task_text, encoding="utf-8")
+    return {"ok": True}
+
+@app.get("/problems/{problem}/status")
+def problem_status(problem: str, token: str):
+    uid = require_user(token)
+    status_path = user_dir(uid) / "problems" / problem / "runs" / "live_status.json"
+    if not status_path.exists():
+        return {"phase": "idle"}
+    try:
+        return json.loads(status_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"phase": "idle"}
+
+@app.get("/download")
+def download(path: str, token: str):
+    uid = require_user(token)
+    full = (user_dir(uid) / path).resolve()
+    if not str(full).startswith(str(user_dir(uid).resolve())):
+        raise HTTPException(403, "invalid path")
+    if not full.exists():
+        raise HTTPException(404, "not found")
+    return FileResponse(str(full))
 

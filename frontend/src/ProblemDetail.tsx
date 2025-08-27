@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { getStatus, listProblems } from './api'
-import DOMPurify from 'dompurify'
-import { marked } from 'marked'
+import { getStatus } from './api'
+import Markdown from './Markdown'
 
 type Props = { name: string }
 

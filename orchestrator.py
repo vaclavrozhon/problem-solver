@@ -606,7 +606,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
 
 Current round tag: {round_tag}
 Return ONLY valid JSON with a single field:
-{ "markdown_md": "<your markdown answer for the verifier, KaTeX allowed>" }
+{{ "markdown_md": "<your markdown answer for the verifier, KaTeX allowed>" }}
 
 Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside markdown_md."""
 

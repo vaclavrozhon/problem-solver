@@ -224,13 +224,8 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
         assert last_err is not None
         raise last_err
 
-class NewFile(BaseModel):
-    path: str = Field(..., description="Relative path under problem dir")
-    content: str = Field(..., description="Content of the file")
-
 class ProverOutput(BaseModel):
     progress_md: str = Field(..., description="Append-only progress notes")
-    new_files: List[NewFile] = Field(default_factory=list)
     requests_for_more_materials: List[str] = Field(default_factory=list)
     next_actions_for_prover: List[str] = Field(default_factory=list)
 
@@ -638,7 +633,6 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
         shown_text = text if text.strip() else "(the model did not return anything)"
         data = {
             "progress_md": f"## {round_tag}\n\n(JSON parsing fallback)\n\n{shown_text}",
-            "new_files": [],
             "requests_for_more_materials": [],
             "next_actions_for_prover": []
         }
@@ -653,7 +647,6 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
             f"## {round_tag}\n\n(Model returned too little; raw output below)\n\n{shown_text}"
         )
 
-    data.setdefault("new_files", [])
     data.setdefault("requests_for_more_materials", [])
     data.setdefault("next_actions_for_prover", [])
 
@@ -1010,12 +1003,7 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
             existing = progress_file.read_text(encoding="utf-8") if progress_file.exists() else ""
             sep = "\n" if existing and not existing.endswith("\n") else ""
             progress_file.write_text(existing + sep + appended_progress, encoding="utf-8")
-            # Write any new files from this prover
-            for nf in out.new_files:
-                fp = problem_dir / nf.path
-                fp.parent.mkdir(parents=True, exist_ok=True)
-                fp.write_text(nf.content, encoding="utf-8")
-                console.print(f"[green]Created file: {nf.path}[/green]")
+            # Prover no longer creates files; only Verifier/Writer may write
     t1 = time.perf_counter()
     timings["provers"] = {"model": MODEL_PROVER, "count": num_provers, "duration_s": round(t1 - t0, 3)}
 

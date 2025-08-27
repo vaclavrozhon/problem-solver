@@ -1,0 +1,3083 @@
+--- SYSTEM ---
+You are a research mathematician. Goal: **incremental, auditable progress**, not a full solution.
+
+What counts as progress:
+- Extract small lemmas/heuristics from the literature in hand, and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+
+**Discipline.** Start with a 3–6 bullet *Mini-plan*. For each claim: add "How it can fail" and one quick test/counterexample attempt.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Append-only notes; start with '## Round 0003 — 2025-08-27T11:30:44.027502Z' on the first line",
+  "new_files": [],
+  "requests_for_more_materials": [],
+  "next_actions_for_prover": []
+}
+
+--- USER ---
+Work on this problem context:
+
+=== task.txt ===
+﻿Task
+
+
+\newcommand{\SigIn}{\Sigma_{\mathrm{in}}}
+\newcommand{\SigOut}{\Sigma_{\mathrm{out}}}
+\newcommand{\Cinout}{C_{\mathrm{in\text{--}out}}}
+\newcommand{\Coutout}{C_{\mathrm{out\text{--}out}}}
+\newcommand{\Type}{\mathrm{Type}}
+\newcommand{\pumpLen}{\ell_{\mathrm{pump}}}
+
+
+\paragraph{One-line summary.}
+Prove NEXPTIME-hardness for the following problem. Given a $\beta$-normalized, radius-1 LCL on globally oriented paths, the problem is to decide whether the local complexity of that problem is $O(1)$ vs.\ $\Omega(\log^* n)$ vs.\ $\Omega(n)$.
+
+
+\section*{Problem setup}
+
+
+We work in the standard \textsc{Local} model on globally oriented paths. An LCL is \emph{$\beta$-normalized (radius 1)} if it has:
+\begin{itemize}
+  \item binary input alphabet $\SigIn=\{0,1\}$,
+  \item output alphabet $\SigOut$ of size $\beta$,
+  \item legality checked only by two tables: $\Cinout\subseteq\SigIn\times\SigOut$ and $\Coutout\subseteq\SigOut\times\SigOut$.
+\end{itemize}
+A labeling is legal iff $(\mathrm{in}(v),\mathrm{out}(v))\in \Cinout$ at each node $v$ and $(\mathrm{out}(u),\mathrm{out}(v))\in \Coutout$ on each directed edge $u\!\to\! v$.
+
+
+\paragraph{Encoding size.}
+We assume an explicit encoding of $(\Cinout,\Coutout)$ of size $\mathrm{poly}(\beta)$ (e.g., $\Cinout$ as a $2\times \beta$ Boolean table and $\Coutout$ as a $\beta\times \beta$ Boolean table). We measure time in the input length $N=\mathrm{poly}(\beta)$.
+
+
+\paragraph{Your task}
+Your task is to prove that this task is hard as possible. Aim for NEXPTIME-hardness. 
+
+
+\paragraph{First attached paper}
+The attached paper proves that the problem is PSPACE-hard. Their reduction shows that one can encode the execution of an automaton as a local problem. You have to understand that paper thoroughly, since your goal is to improve upon their result. However, that proof does not easily generalize – it is important that the tape of the simulated automaton has polynomial length, which naively cannot lead to a better than PSPACE hardness. 
+
+
+\paragraph{Second attached draft}
+The attached draft shows the sketch of a proof of a better NEXPTIME algorithm than the one in the original paper. This may give you some intuition about the computational bottleneck that can be used to prove hardness.
+
+=== progress.md ===
+...
+.
+
+  Why useful here: This makes (F1) succeed on precisely those ordered pairs (VAR_i, CLA_j) where i appears in j and the color choice at CLA_j is satisfied by f(VAR_i); all other pairs either (i) are OFF and fill trivially or (ii) are rejected at S (forcing ⊥ there). Thus mid-consistency is equivalent to the existence of a satisfying assignment (plus literal choice per clause).
+  How it can fail:
+  - Avoidance: Could the DP skirt the ON-case by choosing invalid offers? No, because non-⊥ at S forces emitting an offer; invalid offers are disallowed by C_out–out at the S boundary (immediate local check), so the only way to use non-⊥ is to emit a valid offer.
+  - Spurious ON: Could OFF flip to ON in the interior? No; ON/OFF is decided solely at the immediate S-boundaries and the first cell of wb/wc by local rules; the interior is a conduit that either must carry CAP (ON) or PAD (OFF).
+  - Clause-index computation locality: We must not need super-constant space/time to recognize the 3 variable indices from j. Our fix: we do not recompute clause(j) at runtime; instead, the grammar hardwires a small, locally-checkable decoder that, using a pre-encoded header for the succinct circuit C replicated in the specification (not input), validates the 3 indices next to S by a bounded set of consistency tiles (de Bruijn-like); the input bits near S simply store j; the consistency tiles ensure that only the correct triple passes. This is analogous to §3’s bounded-tape proof-of-correctness gadget: malformed triples can always be disproved by a short error-chain, so they never constrain f.
+  Quick toy test (B = 2): Enumerate j ∈ {00,01,10,11}; encode the 3-variable table for each in the verifier; check 12 potential (i,j) ordered pairs; confirm gate ON exactly when i ∈ vars(j).
+
+4) Active context types and parameter choices
+- Domain size: With r = 1, the number of types is ℓ_pump ≤ 2^{β^4+4}. Set B = s^{c0} and β = s^{c1} with c1 ≫ c0 so that 2^{B} ≪ ℓ_pump. Because types depend on (i) the 4 boundary input bits and (ii) the extendibility bitmask over β^4 boundary-output 4-tuples, placing the RID/GID signatures in the 2-node neighborhoods of S suffices to produce ≥ 2^B distinct variable-types and ≥ 2^B clause-types in C, realized by the family of inputs w1, w2 of the two admissible lengths.
+  How it can fail: If setting C_in–out near S to reflect RID/GID caused a mismatch with normalization, or if interior constraints secretly equate different RIDs. Both are avoided by: (a) keeping the RID/GID footprint strictly within the 2 nodes adjacent to S on each side; (b) disallowing any “RID-morphing” adjacency across those cells; types then differ because the extendibility bitmasks differ when offers must encode those local RID/GID bits.
+
+5) Completeness and soundness (sketch at the (F1) level)
+- Completeness. If Φ_C is satisfiable, fix α. Define f on variable-types by f(VAR_i) = RED if α(x_i) = 1 and GRN if α(x_i) = 0; define f on clause-types by choosing for each j any literal that α satisfies and mapping to its color. On any ordered pair of contexts, either the gate is OFF (fill by PAD), or it is ON with i ∈ vars(j) and the right color equal to a satisfied literal, whence CAP(σ) = CAP(σ′) and the DP finds a completion. Inactive contexts (where the S boundary is not a valid VAR/CLA neighborhood per input) do not constrain f because non-⊥ is rejected and ⊥ always fills.
+  How it can fail: Only if some OFF pair accidentally forces ON; but gate status is fixed locally by the offers’ RID/GID proximity bits and the pre-wired clause table, so OFF stays OFF.
+
+- Soundness. Suppose f is feasible. From f on variable-types, read α(x_i) by the RED/GRN choice. From f on clause-types, read a literal choice per clause j. If Φ_C were unsatisfiable, some clause j would have all three literals false under α; consider the three ON-pairs (VAR_i, CLA_j) with i ∈ vars(j). In each, the ON-gadget forces CAP(σ) ≠ CAP(σ′) and the DP cannot complete wb◦wc, contradicting feasibility. Therefore α satisfies Φ_C.
+  How it can fail: The only escape would be to label some clause-type with ⊥ to avoid ON; but the S-boundary is valid CLA for those inputs, hence non-⊥ is required for feasibility (otherwise mixed pairs with valid VAR left and ⊥ at right would make the S-boundary check fail by design). This is ensured by the same local boundary rule that guarded offers.
+
+6) From (F1) to classification (O(1) vs Ω(n) vs Θ(n))
+- Making (F2) trivial. Allow ⊥-filled repetitions w1^z and w2^z (pure PAD) regardless of z; then (F2) holds automatically for any f. Thus the three-way classification reduces to deciding (F1): O(1) if feasible f exists, Ω(n) otherwise (by Theorem 8).
+  Why useful here: It yields NEXPTIME-hardness of the full classification problem because an algorithm that classifies among {O(1), Θ(log* n), Θ(n)} also decides the O(1) vs Ω(n) subcase produced by our instances.
+  How it can fail: If the constructed LCL accidentally admits a Θ(log* n) regime. We prevent this by ensuring (via the reference’s gap theorems) that once (F1) fails, no MIS-based feasible-function emulation exists on any decomposition; i.e., our family sits exactly on the O(1)–Ω(n) dichotomy.
+
+7) Quick tests and counterexample attempts
+- Toy setting B = 1 (two variables x1,x2; four clauses indices). Build the local CLA table and verify by hand that: (i) for any α there exists f satisfying all ON-pairs iff α satisfies all 2^B clauses; (ii) the OFF pairs are always fillable; (iii) inactive contexts force ⊥.
+- Circumventing with errors. Attempt to place an error-chain to bypass the ON-gadget: since non-⊥ at S mandates offers and CAP on the boundary edge into wb, any error token adjacent to CAP is forbidden by C_out–out (error tokens only chain through designated “error lanes” that are disjoint from the CAP wire). Hence no bypass.
+- Type collapse. Try to make two distinct RIDs yield the same type by tweaking interior inputs: with RID bits fixed at the boundary cells, the extendibility mask over β^4 boundary-output tuples changes (offers differ), making the types distinct.
+
+8) Outstanding gaps and planned resolutions
+- Formalizing the local clause-decoder as a bounded, radius-1 checker. Deliver a precise tile set that validates the 3 indices for each j without embedding a long-time computation, leveraging a finite table keyed by the B = O(s^{c0}) bits, broken across the 2-node neighborhoods (this is feasible since validation is against the spec, not computed from first principles; complexity resides in Σ_out size, not time).
+- Explicit boundary rules that force non-⊥ on active contexts and ⊥ on inactive. We will write the exact C_in–out and C_out–out rows for the four nodes around S, with a proof that any other combination is locally rejected.
+- Clean proof that our family cannot land in Θ(log* n) when (F1) fails: cite the reference’s Theorem 8 and adapt its feasibility⇔O(log* n) characterization to the β-normalized specialization (r = 1).
+
+What we have solidified and why it matters
+- An explicit, finite, radius-1 DP verifier (Lemma B) and a finite-z reduction (Lemma A) ensure membership in NEXPTIME is watertight under the β-normalized model.
+- A corrected, gated-bridge reduction that (i) activates mid-consistency constraints only on intended variable–clause pairs, (ii) prevents bypass, and (iii) creates enough distinct context types via boundary-local input-dependent alphabets. Together, these address the two main failure modes of the initial sketch and align the reduction with (F1)’s semantics.
+- Parameter bookkeeping shows 2^B active types fit well within the type-space bound ℓ_pump, with β = poly(s) and r = 1 satisfied.
+
+Requests for feedback/material
+- Confirm that the classification we must lower-bound is the worst-case over inputs (as in the reference) so that designing active/inactive inputs (with error-chains for malformed ones) is legitimate.
+- Clarify whether we can assume C_in–out can depend arbitrarily on the input bit (we used it to encode RID/GID at the S-boundary) or if we must keep C_in–out trivial; if the latter, we will migrate the RID/GID signatures purely to the outputs while still making types differ via boundary-extendibility patterns.
+
+Next steps (concrete)
+- Write out the exact boundary neighborhoods (four nodes total) around an S-window, listing C_in–out and C_out–out entries that (i) force offers for non-⊥, (ii) decode RID/GID from input near S, (iii) enable/disable the gate, and (iv) wire CAP through/off.
+- Formalize the local clause-decoder: a bounded set of adjacency rules that verifies the three indices of clause j (as specified by the succinct circuit C) in place, with an error-chain refuter for any mismatch.
+- Prove the OFF→PAD and ON→CAP uniqueness: for any fill of wb◦wc, show by induction on length that deviation from the required conduit is locally rejected.
+- Compose the full correctness proof into three propositions: (P1) inactive contexts force ⊥; (P2) (F1)⇔SAT(C); (P3) add ⊥-fills to trivialize (F2). Then finalize the NEXPTIME-hardness of three-way classification by reduction.
+
+## Round 0002 — 2025-08-27T11:23:07.543978Z
+
+Mini-plan
+- Recast the FFE(F1) feasibility question as an implicit (succinct) SAT instance: variables are f-values on active types, constraints are the bridge-completion checks; show that our LCL makes these constraints equivalent to the Succinct-3SAT instance via a gate with an equality/inequality witness.
+- Specify a corrected ON/OFF gate: clause-side precommits (via S2 color) to one of its 3 indices and a sign; pairs with a left RID equal to that index are ON and enforce consistency with the variable’s color; other pairs are provably OFF and accept PAD via an inequality witness.
+- Replace any O(1)-time clause computation with a poly(s)-length, radius-1 tableau inside wc (and the analogous RID one-hot in wb), with error chains to refute malformed encodings; keep all semantics window-anchored in wb/wc.
+- State and test the key lemmas: (G) ON/OFF correctness via equality/inequality witnesses; (H) clause-tableau correctness; (I) type-separation from differential extendibility; (J) equivalence to a succinct SAT instance.
+- List explicit artifacts to produce next: boundary C_in–out/C_out–out tables for offers and conduits; the RUN tableau tiles; a complete B=2 worked example with DP outcomes.
+
+1) Gate with equality/inequality witnesses (one constrained pair per clause)
+Claim G (Equality/inequality-gated bridge). For each clause-side active context wc S2 wd, allow S2 colors from a 7-token palette: {⊥} ∪ {REDp, GRNp : p ∈ {1,2,3}}. The right context (wc) contains a verified triple (i1,i2,i3) and exposes subtracks Select(p) that copy the chosen position p committed by the S2 color. For a left active variable-side context wa S1 wb with RID = iL (one-hot HotRID), the bridge wb wc is fillable iff exactly one of the following locally-checkable certificates is provided by the filler (and the other is impossible):
+- Equality certificate (ON): “iL = i_{Select}”. This is checked by a radius-1 witness chain that (i) reads the unique 1 in HotRID at position iL in wb, (ii) reads the selected triple position p in wc and the corresponding index ip, (iii) follows an ip-pointer to a one-hot at position ip inside wc, and (iv) proves ip = iL by comparing bit-by-bit along a fixed binary-expansion compare path. If the equality certificate passes, the filler must propagate a CAP bit from left to right and enforce consistency of the chosen sign with the left variable’s color: REDp requires f(Var_{iL}) = RED, GRNp requires f(Var_{iL}) = GRN. 
+- Inequality certificate (OFF): “iL ≠ i_{Select}”. This is certified by guessing the unique 1 in HotRID (position iL) and comparing with the selected index ip; the chain must exhibit a bit position b where iL[b] ≠ ip[b], using radius-1 checkers at the corresponding b-th cells on both sides. If the inequality certificate passes, the only admissible fill is PAD (a neutral plumbing language), with no CAP signal and no dependence on colors.
+Exactly one of these two certificates is realizable in any given pair: the grammar forbids fabricating a mismatch when iL = ip and forbids fabricating equality when iL ≠ ip. Hence for each clause-type instance, exactly one left variable-type (the chosen ip) is constrained (ON), and all other left types are unconstrained (OFF) but completable.
+- Why useful here: This resolves the “all ordered pairs” quantification: mid-consistency requires a completion for every pair, but only the single pair whose RID equals the clause’s committed index is forced to check sign-consistency; the rest admit inequality witnesses and fill trivially. Thus per clause we impose precisely one literal check.
+- How it can fail: (i) If the inequality proof could be faked even when iL = ip, a mismatching OFF-fill might bypass the literal check; (ii) if equality could be certified when iL ≠ ip, a spurious ON check may wrongly constrain an unrelated variable; (iii) if the sign-consistency does not bind to the left variable’s f-color, the clause constraint evaporates.
+- Quick test: Take clause triple (i1,i2,i3) = (3,7,10), and S2 = RED2 (selects i2 = 7). Pair with Var_7: equality path exists; ON requires f(Var_7) = RED. Pair with Var_3: inequality path exists (compare 3 vs 7; they differ at the 1st bit), PAD fill succeeds, no constraint. Pair with Var_9 (not in clause): still inequality since 9 ≠ 7, PAD fill.
+
+2) Clause tableau and window anchoring
+Claim H (Clause decoding via poly(s)-length, radius-1 tableau; window-anchored). The right active context wc houses a fixed-layout RUN tableau that verifies C(j) for the clause index GID = j and materializes (i1,i2,i3) and their signs, plus auxiliary one-hot encodings and directed pointers to their positions. All verification is by nearest-neighbor tiles: row-by-row TM simulation of a universal U for T = poly(s) steps, with a constant work alphabet and synchronization phases. The left active context wb houses RID and HotRID one-hot. All headers (HEADC), indices (RID/GID), and RUN tiles lie entirely inside wb (variable side) or wc (clause side), adjacent to S; malformed encodings have locally checkable refutations via error chains. 
+- Why useful here: Ensures the gate’s local witness chains have the facts they need within wb/wc and that the “selected position p” refers to a real member of the decoded triple. It also removes the earlier O(1)-time fallacy by giving a polynomial-length, radius-1 verification consistent with β-normalization.
+- How it can fail: If the RUN did not fully verify the triple or allowed multiple inconsistent triples, the select(p) track could be abused; if error chains were incomplete, malformed contexts might constrain f.
+- Quick test: Implement a toy U that decodes a 2-bit GID and outputs three hard-wired indices (for B=2). Create a malformed wc that spoofs Select(2) but without a legitimate (i1,i2,i3); check that an error-chain can be triggered locally, making the context inactive (only ⊥ at S is completable).
+
+3) Type-separation by differential extendibility
+Claim I (Distinct active types per RID and per GID). For β = poly(s), choose B = poly(s) with 2^B ≪ ℓ_pump. Then there exist 2^B left active context types Var_i (with RID = i) and 2^B right active context types Cl_j (with GID = j). Moreover, Var_i ≠ Var_{i'} for i ≠ i' and Cl_j ≠ Cl_{j'} for j ≠ j'. Separation proof sketch: fix any clause-type τR that, by RUN, decodes a triple including i but not i'. Commit S2 = REDp to the position p with ip = i. For the pair (Var_i, τR), equality is forced (ON) and fill exists if and only if f(Var_i) = RED. For (Var_{i'}, τR), inequality is forced (OFF) and fill exists regardless of f(Var_{i'}). Therefore, the boundary-extendibility signatures with S1 fixed to RED differ between Var_i and Var_{i'}, implying distinct types. Similarly for Cl_j using a fixed Var_i and toggling which Select(p) is legal according to RUN, we separate clause types by their decoded triples.
+- Why useful here: We need exponentially many active types to encode all variables and clauses generated by the succinct circuit; distinctness is certified by different extendibility outcomes under fixed boundary labels, which the type definition captures.
+- How it can fail: If the equality/inequality partitioning could be overridden by the filler (e.g., both certificates could succeed), the extendibility signatures could collapse; if RUN did not uniquely determine the triple, clause types might merge.
+- Quick test: Let B=3, pick j with triple (2,5,7). Compare Var_5 vs Var_6 against Cl_j, S2 = GRN2 (selects 5). DP result differs: (Var_5, Cl_j) fill depends on f(Var_5); (Var_6, Cl_j) fill is always PAD. Distinctness follows.
+
+4) Succinct SAT view of FFE(F1)
+Claim J (Implicit SAT encoding). The existence of f is equivalent to the satisfiability of a succinct CNF Φ’ over variables: 
+- For each Var_i: a Boolean v_i ∈ {RED,GRN} (two colors suffice; BLU only used as inactive/dummy and disallowed for active Var_i), encoding α(x_i).
+- For each Cl_j: a 6-ary choice c_j ∈ {RED1,RED2,RED3,GRN1,GRN2,GRN3} selecting one position p ∈ {1,2,3} and a sign.
+Constraints: For every ordered pair (Var_i, Cl_j), the bridge is satisfiable. By Claim G, this reduces to a single literal constraint per j, namely: if c_j = REDp (resp. GRNp) and RUN(j) outputs (i1,i2,i3), then require v_{ip} = RED (resp. v_{ip} = GRN). All other pairs impose only tautologies (inequality witnesses). Thus Φ’ is exactly the succinct 3CNF Φ_C: choose for each clause one literal (p and sign) that is true under α (the v_i’s). 
+- Why useful here: It makes explicit the “implicit exponential-sized SAT formula” viewpoint: FFE(F1) is satisfiable iff a succinct CNF with exponentially many clauses (one per pair) is satisfiable; our LCL reduction constructs local constraints that evaluate this succinct CNF.
+- How it can fail: If pairs other than the selected one also imposed constraints, Φ’ would be stronger than Φ_C (requiring all three literals to match), breaking soundness; if the selected pair could avoid referencing v_{ip}, completeness would be lost.
+- Quick test: Clause j with literals (x3 ∨ ¬x7 ∨ x10). Set c_j = RED1 (select x3). Then the only nontrivial pair is (Var_3, Cl_j), enforcing v_3 = RED. Pairs (Var_7, Cl_j) and (Var_10, Cl_j) are OFF and PAD-fillable. Across all j, existence of α (the v_i’s) and c_j’s satisfying all selected pairs is equivalent to Φ_C satisfiable.
+
+5) Radius-1 and β-normalized implementation sanity
+Claim K (β-normalized, radius-1). 
+- Σ_out tracks (constant many): role/phase, color tokens {⊥, REDp, GRNp}, CAP/PAD conduits, RID/GID one-hot lanes and their pointers, RUN tiles for U, error-chain symbols. 
+- Cin–out: copies input bit to an “in-copy” subtrack and gates role legality (e.g., only S admits {⊥, REDp, GRNp}). 
+- Cout–out: regular-language grammar for blocks; nearest-neighbor consistency for RUN rows; local tiles for equality/inequality witnesses and for CAP/PAD conduits; absorbing ⊥-plumbing that can fill repetitions (used later to trivialize (F2)). All checks are between consecutive nodes; the witness chains advance one node per step.
+- Why useful here: Confirms we remain within the β-normalized, r=1 model and keep description size poly(β).
+- How it can fail: If equality compare needed nonlocal jumps, or CAP/PAD conduits required 2-hop checks, we would exceed radius-1; we avoid this with “one-bit-per-step” pointer chains and local tiles.
+- Quick test: Build a 12-node wc with RUN and a selected p; simulate the equality witness step-by-step next to a matching Var_i wb; ensure all edge checks refer only to consecutive outputs; flip one bit in the index to see equality chain get stuck while inequality chain passes.
+
+6) Trivializing (F2) and mapping to tri-class classification
+Claim L ((F2) vacuous via ⊥-plumbing). Extend Cout–out so that any wz_1 and wz_2 repeat can be filled entirely with ⊥, for any S color fixed by f(Type(w1 S w2)). Then (F2) holds automatically; thus for our family, O(1) iff (F1) holds and Θ(n) otherwise (by the standard gap Theorem 8). 
+- Why useful here: Gives the desired O(1) vs Θ(n) dichotomy needed for NEXPTIME-hardness of the tri-class classification.
+- How it can fail: If ⊥ is not fully absorbing at the seams near S, some contexts might violate (F2); we avoid this by explicit Cout–out entries permitting ⊥ next to any S-color.
+- Quick test: Fix an active context and any z; force S and fill both repeats with ⊥; run the DP—should accept due to plumbing rules.
+
+7) Size and succinctness bookkeeping
+- Alphabet size: β = poly(s) suffices for: constant role/phase and gate tokens; RUN alphabet for T = poly(s); error chains; and a few colors (7 S-tokens). Cin–out is O(β); Cout–out is O(β^2) as required.
+- Type space: ℓ_pump ≤ 2^{Θ(β^4)} = 2^{poly(s)} guarantees enough contexts to realize all 2^B RIDs/GIDs with window-anchored blocks and stability under pumping/replacement.
+- Implicit SAT: The induced SAT instance Φ’ has exponentially many variables/clauses in s but is generated by the succinct circuit C and the local LCL tables; FFE(F1) is “does there exist f?” which is equivalent to satisfiability of Φ’. Our reduction from Succinct-3SAT maps C to PC in poly(s) time; Claims G–L give Φ_C satisfiable iff FFE(F1) for PC.
+
+Toy counterexample probes
+- Mismatch bypass attempt: Try to fill (Var_k, Cl_j) with k ≠ selected ip using equality chain; it must fail at the first compare bit, forcing the inequality path; DP rejects any attempt to route CAP without proving equality. 
+- Multi-select clause cheat: Try to propagate two Select(p) values in wc while choosing a single S2 color; RUN+phase tiles forbid inconsistent select propagation; any duplication triggers an error-chain, deactivating the context.
+- Boundary-only spoof: Remove wb’s HEAD marker but keep S1 = REDp; non-⊥ at S forces starting an offer that must find HEAD and RID; missing HEAD triggers the error-chain; only ⊥ is completable.
+
+What remains to be written (explicit artifacts)
+- Boundary tables: the exact Cin–out and Cout–out rows for the four nodes around S that (i) restrict S-palette, (ii) export/propagate Select(p) from S2 into wc, (iii) force CAP conduit on equality and forbid it on inequality, (iv) allow PAD otherwise, and (v) allow ⊥-plumbing always.
+- RUN tiles: a concrete fixed-tile set for U’s poly(s)-step verification of C(j) and computation of (i1,i2,i3), exposing them as one-hots and pointers, plus error-chain tiles.
+- B=2 worked example: instantiate all gadgets for B=2, list the 12 ordered pairs (Var_i, Cl_j), and manually DP-check the outcomes to confirm that only the single selected pair imposes the literal constraint and all others complete via PAD.
+
+Summary of current status
+- We repaired the “pairwise quantification” issue by an equality/inequality gate that provably turns only one pair ON per clause-type and makes all others OFF and harmless. This makes (F1) equivalent to a succinct SAT instance where each clause picks one true literal under α.
+- We anchored all semantics within wb/wc and replaced constant-time checks with a poly(s)-length, radius-1 RUN tableau, preserving β-normalization.
+- We sketched type-separation and the implicit SAT view, aligning with the user’s “implicit exponential-sized SAT” request.
+
+## Round 0002 — 2025-08-27T11:23:07.548697Z
+
+Mini-plan
+- Formalize an implicit exponential-sized SAT encoding F(L) whose satisfiability is equivalent to the existence of a feasible function f for a given β-normalized, radius-1 LCL instance L on oriented paths. This cleanly connects (F1) and (F2) to a succinct-SAT instance.
+- Specialize the encoding to our reduction family PC (from a succinct 3CNF generator C), using window-anchored active blocks and a gated bridge. Show that F(PC) is essentially the succinct 3SAT instance for C with auxiliary “literal-pick” variables Y.
+- State and test three core lemmas: (i) succinct SAT capture of (F1) and (F2) with an explicit 2poly(β) bound, (ii) ON/OFF gate ⇒ CNF constraints of the form (¬Y ∨ X), and (iii) type-separation by boundary-extendibility patterns induced by interior witness behavior (no reliance on 2-node boundaries).
+- Patch the previously flagged fragilities: ensure OFF for all unintended pairs (use offer/cap tokens), and move clause-decoding to a poly(s)-length, radius-1 tableau with error-chain refutations.
+- Work out a small B=2 toy to validate the SAT constraints and counterexample probes; list next instrumentation (explicit Cin–out/Cout–out tables for the window seam, offers, PAD/CAP conduits, and the tableau seam rules).
+
+1) Encoding feasible-function existence as an implicit exponential-sized SAT
+Claim S1 (Succinct-SAT capture of (F1)+(F2)).
+Given a β-normalized, radius-1 LCL L on oriented paths, there is a Boolean formula F(L) of size at most 2poly(β), given succinctly by a poly(β)-size circuit, such that F(L) is satisfiable iff there exists a feasible function f (i.e., f passes (F1) and (F2)). Variables are the choice bits of f on each context type τ and the auxiliary bridge/witness choices where needed. The clauses encode: (i) one-hot consistency of f(τ) ∈ Σout^2 on each τ, (ii) for every ordered context pair (τ1, τ2), the “bridge succeeds” constraint computed by the layered DP, and (iii) for (F2), the finitely many repetition lengths z ≤ Z with Z ≤ ℓ_pump^2 (per Lemma 1 in the draft), also checked via the DP.
+- Why useful here: It gives a direct NEXPTIME upper bound (already in our draft) and sets up hardness by letting us reduce succinct 3SAT to F(L) through a specific LCL family PC. It cleanly isolates correctness to the equivalence F(L) ⇔ feasible f.
+- How it can fail: If the number of context types exceeded 2poly(β) or the DP check needed super-polynomial circuits, the succinct-SAT size would blow up. Also, if (F2) required infinite z checks, we could not confine to finite clauses. Both are avoided by type bounds and periodicity.
+- Quick test: For a toy LCL with β = O(1) that enforces proper 2-coloring (no equal neighbors), contexts and pairs are O(1), and F(L) becomes a tiny CNF: per τ choose color, per pair forbid equal-colored windows. The DP is trivial and the formula is equivalent to 2-colorability of the context graph.
+
+Sketch of construction and size: Let T be the type set, |T| = ℓ_pump ≤ 2Θ(β^4). Let C ⊆ T be the context-type set: those realized by w1Sw2 with |wi| ∈ {ℓ_pump, ℓ_pump+1}. Introduce variables {X_{τ,c}} encoding f(τ)=c, with one-hot constraints per τ. For each ordered pair (τ1, τ2) introduce a polynomial-size circuit that runs the O(kβ^2) DP (k = O(ℓ_pump)) on the bridge instance to produce a clause-set forcing the DP to accept. For (F2), for each τ and z ∈ {1,…,Z}, add analogous DP constraints for wz_1Swz_2. The number of τ’s is ≤ ℓ_pump, pairs ≤ ℓ_pump^2, and z’s ≤ ℓ_pump^2. Each DP instance has size polynomial in β and ℓ_pump. Therefore the entire formula is of size at most 2poly(β), given succinctly by a poly(β)-size generator.
+
+2) Specializing to the hardness family PC: ON/OFF gate ⇒ local CNF constraints
+Claim S2 (Gated bridge yields per-clause local CNF). For the reduction PC built from a succinct-3CNF generator C (size s), we define Σout and Cout–out so that for every clause index j and its three literals ℓ ∈ {1,2,3}, there is a “literal-pick” color at the clause window S representing a choice Y_{j,ℓ}, and at each variable i there is a 1-bit choice X_i ∈ {RED,GRN} representing α(x_i). Then (F1) on PC translates to the CNF:
+- One-hot per clause: exactly one Y_{j,ℓ} is chosen (enforced via one-hot encoding at the clause-side S).
+- For each j and each occurrence i of literal ℓ in clause j with sign s ∈ {+,−}, the bridge constraint contributes a Horn clause of the form (¬Y_{j,ℓ} ∨ (X_i = RED)) if s=+, or (¬Y_{j,ℓ} ∨ (X_i = GRN)) if s=−.
+All other ordered pairs (including all mismatched (i,j) where Y_{j,ℓ} points to some i′ ≠ i, or where the left/right side is inactive) compile to tautologies thanks to the OFF gate and ⊥-plumbing. Therefore, (F1) is equivalent to the satisfiability of the succinct CNF that encodes “for each clause j, the selected literal is true under α”.
+- Why useful here: This resolves the universal quantification across all ordered pairs: OFF pairs impose no constraint, and the ON pair per clause imposes exactly one Horn clause linking the clause’s pick Y_{j,ℓ} to the variable’s truth X_i. It also shows that our (F1) feasibility is precisely succinct-3SAT.
+- How it can fail: If the gate could turn ON on unintended pairs (e.g., when Y_{j,ℓ} selects i′ but the pair is with i ≠ i′), we would accumulate impossible constraints across all three i’s and lose completeness. If malformed clause blocks could fake an ON, spurious Horn clauses could be added. We avoid both by: (i) offers/caps at the S boundary that make ON depend only on the clause-side Y pick and the RUN-decoded occurrence i; (ii) a poly(s)-length, radius-1 verifier tableau that pins the three occurrences and signs; malformed encodings divert to error-chains and never activate ON.
+- Quick test: Clause j = (x3 ∨ ¬x7 ∨ x10): introduce one-hot Y_{j,1},Y_{j,2},Y_{j,3}. Constraints: (¬Y_{j,1} ∨ X_3=RED), (¬Y_{j,2} ∨ X_7=GRN), (¬Y_{j,3} ∨ X_10=RED). If α sets X_3=RED, picking Y_{j,1} satisfies all three clauses tied to j; other pairs with variables not equal to 3 are OFF.
+
+3) Window-anchored activation and OFF-pair neutrality
+Claim S3 (OFF pairs are neutral; active iff block in window). The out–out grammar is arranged so that: (i) the two S-nodes can be labeled only from {⊥, RED, GRN, BLU}, (ii) non-⊥ at S forces an “offer” token to be emitted into wb (left) or wc (right), which is locally legal only at boundaries of well-formed blocks whose HEADC matches the fixed C header; otherwise non-⊥ is locally rejected and only ⊥ is extendible, and (iii) the gate turns ON iff both offers are present and the clause-side literal pick Y_{j,ℓ} matches the variable occurrence i (decoded from clause j by the tableau) at the other side; otherwise the gate remains OFF, and PAD-only conduits fill wb◦wc.
+- Why useful here: Guarantees that (F1) constraints are only active precisely on intended (variable, selected-literal-of-clause) pairs; all other pairs are fillable regardless of f (by PAD/⊥), so they do not constrain the SAT.
+- How it can fail: If ⊥ could not always fill wb◦wc (e.g., blocked by a seam rule), we could get unwanted constraints from inactive contexts. If the offer legality were not locally checkable, an adversarial DP could slip in a fake ON. We prevent both by (1) including a fully absorbing ⊥-plumbing sublanguage compatible with any S label, and (2) forcing an offer symbol adjacent to S for each non-⊥ S label; that offer is legal only when the immediately following few cells match the HEAD/role syntax of a block.
+- Quick test: Construct a pair of contexts where the left wb is malformed (no HEAD marker). Choose RED at S. The left offer is illegal at the boundary; thus non-⊥ is locally rejected and only ⊥ can pass, making the pair OFF/neutral.
+
+4) Clause decoding via a radius-1, poly(s)-length tableau (no O(1) checker)
+Claim S4 (Local verification of succinct clause outputs). The clause-side wc contains (after HEAD and GID) a poly(s)-length, radius-1 tableau for a fixed universal TM U, whose job is to check that the three occurrence indices and their signs (stored in RUN subtracks) equal the outputs of the succinct generator C on input j. The adjacency table Cout–out enforces single-step consistency across rows; any mismatch triggers a short error-chain gadget (accepted locally), which prevents the clause block from being “active” and hence prevents gate ON.
+- Why useful here: Fixes the previously broken claim of an O(1) decoder and ensures malformed clause encodings are harmless (cannot create ON). It also keeps the LCL description size polynomial in s and hence in β.
+- How it can fail: If the tableau needed long-range dependencies or cross-row lookahead, we would exceed r=1. We avoid this by standard 1D Turing-tile encodings: every row encodes the work tape and head; Cout–out allows only legal transitions of U, checked locally per neighbor pair. Errors are locally witnessed via error tokens.
+- Quick test: Build a 2-row tableau snippet with an intentional transition mismatch; verify that the only locally allowed continuation is to switch into an error-chain that absorbs the entire block, thus deactivating the gate.
+
+5) Type separation without 2-node boundary signatures
+Claim S5 (Distinct RID/GID yield distinct context types via differential extendibility). For each i ≠ i′, the context types τVar(i) (wb contains a well-formed variable block with HotRID[i]=1) and τVar(i′) are distinct: there exists some fixed clause-side active type τCl(j,ℓ) and a fixed S-label choice such that the bridge DP succeeds with τVar(i) and fails with τVar(i′). Analogous distinctness holds for clause types.
+- Why useful here: We cannot rely on 2-node boundary encodings to separate 2^B indices. This shows distinctness emerges from differential extendibility behavior under the gated bridge with a suitable fixed partner, leveraging interior content (the RUN tracks) rather than boundary micro-alphabets.
+- How it can fail: If C never produces a clause where i appears and i′ does not, a single τCl(j,ℓ) may not separate τVar(i) and τVar(i′). However, we can fix τCl to be any clause-side active type whose decoded triplet includes i but not i′; such a j exists among 2^B possible indices by padding C with a verifier that, when presented with a reserved “tester” j∗ (chosen at construction), outputs a clause whose single ON literal is x_i. This tester is validated by the same tableau mechanism. Thus separation does not rely on arbitrary properties of C.
+- Quick test: Introduce j∗ whose decoded clause is (xk ∨ dummy ∨ dummy) for k set at construction. Then with τVar(k) and τVar(k′≠k), the bridge under S=RED is ON for τVar(k) and OFF for τVar(k′), distinguishing types.
+
+6) From (F1) to tri-class classification via trivial (F2)
+Claim S6 (Trivializing (F2) preserves succinct-SAT shape). Extend Cout–out so that wz_1 and wz_2 repetitions can always be filled with ⊥ (PAD) regardless of z. Then (F2) holds for any f, and feasible-function existence reduces to (F1), i.e., the succinct CNF in Claim S2. Therefore, mapping a succinct 3SAT instance C to PC shows NEXPTIME-hardness of the O(1) vs. Θ(n) sub-classification; in combination with the decidability framework (Theorems 8–9 in the reference), the three-way classification is NEXPTIME-hard.
+- Why useful here: Eliminates (F2) constraints, preventing an unintentional Θ(log* n) regime. The family sits on the O(1)–Θ(n) dichotomy, simplifying the reduction target.
+- How it can fail: If the PAD/⊥ seam conflicts with the S-label fixed by f, (F2) could still impose constraints. We avoid this by permitting ⊥ adjacent to any S-color and by making PAD/⊥ internally self-compatible.
+- Quick test: Pick any context and z=17. Force S by f; fill wz_1 and wz_2 with ⊥. The DP finds a trivial path since every PAD/⊥ pair is admitted by Cout–out.
+
+7) Toy worked example (B=2) under the SAT view
+- Variables: X_1, X_2, X_3, X_4 ∈ {RED,GRN} (encode α(x1..x4))
+- One clause j with literals (x3 ∨ ¬x1 ∨ x4). Clause picks: one-hot Y_{j,1},Y_{j,2},Y_{j,3}.
+- CNF clauses from the bridge: (¬Y_{j,1} ∨ X_3=RED), (¬Y_{j,2} ∨ X_1=GRN), (¬Y_{j,3} ∨ X_4=RED).
+- All other ordered pairs are OFF/neutral or forced ⊥. Thus F(PC) is satisfiable iff there exist X’s and a one-hot Y making one of those literals true—exactly the clause’s satisfiability. Multiple clauses add independent groups of three Horn clauses plus a one-hot.
+Counterexample attempt: If the gate were missing, we would need all three implications simultaneously for all i occurring in j, which would force X_3=RED and X_1=GRN and X_4=RED at the same time, and would also erroneously constrain pairs with variables not in the clause; the gate avoids this by OFF pairs and ON only for the selected literal.
+
+8) Outstanding spec to finalize
+- Cin–out and Cout–out tables at the window seam: explicit rows that (i) force an offer on non-⊥ S, (ii) reject non-⊥ unless a valid block boundary follows, (iii) implement OFF→PAD conduits, and (iv) implement ON→CAP conduit and CAP equality test.
+- Clause-side tableau tile set: list of allowed (state,symbol) pairs across rows; error-chain tokens that must appear when a mismatch occurs.
+- Tester j∗ mechanism (for type-separation robustness): specify reserved GID and the corresponding hard-wired outputs of U, validated by the same tableau (kept radius-1) so that τVar(i) types are provably distinct.
+- Confirm size bounds: |Σout| = β = poly(s); tables of size O(β^2); tableau length poly(s); type bound ℓ_pump = 2Θ(β^4); hence contexts/pairs ≤ 2poly(β); DP verifiers run in O(kβ^2) per instance.
+
+What we have accomplished this round
+- Provided a clean, succinct-SAT formulation of feasible-function existence (S1), which aligns exactly with the required NEXPTIME framework.
+- Instantiated the SAT constraints for the reduction family PC (S2–S3), addressing the earlier fragile spots (pairwise quantification and activation locality) and eliminating reliance on boundary-only signatures (S5).
+- Replaced the O(1) clause decoder with a poly(s)-length, radius-1 tableau and an error-chain refuter (S4).
+- Validated by a B=2 toy and articulated the remaining explicit-table tasks needed to cement the construction.
+
+## Round 0002 — 2025-08-27T11:23:07.543718Z
+
+Mini-plan
+- Recast feasible-function existence (F1) as an implicit exponential-sized SAT instance over type-choices, then map Succinct-3SAT to it. Make the quantifier structure transparent.
+- Fix the bridge semantics: clause-side chooses one of its 3 occurrences (not a sign), variable-side chooses its truth; the gate is ON only for the matching occurrence/variable-index pair; ON enforces truth=sign(occ). OFF pairs are trivially fillable. This aligns “for all ordered pairs” with “∃ a satisfied literal.”
+- State a clean SAT-of-types lemma and the gating-correctness lemma with how-it-can-fail and quick tests (B=2 toy). Tie to radius-1 and β-normalized implementation.
+- Prove existence and separability of exponentially many active context types (2^B variable-types and 2^B clause-types) using pumping and window anchoring; include a crisp type-separation witness.
+- Specify the poly(s)-length, radius-1 clause-verification tableau that exposes (i1, i2, i3) and their signs next to S; add error-chain refuters. Conclude soundness/completeness for (F1) and show how to trivialize (F2) for classification hardness.
+
+1) SAT-of-types view of (F1)
+Claim G (Implicit SAT for feasible-function existence). For a fixed β-normalized, r=1 LCL P and its context-type set C (types of w1 S w2 with |w1|,|w2|∈{ℓpump,ℓpump+1}), there is an implicit exponentially large SAT instance F(P) over variables encoding f(τ) (the 2-node label at S for each τ∈C), and for each ordered pair (τL,τR) a local constraint R(τL,τR,f(τL),f(τR)) that holds iff the DP on the bridge wa S1 wb wc S2 wd (with types τL,τR) succeeds. Then there exists a feasible f satisfying (F1) iff F(P) is satisfiable.
+- Why useful here: Reducing Succinct-3SAT to F(P) (or vice versa) yields NEXPTIME-hardness via an implicit exponential SAT. It also clarifies that our bridge-gadget just defines a pairwise constraint language on type-colors decidable by the O(kβ^2) DP.
+- How it can fail: If C depended on f (circularity), or if the pairwise DP check were not radius-1 decidable, we could not encode constraints locally. Here, C is defined purely by input types (Section 4 types) and the DP is radius-1.
+- Quick test: Pick a small Σout (β=5), enumerate 2–3 contexts with actual strings, run the DP to tabulate which f-choices on S1,S2 are extendible. The truth table matches a Boolean constraint R for those (τL,τR).
+
+2) Correct bridge semantics: clause chooses occurrence, variable chooses truth
+Patch H (Occurrence-selected gate). Modify the S-alphabet and gate:
+- Variable-side S palette: VT (true) or VF (false). Interpreted as α(x_i)=1 iff VT.
+- Clause-side S palette: O1,O2,O3 (select occurrence t∈{1,2,3} of clause j). No sign is chosen at S; signs are read from the clause RUN for that occurrence.
+- Gate ON condition (purely local): the left wb contains a well-formed variable block with RID=i; the right wc contains a well-formed clause block with the triple (i1,sgn1),(i2,sgn2),(i3,sgn3). If clause S-color=Ot and RID=i equals it, gate=ON; otherwise OFF. Window anchoring places all needed bits inside wb or wc.
+- ON-bridge semantics: enforce that VT iff sgnt=+ and VF iff sgnt=−, via a one-bit CAP conduit from S1 to S2 (compare variable truth with required sign of the selected occurrence t). OFF-bridge semantics: wb◦wc is PAD-plumbable regardless of S colors.
+- Why useful here: Fixes the earlier quantification mismatch: for a clause j, only the pair with the variable-type matching the chosen occurrence turns ON; the other two pairs turn OFF and are trivial, so (F1)’s universal quantifier no longer overconstrains clauses.
+- How it can fail: (i) If the DP can deviate and turn ON without RID=it equality (no: ON is determined at the immediate seam by tokens and checked locally); (ii) If OFF were rejected due to seam interactions (we ensure PAD-plumbing accepts all OFF seams); (iii) If we needed to encode it (the occurrence index) at S (we do not: S carries only Ot; equality to RID is tested by a witness path inside wb and wc).
+- Quick test: Clause j with occurrences (i1=3,+), (i2=7,−), (i3=10,+). If f(τCl(j))=O2, only pairs with τVar(7) are ON; their success requires VF at S1. Pairs with τVar(3) and τVar(10) are OFF and always fill. Thus f(τCl(j))=O2 works iff α(x7)=0.
+
+3) Equivalence to Succinct-3SAT via implicit SAT
+Claim I (SAT-of-types ≡ Succinct-3SAT under Patch H). Let C be a succinct generator of a 3-CNF ΦC over variables x1,…,x_{2^B}. Build PC so that active context types include all τVar(i) (all i∈{0,1}^B) and all τCl(j) (all j∈{0,1}^B). Under Patch H, (F1) holds for some f iff ΦC is satisfiable.
+- Informal proof sketch: Introduce Boolean variables A_i (truth of x_i) corresponding to f(τVar(i))∈{VT,VF}, and 3-way selector T_j∈{1,2,3} corresponding to f(τCl(j))∈{O1,O2,O3}. The bridge constraints across all ordered pairs conjoin, for each j, the single ON-pair constraint: if T_j=t then A_{i_t} must equal sgn_t. OFF pairs are tautologies. This is exactly the clause-satisfaction condition “∃t with A_{i_t}=sgn_t.” Hence f exists iff there is {A_i},{T_j} satisfying ∧_j ∨_{t=1}^3 (A_{i_t}=sgn_t), i.e., ΦC is satisfiable.
+- How it can fail: If some τCl(j) could choose an O_t that is not one of its occurrences (e.g., unverified (i_t,sgn_t)), the constraint could be cheated. We prevent this by the clause-run tableau and local checker exposing (i_t,sgn_t) and rejecting any Ot whose occurrence record is malformed.
+- Quick test: B=2 example with 4 variables. Let clause j encode (x1 ∨ ¬x2 ∨ x3). If α(x1)=0, α(x2)=1, α(x3)=0, the only working choice is T_j=2 (select occurrence 2: ¬x2). The only ON-pair is with τVar(2) and requires VF at left; holds. Other pairs OFF.
+
+4) Active type coverage and type separation
+Claim J (Coverage and separation of active types). With β=poly(s), choose B=s^c0 and ℓpump=2^{Θ(β^4)}. Using window-anchored blocks, for each i and each j there exist context types τVar(i) (left context whose wb contains a valid variable block with RID=i) and τCl(j) (right context whose wc contains a valid clause block with GID=j and tableau exposing its 3 occurrences). Moreover, τVar(i)≠τVar(i′) for i≠i′, and τCl(j)≠τCl(j′) for j≠j′.
+- Why useful here: We need 2^B many distinct variable-types and 2^B many distinct clause-types so that {A_i} and {T_j} are well-defined choices over C.
+- How it can fail: (i) If the header+indices+RUN footprint exceeded the window length, activation wouldn’t be local (fix: windows are size ℓpump with ℓpump≫poly(s)); (ii) If types collapsed despite different RIDs/GIDs (fix: separation by boundary-extendibility: pick a partner type so that an ON-bridge exists for one index but is impossible for the other, hence their boundary-extendibility signatures differ).
+- Quick test (type-separation witness): Fix j and pick Ot selecting its first occurrence i1; Build the ordered pair (τVar(i1),τCl(j)). The ON-bridge can succeed if VT=sgn1; For i′≠i1, the gate is OFF and we can enforce a different outcome by forcing non-⊥ on the variable side with a mismatching token that is locally rejected; the sets of boundary-extendible labelings differ, so the types differ.
+
+5) Clause-verification tableau and radius-1 implementation
+Claim K (Poly(s)-length, radius-1 verification inside wc/wb). The clause-side block encodes in RUN a radius-1 checkable tableau of length poly(s) that, given (C,GID=j), exposes in fixed rows: (i1,sgn1),(i2,sgn2),(i3,sgn3) in one-hot form next to the S-neighborhood. The variable-side block exposes HotRID in one-hot. Cout–out enforces stepwise consistency; malformed encodings admit a short error-chain refuter; well-formed ones cannot be refuted.
+- Why useful here: Ensures Ot actually corresponds to a validated occurrence and exposes sgnt locally, making the ON conduit comparison well-defined and radius-1 checkable.
+- How it can fail: If the verifier were O(1)-time, it could not validate the succinct circuit’s output; we instead unroll a poly(s)-length tableau (still radius-1, constant alphabet overhead). If errors were non-refutable, inactive contexts could force constraints; the error-chain gadget prevents that.
+- Quick test: For a hand-built clause-index j, create a tiny RUN with 3 marked rows carrying the one-hot i_t and sgnt bits at fixed offsets. Flip one bit and confirm that an error-chain can be placed locally and that any non-⊥ S-choice against a malformed block is rejected by the DP.
+
+6) Inactive contexts are harmless; (F2) trivialization
+Claim L (Inactive contexts force ⊥; (F2) is made vacuous). If a context’s wb (resp. wc) lacks a well-formed variable (resp. clause) block, any non-⊥ at S is locally rejected (witness chain cannot find headers/indices). A dedicated PAD/⊥-plumbing language in Cout–out allows arbitrary filling when OFF or ⊥ at S. If we further allow wz repeats to be ⊥-fillable regardless of z, (F2) holds for any f, and the classification collapses to O(1) iff (F1) feasible, else Θ(n) by the gap theorem.
+- Why useful here: Neutralizes irrelevant pairs and reduces the tri-class decision to (F1) on our instances.
+- How it can fail: If PAD/⊥ seams were incompatible with S choices, OFF wouldn’t be trivially fillable; we explicitly include seam-compatible PAD/⊥ pairs in Cout–out.
+- Quick test: Take an inactive left context and any right context. Try S=VT; the DP fails early (no HEAD/RID found). Set S=⊥; the DP runs a PAD/⊥ conduit and succeeds.
+
+7) Putting it together: reduction to implicit SAT (Succinct-3SAT → F(P))
+- Source: circuit C of size s defining ΦC with 2^B variables and 2^B clauses, each clause(j) has three occurrences (i1,sgn1),(i2,sgn2),(i3,sgn3).
+- Target: PC with Σout and Cout–out implementing Claims H–L; β=poly(s), r=1, |description|=poly(β)=poly(s). By Claim J, C’s type set contains all τVar(i) and τCl(j). By Claim I, there exists f satisfying (F1) for PC iff ΦC is satisfiable. By Claim L, we can trivialize (F2) if we target full classification hardness.
+- Complexity: Types count ℓpump=2^{Θ(β^4)}=2^{poly(s)}; we never enumerate them in the reduction. Verification of each bridge is via O(kβ^2) DP (k=Θ(ℓpump)), consistent with the NEXPTIME upper bound.
+
+8) Toy worked example (B=2, indices 00..11)
+- Let clause j encode (x01 ∨ ¬x10 ∨ x11). Suppose α(x01)=0, α(x10)=1, α(x11)=0.
+- Choices: set f(τVar(01))=VF, f(τVar(10))=VT, f(τVar(11))=VF. Set f(τCl(j))=O2 (choose occurrence 2: ¬x10). For ordered pairs: (τVar(10),τCl(j)) ON and requires VT= (sgn2=−)? No, ON demands VF when sgnt=−. Oops: we must require VT iff sgnt=+ and VF iff sgnt=−; thus for occurrence 2 (negative), left must be VF to pass. Since α(x10)=1, O2 would fail. Correct choice is O1 or O3? O1 has sgn1=+, requires VT at Var(01), but α(x01)=0, so fail. O3 has sgn3=+, requires VT at Var(11), but α(x11)=0, so fail. Therefore, α does not satisfy this clause; no O_t makes the ON-pair succeed, as intended. If we flip α(x10)=0, then O2 makes (τVar(10),τCl(j)) succeed and all other pairs OFF; (F1) holds for this j.
+- Takeaway: For each clause j, there exists exactly those Ot consistent with α that make all pairs pass; otherwise (F1) fails.
+
+9) Open items and quantitative checks
+- Boundary tables: Write explicit Cin–out/Cout–out rows for S-seams enforcing: (i) non-⊥ at S emits Offer tokens and forbids PAD unless OFF, (ii) OFF⇔mismatch of (RID,it), (iii) ON enforces CAP wire equality truth↔sgn_t, (iv) PAD/⊥ seams accept any colors when OFF.
+- Clause RUN tiles: Provide a fixed set of row-local tiles producing/exposing (i_t,sgn_t) and validating them against header C and GID=j, with a bounded error alphabet E to refute any malformed run.
+- Type separation proof: Formally exhibit, for i≠i′, some counterpart type so that the sets of extendible boundary assignments differ (hence distinct types). Likewise for clauses.
+- Rule budgets: Count tracks/symbols to confirm |Σout|=β=poly(s). ℓpump≫poly(s) so that windows can host headers+indices+RUN comfortably.
+
+How this answers “reduce to implicit exponential-sized SAT formula”
+- The existence of a feasible f is equivalent to satisfiability of the implicit SAT F(P): variables are (A_i) and (T_j), constraints are local bridge constraints per (τVar(i),τCl(j)), exponentially many but specified implicitly by P (via DP over ℓpump-length contexts). Our reduction from C maps ΦC to F(PC) with the property F(PC) satisfiable iff ΦC satisfiable. This yields NEXPTIME-hardness of feasible-function existence, and (by trivializing (F2)) the full O(1) vs Θ(n) classification.
+
+
+
+=== summary.md ===
+
+## round-0001 — user's additional feedback — 2025-08-26T16:41:58.029080Z
+work harder
+
+## round-0001 — user's additional feedback — 2025-08-26T16:43:34.874110Z
+even harder
+
+## round-0001 — model summary — 2025-08-26T19:12:15.171929Z
+In this round, the prover outlined a structured mini-plan to tackle the complexities of LCLs and their hardness classifications. Key areas of focus include a thorough understanding of the PSPACE-hardness proof, careful analysis of a proposed NEXPTIME algorithm, and the exploration of reductions from known NEXPTIME-hard problems. The prover emphasized the importance of systematic exploration of LCL cases and the formulation of lemmas regarding the relationship between local complexity and the size of $\beta$. However, the verifier noted that while the plan is well-structured, it requires deeper analysis and caution against misinterpretations and generalizations. The overall verdict remains uncertain, indicating that further refinement and validation are necessary.
+
+## round-0001 — model summary — 2025-08-27T10:53:03.559489Z
+Round snapshot: two prover sketches plus verifier feedback. Prover-01 proposed a window-anchored activation fix (place RID/GID and HEAD/RUN inside wb/wc) and pumping-based existence of many active types; it also argued inactive contexts can be neutralized with ⊥ and that (F2) can be trivialized by ⊥-plumbing. Prover-02 introduced a gated-bridge gadget that turns ON only for intended (VAR_i, CLA_j) ordered pairs (forcing CAP propagation when i ∈ vars(j)), plus two finite-check lemmas (finite-z periodicity for (F2) and a layered radius-1 DP for extendibility in O(k·β^2)). The verifier endorsed combining gating with window-anchoring but flagged two untenable claims (deriving 2^B types from only 2 boundary nodes; O(1) local clause-triple validation) and requested explicit C_in–out/C_out–out tables for the four boundary nodes and conduits, a formal type-separation lemma, and a poly(s)-length clause-decoder tableau. Verdict: uncertain. Citations: prover-01.out.json, prover-02.out.json, Verifier (summary_md).
+
+## round-0001 — user's additional feedback — 2025-08-27T11:22:51.513658Z
+lets try to prove this by reducing to (implicit exponential-sized) SAT formula
+
+## round-0002 — model summary — 2025-08-27T11:30:43.966675Z
+Round 0002 completed a focused repair and formalization of the reduction from Succinct-3SAT to feasible-function existence for β-normalized, r=1 LCLs. Core moves: recast (F1) as an implicit exponential SAT over type-choices; replace the previous gate with an equality/inequality witness gate so each clause-side pick activates exactly one variable-side pair; implement clause decoding as a poly(s)-length, radius-1 tableau that exposes (i1,i2,i3) and signs and yields local error-chain refuters for malformed runs; show existence and separability of 2^B variable- and clause-types via window-anchored blocks and differential extendibility; and trivialize (F2) via ⊥-plumbing so the classification reduces to (F1). Together these yield an implicit CNF (Horn-style clauses (¬Y ∨ X)) equivalent to the succinct 3CNF, giving the intended NEXPTIME hardness direction. Remaining concrete artifacts are explicit seam tables, the RUN tile set, a radius-1 exclusivity proof for equality vs inequality certificates, and a full B=2 DP worked example. Citations: prover-01.out.json, prover-02.out.json, prover-03.out.json.
+
+
+
+=== notes.md ===
+Verifier notes (2025-08-27):
+- Adopt a hybrid: use Prover 02’s gate to separate ON (i∈vars(j)) from OFF pairs, and Prover 01’s window-anchored blocks to keep all semantics within wb/wc.
+- Replace any O(1)-time checker with a poly(s)-length, radius-1 tableau inside wc (and wb as needed) that verifies C(j) and exposes the needed bits to the gate; ensure error-chain refutations for malformed headers.
+- Do not rely on boundary-only signatures for type multiplicity; instead, separate types by differential boundary-extendibility induced by interior content (witness success/failure under fixed S-labels).
+- Action items: (i) write explicit boundary tables (offers, gate, PAD/CAP conduits), (ii) specify the clause-verification tableau and its alphabet, (iii) prove type-separation and OFF/ON correctness, (iv) complete a B=2 worked example with DP simulation.
+Verifier notes addendum (2025-08-27):
+- Critical: Forbid ⊥ at S on active contexts. Adjust Cout–out so that when the window anchors a well-formed variable/clause block, the S palette excludes ⊥ and forces an offer; only inactive contexts allow ⊥. This preserves nontriviality of (F1).
+- Adopt Prover 01’s occurrence-only S palette {O1,O2,O3}; read the sign from the verified RUN. If using sign-coded S tokens, add a local rule that forces the S-sign to equal the RUN’s sign for the selected occurrence.
+- Gate exclusivity: Write and prove a radius-1 lemma that exactly one of equality/inequality certificates is realizable, with CAP allowed only under equality and PAD only under inequality.
+- Type separation: Prefer a neutral tester j* (present as a type but labelable so it imposes no constraints under f) to guarantee distinct Var_i without relying on properties of C. Validate no side effects on (F1) or (F2).
+- Proceed with explicit seam tables (offers, gate, CAP/PAD), the clause RUN tiles and error chains, and the B=2 worked DP table.
+
+=== 1811.01672v2.pdf ===
+
+--- Page 1 ---
+The distributed complexity of locally
+checkable problems on paths is
+decidable
+Alkida Balliu · alkida.balliu@aalto.ﬁ· Aalto University
+Sebastian Brandt · brandts@ethz.ch · ETH Zurich
+Yi-Jun Chang · cyijun@umich.edu · University of Michigan
+Dennis Olivetti · dennis.olivetti@aalto.ﬁ· Aalto University
+Mika¨el Rabie · mikael.rabie@irif.fr · Aalto University and IRIF, University Paris Diderot
+Jukka Suomela · jukka.suomela@aalto.ﬁ· Aalto University
+Abstract. Consider a computer network that consists of a path with n nodes. The
+nodes are labeled with inputs from a constant-sized set, and the task is to ﬁnd output
+labels from a constant-sized set subject to some local constraints—more formally, we
+have an LCL (locally checkable labeling) problem. How many communication rounds
+are needed (in the standard LOCAL model of computing) to solve this problem?
+It is well known that the answer is always either O(1) rounds, or Θ(log∗n) rounds,
+or Θ(n) rounds. In this work we show that this question is decidable (albeit PSPACE-
+hard): we present an algorithm that, given any LCL problem deﬁned on a path,
+outputs the distributed computational complexity of this problem and the corresponding
+asymptotically optimal algorithm.
+arXiv:1811.01672v2  [cs.DC]  18 Feb 2019
+
+--- Page 2 ---
+1
+Introduction
+To what extent is it possible to automate the design of algorithms and the study of computational
+complexity? While algorithm synthesis problems are typically undecidable, there are areas of
+theoretical computer science in which we can make use of computational techniques in algorithm
+design—at least in principle, and sometimes also in practice. One such area is the theory of
+distributed computing; see [3, 5, 6, 9, 11, 17, 19, 26] for examples of recent success stories. In this
+work we bring yet another piece of good news:
+Consider this setting: there is a computer network that consists of a path with n nodes, the
+nodes are labeled with inputs from a constant-sized set, and the task is to ﬁnd output labels from
+a constant-sized set subject to some local constraints. We show that for any given set of local
+constraints, it is decidable to tell what is the asymptotically optimal number of communication
+rounds needed to solve this problem (as a function of n, for the worst-case input).
+Background: LCLs and the LOCAL Model.
+We focus on what are known as LCL (locally
+checkable labeling) problems [22] in the LOCAL model of distributed computing [20, 24]. We deﬁne
+the setting formally in Section 2, but in essence we look at the following question:
+• We are given an unknown input graph of maximum degree ∆= O(1); the nodes are labeled
+with input labels from a constant-size set Σin, and the nodes also have unique identiﬁers from
+a polynomially-sized set.
+• The task is to label the nodes with output labels from a constant-size set Σout, subject to
+some local constraints P; a labeling is globally feasible if it is locally feasible in all radius-r
+neighborhoods for some r = O(1).
+• Each node has to produce its own output label based on the information that it sees in its
+own radius-T(n) neighborhoods for some function T.
+Here the local constraints P deﬁne an LCL problem. The rule that the nodes apply to determine
+their output labels is called a distributed algorithm in the LOCAL model, and function T(n) is the
+running time of the algorithm—here T(n) determines how far a node has to see in order to choose
+its own part of the solution, or equivalently, how many communication rounds are needed for each
+node to gather the relevant information if we view the input graph as a communication network.
+In this setting, the case of T(n) = Θ(n) is trivial, as all nodes can see the entire input. The
+key question is to determine which problems P can be solved in sublinear time—here are some
+examples:
+• Vertex coloring with ∆+ 1 colors: can be solved in time O(log∗n) [8, 16] and this is tight
+[20, 21].
+• Vertex coloring with ∆colors, for ∆> 2: can be solved in polylogarithmic time [23] and
+requires at least logarithmic time [7] for deterministic algorithms.
+While the study of this setting was initiated already in the seminal work by Naor and Stockmeyer
+in 1995 [22], our understanding of these questions has rapidly advanced in the past three years
+[1, 2, 4, 6, 7, 12–15, 25]. The big surprises have been these:
+1
+
+--- Page 3 ---
+• There are LCL problems with inﬁnitely many diﬀerent time complexities—for example, we
+can construct LCL problems with a time complexity exactly Θ(nα) for any rational number
+0 < α ≤1.
+• Nevertheless, there are also wide gaps in the complexity landscape: for example, no LCL
+problem has a (deterministic) computational complexity that is between ω(log∗n) and o(log n).
+However, what is perhaps most relevant for us is the following observation: if we look at the case
+of ∆= 2 (paths and cycles), then the time complexity of any LCL problem is either O(1), Θ(log∗n),
+or Θ(n), and the same holds for both deterministic and randomized algorithms [5, 6, 22].
+Decidability of LCL Time Complexities.
+For a ﬁxed ∆, any LCL problem has a trivial ﬁnite
+representation: simply enumerate all feasible radius-r local neighborhoods. Hence it makes sense to
+ask whether, given an LCL problem, it is possible to determine its time complexity. The following
+results are known by prior work:
+• If the input graph is an unlabeled path or cycle, the time complexity is decidable [5, 22].
+• If the input graph is a grid or toroidal grid, the time complexity is undecidable [22]. However,
+there are also some good news: in unlabeled toroidal grids, the time complexity falls in one of
+the classes O(1), Θ(log∗n), or Θ(n), it is trivial to tell if the time complexity is O(1), and it
+is semi-decidable to tell if it is Θ(log∗n) [5].
+• In the case of trees, there are inﬁnitely many diﬀerent time complexities, but there is a gap
+between ω(log n) and no(1), and it is decidable to tell on which side of the gap a given problem
+lies [6].
+Somewhat surprisingly, the seemingly simple case of labeled paths or cycles has remained open all
+the way since the 1995 paper by Naor and Stockmeyer [22], which deﬁned LCLs with inputs but
+analyzed decidability questions only in the case of unlabeled graphs.
+We initially expected that the question of paths with input labels is a mere technicality and the
+interesting open questions are related to much broader graph families, such as rooted trees, trees,
+and bounded-treewidth graphs. However, it turned out that the main obstacle for understanding
+decidability in any such graph family seems to lie in the fact that the structure of the graph can be
+used to encode arbitrary input labels, hence it is necessary to ﬁrst understand how the input labels
+inﬂuence decidability—and it turns out that this makes all the diﬀerence in the case of paths.
+In this work we show that the time complexity of a given LCL problem on labeled paths or
+cycles is decidable. However, we also show that decidability is far from trivial: the problem is
+PSPACE-hard, as LCL problems on labeled paths are expressive enough to capture linear bounded
+automata (Turing machines with bounded tapes).
+2
+Model
+The LOCAL Model.
+The model of computation we consider in this work is the LOCAL model of
+distributed computing [20, 24]. In the LOCAL model, each node of the input graph is considered as
+a computational entity that can communicate with the neighboring nodes in order to solve some
+given graph problem. Computation is divided into synchronous rounds, where in each round each
+node ﬁrst sends messages of arbitrary size to its neighbors, then receives the messages sent by
+its neighbors, and ﬁnally performs some local computation of arbitrary complexity. Each node is
+equipped with a globally unique identiﬁer (ID) which is simply a bit string of length O(log n), where
+2
+
+--- Page 4 ---
+n denotes the number of nodes of the input graph. In the beginning of the computation, each node
+is aware of its own ID, the number of nodes and the maximum degree ∆of the input graph, and
+potentially some additional problem-speciﬁc input. Each node has to decide at some point that it
+terminates, upon which it returns a local output and does not take part in any further computation;
+the problem is solved correctly if the local outputs of all nodes together constitute a global output
+that satisﬁes the output constraints of the given problem.
+Each node executes the same algorithm; the running time of the distributed algorithm is the
+number of rounds until the last node terminates. It is well known that, due to the unbounded
+message sizes, an algorithm with runtime T(n) can be equivalently described as a function from
+the set of all possible radius-T(n) neighborhoods to the set of allowed outputs. In other words, we
+can assume that in a T(n)-round algorithm, each node ﬁrst gathers the topology of and the input
+labels contained in its radius-T(n) neighborhood, and then decides on its output based solely on
+the collected information.
+Locally Checkable Labelings.
+The class of problems we consider is locally checkable labeling
+(LCL) problems [22]. LCL problems are deﬁned on graphs of bounded degree, i.e., we will assume
+that ∆= O(1). Formally, an LCL problem is given by a ﬁnite input label set Σin, a ﬁnite output
+label set Σout, an integer r, and a ﬁnite set C of graphs where every node is labeled with a pair
+(ℓin, ℓout) ∈Σin × Σout and one node is marked (as the center). Each node of the input graph
+is assigned an input label from Σin before the computation begins, and the global output of a
+distributed algorithm is correct if the radius-r neighborhood of each node v, including the input
+labels given to the contained nodes and the output labels returned by the contained nodes, is
+isomorphic to an element of C where v corresponds to the node marked as the center.
+In the case of directed paths as our class of input graphs, we are interested in identifying the
+simplest possible form of LCL problems. For this purpose, we deﬁne β-normalized LCLs; these are
+problems for which the input is just binary, and the size of the set of output labels is β. Moreover, the
+solution can be checked at each node v by just inspecting the input and output of v, and, separately,
+the output of v and the output of its predecessor. More formally, a β-normalized LCL problem is
+given by ﬁnite input and output label sets Σin, Σout satisfying |Σin| = 2, |Σout| = β, a ﬁnite set
+Cin −out of pairs (ℓin, ℓout) ∈Σin × Σout and a ﬁnite set Cout −out of pairs (ℓout, ℓ′
+out) ∈Σout × Σout.
+The global output of a distributed algorithm for the β-normalized LCL problem is correct if the
+following hold:
+• For each node v, we have (Input(v), Output(v)) ∈Cin −out, where Input(v) denotes the input
+label of v, and Output(v) the output label of v.
+• For each node v that has a predecessor, we have (Output(v), Output(u)) ∈Cout −out, where u is
+the predecessor of v, and Output(v), Output(u) are the output labels of v and u, respectively.
+It is straightforward to check that a β-normalized LCL problem is indeed a special case of an LCL
+problem where r = 1.
+3
+Hardness
+In this section we study the hardness of determining the distributed complexity of LCLs on paths
+and cycles with input labels. More precisely, we start by proving the existence of a family Π of
+LCL problems for consistently globally oriented paths, such that, given an LCL problem in Π, it is
+PSPACE-hard to decide if its distributed complexity is O(1) or Θ(n). Our main result shows the
+following.
+3
+
+--- Page 5 ---
+L
+0
+0
+0
+0
+0
+0
+R
+q0
+L
+0
+0
+0
+0
+0
+0
+R
+q1
+L
+1
+0
+0
+0
+0
+0
+R
+L
+R
+L
+R
+L
+R
+L
+R
+q1
+L
+R
+q1
+q1
+q1
+q1
+q1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+L
+R
+qf
+1
+1
+1
+1
+1
+1
+a
+L
+L
+L
+R
+R
+R
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+T
+T
+T
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+q0
+q0
+q0
+q0
+q0
+q0
+q0
+q0
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+F
+· · ·
+Figure 1: Illustration of a correct encoding of the execution of an LBA on a path; black nodes act as separators
+between the encoding of two consecutive steps of the LBA; in the example, the LBA executes a unary counter.
+It is PSPACE-hard to distinguish whether a given LCL problem P with input labels can be
+solved in O(1) time or needs Ω(n) time on globally oriented path graphs.
+The high level idea of the proof of the above result is as follows. We would like to encode the
+execution of Turing machines as LCLs on consistently oriented paths, and then deﬁne some LCL for
+which the complexity depends on the running time of the machine. This is fairly easy on oriented
+grids, for example, where we can use one dimension of the grid as a tape, and the other dimension
+as time. One may try to do the same on paths, by projecting everything on a single dimension,
+concatenating the tape state of each step. Unfortunately, the obtained encoding is not locally
+checkable, since the length of the tape may be non-constant. Hence, in order to guarantee the local
+checkability, we should consider Turing machines having a tape of size at most B, where B is a
+constant with respect to the number of nodes in the path where we want to encode its execution.
+For this purpose, we consider Linear Bounded Automata (LBA) [18, p. 225]. An LBA is a Turing
+machine that has a tape of size upper bounded by some B. We show that, if B is constant with
+respect to the number of nodes in the path, we can then encode the execution of an LBA MB as
+an LCL for directed paths. Moreover, we show that by seeing this encoding as a two party game
+between a prover and a disprover, we can encode the execution of MB using labels of constant size
+that do not depend on B, even in the case in which the LCL checkability radius is 1. If the execution
+of MB is not correctly encoded in the input of the LCL, then we can disprove its correctness using
+output labels of size O(B). Moreover, we ensure that, if the execution of MB is correctly encoded
+in the input of the LCL, it is not possible to produce a correct proof of non-correctness. Then, in
+order to obtain an LCL with a distributed complexity that depends on the execution time of MB,
+we encode some secret input at the ﬁrst node of the path. We require then that all nodes involved
+in a correct encoding must produce the same secret as output.
+Figure 1 shows an example of an LBA that executes a unary counter, and its encoding as input
+to nodes on a path. In this instance, all nodes must produce the symbol a as output. Figure 2 shows
+an example of the wrong input (the tape has been copied incorrectly between two consecutive steps
+4
+
+--- Page 6 ---
+a
+L
+L
+L
+R
+R
+R
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+0
+0
+0
+0
+0
+0
+1
+T
+T
+T
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+F
+q0
+q0
+q0
+q0
+q0
+q0
+q0
+q0
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+q1
+F
+· · ·
+a
+a
+a
+E2
+E
+E
+E
+E
+E
+E
+E
+E
+E
+E
+E
+E
+a
+a
+a
+a
+0
+0
+E2
+E2
+E2
+E2
+E2
+E2
+E2
+E2
+E2
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Input
+Output
+Figure 2: Illustration of an incorrect encoding of the execution of an LBA on a path; in the example, the
+tape of the LBA is wrongly copied (the inputs in red are diﬀerent, while they should be the same). The error
+output E2 encodes the distance of B + 1 between the two nodes, and the input wrongly copied.
+3
+5
+Input size: 8
+1
+1
+1
+1
+0
+0
+1
+1
+0
+1
+1
+1
+1
+1
+1
+0
+0
+0
+(⌈log 8⌉+ 1) 1s
+(⌈log 8⌉+ 1) 1s
+3
+5
+· · ·
+· · ·
+· · ·
+· · ·
+Separator
+0
+Separator
+Figure 3: Illustration of the normalization of an LCL.
+of the LBA). In this case, nodes are allowed to produce a chain of errors. Diﬀerent types of errors
+will be handled using diﬀerent types of error labels. In the example, all nodes that produce the
+error chain, output E2, indicating an error of type 2. We will show that we need O(B) symbols to
+handle all possible errors (including the case in which the input tape is too long, way more than B).
+Also, it is necessary that all error chains that we allow as outputs must be locally checkable.
+Another interesting problem is to identify, for an LCL that can be distributedly solved in constant
+time, how big this constant can be. In particular, we ﬁrst focus on identifying the simplest possible
+description of an LCL, and then, we provide a lower bound on the complexity of a constant time
+LCL, as a function of the size of the LCL description. For this purpose, we consider β-normalized
+LCLs, i.e., problems for which the input labeling is just binary and there are β possible output
+labels. Also, the veriﬁer for these LCLs is the simplest possible: it can only check if the output of a
+node is correct w.r.t. its input, and separately, if the output of a node is correct w.r.t. the output of
+its predecessor. Therefore, we show how to convert an LCL to a β-normalized one by encoding the
+input in binary (Figure 3 shows an example), and obtain the following result.
+There are β-normalized LCLs that can be solved in constant time but the distributed time
+complexity is 2Ω(β).
+All results that we have been described so far apply to globally oriented paths. Nevertheless, we
+show that ideas and techniques can be generalized to work on undirected path and cycles as well,
+obtaining essentially the same results. Finally, we will show how to lift these results to trees without
+input labels, proving the following result.
+It is PSPACE-hard to distinguish whether a given LCL problem P without input labels can be
+solved in O(1) time or needs Ω(n) time on trees with degree ∆= 3.
+5
+
+--- Page 7 ---
+3.1
+Linear Bounded Automata
+A Linear Bounded Automata MB is a Turing Machine having a bounded tape of size at most B,
+such that it is able to recognize the boundaries of the tape [18, p. 225]. More formally, we deﬁne an
+LBA as a tuple of 5 elements M = (Q, q0, qf, Γ, δ), where
+• Q is a ﬁnite set of states;
+• q0 ∈Q is the initial state;
+• qf ∈Q is the ﬁnal state;
+• Γ is a ﬁnite set of tape alphabet symbols that contains integers 0, 1, and special symbols L
+(left), and R (right);
+• δ is the transition function, where δ: Q \ {qf} × Γ →Q × Γ × {−, ←, →}.
+The tape of MB is initialized as follows:
+• the ﬁrst cell is marked with the symbol L;
+• the last cell is marked with the symbol R;
+• all other cells contain an integer in {0, 1}.
+An execution of an LBA is a sequence (stepi | i ∈{1, . . . , t}), where
+• stepi = (statei, tapei, headi);
+• statet = qf;
+• δ(statei, tapei[headi]) = (statei+1, tapei+1[headi], ϵ), and headi+1 is
+– headi −1 if ϵ is ←;
+– headi if ϵ is −;
+– headi + 1 if ϵ is →.
+3.2
+The LCL Problem
+We deﬁne a family Π of LCLs, in which each problem ΠMB depends on the LBA MB. The general
+idea is that the input of the LCL may encode the execution of an LBA MB. If it is the case, nodes
+are required to solve a problem that requires a time proportional to the execution time of MB. On
+the other hand, if it is not the case, nodes can produce an output that proves that this encoding is
+wrong. In order to deﬁne valid LCLs, we consider the case where B = O(1), that is, the size of the
+tape does not depend on the size of the distributed network.
+3.2.1
+Input Labels
+We deﬁne the input labels of our LCL as follows:
+• Start(φ), where φ ∈{a, b}, indicates a symbol that will be used as some kind of secret;
+• Separator, a label that acts as a separator between two steps of MB;
+• Tape(c, s, h) gives information about the tape and the state of MB, where the content c ∈
+{0, 1, L, R}, the state s ∈Q, and the head h ∈{true, false};
+• Empty, indicating an empty input.
+Note that the size of the set of possible input labels does not depend on the size B of the tape.
+6
+
+--- Page 8 ---
+3.2.2
+Encoding an LBA on a Path
+Suppose we have a consistent global orientation in the path P = (p0, p1, p2, . . . , pn−1). Let step =
+ stepi = (statei, tapei, headi) | i ∈{1, . . . , t}
+
+be the execution of the LBA MB starting from a tape
+initialized with (L, 0, . . . , 0, R).
+Deﬁnition 1. The input of the LCL is a good input if the ﬁrst node of the path has in input
+Start(φ), where φ ∈{a, b}, and the rest of the path correctly encodes the execution of an LBA MB
+initialized with (L, 0, . . . , 0, R) (see Figure 1). More precisely:
+• Input(p0) = Start(φ);
+• Input(p(i−1)(B+1)+1) = Separator for i ∈1, . . . , t;
+• Input(p(i−1)(B+1)+1+j) = Tape(c, s, h) for i ∈1, . . . , t, j ∈{1, . . . , B}, where
+– c = tapei[j];
+– s = statei;
+– h = true if headi = j, otherwise h = false;
+• All other nodes have in input Empty.
+3.2.3
+Output Labels
+The set of output labels is the following.
+• Start(φ);
+• Empty;
+• Error: a generic error label;
+• Error0(i) where 0 ≤i ≤B + 1: an error of type 0 indicating that the machine is not correctly
+initialized;
+• Error1(i), where 0 ≤i ≤B: an error of type 1 that we will use in the case where the size of
+the tape is not correct, i.e., when the size of the tape is not B;
+• Error2(x, i), where x ∈{0, 1, L, R} and 0 ≤i ≤B + 1: an error of type 2 used when the tape
+of MB is wrongly copied;
+• Error3: an error of type 3 is used in case nodes have inconsistent states;
+• Error4(current state, tape content, i), where 0 ≤i ≤B + 2: an error of type 4 indicating that
+the transition of MB is encoded incorrectly (this error captures also the case where the head
+is missing);
+• Error5(x) where x ∈{0, 1}: an error of type 5 used in the case when there is more than one
+head.
+3.2.4
+LCL Constraints
+The high level idea is the following. If the path encodes a good input, then nodes that are not
+labeled Empty are required to output the input given to the ﬁrst node of the path (either a or b).
+Otherwise, nodes can produce a locally checkable proof of an error (see Figure 2 for an example).
+While nodes may output a or b even in the case in which the input is not a good input, nodes
+must not be able to produce a proof error in the case in which the path encodes a good input. We
+describe all these requirements as locally checkable constraints.
+An output labeling for problem ΠMB is correct if the following conditions are satisﬁed for nodes
+of the path P = (p0, . . . , pn−1). Note that, although nodes do not know their position on the path,
+for the sake of simplicity we will denote with pi−1 the predecessor of pi, if it exists.
+7
+
+--- Page 9 ---
+1. Each node v produces exactly one output label.
+2. If Output(v) = Empty then Input(v) = Empty.
+3. If v has no predecessors (i.e., v = p0) and Output(v) = Start(φ), then Input(v) = Start(φ).
+4. If Output(pi−1) = a then Output(pi) ̸= b, and if Output(pi−1) = b then Output(pi) ̸= a.
+5. If Output(pi) = Error0(j), then
+• if j = 0 then the node has no predecessor;
+• if j > 0 then Output(pi−1) = Error0(j −1).
+6. If Output(pi) = Error1(j), then
+• if j = 0, then Input(pi) = Separator;
+• if j > 0 then Input(pi) ̸= Separator and Output(pi−1) = Error1(j −1).
+7. If Output(pi) = Error2(x, j), then
+• if j = 0, then Input(pi) = Tape(c, s, h) where h = false, c = x;
+• if j = B + 1 then Input(pi) = Tape(c, s, h) where c ̸= x;
+• if 0 < j < B + 1 then Output(pi−1) = Error2(x, j −1).
+8. If Output(pi) = Error3, then Input(pi) = Tape(c, s, h), Input(pi−1) = Tape(c′, s′, h′), and s ̸= s′.
+9. If Output(pi) = Error4(current state, tape content, j), let (transition state, new content, ϵ) =
+δ(current state, tape content)
+• if j = 0, then Input(pi) = Tape(c, s, h) where c = tape content, s = current state, h = true;
+• if j = B and ϵ = ←, or j = B +1 and ϵ = −, or j = B +2 and ϵ = →(i.e., if node pi is an
+“Error4 ﬁnal node”), then either current state is a ﬁnal state or Input(pi) = Tape(c, s, h)
+where s ̸= transition state or h = false;
+• otherwise, then Output(pi−1) = Error4(current state, tape content, j −1).
+10. If Output(pi) = Error5(x)
+• if Output(pi−1) ̸= Error5 then Input(pi) = Tape(c, s, h) where h = true and x = 0.
+11. If Output(pi) = Error then one of the following condition holds:
+• Input(pi) ̸= Start(φ) and pi has no predecessors;
+• Input(pi) = Start(φ) and pi has a predecessor;
+• Input(pi−1) or Output(pi−1) is Empty;
+• Output(pi−1) = Error;
+• Output(pi−1) = Error0(j), j > 0, and
+– if j = 1 then Input(pi−1) ̸= Separator;
+– if j ≥2 then either Input(pi−1) ̸= Tape, or Input(pi−1) = Tape(c, s, h) and:
+∗if j = 2 either c ̸= L, or s ̸= q0 or h = false;
+∗if 2 < j ≤B either c ̸= 0, or s ̸= q0 or h = true;
+8
+
+--- Page 10 ---
+∗if j = B + 1, either c ̸= R, or s ̸= q0 or h = true;
+• Input(pi) = Separator and Output(pi−1) = Error1(x) where x ̸= B;
+• Input(pi) ̸= Separator and Output(pi−1) = Error1(B);
+• Output(pi−1) = Error2(x, j) where j = B + 1;
+• Output(pi−1) = Error3;
+• pi−1 is an “Error4 ﬁnal node”;
+• Output(pi−1) = Error5(x) and Input(pi−1) = Tape(c, s, h) where h = true and x = 1.
+12. If Output(pi) is of type Errorx, then Output(pi−1) must not be of type Errory where y ̸= x.
+The following property directly holds by deﬁnition of the constraints.
+Property 1. Each node is able to locally check all constraints by just inspecting its own input and
+output, and the ones of its predecessor (if it exists).
+3.3
+Upper Bound on the Complexity of the LCL
+We need to consider two possible scenarios: either MB terminates within time T, or MB loops. In
+the case in which MB loops, we show a simple O(n) algorithm that solves the LCL ΠMB. As we
+know, any problem for which a solution exists can be solved in O(n) rounds in the LOCAL model by
+gathering all the graph and solving the problem locally. There always exists a solution for problem
+ΠMB if MB loops, in fact:
+• If Input(p0) = Start(φ), then all nodes output φ, even if there are errors in the machine
+encoding.
+• Otherwise, if Input(p0) ̸= Start(φ), all nodes output Error.
+It is easy to see that this output satisﬁes the LCL constraints described above.
+Suppose that MB terminates. In this case, we show how to solve the LCL problem ΠMB in
+constant time. More precisely, if MB terminates in T rounds, we show a distributed algorithm that
+solves ΠMB in T ′ = 2+(B +1)T rounds. Each node v starts by gathering its T ′-radius neighborhood
+Bv(T ′). Notice that, by deﬁnition, if the input is a good input, then for each node v that is taking
+part in the encoding of the execution of MB (i.e., Input(v) ̸= Empty), Bv(T ′) contains p0. Hence, if
+a node v does not see p0 after gathering its ball Bv(T ′), it means that the input is not a good input.
+So, after gathering its T ′-radius ball, each node v does the following.
+• If Input(v) = Empty, then Output(v) = Empty.
+• If Bv(T ′) does not contain p0, or if Input(p0) ̸= Start(φ), then v outputs Error.
+• If Bv(T ′) is a good input, then v outputs Start(φ).
+The remaining case that we still need to handle is when Bv(T ′) contains p0, Input(p0) = Start(φ),
+but Bv(T ′) does not look like a good input. We want nodes to produce a proof of an error in some
+consistent way. Thus, we show that nodes can identify the ﬁrst error and produce a proof based on
+that. First of all, notice that, since v sees the ﬁrst node in the path, v can compute its position i on
+the path. Also, node v can identify who is the ﬁrst node u not satisfying the constraints of being a
+good input. Let j be the position of u in the path, that is u = pj. Now we distinguish the following
+cases based on Bu(B + 2) (the output of each node will be determined by the ﬁrst case encountered
+in the following list).
+9
+
+--- Page 11 ---
+1. If Input(pj) = Start(φ) and j ̸= 0, then, if i < j, Output(v) = Start(φ); otherwise Output(v) =
+Error.
+2. If j ≤B + 1, it means that either the initial state is encoded incorrectly, or the tape is not
+initialized correctly, or the head is not initialized on the correct position. In this case, if i ≤j,
+then Output(v) = Error0(i), otherwise Output(v) = Error.
+3. If Input(pj−(B+1)) = Separator and Input(pj) ̸= Separator, then the length of the tape is too
+long, and u expected to have in input Separator. Then, if i < j −(B +1), Output(v) = Start(φ);
+if i > j then Output(v) = Error; otherwise, Output(v) = Error1(i −j + B + 1).
+4. If Input(pj) = Separator and there exists a k such that 1 ≤j −k < B + 1 such that
+Input(pk) = Separator, then the length of the tape is too short, and u did not expect to have a
+separator. In this case, if i < k then Output(v) = Start(φ); if i ≥j then Output(v) = Error;
+otherwise Output(v) = Error1(k −i).
+5. If Input(pj−(B+1)) = Tape(c, s, h) where h = false, c = x, and Input(pj) = Tape(c′, s′, h′), where
+c′ ̸= x, then the tape of MB has been copied incorrectly. In this case, if i < j −(B + 1), then
+Output(v) = Start(φ); if i > j then Output(v) = Error; otherwise, Output(v) = Error2(x, i −j +
+B + 1).
+6. If Input(pj) = Tape(c, s, h) and Input(pj−1) = Separator and there exists a k < j + B such
+that Input(pk) = Tape(c′, s′, h′) and that s ̸= s′, it means that nodes have inconsistent states.
+Consider the minimum k satisfying the constraints. If i < k then Output(v) = Start(φ); if
+i > k then Output(v) = Error; otherwise, Output(v) = Error3.
+7. If none of the above is satisﬁed, it means that there exist a k satisfying j −k ≤B +2, such that
+Input(pk) = Tape(c, s, h) and h = true. Let (transition state, new content, ϵ) = δ(s, c). It holds
+that if ϵ is ←, −, or →, then j−k is respectively B, B+1, or B+2. If Input(pj) = Tape(c′, s′, h′),
+where either h′ = false, or transition state ̸= s′, or s is a ﬁnal state, then there is some
+error in the transition (this captures also the case where there is no head). If i < k, then
+Output(v) = Start(φ); if i > j then Output(v) = Error; otherwise, Output(v) = Error4(s, c, k−i).
+Notice that this case captures also the one where the head is missing.
+8. If Input(pj) = Tape(c, s, h) where h = true, since all the above cases are not satisﬁed, it means
+that there exists a k, such that Input(pk) = Tape(c′, s′, h′), h′ = true, |j −k| < B and all nodes
+pmin(j,k), . . . , pmax(j,k) are labeled with some Tape. That is, there are at least two heads, one
+on node pj and one on node pk. In this case, if i < min(j, k), then Output(v) = Start(φ); if
+i > max(j, k) then Output(v) = Error; if i = min(j, k) then Output(v) = Error5(0), otherwise
+Output(v) = Error5(1).
+If the path encodes a good input, every node taking part in the encoding of the execution of MB
+outputs Start(φ), and in this case it is easy to see that the output satisﬁes the LCL constraints.
+Therefore, assume that the path does not correctly encode the execution of MB starting from
+the correct tape content. First of all, notice that the algorithm handles all possible errors in the
+machine encoding, that is, if the input is not good, at least one case of the list applies. Consider
+all nodes v that do not have in input Empty, that is, all nodes taking part in the encoding of the
+execution of MB. If node v sees the ﬁrst node p0, i.e., if the distance between p0 and v is at most
+T ′ (notice that a good input has length T ′), then it is easy to see that the output satisﬁes the LCL
+constraints. Some care is needed in the case where a node v outputs a generic error Error and v
+does not see p0: we need to show that also in this case the output is valid, meaning that the LCL
+10
+
+--- Page 12 ---
+constraints are satisﬁed. In this case, the distance between p0 and v is strictly greater than T ′, and
+since the encoding of the execution of MB is not correct, then
+• either the path (p0, . . . , v) does not correctly encode the execution of MB,
+• or MB is not correctly initialized and it loops.
+In the ﬁrst case, some node on the path between p0 and v will output some speciﬁc error Errorx where
+x > 0, while in the second case initial nodes will output Error0. In both scenarios the constraints for
+Error are satisﬁed. The complexity of the algorithm is O(B · T).
+3.4
+Lower Bound on the Complexity of the LCL
+Let us deﬁne T ′′ as follows. If MB terminates in time T, then T ′′ = T ′ = 2 + (B + 1)T. If MB loops,
+then T ′′ = n. We prove a lower bound on the complexity of ΠMB of Ω(T ′′) rounds, by showing that
+Ω(T ′′) rounds are needed in the case where the input is a good input. In particular, we show that,
+in a good input, for all nodes v such that Input(v) ̸= Empty, Output(v) must be Start(φ). The result
+then comes from the fact that, for some nodes, it requires Ω(T ′′) rounds in order to see if φ = a or
+φ = b.
+First of all, we ignore nodes that have in input Empty since, in a good input, they are at distance
+at least T ′′ + 1 from p0, the ﬁrst node of the path. Hence, assume that a node v not having Empty in
+input does not output Start(φ). In this case, v can either output a generic error Error, or a speciﬁc
+error Errorx. If all nodes output Error, the veriﬁer rejects on p0. If all nodes, starting from a node
+pi where i > 0, output Error, and all nodes pi′ with i′ < i output Start(φ), then the veriﬁer rejects
+on pi. Therefore, let us assume that there is at least a node that outputs a speciﬁc error Errorx. We
+write succ(v) and dist(u, v) to denote respectively the successor of a node v in the path, and the
+distance between two nodes u and v in the path.
+• If x = 0, the veriﬁer accepts only if this error produces a chain that starts from p0 and
+proceeds with increasing values. In order to be accepted, this chain must end at a node w′,
+and succ(w′) must output Error. Then, succ(w′) must witness that w′ indeed has a local error
+in the machine initialization, which is not possible in a good input.
+• If x = 1, we could have two cases:
+– there is a chain of increasing values that starts from a node w with Input(w) = Separator,
+and ends on a node w′ such that dist(w, w′) < B, Input(succ(w′)) = Separator, and
+Output(succ(w′)) = Error (the tape is too short);
+– there is a chain of increasing values that starts from a node w with Input(w) = Separator,
+and ends on a node w′ such that dist(w, w′) = B, Input(succ(w′)) ̸= Separator, and
+Output(succ(w′)) = Error (the tape is too long).
+Since, in a good input, the distance between two nodes having in input Separator is always
+B + 1, the above scenarios are not possible.
+• If x = 2, there must be a chain of length exactly B + 1, starting from a node w having
+Input(w) = Tape(c, s, h), where c = x ∈{0, 1}, h = false, and ending on a node w′ such that
+dist(w, w′) = B + 1, and Input(w′) = Tape(c′, s′, h′), where c′ ̸= x. In a good input, the tape
+content of nodes w and w′ must be the same.
+• If x = 3, it means that there must exist two neighbors having two diﬀerent states, and this
+can not happen in a good input.
+11
+
+--- Page 13 ---
+• If x = 4, there must be a chain that propagates the old state and old input, and the veriﬁer
+accepts only if acknowledges that the transition has been wrongly encoded, which can not the
+case in a good input.
+• If x = 5, there must be a chain of length at least 2 not passing through nodes having in input
+Separator, starting from a node w with Input(w) = Tape(c, s, h) where h = true, and ending
+on a node w′ with Input(w′) = Tape(c′, s′, h′) where h′ = true. This is not possible on a good
+input.
+Therefore, since nodes can not output any kind of error, and since Empty is not a valid output for
+the nodes encoding the LBA, then these nodes must output Start(φ), where the value of φ matches
+the input of the ﬁrst node of the path. Hence, ΠMB requires Ω(T ′′).
+3.5
+Normalizing an LCL Problem
+We now show how to β-normalize an LCL ΠMB and obtain a new LCL having roughly the same time
+complexity. We deﬁne three diﬀerent veriﬁers depending on their view.
+• A Vin,in −out,out veriﬁer running at node v, checks Input(v), Input(pred(v)), Output(v), and
+Output((pred(v)).
+• A Vin −out veriﬁer running at node v, checks Input(v) and Output(v).
+• A Vout −out veriﬁer running at node v checks Output(v) and Output((pred(v)).
+Lemma 2. Consider an LCL P with |ΣP
+in| = α and |ΣP
+out| = β that can be solved in time T and can
+be locally checked with a Vin,in −out,out veriﬁer. It is possible to deﬁne an LCL P′ such that |ΣP′
+in | = α
+and |ΣP′
+out| = α · β that can be solved in time T and can be locally checked with a Vin −out and a
+Vout −out veriﬁer.
+Proof. We deﬁne ΣP′
+in = ΣP
+in, and ΣP′
+out = ΣP
+out × ΣP
+out. Let Output(v) = (in, out) ∈ΣP′
+out. Let
+Output(pred(v)) = (in′, out′) ∈ΣP′
+out. The Vin −out veriﬁer checks that Input(v) = in. The Vout −out
+veriﬁer acts the same as the Vin,in −out,out veriﬁer executed on ((in′, out′), (in, out)). The LCL problem
+P′ can be solved with the following algorithm at each node v.
+• Gather the ball Bv(T).
+• Simulate the original algorithm on Bv(T); let out be the output of this simulation.
+• Output (Input(v), out).
+It is easy to check that this output is valid for the problem P′, and that it requires T rounds. Also,
+note that it is not possible to solve P′ faster than T. In fact, in order to satisfy the Vin −out veriﬁer,
+the input must be copied correctly; while in order to satisfy the Vout −out veriﬁer, we need to satisfy
+the Vin,in −out,out veriﬁer executed giving the same input that it would have seen on P.
+Lemma 3. Consider an LCL P with |ΣP
+in| = α and |ΣP
+out| = β that can be solved in time T and can
+be locally checked with a Vin −out and a Vout −out veriﬁer. We can deﬁne a β′-normalized LCL P′
+with β′ = |ΣP′
+out| = 2γ · (|ΣP
+out| + 3) that can be solved in time Θ(γ · T(n/γ)), where γ = 2⌈log α⌉+ 3.
+Proof. In the following we will exploit the ability of an algorithm to work on identiﬁers that can
+be polynomial in the size of the graph. In particular, we assume that if an algorithm works on an
+instance with IDs in the range 1, . . . , r, then it works also on an instance with IDs in the range
+1, . . . , γ · r. Then, we show how to deﬁne an LCL P′ such that:
+• if the input instance encodes a virtual instance for the problem P, it is required to solve P on
+the virtual instance;
+12
+
+--- Page 14 ---
+• otherwise, it is required to prove that the encoding is wrong.
+Let V′
+in −out and V′
+out −out be the veriﬁers of our β′-normalized LCL.
+Encoding P in P′.
+We start by deﬁning how to encode an instance of P of size n, as an
+instance of P′ of size N = γ · n. We denote with p0, . . . , pn−1 and p′
+0, . . . , p′
+γ·n−1 respectively the
+instance of P and the one of P′. Let a = ⌈log α⌉. For the sake of simplicity, let us rename nodes
+p′
+γi, . . . , p′
+γ(i+1)−1, where 0 ≤i ≤n −1, as qi
+0, . . . , qi
+2a+2 (notice that 2a + 2 = γ −1). The ﬁrst a + 1
+nodes, qi
+0, . . . , qi
+a, have input 1, while nodes qi
+a+1 and qi
+2a+2 have input 0. Each of the remaining a
+nodes, qi
+a+2, . . . , qi
+2a+1, has in input one bit of the binary representation of Input(pi), in some ﬁxed
+order (see Figure 3 for an illustration).
+The V′
+in −out Veriﬁer.
+The set of output labels of P′ is ΣP′
+out = 2γ × (Σout ∪{Er, E, El}). Let qi
+j
+be a node of the instance of P′ where 0 ≤i ≤n −1 and 0 ≤j ≤2a + 2. Let Input(qi
+j) ∈{0, 1}, and
+let Output(qi
+j) = ((b0, . . . , b2a+2), out) ∈ΣP′
+out. The V′
+in −out veriﬁer running at qi
+j checks that
+• Input(qi
+j) = b0, and
+• if out ∈ΣP
+out, then
+– if all bits in b0, . . . , ba are 1s, checks that the original Vin −out veriﬁer accepts on
+(x, out), where x is obtained by recovering the input pi for the original algorithm from
+ba+2, . . . , b2a+1.
+The V′
+out −out Veriﬁer.
+Let the output of pi
+j be ((b0, . . . , b2a+2), out) ∈ΣP′
+out and the output of
+the predecessor of pi
+j be ((b′
+0, . . . , b′
+2a+2), out′) ∈ΣP′
+out The O-O veriﬁer ﬁrst checks that
+• b0 = b′
+1, b1 = b′
+2, . . . , b2a+1 = b′
+2a+2, and
+• if out ∈ΣP
+out and out′ ∈ΣP
+out, then
+– if at least one bit in b0, . . . , ba is 0 , then out = out′,
+– if all bits in b0, . . . , ba are 1s, then check that the original Vout −out executed on (out′, out)
+accepts.
+Dealing with Errors.
+We now add some constraints to handle the case in which out /∈
+ΣP
+out. Let the output of pi
+j be ((b0, . . . , b2a+2), out) and the output of the predecessor of pi
+j be
+((b′
+0, . . . , b′
+2a+2), out′). The V′
+in −out veriﬁer additionally checks that, if out = E, then the encoding is
+not locally valid, that is,
+• either
+– there are two numbers x, y ≥0, x + y ≤a, such that b0, . . . , bx−1 and b2a+3−y, . . . , b2a+2
+are all equal to 1, bx = 0, b2a+2−y = 0, and
+– there is not a contiguous sequence of length a + 1 of all 1s in b0, . . . , b2a+2,
+• or b0, . . . , ba are all 1s but either ba+1 ̸= 0 or b2a+2 ̸= 0.
+The V′
+out −out veriﬁer running on pi
+j additionally checks that,
+• if out = El, then pi
+j must have a predecessor, and it must hold that out′ /∈{Er} ∪ΣP
+out;
+• if out ∈ΣP
+out, if pi
+j has a predecessor, then out′ must be diﬀerent from Er;
+• if out = Er, then pi
+j must have a successor.
+13
+
+--- Page 15 ---
+Let N be the size of the graph. An algorithm solving P′ in (γ + 1) · T rounds does the following at
+each node v′:
+• Gather the ball Bv′((γ + 1) · T).
+• If Bv′((γ + 1) · T) looks like a correct encoding of an input instance of P
+– let u′ be the nearest left node having input 1 and other a successors, succ(1)u′, . . . , succ(a)u′,
+having also input 1
+– Compute the virtual instance for P (setting the IDs to be the same of the nodes satisfying
+the above)
+– Simulate the original algorithm on the virtual instance by setting n = N/γ, let out be
+the output of u′
+– Output ((Input(v′), Input(succ(1)v′), . . . , Input(succ(γ−1)v′), out)
+• Otherwise,
+– if there is a local error, output E
+– if the nearest error is on the left, output El
+– otherwise, output Er
+It is easy to check that the output of the algorithm satisﬁes the constraints. In order to show a
+lower bound for the new LCL, we now show that it is not possible to produce errors in a graph
+that is a valid encoding. In fact, nodes can not cheat by wrongly outputting the input of the
+neighbors, otherwise either the input-output veriﬁer notices inconsistencies on the ﬁrst bit, or the
+output-output veriﬁer notices inconsistencies on the other bits. Then, on a valid encoding, no input
+satisﬁes the constraints that allows to produce E as output. Finally, the constraints impose that a
+chain of Er or El points to a node that is outputting E.
+Note that, if the original LCL has complexity T, then the new LCL, on instances of size N = γ ·n,
+has complexity Θ(γ(T(n))) = Θ(γ · T(N
+γ )).
+3.6
+Hardness Results
+Theorem 4. There are β-normalized LCLs that can be solved in constant time but the distributed
+time complexity is 2Ω(β).
+Proof. The complexity of ΠMB is Θ(B · T) if MB terminates in T steps.
+|Σin| = O(1) and
+|Σout| = Θ(B). We can convert it to an LCL where |Σin| = 2, |Σout| = Θ(B), and the complexity is
+still Θ(B · T). There exist LBAs that terminate in 2Θ(B) steps (e.g. a binary counter). Thus, the
+complexity of the obtained LCL is Θ(B · 2Θ(B)), that is 2Ω(B) = 2Ω(|Σout|) = 2Ω(β).
+Theorem 5. It is PSPACE-hard to distinguish whether a given LCL problem P with input labels
+can be solved in O(1) time or needs Ω(n) time on globally oriented path graphs.
+Proof. It is PSPACE-hard to distinguish whether a given LBA terminates or loops (see e.g. [10]).
+Note that the description of a β-normalized LCL has size O(β2). In order to decide if a β-normalized
+version of a problem in Π requires O(1) or Ω(n) we need to decide if its associated LBA, running on
+a tape of size B = Θ(β), terminates or loops, and this implies the theorem.
+14
+
+--- Page 16 ---
+3.7
+Extending the Results to Undirected Cycles
+We show how to extend the above results, which apply to globally oriented paths, to the case where
+the input graph is an undirected path or an undirected cycle. We ﬁrst focus on showing how to
+adapt these results to undirected paths. Given a β-normalized LCL P deﬁned on directed paths,
+we can deﬁne an LCL P′ in which the set of input labels is Σ′
+in = {0, 1} × {0, 1, 2}, and the set of
+output labels is Σ′
+out = {0, 1, 2} × {1, . . . , β, E}. Let Vin −out and Vout −out be the veriﬁers of the
+β-normalized LCL P, and let V′
+in −out and V′
+out −out be the veriﬁers of the LCL P′. The idea is that
+we can use 3 symbols to give an orientation as input to the nodes, by giving 0 to the ﬁrst node, 1 to
+the second, 2 to the third, 0 to the fourth, and so on. Nodes must copy their orientation number to
+the output, and then, if the given orientation is consistent, nodes are required to solve the original
+problem P. On the other hand, if the orientation is not consistent, nodes are allowed to output an
+error E. Also, in order to avoid the need of error pointers, we allow nodes to treat the places where
+the orientation is not consistent, as a place where the path ends.
+This new LCL can be checked as follows. The V′
+in −out veriﬁer takes in input the input and
+the output of the current node (as before) and ﬁrst checks that the orientation has been copied
+correctly, and then checks that the original Vin −out veriﬁer accepts. To verify the output, we allow
+the V′
+out −out veriﬁer to see slightly more than the original veriﬁer Vout −out. The V′
+out −out veriﬁer
+sees a triple containing the output of the node and the outputs of its neighbors. Note that the
+veriﬁer does not know the orientation of the path (and the orientation of the triple), but it can
+recover it from the output of the nodes (that contains a copy of the orientation given as input).
+Then the V′
+out −out veriﬁer checks that, if the node outputted E, the orientation is indeed wrong. If
+the output is a value in 1, . . . , β, the veriﬁer V′
+out −out runs the original Vout −out veriﬁer, since it
+can compute which neighbor is the predecessor. It is easy to see that the complexity of P′ is the
+same as the one of P.
+The LCL description of P′, that is, the size of its input, its output, and its veriﬁer, is now O(β3),
+therefore the hardness result still applies.
+We now show how an LCL for paths can be converted to an LCL for cycles. The idea is the
+following. On a cycle, we give an additional input to each node in {0, 1}. Nodes marked as 1 are
+exempt to solve the problem and act as separators between the other nodes. That is, nodes are
+required to solve the original problem on the subpaths that lie between nodes marked as 1. It may
+be the case that no node has 1 as input. In this case we allow nodes to output a special error. If a
+node decides to output this error, both its neighbors must output the same, that is, all nodes must
+output the same. We impose the constraint that a node marked as 1 can not output this error. A
+worst case instance would be the one in which one node is marked 1 and all other nodes are marked
+0—this would represent a path with a length that is roughly equal to the one of the cycle. There
+is one case that requires a bit of care: if all nodes are marked 0, but the original problem can be
+solved in sublinear time, nodes could not be able to coordinate to produce the special error. For our
+purpose, it is possible to check that, if we consider the problem ΠMB previously deﬁned in the case
+in which MB terminates, in an instance in which nobody has a predecessor, nodes can eﬃciently
+solve the problem by just outputting Error or Empty, depending on their input.
+3.8
+Encoding Input Labels as Trees
+In this section we demonstrate a reduction from the LCL problem P with input labels on any graph
+G to an LCL problem P⋆without input labels on the modiﬁed graph G⋆. The modiﬁed graph G⋆
+is the result of attaching a rooted tree to each v ∈V (G) that encodes the input label of v for the
+LCL problem P. The reduction allows us to extend the hardness proof to the case of LCL problems
+15
+
+--- Page 17 ---
+without input labels.
+Encoding.
+Given a 2k-bit binary string S = (s1, . . . , s2k), deﬁne Enc(S) as the rooted tree
+constructed as follows.
+• Begin with the full binary tree which has 2k leaves, and the distance from the root to each
+leaf is k.
+• For each non-leaf node v, let u be any one of its two children, and subdivide the edge {v, u}
+into two edges {v, w} and {w, u}, where w is a new node. The node w is designated as the
+left child of v.
+• Let U = (u1 . . . , u2k) be the leaves ordered by the in-order traversal.
+• For each i ∈[2k], add two new nodes x and y as the children of ui. If si = 1, add two more
+new nodes x′ and y′ and the two edges {x, x′} and {y, y′}.
+The tree Enc(S) has maximum degree 3, and all nodes are within distance 2(k + 1) to the root.
+Given a graph G such that each node v ∈V (G) is associated with an input label L(v) ∈Σin, deﬁne
+G⋆as the graph resulting from the following operations on G. For each node v ∈V (G), attach the
+rooted tree T = Enc(L(v)) to v by adding the edge {v, z}, where z is the root of T. Notice that
+∆(G⋆) = max{3, ∆(G) + 1}.
+Decoding.
+Given a rooted tree T = Enc(S) for some S ∈{0, 1}2k, deﬁne Dec(T) = S. The
+decoding can be done by the following procedure. Consider an in-order traversal of the tree such
+that (i) for each node v such that exactly one of its children w has degree 2, treat w as the left child
+of v, (ii) print ‘1’ if a node that has two children of degree 2 is encountered, (iii) print ‘0’ if a node
+that has two children of degree 1 is encountered. Then the printed sequence is S.
+The Modiﬁed LCL Problem P⋆.
+Let P be an LCL problem with input labels. Suppose that
+the radius of P is r, and the maximum degree is ∆. Set k = ⌈log log |Σin|⌉, and let each label in Σin
+be represented by a distinct 2k-bit string. The modiﬁed LCL problem P⋆, which does not require
+input label, is deﬁned by the following rules. The set of the output labels of P⋆is Σout, the same as
+that of P. Let G⋆be a graph with maximum degree ≤∆+ 1.
+• Deﬁne G1 = G⋆.
+For each 2 ≤i ≤k + 2, deﬁne Gi as the graph induced by nodes in V (G⋆) −Si−1
+j=1(Aj ∪Bj).
+For each i ∈[k + 2], deﬁne Ai = {v ∈V (Gi)| degGi(v) = 1}.
+For each i ∈[k + 1], deﬁne Bi = {v ∈V (Gi)| degGi(v) = 2 and ∃u ∈Ai s.t. {u, v} ∈E(Gi)}.
+• Deﬁne Vlabel = Sk+2
+j=1 Aj ∪Sk+1
+j=1 Bj.
+Deﬁne Vmain as the set of nodes in V (G⋆) \ Vlabel that have exactly one neighbor in Vlabel.
+• For each v ∈Vmain, deﬁne L(v) as follows. Let u be the unique node in Vlabel adjacent to
+v, and let T be the connected component induced by nodes in Vlabel that contains u. Set
+L(v) = Dec(T) (with u being the root of T). If the decoding procedure Dec(T) fails, simply
+set L(v) as the ﬁrst label in Σin.
+• The output labeling, together with the input labeling deﬁned by the function L(·), forms a
+legal labeling of the subgraph induced by the nodes in Vmain for P.
+16
+
+--- Page 18 ---
+Notice that the connected components in Vlabel are the trees encoding input labels, and the subgraph
+induced by the nodes in Vmain is G (as long as G does not contain isolated node). The function L(v)
+recovers the input label of v for each v ∈V (G). Given that P has a valid labeling on all graphs
+(resp., trees) of maximum degree ∆, the modiﬁed LCL problem P⋆also has a valid labeling on all
+graphs (resp., trees) of maximum degree ∆+ 1.
+Reducing the Radius.
+The above deﬁnition of P⋆requires radius r + O(k), as a node v ∈Vmain
+needs O(k) extra rounds to calculate L(u) for all u ∈Nr(v)∪Vmain. We present a simple modiﬁcation
+that reduces the radius to only r + O(1) at the cost of expanding the number of output labels from
+|Σout| to |Σout| + 22k < |Σout| + |Σin|2. The idea is to let nodes in Vlabel to use output labels to
+pass the information stored at the leaves to the root based on local rules. Consider a connected
+component T induced by nodes in Vlabel. The subgraph T is interpreted as a tree rooted at the
+unique node in T that is adjacent to some node in Vmain.
+Base Case: Let v ∈A2. If v is adjacent to two nodes in B1, the output label of v is 1; otherwise
+the output label of v is 0.
+Root / Degree-3 Nodes: Let 3 ≤i ≤k + 2, and let v ∈Ai. Then v has a unique neighbor
+uleft ∈Bi+1 and a unique neighbor uright ∈Ai+1. Let Sleft be the output label of uleft, and let
+Sright be the output label of uright. Then the output label of v is the binary string Sleft ◦Sright.
+Degree-2 Nodes: Let 3 ≤i ≤k + 1, and let v ∈Bi. Then v has a unique neighbor u ∈Ai+1. The
+output label of v is the same as the output label of u.
+Thus, for each node v ∈Vmain, L(v) is simply the output label of the unique node u ∈Vlabel ∩N(v).
+Theorem 6. For any LCL problem P on any graph G of maximum degree ∆that does not have
+isolated nodes, the following two statements are equivalent.
+• The labeling L: V (G) →Σout is a valid labeling of G for the problem P.
+• There exists some labeling L′ of the nodes in Vlabel such that L and L′ together form a valid
+labeling of G⋆for the problem P⋆.
+Theorem 7. It is PSPACE-hard to distinguish whether a given LCL problem P without input labels
+can be solved in O(1) time or needs Ω(n) time on trees with degree ∆= 3.
+4
+Decidability
+In this section, we show that the two gaps ω(1)—o(log∗n) and ω(log∗n)—o(n) for LCL problems
+with input labels on paths and cycles are decidable. More speciﬁcally, given a speciﬁcation of an
+LCL problem P, there is an algorithm that outputs a description of an asymptotically optimal
+deterministic LOCAL algorithm for P, as well as its time complexity.
+We will prove the statements for the case of cycles, but the analogous results for cycles and paths
+follows as a simple corollary, as we can encode constraints related to degree-1 nodes as constraints
+related to nodes adjacent to a special input label. Furthermore, having a promise that the input is
+a path does not change the time complexity of an LCL problem: if a problem can be solved in time
+T = o(n) in labeled paths, the same algorithm will solve it also in time T = o(n) in labeled cycles.
+The proof of Theorem 8 is in Section 4.2; the proof of Theorem 9 is in Section 4.5.
+17
+
+--- Page 19 ---
+Theorem 8. For any LCL problem P on cycle graphs, its deterministic LOCAL complexity is either
+Ω(n) or O(log∗n). Moreover, there is an algorithm that decides whether P has complexity Ω(n)
+or O(log∗n) on cycle graphs; for the case the complexity is O(log∗n), the algorithm outputs a
+description of an O(log∗n)-round deterministic LOCAL algorithm that solves P.
+Theorem 9. For any LCL problem P on cycle graphs, its deterministic LOCAL complexity is either
+Ω(log∗n) or O(1). Moreover, there is an algorithm that decides whether P has complexity Ω(log∗n)
+or O(1) on cycle graphs; for the case the complexity is O(1), the algorithm outputs a description of
+an O(1)-round deterministic LOCAL algorithm that solves P.
+Graph Notation.
+For convenience, in this section, a directed path P with input labels is
+alternatively described as a string in Σk
+in, where k > 0 is the number of nodes in P. Similarly,
+an output labeling L of P is alternatively described as a string in Σk
+out. In subsequent discussion,
+we freely switch between the graph-theoretic notation and the string notation. Given an output
+labeling L of P, we say that L is locally consistent at v if the input and output labeling assigned to
+Nr(v) is acceptable for v. Note that Nr(v) refers to the radius-r neighborhood of v. Given two
+integers a ≤b, the notation [a, b] represents the set of all integers {a, a + 1, . . . , b}. Given a string
+w, denote wR as the reverse of w.
+Overview.
+Before we proceed, we brieﬂy discuss the high level idea of the proofs. The main tool
+underlying the proofs is the “pumping lemma” which was developed in [6]. Intuitively, we classify
+the set of all input-labeled paths into a ﬁnite number of equivalence classes satisfying the following
+property. Let P be a subpath of G, and let P ′ be another path that is of the same equivalence
+class as P. Given a complete legal labeling of G, if we let G′ be the result of replacing P with
+P ′, then it is always possible to extend this partial labeling of G′ to a complete legal labeling by
+appropriately labeling P ′. The pumping lemma guarantees that for any path P whose length is
+at least the pumping constant ℓpump, and for any number x ≥ℓpump, there is another path P ′ of
+length at least x and P ′ is of the same equivalence class as P.
+Informally, in the proof of Theorem 8, we show that any LCL problem P solvable in o(n) rounds
+can be solved in O(log∗n) rounds in the following canonical way based on a “feasible labeling
+function” f. Intuitively, a labeling function f is feasible if for any given independent set I that is
+suﬃciently well-spaced, we can apply f to assign the output labels to each v ∈I and its nearby
+neighbors locally such that this partial labeling can always be extended to a complete legal labeling.
+The ω(log∗n)—o(n) gap and the decidability result follows from these two claims.
+• If there is an o(n)-round algorithm A that solves P, then a feasible function f exists. This
+is proved by ﬁrst create an imaginary graph where some paths are extended using pumping
+lemmas, and then apply a simulation of A on the imaginary graph.
+• Whether a feasible function exists is decidable. Intuitively, this is due to the fact that the
+number of equivalence classes is ﬁnite.
+The proof of Theorem 9 is a little more complicated since the time budget is only O(1), so
+we cannot even aﬀord to ﬁnd an MIS. To solve this issue, we decompose the cycle graph G into
+paths with unrepetitive patterns and paths with repetitive patterns, in O(1) rounds. For paths
+with unrepetitive patterns, we are able to compute a suﬃciently well-spaced MIS in O(1) rounds
+by making use of the irregularity of the input patterns. Paths with repetitive patterns are similar
+to the paths without input labels, and we will show that we can always label them by repetitive
+output patterns, given that the underlying LCL problem is o(log∗n)-time solvable.
+18
+
+--- Page 20 ---
+𝑠
+𝑡
+𝐷1
+𝐷1
+𝐷2
+𝐷2
+𝐷3
+𝑠
+𝑡
+𝐷1
+𝐷1
+𝐷2
+Figure 4: Illustration of the tripartition ξ(P) = (D1, D2, D3) with r = 3.
+4.1
+Pumping Lemmas for Paths
+Let P = (s, . . . , t) be a directed path, where each node has an input label from Σin. The tripartition
+of the nodes ξ(P) = (D1, D2, D3) is deﬁned as follows:
+D1 = Nr−1(s) ∪Nr−1(t),
+D2 =
+ N2r−1(s) ∪N2r−1(t)
+
+\ D1,
+D3 = P \ (D1 ∪D2).
+See Figure 4 for an illustration. More speciﬁcally, suppose P = (u1, . . . , uk), and let i ∈[1, k]. Then
+we have:
+• ui ∈D1 if and only if i ∈[1, r] ∪[k −r + 1, k].
+• ui ∈D2 if and only if i ∈[r + 1, 2r] ∪[k −2r + 1, k −r].
+• ui ∈D3 if and only if i /∈[1, 2r] ∪[k −2r + 1, k].
+Let L: D1 ∪D2 →Σout assign output labels to D1 ∪D2. We say that L is extendible w.r.t. P if
+there exists a complete labeling L⋄of P such that L⋄agrees with L on D1 ∪D2, and L⋄is locally
+consistent at all nodes in D2 ∪D3.
+An Equivalence Class.
+We deﬁne an equivalence class ⋆∼for the directed paths (i.e., the set of
+all non-empty strings in Σ∗
+in), as follows.
+Consider two directed paths P = (u1, . . . , ux) and P ′ = (v1, . . . , vy), and let ξ(P) = (D1, D2, D3)
+and ξ(P ′) = (D′
+1, D′
+2, D′
+3). Consider the following natural 1-to-1 correspondence φ: (D1 ∪D2) →
+(D′
+1 ∪D′
+2) deﬁned as φ(ui) = vi and φ(ux−i+1) = vy−i+1 for each i ∈[1, 2r].
+The 1-to-1
+correspondence is well-deﬁned so long as (i) x = y or (ii) x ≥4r and y ≥4r. We have P
+⋆∼P ′ if
+and only if the following two statements are met:
+• Isomorphism: The 1-to-1 correspondence φ is well-deﬁned, and for each ui ∈D1 ∪D2,
+the input label of ui is identical to the input label of φ(ui).
+• Extendibility: Let L be any assignment of output labels to nodes in D1 ∪D2, and let
+L′ be the corresponding output labeling of D′
+1 ∪D′
+2 under φ. Then L is extendible w.r.t.
+P if and only if L′ is extendible w.r.t. P ′.
+Note that for the special case of x ≤4r, we have P
+⋆∼P ′ if and only if P is identical to P ′.
+Deﬁne Type(P) as the equivalence class of P w.r.t. ⋆∼. The following technical lemma is analogous
+to [6, Lemma 1] in a specialized setting. We only use this lemma to prove the lemmas in Section 4.1.
+19
+
+--- Page 21 ---
+Lemma 10. Let G be a path graph or a cycle graph where all nodes have input labels from Σin. Let
+P be a directed subpath of G, and let P ′ be another directed path such that Type(P ′) = Type(P).
+We write ξ(P) = (D1, D2, D3) and ξ(P ′) = (D′
+1, D′
+2, D′
+3). Let L⋄be any complete labeling of G
+such that L⋄is locally consistent at all nodes in D2 ∪D3. Let G′ = Replace(G, P, P ′) be the graph
+resulting from replacing P with P ′ in G. Then there exists a complete labeling L′
+⋄of G′ such that
+the following two conditions are met.
+1. For each v ∈(V (G) \ V (P))∪(D1∪D2) and its corresponding v′ ∈(V (G′) \ V (P ′))∪(D′
+1∪D′
+2),
+we have L⋄(v) = L′
+⋄(v′). Moreover, if v ∈(V (G) \ V (P)) ∪D1 and L⋄is locally consistent at
+v, then L′
+⋄is locally consistent at v′.
+2. L′
+⋄is locally consistent at all nodes in D′
+2 ∪D′
+3.
+Proof. The labeling L′
+⋄(v′) of G′ for each v′ ∈(V (G′) \ V (P ′)) ∪(D′
+1 ∪D′
+2) is chosen “naturally”
+as follows.
+For each v′ ∈V (G′) \ V (P ′), we set L′
+⋄(v′) = L⋄(v) for its corresponding node
+v ∈V (G)\V (P). For each v′ ∈D′
+1∪D′
+2, we set L′
+⋄(v′) = L⋄(v) for its corresponding node v ∈D1∪D2
+such that φ(v) = v′ in the deﬁnition of ⋆∼. At this point, it is clear that if v ∈(V (G) \ V (P)) ∪D1
+has a locally consistent labeling under L⋄, then its corresponding node v′ ∈(V (G′) \ V (P ′)) ∪D′
+1
+also has a locally consistent labeling under L′
+⋄, so Condition 1 holds.
+Now, the labeling L′
+⋄is only undeﬁned for nodes in D′
+3. We show that we can complete the
+labeling in such a way that is locally consistent at all nodes in D′
+2 ∪D′
+3. Denote L as L⋄restricted
+to D1 ∪D2. Since L⋄is locally consistent at all nodes in P, the labeling L is extendible w.r.t. P.
+Note that if we let L′ be L⋄restricted to D′
+1 ∪D′
+2, then according to the way we deﬁne L′
+⋄, the two
+labeling L′ and L are identical under the 1-to-1 correspondence φ speciﬁed in the deﬁnition of ⋆∼.
+That is, for each v′ ∈D′
+1 ∪D′
+2, we have L′(v′) = L(v) for its corresponding node v ∈D1 ∪D2 such
+that φ(v) = v′. Since P
+⋆∼P ′, the labeling L′ must be extendible w.r.t. P ′. That is, there is a way
+to assign L′
+⋄(v′) for each v′ ∈D′
+3 such that all nodes in D′
+2 ∪D′
+3 have locally consistent labelings
+under L′
+⋄, so Condition 2 holds.
+One useful consequence of this lemma is that if we start with a path or a cycle G with a legal
+labeling, after replacing its subpath P with another one P ′ having the same type as P, then it
+is always possible to assign output labeling to P ′ to get a legal labeling without changing the
+already-assigned output labels of nodes outside of P ′.
+Lemma 11. Let G be a path graph or a cycle graph where all nodes have input labels from Σin. Let
+P be a directed subpath of G, and let P ′ be another directed path such that Type(P ′) = Type(P). Let
+L⋄be complete labeling of G that is locally consistent at all nodes in P. Let G′ = Replace(G, P, P ′)
+be the graph resulting from replacing P with P ′ in G. Then there exists a legal labeling L′
+⋄of G′
+such that the following two conditions are met.
+1. For each v ∈V (G) \ V (P) and its corresponding v′ ∈V (G′) \ V (P ′), we have L⋄(v) = L′
+⋄(v′).
+Moreover, if L⋄is locally consistent at v ∈V (G) \ V (P), then L′
+⋄is locally consistent at v′.
+2. L′
+⋄is locally consistent at all nodes in P ′.
+Proof. We write ξ(P ′) = (D′
+1, D′
+2, D′
+3). Condition 1 in this lemma is implied by Condition 1 in
+Lemma 10. To see that Condition 2 in this lemma holds, note that in this lemma we additionally
+require that L⋄is locally consistent at all nodes in P. Therefore, Condition 1 of Lemma 10 implies
+that L′
+⋄is locally consistent at all nodes in D′
+1. This observation, together with Condition 2 of
+Lemma 10, implies that L′
+⋄is locally consistent at all nodes in P ′.
+20
+
+--- Page 22 ---
+The following lemma is analogous to [6, Theorem 4] in a specialized setting. We only use this
+lemma in Section 4.1.
+Lemma 12. Let P = (v1, . . . , vk), and let P ′ = (v1, . . . , vk−1). Let the input label of vk be α. Then
+Type(P) is a function of α and Type(P ′).
+Proof. We prove the following stronger statement. Let G be a directed path, and let H be a
+directed subpath of G.
+Suppose H′ is another directed path satisfying Type(H) = Type(H′).
+Let G′ = Replace(G, H, H′) be the result of replacing H with H′ in G.
+Then we claim that
+Type(G) = Type(G′). The lemma is a corollary of this claim.
+Consider the tripartitions ξ(H) = (B1, B2, B3), ξ(H′) = (B′
+1, B′
+2, B′
+3), ξ(G) = (D1, D2, D3), and
+ξ(G′) = (D′
+1, D′
+2, D′
+3). We write B0 = V (G) \ V (H) and B′
+0 = V (G′) \ V (H′).
+Let φ⋆be the natural 1-to-1 correspondence from B0 ∪B1 ∪B2 to B′
+0 ∪B′
+1 ∪B′
+2. Note that
+D1 ∪D2 ⊆B0 ∪B1 ∪B2 and D′
+1 ∪D′
+2 ⊆B′
+0 ∪B′
+1 ∪B′
+2. Also, the 1-to-1 correspondence between
+D1 ∪D2 and D′
+1 ∪D′
+2 given by φ⋆is exactly the 1-to-1 correspondence φ speciﬁed in the requirement
+of G ⋆∼G′.
+Let L: (D1 ∪D2) →Σout and let L′ be the corresponding output labeling of D′
+1 ∪D′
+2, under
+the 1-to-1 correspondence φ. To show that G ⋆∼G′, all we need to do is show that L is extendible
+w.r.t. G if and only if L′ is extendible w.r.t. G′. Since we can also write G = Replace(G′, H′, H), it
+suﬃces to show just one direction, i.e., if L is extendible then L′ is extendible.
+Suppose L is extendible. Then there exists an output labeling L⋄of G such that (i) for each
+v ∈D1 ∪D2, we have L⋄(v) = L(v), and (ii) L⋄is locally consistent at all nodes in D2 ∪D3. Since
+D2 ∪D3 ⊇B2 ∪B3, we can apply Lemma 10, which shows that there exists a complete labeling
+L′
+⋄of G′ such that the two conditions in Lemma 10 are met. We argue that this implies that L′ is
+extendible. We verify that (i) L′(v′) = L′
+⋄(v′) for each v′ ∈D′
+1 ∪D′
+2, and (ii) L′
+⋄is locally consistent
+at all nodes in D′
+2 ∪D′
+3.
+• Condition 1 of Lemma 10 guarantees that L⋄(v) = L′
+⋄(φ⋆(v)) for each v ∈(V (G) \ V (H)) ∪
+(B1 ∪B2) = B0 ∪B1 ∪B2 and its corresponding node φ⋆(v) ∈B′
+0 ∪B′
+1 ∪B′
+2. Since D′
+1 ∪D′
+2 ⊆
+B′
+0 ∪B′
+1 ∪B′
+2, we have L′(v′) = L′
+⋄(v′) for each v′ ∈D′
+1 ∪D′
+2.
+• The fact that L⋄is locally consistent at all nodes in D2 ∪D3, together with Condition 1 in
+Lemma 10, guarantees that L′
+⋄is locally consistent at all nodes in (D′
+2 ∪D′
+3) \ B′
+3. Condition 2
+in Lemma 10 guarantees that L′
+⋄is locally consistent at all nodes in B′
+2 ∪B′
+3. Therefore, L′
+⋄is
+locally consistent at all nodes in D′
+2 ∪D′
+3, as required.
+The number of types can be upper bounded as follows.
+Lemma 13. The number of equivalence classes of ⋆∼(i.e., types) is at most |Σin|4r2|Σout|4r.
+Proof. Let P be a directed path, and let ξ(P) = (D1, D2, D3). Then Type(P) is determined by the
+following information.
+• The input labels in D1 ∪D2. Note that there are at most |Σin|4r possible input labeling of
+D1 ∪D2.
+• A length-x binary string indicating the extendibility of each possible output labeling of D1∪D2,
+where x = |Σout|4r.
+Therefore, the number of equivalence classes of ⋆∼is at most |Σin|4r2|Σout|4r.
+21
+
+--- Page 23 ---
+Deﬁne ℓpump as the total number of types. Observe that Lemma 12 implies that Type(P) can be
+computed by a ﬁnite automaton whose number of states is the total number of types, which is a
+constant independent of P. Thus, we have the following two pumping lemmas which allow us to
+extend the length of a given directed path P while preserving the type of P. The following two
+lemmas follow from the standard pumping lemma for regular language.
+Lemma 14. Let P ∈Σk
+in with k ≥ℓpump.
+Then P can be decomposed into three substrings
+P = x ◦y ◦z such that (i) |xy| ≤ℓpump, (ii) |y| ≥1, and (iii) for each non-negative integer i,
+Type(x ◦yi ◦z) = Type(P).
+Lemma 15. For each w ∈Σ>0
+in , there exist two positive integers a and b such that a + b ≤ℓpump,
+and Type(wai+b) is invariant for each non-negative integer i.
+4.2
+The ω(log∗n)—o(n) Gap
+In this section we show that the ω(log∗n)—o(n) gap is decidable. More speciﬁcally, we show that
+an LCL problem P can be solved in O(log∗n) rounds if and only if there exists a feasible function,
+which is deﬁned as follows.
+Input: A directed path P = w1 ◦S ◦w2, where |w1| ∈[ℓpump, ℓpump + 1], |w2| ∈[ℓpump, ℓpump + 1],
+and |S| = 2r. The decomposition P = w1 ◦S ◦w2 is considered part of the input.
+Output: A string L ∈Σ2r
+out that represents the output labeling of S.
+Requirement: Any such function f is said to be feasible if the following requirement is met for
+any paths S1, S2 and wa, wb, wc, wd such that |S1| = |S2| = 2r and {|wa|, |wb|, |wc|, |wd|} ⊆
+[ℓpump, ℓpump + 1]. Let P = wa ◦S1 ◦wb ◦wc ◦S2 ◦wd, and consider the following assignment
+of output labels to S1 ∪S2.
+• Either label S1 by f(wa ◦S1 ◦wb) or label SR
+1 by f(wR
+b ◦SR
+1 ◦wR
+a ).
+• Either label S2 by f(wc ◦S2 ◦wd) or label SR
+2 by f(wR
+d ◦SR
+2 ◦wR
+c ).
+It is required that given such a partial labeling of P, the middle part wb ◦wc can be assigned
+output labels in such a way that the labeling of (i) the last r nodes of S1, (ii) all nodes in
+wb ◦wc, and (iii) the ﬁrst r nodes of S2 are locally consistent.
+The following lemma is a straightforward consequence of the well-known O(log∗n)-round MIS
+algorithm on cycles.
+Lemma 16. Let G be a cycle graph of n nodes, and let s ≤k be two constant integers such that
+s + k ≤n. Then in O(log∗n) rounds we can compute a decomposition V = A ∪B such that each
+connected component of A has size s, and each connected component of B has size within [k, k + 1].
+Proof. For any given constant integer 1 ≤L < n, we will show that in O(log∗n) time we can ﬁnd
+an independent set I of G such that each connected component induced by V \ I has at least L
+nodes and at most 2L nodes. Using this result with L = 2(s −1) + k(s + k + 1), it is straightforward
+to obtain the desired decomposition V = A ∪B, as follows.
+For each v ∈I, it arbitrarily chooses a size-s path Sv that contains v, and all nodes in Sv are
+included to A. Now each connected component S′ induced by the remaining nodes is a path of
+size at least L −2(s −1) ≥k(s + k + 1) and at most 2L. We will divide the path S′ into subpaths
+R1, R2, . . . , Rt meeting the following conditions: (i) if i is odd, then the size of Ri is k or k + 1;
+22
+
+--- Page 24 ---
+(ii) if i is even, then the size of Ri is s; (iii) t is odd. Hence we obtain the desired decomposition
+V = A ∪B if we include the nodes in R1, R3, . . . to B and include the nodes in R2, R4, . . . to A. We
+show that such a decomposition of S′ into subpaths R1, R2, . . . , Rt exists. Denote z as the size of
+S′. We write z = α(s + k + 1) + β, where α > 0 and 0 ≤β < s + k + 1 are integers. Note that we
+must have α ≥k and β ≤2k.
+• For the case β ≥k, there is a decomposition R1, R2, . . . , Rt satisﬁes the following conditions:
+(i) if i is odd, then the size of Ri is k + 1 when i < t or β when i = t; (ii) if i is even, then the
+size of Ri is s; (iii) t = 2α + 1 is odd.
+• For the case β < k, there is a decomposition R1, R2, . . . , Rt satisﬁes the following conditions:
+(i) if i is odd, then the size of Ri is k when i ∈{1, 3, 5, . . . , 2(k−β)−1}∪{t} or k+1 otherwise;
+(ii) if i is even, then the size of Ri is s; (iii) t = 2α + 1 is odd.
+For the rest of the proof, we show that in O(log∗n) time we can ﬁnd the required independent
+set I. We prove the lemma by an induction on L. The base case of L = 1 is identical to the MIS
+problem. Now consider L > 1. By induction hypothesis, we ﬁnd an independent set I′ in O(log∗n)
+time such that each connected component induced by V \ I′ has at least L′ nodes and at most 2L′
+nodes, where L′ = ⌊L/2⌋. Let G′ be the graph resulting from contracting all nodes in V \ I′, and
+we compute an MIS I′′ on this graph G′, which can be done in O(log∗n) rounds in the original
+graph G. Note that each connected component S of V \ I′′ has size at least 2L′ + 1 ≥L and at most
+3(2L′) + 2. If the size of S is higher than 2L, then we can add some nodes in S to the independent
+set I′′ so that the component size of the remaining nodes in S is within [L, 2L].
+Lemma 17. If a feasible function f exists, then there is an O(log∗n)-round deterministic LOCAL
+algorithm for P on cycles.
+Proof. Given that the number of nodes n is at least some large enough constant, in O(log∗n) rounds
+we can compute a decomposition V = A ∪B such that each connected component of A has size 2r,
+and each connected component of B has size within [2ℓpump, 2ℓpump + 1]. This can be done using
+Lemma 16 with s = 2r and k = 2ℓpump. We further decompose each connected component P of
+B into two paths P = P1 ◦P2 in such a way that the size of both P1 and P2 are within the range
+[ℓpump, ℓpump + 1]. We write P to denote the set of all these paths.
+Let S be a connected component of A, and let w1 and w2 be its two neighboring paths in P so
+that (w1 ◦S ◦w2) is a subpath of the underlying graph G. The output labels of S are assigned either
+by labeling S with f(w1 ◦S ◦w2) or by labeling SR with f(wR
+2 ◦SR ◦wR
+1 ). At this moment, all
+components of A have been assigned output labels using f. By the feasibility of f, each connected
+component of B is able to label itself output labels in such a way that the labeling of all nodes are
+locally consistent.
+Lemma 18. If there is an o(n)-round deterministic LOCAL algorithm A for P on cycles, then a
+feasible function f exists.
+Proof. Fix s to be some suﬃciently large number, and ﬁx n = 8(s + ℓpump) + 2(2r). We select s to
+be large enough so that the runtime of A is smaller than 0.1s. For any given directed path w with
+|w| ∈[ℓpump, ℓpump + 1], we ﬁx w+ as the result of applying the pumping lemma (Lemma 14) on w
+so that the following two conditions are met: (i) |w+| ∈[s, s + ℓpump] and (ii) Type(w) = Type(w+).
+23
+
+--- Page 25 ---
+Constructing a Feasible Function f by Simulating A.
+The function f(w1 ◦S ◦w2) is
+constructed by simulating a given o(n)-round deterministic LOCAL algorithm for P. The output
+labeling given by f(w1 ◦S ◦w2) is exactly the result of simulating A on the path P = w+
+1 ◦S ◦w+
+2
+while assuming the number of nodes of the underlying graph is n. Remember that the round
+complexity of A is o(n) on n-node graphs. By setting s to be large enough, the runtime of A can be
+made smaller than 0.1s. Thus, the calculation of f(w1 ◦S ◦w2) only depends on the IDs and the
+input labels of (i) the last 0.1s nodes in w+
+1 , (ii) all nodes in S, and (iii) the ﬁrst 0.1s nodes in w+
+2 .
+In the calculation of f(w1 ◦S ◦w2), the IDs of the nodes that participate in the simulation of A are
+chosen arbitrarily so long as they are distinct.
+Feasibility of f.
+Now we verify that the function f constructed above is feasible. Consider any
+choices of paths S1, S2 and wa, wb, wc, wd such that |S1| = |S2| = 2r and {|wa|, |wb|, |wc|, |wd|} ⊆
+[ℓpump, ℓpump + 1]. Deﬁne P = wa ◦S1 ◦wb ◦wc ◦S2 ◦wd, and let G be the cycle graph formed by
+connecting the two ends of the path P. To show that f is feasible, we need to consider the following
+four ways of assigning output labels to S1 ∪S2.
+1. Label S1 by f(wa ◦S1 ◦wb); label S2 by f(wc ◦S2 ◦wd).
+2. Label S1 by f(wa ◦S1 ◦wb); label SR
+2 by f(wR
+d ◦SR
+2 ◦wR
+c ).
+3. Label SR
+1 by f(wR
+b ◦SR
+1 ◦wR
+a ); label S2 by f(wc ◦S2 ◦wd).
+4. Label SR
+1 by f(wR
+b ◦SR
+1 ◦wR
+a ); label SR
+2 by f(wR
+d ◦SR
+2 ◦wR
+c ).
+For each of the above four partial labelings of P, we need to show that the middle part wb ◦wc
+can still be assigned output labels in such a way that the labeling of (i) the last r nodes of S1, (ii)
+all nodes in wb ◦wc, and (iii) the ﬁrst r nodes of S2 are locally consistent.
+Proof of the First Case.
+In what follows, we focus on the ﬁrst case, i.e., the partial labeling is
+given by labeling S1 by f(wa ◦S1 ◦wb) and labeling S2 by f(wc ◦S2 ◦wd); the proof for the other
+three cases are analogous. In this case, we deﬁne P ′ = w+
+a ◦S1 ◦w+
+b ◦w+
+c ◦S2 ◦w+
+d , and let G′ be
+the cycle graph formed by connecting the two ends of P ′. Note that the number of nodes in G′ is at
+most 8(s + ℓpump) + 2(2r) = n. All we need to do is to ﬁnd an output labeling L of G such that the
+following conditions are satisﬁed.
+(a) The output labels of S1 is given by f(wa ◦S1 ◦wb).
+(b) The output labels of S2 is given by f(wc ◦S2 ◦wd).
+(c) The labeling of (i) the last r nodes of S1, (ii) all nodes in wb ◦wc, and (iii) the ﬁrst r nodes of
+S2 are locally consistent.
+We ﬁrst generate an output labeling L′ of G′ by executing A on G′ under the following ID
+assignment. The IDs of (i) the last 0.1s nodes in w+
+a , (ii) all nodes in S1, and (iii) the ﬁrst 0.1s
+nodes in w+
+b are chosen as the ones used in the deﬁnition of f(wa ◦S1 ◦wb). Similarly, the IDs of (i)
+the last 0.1s nodes in w+
+c , (ii) all nodes in S2, and (iii) the ﬁrst 0.1s nodes in w+
+d are chosen as the
+ones used in the deﬁnition of f(wc ◦S2 ◦wd). The IDs of the rest of the nodes are chosen arbitrarily
+so long as when we run A on G′, no node sees two nodes with the same ID. Due to the way we
+deﬁne f, the output labeling L′ of the subpath S1 is exactly given by f(wa ◦S1 ◦wb), and the output
+labeling L′ of S2 is exactly f(wc ◦S2 ◦wd). Due to the correctness of A, L′ is a legal labeling.
+We transform the output labeling L′ of G′ to a desired output labeling L of G. Remember that
+G is the result of replacing the four subpaths w+ of G′ by w, and we have Type(w+) = Type(w). In
+view of Lemma 11, there is a legal labeling L of G such that all nodes in S1 and S2 are labeled the
+same as in G′. Therefore, the labeling L satisﬁes the above three conditions (a), (b), and (c).
+24
+
+--- Page 26 ---
+The Other Cases.
+We brieﬂy discuss how we modify the proof to deal with the other three
+cases. For example, consider the second case, where the partial labeling is given by labeling S1 by
+f(wa ◦S1 ◦wb) and labeling SR
+2 by f(wR
+d ◦SR
+2 ◦wR
+c ). In this case, the path P ′ is deﬁned as
+P ′ = w+
+a ◦S1 ◦w+
+b ◦
+ (wR
+c )+R ◦SR
+2 ◦
+ (wR
+d )+R .
+During the ID assignment of G′, the IDs of (i) the last 0.1s nodes in w+
+c , (ii) all nodes in S2, and
+(iii) the ﬁrst 0.1s nodes in w+
+d are now chosen as the ones used in the deﬁnition of f(wR
+d ◦SR
+2 ◦wR
+c ).
+Using such an ID assignment, the output labeling L′ of SR
+2 as the result of executing A on G′ will
+be exactly the same as the output labeling given by f(wR
+d ◦SR
+2 ◦wR
+c ). The rest of the proof is the
+same.
+Theorem 8 follows from the above two lemmas. The decidability result is due to the simple
+observation that whether a feasible function exists is decidable.
+4.3
+Partitioning a Cycle
+In the following sections, we prove the decidability result associated with the ω(1)—o(log∗n) gap.
+In this proof, we also deﬁne a feasible function, prove its decidability, and show the existence given
+an o(log∗n)-time algorithm. The main challenge here is that an MIS cannot be computed in O(1)
+time. To solve this issue, we decompose a cycle into paths with unrepetitive patterns and paths
+with repetitive patterns. For paths with unrepetitive patterns, we are able to compute a suﬃciently
+well-spaced MIS in O(1) time by making use of the irregularity of the input patterns.
+Section 4.3 considers an O(1)-round algorithm that partitions a cycle into some short paths
+and some paths that have a repeated input pattern. Section 4.4 deﬁnes a feasible function whose
+existence characterizes the O(1)-round solvable LCL problems. In Section 4.5, we prove Theorem 9.
+Partitioning an Undirected Cycle into Directed Paths.
+Let G be a cycle graph.
+An
+orientation of a node v is an assignment to one of its neighbor, this can be speciﬁed using port-
+numbering. An orientation of the nodes in G is called ℓ-orientation if the following condition is met.
+If |V (G)| ≤ℓ, then all nodes in G are oriented to the same direction. If |V (G)| > ℓ, then each node
+v ∈V (G) belongs to a path P such that (i) all nodes in P are oriented to the same direction, and
+(ii) the number of nodes in P is at least ℓ. In O(1) rounds we can compute an ℓ-orientation of G for
+any constant ℓ.
+Lemma 19 ([6]). Let G be a cycle graph. Let ℓbe a constant. There is a deterministic LOCAL
+algorithm that computes an ℓ-orientation of G in O(1) rounds.
+In this section, we will use a generalization of an ℓ-orientation that satisﬁes an additional
+requirement that the input labels of each directed path P in the decomposition with |V (P)| > 2ℓwidth
+(where 2ℓwidth is a threshold) must form a periodic string (whose period length is at most ℓpattern).
+A string w ∈Σ∗
+in is called primitive if w cannot be written as xi for some x ∈Σ∗
+in and i ≥2. Let
+G be a cycle graph or a path graph where each node v ∈V (G) has an input label from Σin. We
+deﬁne an (ℓwidth, ℓcount, ℓpattern)-partition as a partition of G into a set of connected subgraphs P
+meeting the following criteria. We assume |V (G)| > 2ℓwidth and ℓpattern ≥ℓwidth.
+Direction and Minimum Length: For each P ∈P, the nodes in P are oriented to the same
+direction, and |V (P)| ≥ℓwidth.
+25
+
+--- Page 27 ---
+Short Paths: Deﬁne Pshort as the subset of P that contains paths having at most 2ℓwidth
+nodes. For each directed path P = (v1, . . . , vk) ∈Pshort, each node vi in P knows its rank i.
+Long Paths: Deﬁne Plong = P \ Pshort. Then the input labeling of the nodes in P is of the
+form wk for some primitive string w ∈Σ∗
+in such that |w| ≤ℓpattern and k ≥ℓcount. Moreover,
+each node v in P knows the string w.
+Note that P may contain a cycle. This is possible only when G is a cycle where the input
+labeling is a repetition (at least ℓcount times) of a primitive string w ∈Σ∗
+in of length at most ℓpattern.
+In this case, we must have P = Plong = {G}. Otherwise, P contains only paths.
+The goal of this section is to show that an (ℓwidth, ℓcount, ℓpattern)-partition can be found in O(1)
+rounds. First of all, in Lemma 20 we demonstrate how we can break symmetry in O(1) rounds
+given that the underlying graph is directed and the input labels does not form long periodic strings.
+Let G be a path or a cycle. A set I ⊆V (G) is called an (α, β)-independent set if the following
+conditions are met: (i) I is an independent set, and I does not contain either endpoint of G (if G is
+a path), and (ii) each connected component induced by V \ I has at least α nodes and at most β
+nodes, unless |V | ≤α, in which case we allow I = ∅. Note that ﬁnding an (α, β)-independent set
+takes O(log∗n) rounds in general, but in Lemma 20 we show that by leveraging the “irregularity”
+of input labels, we can do this in O(1) rounds on directed paths or cycles without periodic patterns.
+Lemma 20. Let γ and ℓbe any two constants with ℓ≥γ. Let G be a directed cycle or a directed
+path that does not contain any subpath of the form wx, with |w| ≤γ and |wx| ≥ℓ. There is a
+deterministic LOCAL algorithm that computes an (γ, 2γ)-independent set I of G in O(1) rounds.
+Proof. For the case G is a directed path P = (s, . . . , t), deﬁne V ′ as the set of nodes in G whose
+distance to t is at least ℓ−1. For the case G is a directed cycle, deﬁne V ′ = V (G). In what follows,
+we focus on ﬁnding an (γ, 2γ)-independent set I′ of the nodes in V ′. Extending the set I′ to produce
+the desired independent set I can be done with extra O(1) rounds.
+Recall that G is directed. Deﬁne the color of a node v ∈V ′ by the sequence of the ℓinput labels
+of v and the ℓ−1 nodes following v in G. For each node v ∈V ′, there is no other node within
+distance γ to v having the same color as v, since otherwise we can ﬁnd a subpath whose input labels
+form a string wx, with |w| ≤γ and |wx| ≥ℓ. By applying the standard procedure that computes an
+MIS from a coloring, within O(1) rounds a (γ, 2γ)-independent set I′ can be obtained.
+Using Lemma 20, we ﬁrst show that an (ℓwidth, ℓcount, ℓpattern)-partition can be found in O(1)
+rounds for the case G is directed. That is, all nodes in G are initially oriented to the same direction,
+and we are allowed to re-orient the nodes.
+Lemma 21. Let G be a directed cycle or a directed path where each node v ∈V (G) has an input label
+from Σin, and |V (G)| > 2ℓwidth. Let ℓwidth, ℓcount, ℓpattern be three constants such that ℓpattern ≥ℓwidth.
+There is a deterministic LOCAL algorithm that computes an (ℓwidth, ℓcount, ℓpattern)-partition in O(1)
+rounds
+Proof. Let (w1, w2, . . . , wk) be any ordering of the primitive strings in Σ∗
+in of length at most ℓpattern.
+First, construct a set of subgraphs Plong as follows. Initialize U = V (G) and Plong = ∅. For i = 1 to
+k, execute the following procedure. Let Si be the set of maximal-size connected subgraphs formed by
+nodes in U such that the input labels form the string wx
+i with x ≥ℓcount + 2ℓwidth. Each node v ∈U
+in O(1) rounds checks if v belongs to a subgraph in Si; if so, remove v from U. For each P ∈Si,
+26
+
+--- Page 28 ---
+deﬁne P ′ as follows. If P is a cycle, then P ′ = P. If P is a path, then P ′ is the result of removing
+all nodes that are within distance ℓwidth|wi| −1 to an endpoint in P. Note that each node v in P
+knows whether v belongs to P ′. Deﬁne S′
+i = {P ′|P ∈Si}, and then update Plong ←Plong ∪S′
+i.
+It is straightforward to verify that each path or cycle P ∈Plong satisﬁes the requirement in the
+deﬁnition of (ℓwidth, ℓcount, ℓpattern)-partition. Deﬁne the set of subgraphs Pirreg as the connected
+components of the nodes not in any subgraph in Plong. Deﬁne ℓ= (ℓpattern + 2ℓwidth) · ℓcount. By
+our construction, the input labeling in each subgraph P ∈Pirreg does not contain any substring
+wx, with 1 ≤|w| ≤ℓpattern and |wx| ≥ℓ. An (ℓpattern, 2ℓpattern)-independent set of each P ∈Pirreg
+can be computed using Lemma 20 in O(1) rounds. Observe that each subgraph P ∈Pirreg has at
+least ℓwidth nodes. Given an (ℓpattern, 2ℓpattern)-independent set of a subgraph P ∈Pirreg, in O(1)
+rounds P can be partitioned into subpaths, each of which contains at least ℓpattern nodes and at
+most 2ℓpattern nodes. This ﬁnishes the construction of an (ℓwidth, ℓcount, ℓpattern)-partition.
+Combining Lemma 21 and Lemma 19, we are able to construct an (ℓwidth, ℓcount, ℓpattern)-partition
+in O(1) rounds for undirected graphs.
+Lemma 22. Let G be a cycle or a path where each node v ∈V (G) has an input label from Σin, and
+|V (G)| > 2ℓwidth. Let ℓwidth, ℓcount, ℓpattern be three constants such that ℓpattern ≥ℓwidth. There is a
+deterministic LOCAL algorithm that computes an (ℓwidth, ℓcount, ℓpattern)-partition in O(1) rounds
+Proof. The algorithm is as follows. Compute an ℓ-orientation of G by Lemma 19 in O(1) rounds
+with ℓ= 2ℓwidth + 1. For each maximal-length connected subgraph P where each constituent node
+is oriented to the same direction, ﬁnd an (ℓwidth, ℓcount, ℓpattern)-partition of P in O(1) rounds by
+Lemma 21.
+4.4
+Feasible Function
+The goal of this section is to deﬁne a feasible function whose existence characterizes the O(1)-round
+solvable LCL problems. With respect to an LCL problem P and a function f which takes a string
+w ∈Σk
+in with 1 ≤k ≤ℓpump as input, and returns a string f(w) ∈Σk
+out, we deﬁne some partially or
+completely labeled path graphs which are used in the deﬁnition of a feasible function.
+Completely Labeled Graph Gw,z: Let w ∈Σ∗
+in be any string of length at least 1 and at most
+ℓpump. Let z be any non-negative integer. Deﬁne Gw,z = (Gw,z, L) as follows. The graph Gw,z
+is a path of the form wr ◦wz ◦wr. The labeling L is a complete labeling of the form f(w)z+2r.
+Deﬁne Mid(Gw,z) as the middle subpath wz of Gw,z.
+Partially Labeled Graph Gw1,w2,S: Let w1, w2 ∈Σ∗
+in be any two strings of length at least 1 and
+at most ℓpump. Let S ∈Σ∗
+in be any string (can be empty). Deﬁne Gw1,w2,S = (Gw1,w2,S, L) as
+follows. The graph Gw1,w2,S is the path of the form wℓpump+2r
+1
+◦S ◦wℓpump+2r
+2
+. The labeling
+L is a partial labeling of Gw1,w2,S which ﬁxes the output labels of the ﬁrst 2r|w1| and the
+last 2r|w2| nodes by f(w1)2r and f(w2)2r, respectively. Deﬁne Mid(Gw1,w2,S) as the middle
+subpath wℓpump+r
+1
+◦S ◦wℓpump+r
+2
+of Gw1,w2,S.
+Feasible Function: We call f a feasible function if the following conditions are met: (i) For each
+Gw,z = (Gw,z, L), the complete labeling L is locally consistent at all nodes in Mid(Gw,z). (ii)
+Each partially labeled graph Gw1,w2,S admits a complete labeling L⋄that is locally consistent
+at all nodes in Mid(Gw1,w2,S).
+Lemma 23. Given an LCL problem P on cycle graphs. It is decidable whether there is a feasible
+function.
+27
+
+--- Page 29 ---
+Proof. Note that it is not immediate from its deﬁnition as to whether a feasible function exists is
+decidable, since there appears to be inﬁnitely many graphs Gw,z and Gw1,w2,S needed to be examined.
+However, the following simple observations show that it suﬃces to check only a constant number of
+these graphs.
+• If the complete labeling L of Gw,1 = (Gw,1, L) is locally consistent at all nodes in Mid(Gw,1),
+then for all z ≥1, the complete labeling L of Gw,z = (Gw,z, L) is also locally consistent at all
+nodes in Mid(Gw,z).
+• If Gw1,w2,S admits a complete labeling L⋄that is locally consistent at all nodes in Mid(Gw1,w2,S),
+then for each S′ such that Type(S) = Type(S′), the partially labeled graph Gw1,w2,S′ also
+admits a complete labeling L⋄that is locally consistent at all nodes in Mid(Gw1,w2,S′). This is
+due to Lemma 11.
+Therefore, to decide whether a function f is feasible, we only need to check all possible Gw,z and
+Gw1,w2,S. For each w we only need to consider the graph Gw,z with z = 1. For each w1 and w2, we
+do not need to go over all S; we only need to consider (i) the empty string S = ∅, and (ii) for each
+type τ, a string S ∈Σ∗
+in such that Type(S) = τ. By Lemma 14, for each type τ, there exists P ∈Σx
+in
+with x ≤ℓpump such that Type(P) = τ. Therefore, a string S with Type(S) = τ can be found in
+bounded amount of time; also note that the number of types is bounded; see Lemma 13.
+For the rest of this section, we show that as long as the deterministic LOCAL complexity of
+P is o(log∗n) on cycle graphs, there exists a feasible function f. In Lemma 24 we show how to
+extract a function f from a given o(log∗n)-round deterministic LOCAL algorithm A, and then in
+Lemma 25 we prove that such a function f is feasible. Intuitively, Lemma 24 shows that there exists
+an ID-assignment such that when we run A on a subpath whose input labeling is a repetition of a
+length-k pattern w, the output labeling is also a repetition of a length-k pattern w′. The function f
+will be deﬁned as f(w) = w′.
+Lemma 24. Let A be any deterministic LOCAL algorithm that solves P in t(n) = o(log∗n) rounds.
+Then there is a number n′ and function f which takes a string w ∈Σk
+in with 1 ≤k ≤ℓpump as input,
+and returns a string f(w) ∈Σk
+out meeting the following condition. For any P = wi ◦w2r+1 ◦wi such
+that |wi| ≥t(n′) and 1 ≤|w| ≤ℓpump, there is an assignment of distinct Θ(log n′)-bit IDs to the
+nodes in P such that the following is true. Simulating A on P while assuming that the total number
+of nodes in the underlying graph is n′ yields the output labeling f(w)2r+1 for the middle subpath
+w2r+1.
+Proof. In this proof we assume that there is no such a number n′. Then we claim that using A it is
+possible to obtain a deterministic LOCAL algorithm for MIS on an n-node directed cycle G without
+input labeling, in O(t(n)) + O(1) = o(log∗n) rounds. This contradicts the well-known Ω(log∗n)
+lower bound for MIS [20].
+Let G be an n-node directed cycle without input labeling. The MIS algorithm on G is described
+as follows. Let w ∈Σk
+in with 1 ≤k ≤ℓpump be chosen such that for any function f, the string
+f(w) ∈Σk
+out does not satisfy the conditions stated in the lemma for the number n′ = nk. Deﬁne
+G′ as the graph resulting from replacing each node v ∈V (G) with a path w. We can simulate the
+imaginary graph G′ in the communication network G by letting each node v ∈V (G) simulate a
+path w.
+We execute the algorithm A on G′ while assuming that the total number of nodes is n′. The
+execution takes t(n′) = O(t(n)) rounds. For each node v ∈V (G), deﬁne the color of v as the
+sequence of the output labels of the path w2r simulated by the node v and the 2r −1 nodes following
+28
+
+--- Page 30 ---
+v in the directed cycle G. This gives us a proper O(1)-coloring, since otherwise there must exist
+a subpath P = w2r+1 of G′ such that the output labeling of P is of the form y2r+1 for some y,
+contradicting our choice of w. Using the standard procedure of computing an MIS from a coloring,
+with extra O(1) rounds, an MIS of G can be obtained.
+Note that there is a subtle issue about how we set the IDs of nodes in V (G′). The following
+method is guaranteed to output distinct IDs. Let v ∈V (G), and let u1, . . . , uk be the nodes in
+V (G′) simulated by v. Then we may use ID(ui) = k · ID(v) + i.
+Lemma 25. Suppose that the deterministic LOCAL complexity of P is o(log∗n) on cycle graphs.
+Then there exists a feasible function f.
+Proof. Let A be any deterministic LOCAL algorithm that solves P in t(n) = o(log∗n) rounds. Let
+n′ and f be chosen to meet the conditions in Lemma 24 for A. The goal of the proof is to show
+that f is a feasible function. According to the conditions speciﬁed in Lemma 24 for the function f,
+we already know that the complete labeling L of each Gw,z = (Gw,z, L) is locally consistent at all
+nodes in Mid(Gw,z). Therefore, all we need to do is the following. For each partially labeled graph
+Gw1,w2,S, ﬁnd a complete labeling L⋄that is locally consistent at all nodes in Mid(Gw1,w2,S).
+Given the three parameters w1, w2, and S, deﬁne G as the cycle resulting from linking the
+two ends of the path wℓpump
+1
+◦w2r+1
+1
+◦wℓpump
+1
+◦S ◦wℓpump
+2
+◦w2r+1
+2
+◦wℓpump
+2
+. Deﬁne L as the partial
+labeling of G which ﬁxes the output labeling of the two subpaths w2r+1
+1
+and w2r+1
+2
+by f(w1)2r+1
+and f(w2)2r+1, respectively. We write P mid
+1
+and P mid
+2
+to denote the two subpaths w2r+1
+1
+and w2r+1
+2
+,
+respectively.
+In what follows, we show that the partially labeled graph G = (G, L) admits a legal labeling L⋄.
+Since Gw1,w2,S is a subgraph of G = (G, L), such a legal labeling L⋄is also a complete labeling of
+Gw1,w2,S that is locally consistent at all nodes in Mid(Gw1,w2,S).
+For the rest of the proof, we show the existence of L⋄. This will be established by applying a
+pumping lemma. Deﬁne the graph G′ as the result of the following operations on G.
+• Replace the two subpaths wℓpump
+1
+by wx
+1, where the number x is chosen such that x|w1| ≥
+2t(n′) + r, and Type(wℓpump
+1
+) = Type(wx
+1).
+• Replace the two subpaths wℓpump
+2
+by wy
+2, where the number y is chosen such that y|w2| ≥
+2t(n′) + r, and Type(wℓpump
+2
+) = Type(wy
+2).
+The existence of the numbers x and y above is guaranteed by Lemma 15. The IDs of nodes in G′ are
+assigned as follows. For i = 1, 2, select the IDs of the nodes in S
+v∈P mid
+i
+Nt(n′)(v) in such a way that
+the output labeling of P mid
+i
+resulting from executing A on G′ while assuming that the total number
+of nodes is n′ is f(wi)2r+1. The existence of such an ID assignment is guaranteed by Lemma 24. For
+all remaining nodes in G′, select their IDs in such a way that all nodes in Nr+t(n′)(v) receive distinct
+IDs, for each v ∈V (G′). This ensures that the outcome of executing A on G′ while assuming that
+the total number of nodes is n′ is a legal labeling.
+Let L′
+⋄be the legal labeling of G′ resulting from executing A with the above IDs while pretending
+that the total number of nodes is n′. Note that L′
+⋄must label P mid
+1
+and P mid
+2
+by f(w1)2r+1 and
+f(w2)2r+1, respectively. A desired legal labeling L⋄of G can be obtained from the legal labeling L′
+⋄of
+G′ by applying Lemma 11, as we have Type(wℓpump
+1
+) = Type(wx
+1) and Type(wℓpump
+2
+) = Type(wy
+2).
+4.5
+The ω(1)—o(log∗n) Gap
+In this section we prove that it is decidable whether a given LCL problem P has complexity Ω(log∗n)
+or O(1) on cycle graphs.
+29
+
+--- Page 31 ---
+Lemma 26. Let f be any feasible function. Let G be any cycle graph. Let P be any set of
+disjoint subgraphs in G such that the input labeling of each P ∈P is of the form wx such that
+x ≥2ℓpump + 2r, and w ∈Σk
+in is a string with 1 ≤k ≤ℓpump. For each P ∈P, deﬁne the subgraph
+P ′ as follows. If P is a cycle, deﬁne P ′ = P. If P is a path, write P = wℓpump ◦wi ◦wℓpump, and
+deﬁne P ′ as the middle subpath wi. Let L be a partial labeling of G deﬁned as follows. For each
+P = wx ∈P, ﬁx the output labels of each subpath w of P ′ by f(w). Then G = (G, L) admits a legal
+labeling L⋄.
+Proof. Deﬁne V1 as the set of all nodes such that v ∈V1 if v belongs to the middle subpath wj
+of some path P = wℓpump ◦wr ◦wj ◦wr ◦wℓpump ∈P. By the deﬁnition of feasible function, L is
+already locally consistent at all nodes in V1. Thus, all we need to do is to construct a complete
+labeling L⋄of G = (G, L), and argue that L⋄is locally consistent at all nodes in V2 = V (G) \ V1.
+There are two easy special cases. If P = ∅, then no output label of any node in G is ﬁxed, and
+so G trivially admits a legal labeling. If P contains a cycle, then P = {G}, and hence L is already
+a legal labeling as V1 = V (G).
+In subsequent discussion, we restrict ourselves to the case that P is non-empty and contains only
+paths. The output labeling L⋄is constructed as follows. Deﬁne Punlabeled as the maximal-length
+subpaths of G that are not assigned any output labels by L. A path P ∈Punlabeled must be of the
+form wℓpump
+1
+◦S ◦wℓpump
+2
+, where w1, w2 ∈Σ∗
+in are two strings of length at least 1 and at most ℓpump,
+and S ∈Σ∗
+in can be any string (including the empty string). Given P ∈Punlabeled, we make the
+following deﬁnitions.
+• Deﬁne P + as the subpath of G that includes P and the r|w1| nodes preceding P, and the
+r|w2| nodes following P in the graph G. Note that the set V2 is exactly the union of nodes in
+P + for all P ∈Punlabeled.
+• Deﬁne P ++ as the subpath of G that includes P and the 2r|w1| nodes preceding P, and the
+2r|w2| nodes following P in the graph G. The path P ++ must be of the form wℓpump+2r
+1
+◦S ◦
+wℓpump+2r
+2
+, and the labeling L already ﬁxes the output labels of the ﬁrst 2r|w1| and the last
+2r|w2| nodes of P ++ by f(w1)2r and f(w2)2r, respectively.
+Observe that the path P ++ = wℓpump+2r
+1
+◦S ◦wℓpump+2r
+2
+together with the labeling L is exactly the
+partially labeled graph Gw1,w2,S. We assign the output labels to the nodes in P by the labeling
+L⋄guaranteed in the deﬁnition of feasible function. It is ensured that the labeling of all nodes
+within P + are locally consistent. By doing so for each P ∈Punlabeled, we obtain a desired complete
+labeling that is locally consistent at all nodes in V2.
+Lemma 27. Suppose that there is a feasible function f for the LCL problem P. Then there is an
+O(1)-round deterministic LOCAL algorithm A on cycle graphs.
+Proof. The ﬁrst step of the algorithm A is to compute an (ℓwidth, ℓcount, ℓpattern)-partition in O(1)
+rounds by Lemma 22. We set ℓcount = 2ℓpump + 2r and ℓwidth = ℓpattern = ℓpump. We assume
+|V (G)| > 2ℓwidth. Recall that an (ℓwidth, ℓcount, ℓpattern)-partition decomposes the cycle G into two
+sets of disjoint subgraphs Pshort and Plong.
+Deﬁne G′ as the graph resulting from applying the following operations on G.
+For each
+P ∈Pshort, replace the path P by the path P ∗= x ◦yi ◦z such that i = ℓcount, 1 ≤|y| ≤ℓpattern,
+and the type of P ∗is the same as the type of P. The path P ∗is obtained via Lemma 14. Note that
+each path P ∈Pshort has at least ℓwidth = ℓpump nodes and at most 2ℓwidth = 2ℓpump nodes. Deﬁne
+P∗as the set of all P ∗such that P ∈Pshort. The graph G′ is simulated in the communication
+graph G by electing a leader for each path P ∈Pshort to simulate P ∗.
+30
+
+--- Page 32 ---
+𝑃∈𝒫short
+𝑃′ = 𝑤𝑘∈𝒫long
+𝑥
+𝑦
+𝑧
+𝑃′ = 𝑤𝑘∈𝒫long
+𝑥
+𝑦𝑖
+𝑧
+𝐺
+𝐺′
+𝑃∗
+𝑃′ = 𝑤𝑘∈𝒫long
+𝑥
+𝑦𝑖
+𝑧𝑤ℓpump
+𝑤ℓpump
+𝑤𝑗
+𝑃′ = 𝑤𝑘∈𝒫long
+𝑥
+𝑦𝑖
+𝑧
+𝑤ℓpump
+𝑤ℓpump
+𝑤𝑗
+𝑃∈𝒫short
+𝑃′ = 𝑤𝑘∈𝒫long
+𝑥
+𝑦
+𝑧
+(1)
+(2)
+(3)
+(4)
+𝑃∗
+𝑃∗
+Figure 5: Illustration of Lemma 27.
+Calculate a partial labeling L′ of G′ using the feasible function f as follows. Recall ℓcount =
+2ℓpump + 2r. For each P ∗= x ◦yℓpump ◦y2r ◦yℓpump ◦z ∈P∗, label the middle subpath y2r by the
+function f. For each P = wℓpump ◦wi ◦wℓpump ∈Plong, label the middle subpath wi by f(w)i. Even
+though a path P ∈Plong can have ω(1) nodes, this step can be done locally in O(1) rounds due to
+the following property of (ℓwidth, ℓcount, ℓpattern)-partition. All nodes in a path P ∈Plong agree with
+the same direction and know the primitive string w.
+By Lemma 26, the remaining unlabeled nodes in G′ can be labeled to yield a legal labeling of
+G′. This can be done in O(1) rounds since the connected components formed by unlabeled nodes
+have at most O(1) nodes. Given any valid labeling of G′, a legal labeling of G can be obtained by
+applying Lemma 11 in O(1) rounds. Remember that Type(P) = Type(P ∗) for each P ∈Pshort, and
+G′ is exactly the result of replacing each P ∈Pshort by P ∗.
+See Figure 5 for an illustration of Lemma 27: (1) applying a pumping lemma to extend each
+path P ∈Pshort; (2) labeling the middle subpath y2r of P ∗= x ◦yℓpump ◦y2r ◦yℓpump ◦z ∈P∗and
+the middle subpath wj of P ′ = wℓpump ◦wi ◦wℓpump ∈Plong by the function f; (3) the remaining
+unlabeled nodes in G′ can be labeled to yield a legal labeling of G′ by Lemma 26; (4) since
+Type(P) = Type(P ∗) for each P ∈Pshort, we can recover a legal labeling of G by re-labeling nodes
+in each P ∈Pshort.
+Combining Lemma 23, Lemma 25, and Lemma 27, we have proved Theorem 9. That is, for any
+LCL problem P on cycle graphs, its deterministic LOCAL complexity is either Ω(log∗n) or O(1).
+Moreover, there is an algorithm that decides whether P has complexity Ω(log∗n) or O(1) on cycle
+graphs; for the case the complexity is O(1), the algorithm outputs a description of an O(1)-round
+deterministic LOCAL algorithm that solves P.
+Acknowledgments
+Many thanks to Laurent Feuilloley, Juho Hirvonen, Janne H. Korhonen, Christoph Lenzen, Yannic
+Maus, and Seth Pettie for discussions, and to anonymous reviewers for their helpful comments on
+previous versions of this work. This work was supported in part by the Academy of Finland, Grant
+285721.
+31
+
+--- Page 33 ---
+References
+[1] Alkida Balliu, Sebastian Brandt, Dennis Olivetti, and Jukka Suomela. Almost global problems
+in the LOCAL model. In Proc. 32nd International Symposium on Distributed Computing (DISC
+2018), Leibniz International Proceedings in Informatics (LIPIcs). Schloss DagstuhlLeibniz-
+Zentrum f¨ur Informatik, 2018. doi:10.4230/LIPIcs.DISC.2018.9.
+[2] Alkida Balliu, Juho Hirvonen, Janne H Korhonen, Tuomo Lempi¨ainen, Dennis Olivetti, and
+Jukka Suomela. New classes of distributed time complexity. In Proc. 50th ACM Symposium on
+Theory of Computing (STOC 2018), pages 1307–1318. ACM Press, 2018. doi:10.1145/3188745.
+3188860.
+[3] Roderick Bloem, Nicolas Braud-Santoni, and Swen Jacobs. Synthesis of Self-Stabilising and
+Byzantine-Resilient Distributed Systems. In Proc. International Conference on Computer Aided
+Veriﬁcation (CAV 2016), pages 157–176. Springer, 2016. doi:10.1007/978-3-319-41528-4 9.
+[4] Sebastian Brandt, Orr Fischer, Juho Hirvonen, Barbara Keller, Tuomo Lempi¨ainen, Joel
+Rybicki, Jukka Suomela, and Jara Uitto. A lower bound for the distributed Lov´asz local lemma.
+In Proc. 48th ACM Symposium on Theory of Computing (STOC 2016), pages 479–488. ACM
+Press, 2016. doi:10.1145/2897518.2897570.
+[5] Sebastian Brandt, Juho Hirvonen, Janne H Korhonen, Tuomo Lempi¨ainen, Patric R J ¨Osterg˚ard,
+Christopher Purcell, Joel Rybicki, Jukka Suomela, and Przemys law Uzna´nski. LCL problems
+on grids. In Proc. 36th ACM Symposium on Principles of Distributed Computing (PODC 2017),
+pages 101–110. ACM Press, 2017. doi:10.1145/3087801.3087833.
+[6] Yi-Jun Chang and Seth Pettie. A Time Hierarchy Theorem for the LOCAL Model. In Proc.
+58th IEEE Symposium on Foundations of Computer Science (FOCS 2017), pages 156–167.
+IEEE, 2017. doi:10.1109/FOCS.2017.23.
+[7] Yi-Jun Chang, Tsvi Kopelowitz, and Seth Pettie. An Exponential Separation between Ran-
+domized and Deterministic Complexity in the LOCAL Model. In Proc. 57th IEEE Sym-
+posium on Foundations of Computer Science (FOCS 2016), pages 615–624. IEEE, 2016.
+doi:10.1109/FOCS.2016.72.
+[8] Richard Cole and Uzi Vishkin. Deterministic coin tossing with applications to optimal parallel
+list ranking. Information and Control, 70(1):32–53, 1986. doi:10.1016/S0019-9958(86)80023-7.
+[9] Danny Dolev, Keijo Heljanko, Matti J¨arvisalo, Janne H Korhonen, Christoph Lenzen, Joel
+Rybicki, Jukka Suomela, and Siert Wieringa.
+Synchronous counting and computational
+algorithm design. Journal of Computer and System Sciences, 82(2):310–332, 2016. doi:10.1016/j.
+jcss.2015.09.002.
+[10] Javier Esparza. Decidability and complexity of Petri net problems — An introduction. In
+Lectures on Petri Nets I: Basic Models: Advances in Petri Nets, pages 374–428. Springer Berlin
+Heidelberg, 1998. doi:10.1007/3-540-65306-6 20.
+[11] Fathiyeh Faghih and Borzoo Bonakdarpour. SMT-Based Synthesis of Distributed Self-Stabilizing
+Systems. ACM Transactions on Autonomous and Adaptive Systems, 10(3):1–26, 2015. doi:10.
+1145/2767133.
+32
+
+--- Page 34 ---
+[12] Manuela Fischer and Mohsen Ghaﬀari. Sublogarithmic Distributed Algorithms for Lov´asz Local
+Lemma, and the Complexity Hierarchy. In Proc. 31st International Symposium on Distributed
+Computing (DISC 2017), pages 18:1–18:16, 2017. doi:10.4230/LIPIcs.DISC.2017.18.
+[13] Mohsen Ghaﬀari and Hsin-Hao Su. Distributed Degree Splitting, Edge Coloring, and Orien-
+tations. In Proc. 28th ACM-SIAM Symposium on Discrete Algorithms (SODA 2017), pages
+2505–2523. Society for Industrial and Applied Mathematics, 2017. doi:10.1137/1.9781611974782.166.
+[14] Mohsen Ghaﬀari, David G Harris, and Fabian Kuhn. On Derandomizing Local Distributed
+Algorithms. In Proc. 59th IEEE Symposium on Foundations of Computer Science (FOCS
+2018), 2018. doi:10.1109/FOCS.2018.00069.
+[15] Mohsen Ghaﬀari, Juho Hirvonen, Fabian Kuhn, and Yannic Maus. Improved Distributed
+∆-Coloring. In Proc. 37th ACM Symposium on Principles of Distributed Computing (PODC
+2018), pages 427–436. ACM, 2018. doi:10.1145/3212734.3212764.
+[16] Andrew V. Goldberg, Serge A. Plotkin, and Gregory E. Shannon. Parallel Symmetry-Breaking in
+Sparse Graphs. SIAM Journal on Discrete Mathematics, 1(4):434–446, 1988. doi:10.1137/0401044.
+[17] Juho Hirvonen, Joel Rybicki, Stefan Schmid, and Jukka Suomela. Large cuts with local
+algorithms on triangle-free graphs. Electronic Journal of Combinatorics, 24(4), 2017. URL
+http://www.combinatorics.org/ojs/index.php/eljc/article/view/v24i4p21.
+[18] John E Hopcroft and Jeﬀrey D Ullman. Introduction to Automata Theory, Languages and
+Computation. Addison-Wesley, 1979.
+[19] Alex Klinkhamer. On the Limits and Practice of Automatically Designing Self-Stabilization.
+Doctoral thesis, Michigan Technological University, 2016. URL https://digitalcommons.mtu.
+edu/etdr/90.
+[20] Nathan Linial. Locality in Distributed Graph Algorithms. SIAM Journal on Computing, 21(1):
+193–201, 1992. doi:10.1137/0221015.
+[21] Moni Naor. A lower bound on probabilistic algorithms for distributive ring coloring. SIAM
+Journal on Discrete Mathematics, 4(3):409–412, 1991. doi:10.1137/0404036.
+[22] Moni Naor and Larry Stockmeyer. What Can be Computed Locally?
+SIAM Journal on
+Computing, 24(6):1259–1277, 1995. doi:10.1137/S0097539793254571.
+[23] Alessandro Panconesi and Aravind Srinivasan. The local nature of ∆-coloring and its algorithmic
+applications. Combinatorica, 15(2):255–280, 1995. doi:10.1007/BF01200759.
+[24] David Peleg. Distributed Computing: A Locality-Sensitive Approach. Society for Industrial and
+Applied Mathematics, 2000. doi:10.1137/1.9780898719772.
+[25] Seth Pettie. Automatically Speeding Up LOCAL Graph Algorithms. In 7th Workshop on
+Advances in Distributed Graph Algorithms (ADGA 2018), 2018. URL http://adga.hiit.ﬁ/2018/
+Seth.pdf.
+[26] Joel Rybicki and Jukka Suomela. Exact bounds for distributed graph colouring. In Proc.
+22nd International Colloquium on Structural Information and Communication Complexity
+(SIROCCO 2015), volume 9439 of Lecture Notes in Computer Science, pages 46–60. Springer,
+2015. doi:10.1007/978-3-319-25258-2 4.
+33
+
+
+=== LCL_classification.pdf ===
+
+--- Page 1 ---
+Deciding Feasible-Function Existence for
+β-Normalized, Radius-1 LCLs on Directed Paths is
+in NEXPTIME
+Abstract
+We give a nondeterministic 2poly(β)-time algorithm that decides,
+for a β-normalized, radius-1 LCL on globally oriented paths, whether
+there exists a feasible function. This decides both gaps O(log∗n) vs.
+Θ(n) (mid-consistency) and O(1) vs. Ω(log∗n) (bridging). Our proof
+is self-contained modulo standard pumping/replacement facts for path
+types; we restate the exact type bound, give a finite-checks lemma with
+an explicit z-bound Z ≤ℓ2
+pump, spell out the DP used by the verifier
+(with boundary handling and tight O(kβ2) complexity), and prove
+soundness/completeness. We use Section 4 and Lemmas 10–15, 11, 12,
+as well as Theorems 8–9 from the reference.1
+1
+Model and Normalization (r=1)
+We work on globally oriented paths. A β-normalized LCL is given by
+Σin = {0, 1},
+|Σout| = β,
+Cin–out ⊆Σin × Σout,
+Cout–out ⊆Σout × Σout,
+and a labeling is legal iff (in(v), out(v)) ∈Cin–out for each node v and
+(out(u), out(v)) ∈Cout–out for each directed edge u →v. The input size is
+N = poly(β).
+Types and pumping for r = 1.
+For a path P = (u1, . . . , uk) with k ≥4,
+define B1 = {u1, uk} and B2 = {u2, uk−1}. Two paths are type-equivalent if
+1All background references (lemmas, constructions, and the two gap theorems) refer to
+the uploaded PDF: The distributed complexity of locally checkable problems on paths is
+decidable. See Section 4 (pp. 19–32), especially Lemmas 10–15 (types/pumping), Lemma 11
+(replacement), Lemma 12 (type composition), and Theorems 8–9 (gap characterizations).
+:contentReference[oaicite:1]index=1
+1
+
+--- Page 2 ---
+(i) inputs on B1 ∪B2 match and (ii) the same boundary-output assignments
+on B1 ∪B2 are extendible. Let Type(P) be the type. Counting: there are
+24 choices for boundary inputs and a yes/no choice for each of β4 boundary-
+output 4-tuples, so
+M := |{Type(P)}| ≤24 · 2β4 = 2β4+4 = 2Θ(β4).
+Set ℓpump := M. The DFA view of types and pumping/replacement lemmas
+are in Section 4: Lemma 12 (type composition), Lemmas 10–11 (replacement),
+and Lemmas 14–15 (pumping/periodicity).2
+2
+Contexts and Feasible Functions (no circularity)
+Fix ℓpump. A context is any triple (w1, S, w2) with |w1|, |w2| ∈{ℓpump, ℓpump+1}
+and S ∈Σ2
+in. We identify contexts by the type of the concatenation w1Sw2.
+Thus the set C of context types is a subset of the global type space, indepen-
+dent of f.
+Definition 1 (Feasible function). A map f : C →Σ2
+out is feasible if:
+• (F1) Mid-consistency. For any contexts waS1wb and wcS2wd, the
+fixed outputs f(Type(waS1wb)) on S1 and f(Type(wcS2wd)) on S2
+extend to a legal labeling of waS1 wbwc S2wd.
+• (F2) Bridging. For any context (w1, S, w2) and all z ≥1, the fixed
+outputs f(Type(w1Sw2)) on S extend to a legal labeling of wz
+1Swz
+2.
+These are precisely the certificates that characterize the two gaps on cy-
+cles/paths: (F1) ⇔O(log∗n) vs. Θ(n), and (F1)+(F2) ⇔O(1) vs. Ω(log∗n).3
+3
+Finite Checks for Bridging:
+a clean periodic
+bound
+We now reduce the universal quantifier in (F2) to finitely many z.
+Explicit statement of Lemma 15 and why it holds.
+In the reference,
+Lemma 15 states: for each nonempty word w ∈Σ+
+in there exist integers
+2See Lemmas 10–15 and Lemma 12,
+Section 4 (pp. 20–23).
+:contentRefer-
+ence[oaicite:2]index=2
+3See Theorems 8–9 (pp. 19–20, 27–32) for the constructions from feasible functions.
+:contentReference[oaicite:3]index=3
+2
+
+--- Page 3 ---
+a, b > 0 with a + b ≤ℓpump such that Type(wat+b) is independent of t ≥0.4
+Why: consider the finite set of types T , |T | = ℓpump, and the self-map
+Fw : T →T that composes by w. The sequence Ti := F i
+w(T0) (here T0 is the
+type of the empty prefix) has a repetition Tp = Tq with 1 ≤p < q ≤ℓpump;
+setting a = q −p, b = p gives a + b = q ≤ℓpump and Tat+b constant for all
+t ≥0. This is the standard orbit argument behind Lemma 15.
+Lemma 1 (Finite z for bridging). Fix a context (w1, S, w2). There exist
+parameters (ai, bi) for wi with ai+bi ≤ℓpump such that Type(wait+bi
+i
+) is t-
+invariant. Hence the pair
+ Type(wz
+1), Type(wz
+2)
+
+takes at most a1a2 ≤ℓ2
+pump
+distinct values, and by type composition (Lemma 12) Type(wz
+1Swz
+2) also takes
+at most ℓ2
+pump values. Consequently, there exists Z ≤ℓ2
+pump with
+∀z ≥1 ∃z′ ∈{1, . . . , Z} : Type(wz
+1Swz
+2) = Type(wz′
+1 Swz′
+2 ).
+Thus (F2) holds iff the partial outputs on S extend for all z ∈{1, . . . , Z}.
+Proof. Apply Lemma 15 to each wi (periodicity), and use Lemma 12 (type
+composition) to conclude that the type of wz
+1Swz
+2 is determined by the pair
+of side types, whence the bound by pigeonhole. Extendibility depends only
+on the resulting type and the fixed outputs on S (by the replacement lemma,
+Lemma 11), so a single representative per type suffice.5
+How we pick Z in practice.
+We will use the worst-case bound Z = ℓ2
+pump;
+this keeps the algorithm simple and does not affect the asymptotic bound.
+(Optional refinement: for a fixed context, compute the cycle structure of
+Fw1 and Fw2 in the type DFA and set Z to the lcm of periods times the
+max preperiod—still ≤ℓ2
+pump—which can reduce constants while remaining
+2poly(β) overall.)
+4
+Deterministic DP for extendibility (with precise
+complexity)
+All checks reduce to deciding if a partially labeled path admits a completion.
+For r = 1:
+4Lemma 15 (p. 23). :contentReference[oaicite:4]index=4
+5Lemma 12 (type composition) and Lemma 11 (replacement) are in Section 4 (pp.
+21–22, 20–21). :contentReference[oaicite:5]index=5
+3
+
+--- Page 4 ---
+Layered automaton.
+Given a path P = (v1, . . . , vk) and a set F of forced
+positions with outputs oi ∈Σout, build k layers, one per position. Layer i
+keeps the set
+Li := {x ∈Σout : ( in(vi), x ) ∈Cin–out and if i ∈F, x = oi}.
+Insert a directed edge x →y from layer i to i+1 iff (x, y) ∈Cout–out. There
+is a legal completion iff the layered graph has a path from some state in layer
+1 to some state in layer k.
+Running time and memory.
+Let k = |P|. Constructing layers and edges
+takes O(k · |Cout–out|) time, which is O(kβ2) in the worst case, and O(kβ)
+memory. Forced nodes reduce the number of states (they do not increase
+complexity): the check is a standard reachability on this DAG, also in O(kβ2)
+time.
+5
+Nondeterministic algorithm and correctness
+Precomputation (deterministic, 2poly(β))
+1. Enumerate all types T by exploring the boundary-extendibility DFA
+(Lemma 12), set ℓpump = |T | ≤2Θ(β4).6
+2. For each type t ∈T and each boundary assignment on B1 ∪B2, pre-
+compute extendible? via DP on a fixed representative of type t (length
+O(ℓpump)).
+3. Compute the set C ⊆T of context types: those realized by some w1Sw2
+with |wi| ∈{ℓpump, ℓpump+1} and |S| = 2. Note |C| ≤ℓpump.
+Guess
+Nondeterministically guess f(τ) ∈Σ2
+out for every τ ∈C.
+Verify (deterministic, 2poly(β))
+(V1) Mid-consistency. For each ordered pair of contexts (waS1wb, wcS2wd), run the DP on
+waS1 wbwc S2wd with the two 2-node windows S1, S2 forced to f; accept
+only if the DP succeeds. Why no extra buffers: by definition of contexts,
+6Type DFA and counting bound: Lemma 13 (p. 22) specialized to r=1 gives |T | ≤24·2β4.
+:contentReference[oaicite:6]index=6
+4
+
+--- Page 5 ---
+wb, wc each has length ℓpump or ℓpump+1, so the underlined bridge wbwc
+is already a long buffer for the replacement lemmas.
+(V2) Bridging. For each context (w1, S, w2) and each z = 1, . . . , Z with Z = ℓ2
+pump from
+Lemma 1, run the DP on wz
+1Swz
+2 with the two nodes of S forced to f.
+(All seams internal to wz
+1 and wz
+2 are covered by this DP; no separate
+”seam test” is needed.)
+Theorem 1 (Soundness and completeness). If the verifier accepts some
+guessed f, then f satisfies (F1) and (F2); conversely, if a feasible f exists,
+some guess passes (V1)–(V2).
+Proof sketch. (V1) is exactly (F1). For (F2), Lemma 1 shows it suffices to
+check z ≤Z; (V2) performs those checks with a DP that validates all local
+constraints, including seams created by repetition. Conversely, a feasible f
+passes (V1) and by Lemma 1 also passes (V2) for all z ≤Z, hence for all
+z.
+Complexity and main theorem
+Precomputation explores T and runs DPs on O(ℓpump)-length words, all in
+2poly(β) time. Verification runs a polynomial number of DPs on strings of
+length O(ℓ3
+pump) (worst case, from z ≤ℓ2
+pump and context width O(ℓpump)),
+each in O(kβ2); altogether 2poly(β) = 2poly(N) time.
+Theorem 2 (Main). Feasible-Function Existence for β-normalized,
+radius-1 LCLs on directed paths is in NEXPTIME.
+6
+Connection to the two gaps
+We use the standard implications:
+• (F1) ⇒O(log∗n) and failure of (F1) ⇒Θ(n) (Theorem 8, with MIS-
+based decomposition, Lemma 16).7
+• (F1)+(F2) ⇒O(1) and failure of (F2) ⇒Ω(log∗n) (partition Lem-
+mas 20–22 and fill-in Lemmas 26–27 culminating in Theorem 9).8
+7Theorem 8 and Lemma 16 (pp. 19–20, 22–24). :contentReference[oaicite:7]index=7
+8Lemmas 20–22 and Lemmas 26–27 with Theorem 9 (pp. 27–32).
+:contentRefer-
+ence[oaicite:8]index=8
+5
+
+--- Page 6 ---
+7
+Positioning and bounds (summary)
+Known lower bound
+PSPACE-hard to distinguish O(1) vs. Ω(n) on oriented paths (Sec. 3, Thm
+This work (upper bound)
+NEXPTIME for Feasible-Function Existence under poly(β) encoding.
+Tightness
+Open under this encoding (EXPTIME? PSPACE?).
+See pp. 14–16 for hardness and β-normalized constant-time lower bounds.9
+Notes
+Non-circularity.
+Context types are defined as a subset of global types
+(those realized by w1Sw2 with |wi| ∈{ℓpump, ℓpump+1}), independently of f.
+General r > 1 (remark).
+All arguments lift to any fixed radius r: the
+type space size becomes 2poly(βO(r)) (cf. Lemma 13), the DP has βO(r) states
+per layer, and Lemma 1 still yields a finite Z from the same periodicity
+argument.10
+A
+Optional algebraic view (boolean matrices with
+the seam)
+Let A ∈{0, 1}β×β be the adjacency of Cout–out: A[x, y] = 1 ⇐⇒(x, y) ∈
+Cout–out. For a word w, define Cw ∈{0, 1}β×β by (Cw)ij = 1 iff there is a legal
+labeling of w whose first/last outputs are i/j and nodewise (in(·), out(·)) ∈
+Cin–out. Then boolean multiplication gives the exact composition law
+Cxy = Cx A Cy,
+hence
+Cwz = Cw (ACw)z−1.
+Proof: (i, k) ∈Cxy iff there exists j such that (i, j) ∈Cx, (j, k) ∈Cy, and
+the seam output pair is legal, i.e. (j, ·) to (·, k) goes through an edge in
+A—which is exactly the middle factor. This algebraic view is not needed for
+the algorithm (the DP already checks seams), but it explains the role of the
+seam explicitly.
+9Hardness and β-normalized lower bounds: Theorems 4–5 (pp. 14–16). :contentRefer-
+ence[oaicite:9]index=9
+10Lemma 13 (p. 22) gives the general type bound. :contentReference[oaicite:10]index=10
+6
+
+--- Page 7 ---
+B
+NEXPTIME-hardness (explicit β-normalized radius-
+1 model)
+We prove that Feasible-Function Existence (mid-consistency (F1) only)
+for β-normalized, radius-1 LCLs on globally oriented paths is NEXPTIME-
+hard. Together with Theorem 2, this yields NEXPTIME-completeness. The
+reduction is from Succinct-3SAT: a circuit C of size s defines, for each index
+j ∈{0, 1}B, a 3-clause clause(j) over variables x1, . . . , x2B; the question is
+whether the 2B-variable CNF ΦC is satisfiable.
+What we use from the toolbox.
+We rely on (i) the types/replacement/pumping
+machinery (Lemmas 10–12, 14–15 in §4 of the reference), and (ii) the error-
+chain technique to make malformed encodings harmless (as in §3 of the
+reference).11
+B.1
+Target: FFE(F1) for β-normalized r=1
+Recall our feasible-function existence problem FFE(F1): given Σin = {0, 1},
+|Σout| = β, Cin–out ⊆Σin×Σout, Cout–out ⊆Σout×Σout, decide if there is a
+map f : C →Σ2
+out (on context types) satisfying mid-consistency (F1), cf. the
+definition in the upper bound section.
+B.2
+Source and parameters
+Let C be a succinct 3CNF generator of size s. Set
+B = sc0,
+β = sc1,
+for large enough absolute constants c0 ≪c1 fixed below. We will build, in
+poly(s) time, a β-normalized LCL PC = (Σin, Σout, Cin–out, Cout–out) such
+that
+ΦC is satisfiable
+⇐⇒FFE(F1) holds for PC.
+(1)
+Since |Σout| = β = poly(s), the type space size ℓpump := |{Type(·)}| satisfies
+ℓpump ≤2Θ(β4) = 2poly(s), and hence the contexts in C (those realized by
+w1Sw2 with |wi| ∈{ℓpump, ℓpump+1}) cover exponentially many patterns,
+which we will exploit.12
+11Types, replacement, pumping: §4, Lemmas 10–15; error-chains and bounded-tape
+execution checking: §3. :contentReference[oaicite:0]index=0
+12Type bound and composition/replacement: §4, Lemma 13 (bound), Lemma 12 (compo-
+sition), Lemma 11 (replacement), and Lemmas 14–15 (pumping/periodicity). :contentRef-
+erence[oaicite:1]index=1
+7
+
+--- Page 8 ---
+B.3
+The block language and the verifiers
+We describe Σout and the two verifiers in the β-normalized form.
+The
+construction follows the standard ”copy input and check a tableau by nearest-
+neighbor rules” recipe, together with the error-chain gadget that guarantees
+malformed inputs never constrain f.13
+Alphabet Σout.
+Each output symbol encodes a constant number of tracks:
+(T1) a bit in which must copy the node’s input bit (enforced by Cin–out);
+(T2) a role from a constant set {HEAD, RID, GID, RUN, PAD} and a constant-
+size phase (synchronization);
+(T3) three colors {RED, GRN, BLU} (used only at the 2-node window S);
+(T4) a special plumbing symbol ⊥;
+(T5) a bounded collection of error symbols (the error-chain alphabet) as in
+§3;
+(T6) (for RUN) the working alphabet for a fixed universal TM U running in
+BO(1) time.
+Thus |Σout| = β = poly(s).
+The intended block.
+A well-formed block (a regular language over Σout)
+has the form
+HEADC RID GID RUN PAD,
+where:
+• HEADC is a self-delimiting binary header that literally stores C on the
+in track (copied to output by (T1)) and marks the start of a block.
+• RID is a B-bit variable index region; GID is a B-bit clause index region.
+• RUN is a row-by-row encoding of a tableau of the fixed machine U which,
+given (C, RID, GID), runs for BO(1) steps and computes the three literals
+13The radius-1 checking of a 1D flattening of a time poly(B) computation and the
+error-chain idea are lifted verbatim from §3 (LBA encoding + locally checkable refutations).
+:contentReference[oaicite:2]index=2
+8
+
+--- Page 9 ---
+of clause(GID) and their signs, and writes three length-B one-hot vectors
+V (+), V (−) and V (⊥) on dedicated subtracks:
+V (+)[i] = 1 ⇐⇒xi occurs positively in clause(GID),
+V (−)[i] = 1 ⇐⇒¬xi occurs,
+and V (⊥) is always all zero (reserved for BLU).
+• In variable blocks we also run U on (C, RID) to materialize a variable
+one-hot vector HotRID ∈{0, 1}B with HotRID[i] = 1 iff i = RID.
+The adjacency table Cout–out permits exactly nearest-neighbor pairs con-
+sistent with (i) the grammar above (placement of regions, row separators,
+phases), and (ii) single-step correctness of U’s transition across each row
+seam; malformed pieces are locally refutable by emitting an error-chain (as
+in §3), which we also allow in Cout–out and which always leads to a successful
+completion.14
+The window S and activation.
+The two nodes of the window S (in
+contexts w1Sw2) may be labeled at f’s discretion by one of the colors
+{RED, GRN, BLU} or by ⊥. No other output is allowed at S. The out–out
+grammar is arranged so that:
+The choice ⊥at S is always extendible. A non-⊥color at S
+is extendible only if somewhere inside w1 (resp. w2) there is a
+well-formed block whose HEADC matches the fixed header for C,
+and whose RID (resp. GID) and tableau are valid.
+We say such contexts are active; all other contexts are inactive. Inactive
+contexts are thus tautologically satisfied by setting f(·) = ⊥.
+Bridge semantics (the ”clause satisfied by variable” test).
+For an
+active ordered pair (variable on the left, clause on the right), the bridge (F1)
+instance waS1wbwcS2wd is allowed to complete iff
+∃i ∈[B] with HotRID[i] = 1 and
+
+
+
+
+
+V (+)[i] = 1
+if f(Type(left)) = RED,
+V (−)[i] = 1
+if f(Type(left)) = GRN,
+V (⊥)[i] = 1
+if f(Type(left)) = BLU.
+14Exactly as in §3: a fixed finite set of error types and local rules allow every malformed
+tableau to be disproved by a short, locally checkable chain; on well-formed encodings such
+chains cannot be produced. :contentReference[oaicite:3]index=3
+9
+
+--- Page 10 ---
+This ”∃i” is checked by a standard radius-1 witness chain: upon a color
+choice at S1 and S2, the out–out grammar enables a path that (i) guesses
+an index i, (ii) walks to bit i inside the left block and requires HotRID[i] = 1,
+and (iii) walks to bit i inside the right block and requires the corresponding
+V (·)[i] = 1. If any subcheck fails, the chain gets stuck (no completion). This
+is exactly the same local ”existential witness” mechanism as in the error-
+chain gadget, so it is implementable with radius 1 and a constant alphabet
+overhead.15
+All other ordered pairs of context types are trivialized: either at least one
+side is inactive (then ⊥suffices), or the role pairing is not (variable, clause),
+in which case the grammar ignores the colors and accepts with ⊥buffers.
+B.4
+Existence of exponentially many active context types
+Because ℓpump = 2poly(s) and our header+index+run occupy O(s) + O(B) +
+BO(1) = poly(s) symbols, by the pumping lemmas there are context types
+that (i) have a valid block with any desired RID ∈{0, 1}B on the left and
+(ii) context types that have a valid block with any desired GID on the right.
+Moreover, types that differ in RID (or in GID) are distinct because, by design,
+extendibility from S under a color differs for some bridge depending on the
+bit pattern (the witness chain succeeds or not). Hence there are 2B = 2poly(s)
+distinct variable types {Vari} and 2B distinct clause types {Clj} present
+in C.16
+B.5
+Correctness of the reduction
+We prove (1).
+Lemma 2 (Completeness). If ΦC is satisfiable, then there exists f : C →Σ2
+out
+satisfying (F1) for PC.
+Proof. Fix a satisfying assignment α : {x1, . . . , x2B} →{0, 1}. Define f as
+follows.
+• For each variable type Vari, set f(Vari) = RED if α(xi) = 1 and
+f(Vari) = GRN if α(xi) = 0 (either orientation of S may be chosen; the
+grammar handles both).
+15Witness chains (existential pointers to positions with local checking) are the same
+combinatorics as the §3 error pointers; we reuse their radius-1 implementation. :contentRe-
+ference[oaicite:4]index=4
+16Realization and stability of these patterns inside wb or wc follow from type compo-
+sition and replacement; lengths are padded using pumping (§4, Lemmas 11–12, 14–15).
+:contentReference[oaicite:5]index=5
+10
+
+--- Page 11 ---
+• For each clause type Clj, pick any true literal of clause(j) under α and
+set f(Clj) to its color: RED for a positive literal, GRN for a negative
+literal (use BLU only if desired as a dummy literal, with V (⊥) ≡0 never
+satisfying witnesses).
+• For all inactive types, set f(τ) = ⊥.
+Consider any ordered pair of contexts in the (F1) quantification. If at least
+one side is inactive or the roles are not (variable, clause), the bridge is
+trivial by construction. If the pair is (Vari, Clj), then by the definition of
+the RUN subtracks we have HotRID[i] = 1 inside Vari, and V (+)[i] = 1 (resp.
+V (−)[i] = 1) if we chose RED (resp. GRN) at Clj and the picked literal is xi
+(resp. ¬xi). Since f(Clj) is a true literal of clause(j), such a choice exists,
+and the bridge DP succeeds via a witness chain at index i. Hence every (F1)
+check passes.
+Lemma 3 (Soundness). If there exists f satisfying (F1) for PC, then ΦC is
+satisfiable.
+Proof. From f, read an assignment α by
+α(xi) =
+
+
+
+
+
+1,
+f(Vari) = RED,
+0,
+f(Vari) = GRN,
+arbitrary,
+f(Vari) = BLU (we may fix it to 0),
+for all variable types Vari (if f(Vari) = ⊥, the type is inactive, impossible
+by construction of Vari). Fix any clause index j. If f(Clj) = ⊥then Clj is
+inactive, which contradicts the existence of the header+RUN in Clj; hence
+f(Clj) ∈{RED, GRN, BLU}.
+Consider the (F1) bridge for the ordered
+pair (Vari, Clj) where i ranges over all variables that appear in clause(j).
+The out–out grammar allows completion only if there exists an index i
+with HotRID[i] = 1 in Vari and the corresponding V (+)[i] = 1 (for RED)
+or V (−)[i] = 1 (for GRN) in Clj. Because (F1) must hold for every such
+ordered pair, the choice f(Clj) must be compatible with at least one Vari
+that actually occurs in clause(j); therefore the picked color is a true literal
+under α. Since j was arbitrary, every clause has a true literal: α satisfies
+ΦC.
+Lemma 4 (Inactive contexts never constrain f). If a context lacks a well-
+formed header+indices+valid RUN (on either side), then any output at S
+except ⊥makes the (F1) bridge DP fail, while ⊥always extends. Thus such
+contexts are irrelevant and do not affect the existence of f.
+11
+
+--- Page 12 ---
+Proof. Both statements follow from the grammar: non-⊥at S activates
+witness chains that must eventually check bits inside a block; in the absence
+of a valid block the chain gets stuck and no completion exists. Conversely,
+when S is ⊥, the out–out table contains a self-looping ⊥buffer language that
+trivially completes the bridge (the same plumbing as in the upper-bound
+DP). The error-chain rules guarantee that malformed fragments admit locally
+checkable refutations and hence do not impose constraints.17
+Theorem 3 (FFE(F1) is NEXPTIME-complete). For β-normalized, radius-
+1 LCLs on globally oriented paths (explicit model), Feasible-Function
+Existence is NEXPTIME-complete.
+Proof. Membership is Theorem 2. For hardness, the reduction C 7→PC runs
+in poly(s) time and produces |Σout| = β = poly(s) with adjacency tables of
+size Θ(β2). By Lemmas 2–4, (1) holds. Hence FFE(F1) is NEXPTIME-
+hard.
+B.6
+From (F1) to the full feasible-function (F1)+(F2)
+To pass from mid-consistency to the full feasible-function existence (bridging
+included), add a neutral symbol ⊥(already present) and allow, in Cout–out,
+arbitrary ⊥-labelings on repetitions wz
+1 and wz
+2. Then (F2) is vacuous: for
+every context (w1, S, w2) and every z ≥1, the partial labeling that fixes S
+to f(Type(w1Sw2)) extends by filling wz
+i with ⊥. Hence:
+Corollary 1 (Classification hardness). Deciding the distributed class (O(1)
+vs. O(log∗n) vs. Θ(n)) via feasible functions is NEXPTIME-hard in the
+explicit β-normalized, radius-1 model.
+B.7
+Size and radius bookkeeping
+All rules are radius 1. The only growth parameter is β = poly(s), which
+controls the number of output symbols needed for (i) the fixed role/phase
+tracks, (ii) the three color tokens {RED, GRN, BLU} and ⊥, (iii) the fi-
+nite error alphabet, and (iv) the universal machine U work alphabet. The
+header+indices+RUN occupy O(s) + O(B) + BO(1) = poly(s) positions,
+17See §3 for the error-chain ”disprover” gadget accepted by the verifier, ensuring mal-
+formed encodings always have completions, and §4 for the ”plumbing” view of the DP.
+:contentReference[oaicite:6]index=6
+12
+
+--- Page 13 ---
+whereas the pump length satisfies ℓpump = 2Θ(β4) = 2poly(s), which guaran-
+tees that active contexts containing such blocks exist and are stable under
+replacement/pumping.18
+18All quantitative bounds (type count, replacement, pumping) follow from §4; the
+error alphabet and local checking of bounded-time executions are from §3. :contentRefer-
+ence[oaicite:7]index=7
+13
+
+
+=== round-0002/verifier.feedback.md ===
+Overall, the three reports converge on a coherent “implicit SAT of types” program with a corrected ON/OFF bridge and a poly(s)-length, radius-1 clause tableau. That said, two correctness gaps and one design pitfall must be fixed to avoid trivial or unsound instances. The most serious is the possibility of allowing ⊥ at S on active contexts; as currently written, if ⊥ is permitted at S for active types and PAD/⊥ plumbing always succeeds, then (F1) becomes trivially satisfiable by setting f(·) ≡ ⊥. This would collapse the reduction. The fix is to forbid ⊥ at S on active contexts (and force offers/certificates) while allowing ⊥ only on inactive ones.
+
+A second gap is sign binding. Prover 01 fixes this cleanly (clause picks occurrence only; the sign is read from the clause RUN). Provers 02/03 expose 6 sign-coded tokens at S; unless the grammar forces those tokens to match the verified sign for the selected occurrence p, the clause could cheat by picking an arbitrary sign. Adopt 01’s O1/O2/O3 palette or add a local check tying S’s sign to the RUN.
+
+Finally, the equality/inequality-gate needs a formal “exclusivity lemma”: exactly one of the two certificates is realizable for a given pair, with radius-1 witness chains that cannot be faked. Provide the minimal local invariants (one-hot RID, pointer integrity, bit-by-bit compare) and a short counterexample analysis showing attempted fakes dead-end.
+
+3-row table of key claims
+| Claim (short) | Status | Why |
+| Gate gives exactly one ON pair | Unclear | Needs a formal exclusivity lemma for equality/inequality witnesses; also depends on banning ⊥ at active S so OFF cannot bypass ON. |
+| Sign bound to clause RUN | Unclear | 01: OK (S picks occurrence only). 02/03: unclear unless S-token sign is locally forced to equal RUN’s sign for the selected occurrence. |
+| Trivializing (F2) without trivializing (F1) | Broken | If ⊥ is allowed at S on active contexts and PAD/⊥ always fills, f(·) ≡ ⊥ satisfies (F1). Must forbid ⊥ at S on active contexts. |
+
+Value triage: The SAT-of-types framing, window anchoring, and the poly(s)-length tableau are solid and valuable. Patch H (01) resolves the quantifier mismatch cleanly. 02’s equality/inequality gate is a good mechanism provided exclusivity is proven and sign binding is enforced. 03’s general succinct-SAT capture is useful context and upper-bound bookkeeping.
+
+Next steps: (i) Prove the exclusivity lemma with explicit seam rules and witness invariants; (ii) forbid ⊥ at S on active contexts in Cout–out and re-verify nontriviality; (iii) adopt 01’s O1/O2/O3 palette or add a local sign-check tying S to RUN; (iv) complete the B=2 DP table to sanity-check ON/OFF and sign logic.
+
+
+=== notes.md ===
+Verifier notes (2025-08-27):
+- Adopt a hybrid: use Prover 02’s gate to separate ON (i∈vars(j)) from OFF pairs, and Prover 01’s window-anchored blocks to keep all semantics within wb/wc.
+- Replace any O(1)-time checker with a poly(s)-length, radius-1 tableau inside wc (and wb as needed) that verifies C(j) and exposes the needed bits to the gate; ensure error-chain refutations for malformed headers.
+- Do not rely on boundary-only signatures for type multiplicity; instead, separate types by differential boundary-extendibility induced by interior content (witness success/failure under fixed S-labels).
+- Action items: (i) write explicit boundary tables (offers, gate, PAD/CAP conduits), (ii) specify the clause-verification tableau and its alphabet, (iii) prove type-separation and OFF/ON correctness, (iv) complete a B=2 worked example with DP simulation.
+Verifier notes addendum (2025-08-27):
+- Critical: Forbid ⊥ at S on active contexts. Adjust Cout–out so that when the window anchors a well-formed variable/clause block, the S palette excludes ⊥ and forces an offer; only inactive contexts allow ⊥. This preserves nontriviality of (F1).
+- Adopt Prover 01’s occurrence-only S palette {O1,O2,O3}; read the sign from the verified RUN. If using sign-coded S tokens, add a local rule that forces the S-sign to equal the RUN’s sign for the selected occurrence.
+- Gate exclusivity: Write and prove a radius-1 lemma that exactly one of equality/inequality certificates is realizable, with CAP allowed only under equality and PAD only under inequality.
+- Type separation: Prefer a neutral tester j* (present as a type but labelable so it imposes no constraints under f) to guarantee distinct Var_i without relying on properties of C. Validate no side effects on (F1) or (F2).
+- Proceed with explicit seam tables (offers, gate, CAP/PAD), the clause RUN tiles and error chains, and the B=2 worked DP table.
+
+
+Current round tag: Round 0003 — 2025-08-27T11:30:44.027502Z
+Return ONLY valid JSON (no fences). Ensure progress_md starts with '## Round 0003 — 2025-08-27T11:30:44.027502Z'.

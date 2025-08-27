@@ -280,6 +280,23 @@ class ProblemManager:
         """Check the status of a problem."""
         runner = self.get_or_create_runner(problem_path)
         
+        # Check live_status.json for actual running state
+        status_file = problem_path / "runs" / "live_status.json"
+        if status_file.exists():
+            try:
+                live = json.loads(status_file.read_text(encoding="utf-8"))
+                phase = live.get("phase", "idle")
+                ts = live.get("ts")
+                # If we have a recent timestamp and phase is not idle, consider it running
+                if phase != "idle" and ts:
+                    # Check if timestamp is recent (within last 10 minutes)
+                    if isinstance(ts, (int, float)):
+                        elapsed = time.time() - ts
+                        if elapsed < 600:  # 10 minutes
+                            runner.status = "running"
+            except:
+                pass
+        
         # Update status if process exists
         if runner.process:
             poll = runner.process.poll()
@@ -323,6 +340,18 @@ class ProblemManager:
 # Initialize manager
 if 'manager' not in st.session_state:
     st.session_state.manager = ProblemManager()
+
+# Handle URL query parameters for navigation persistence
+query_params = st.query_params
+if 'view' in query_params and 'problem' in query_params:
+    # Restore view state from URL
+    st.session_state.active_tab = query_params['view']
+    # Find and restore selected problem
+    problem_name = query_params['problem']
+    for p in st.session_state.manager.discover_problems():
+        if p.name == problem_name:
+            st.session_state.selected_problem = p
+            break
 
 # --------------------------
 # Helper Functions
@@ -444,10 +473,15 @@ else:
     with col1:
         if st.button(tab_names[0], use_container_width=True, type="primary" if selected_tab_idx==0 else "secondary"):
             st.session_state.active_tab = 'overview'
+            st.query_params.clear()  # Clear query params when going to overview
             st.rerun()
     with col2:
         if st.button(tab_names[1], use_container_width=True, type="primary" if selected_tab_idx==1 else "secondary"):
             st.session_state.active_tab = 'detailed'
+            # Preserve problem selection in URL if one is selected
+            if 'selected_problem' in st.session_state:
+                st.query_params['view'] = 'detailed'
+                st.query_params['problem'] = st.session_state.selected_problem.name
             st.rerun()
     
     st.markdown("---")
@@ -507,6 +541,9 @@ else:
                 if st.button(f"📁 {problem.name}", key=f"select_{i}", use_container_width=True):
                     st.session_state.selected_problem = problem
                     st.session_state.active_tab = "detailed"
+                    # Set query params to persist on refresh
+                    st.query_params['view'] = 'detailed'
+                    st.query_params['problem'] = problem.name
                     st.rerun()
             
             with col2:
@@ -596,7 +633,18 @@ else:
                             elapsed = f" (elapsed {secs}s)"
                         except:
                             pass
-                st.info(f"🧠 Current phase: **{phase}**{elapsed}")
+                
+                # Display status with auto-refresh if running
+                if phase != "idle":
+                    # Create placeholder for dynamic update
+                    status_placeholder = st.empty()
+                    status_placeholder.info(f"🧠 Current phase: **{phase}**{elapsed}")
+                    
+                    # Auto-refresh every 2 seconds when running
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.info(f"🧠 Current phase: **{phase}**{elapsed}")
             
             # Notes.md viewer
             notes_path = problem / "notes.md"

@@ -44,3 +44,20 @@ Sanity checks
 Next objectives
 - Prove Bondy’s pancyclicity strengthening (either closure-based or via rotation–extension), and, if included, give sharp exceptions.
 - Optional: quantify the complexity of the constructive procedure; record a brief pseudocode and complexity O(n^2)–O(n^3) depending on data structures.
+Additions and clarifications (closure route to Dirac)
+
+- Clarification to Proposition 1 (connectivity). In the disconnected case pick a smallest component C with |C| = s. There is another component C′, and by minimality |C′| ≥ s. If s ≥ n/2 + 1 then |C| + |C′| ≥ 2s > n, impossible. Hence s ≤ n/2 and the degree bound forces a contradiction to δ ≥ n/2.
+
+- Minimal-counterexample proof of Ore (alternative). Suppose G (on n ≥ 3) violates Ore’s condition ⇒ Hamiltonian and has the minimum number of edges among such counterexamples. Pick a nonedge uv; then G′ = G + uv still satisfies Ore’s condition (degrees do not decrease). By minimality, G′ is Hamiltonian. If the Hamiltonian cycle of G′ uses uv, delete uv to get a Hamiltonian uv-path in G and apply Lemma 3 (deg(u)+deg(v) ≥ n) to re-close in G; if it avoids uv, it is a Hamiltonian cycle of G. Contradiction. Hence Ore holds.
+
+- Triangle or balanced bipartite under Dirac (structural lemma toward pancyclicity). If δ(G) ≥ n/2 and G is triangle-free, then Mantel’s theorem gives e(G) ≤ ⌊n^2/4⌋ while δ ≥ n/2 implies e(G) ≥ nδ/2 ≥ n^2/4. Thus e(G) = n^2/4 and G is an extremal Mantel graph, i.e., a complete bipartite K_{⌊n/2⌋, ⌈n/2⌉}. Under δ ≥ n/2 this forces n even and G ≅ K_{n/2,n/2}. Otherwise, G contains a triangle. This dichotomy is the entry point to Bondy’s pancyclicity strengthening.
+
+- Worked example for Lemma 3 (path-closing). Let G = K_4 − x_0x_3 (the diamond). Take P = x_0,x_1,x_2,x_3; u = x_0, v = x_3, deg(u) = deg(v) = 2, uv ∉ E. Then A = {1,2}, B = {2,3}, so A ∩ B contains i = 2; the cycle x_0,x_2,x_3,x_1,x_0 closes P at the threshold deg(u)+deg(v) = n.
+
+- Algorithmic extraction via reverse closure (δ ≥ n/2). Enumerate all nonedges e_1,…,e_t of G (t = O(n^2)); set G_i = G + {e_1,…,e_i} so that G_t = K_n. Pick any Hamiltonian cycle C_t in K_n. For i = t,…,1: if e_i ∉ E(C_i), set C_{i−1} := C_i; otherwise delete e_i = uv from C_i to obtain a Hamiltonian uv-path P in G_{i−1}, and apply Lemma 3 in G_{i−1} (deg_{G_{i−1}}(u)+deg_{G_{i−1}}(v) ≥ n since e_i was eligible) to re-close to C_{i−1}. Invariant: C_i is a Hamiltonian cycle of G_i. With an adjacency matrix, finding a closing index i ∈ A ∩ B per step costs O(n); thus total O(tn) = O(n^3) in worst case (e.g., G = K_{n/2,n/2}).
+
+- Matching consequences. Under δ ≥ n/2, Theorem 6 provides a Hamiltonian cycle. If n is even, alternate edges on the cycle to obtain a perfect matching. If n is odd, delete any vertex and alternate edges along the resulting Hamiltonian path to obtain a matching of size (n−1)/2.
+
+- Sanity checks. Balanced bipartite K_{n/2,n/2} (n even) has δ = n/2, is triangle-free, Hamiltonian, and closure adds all intra-part edges in one batch to reach K_n. For C_4 (n = 4), δ = 2 and the closure adds both diagonals; both fit the closure framework and Lemma 3.
+
+- Next targets. (i) Pancyclicity: Bondy (1971) shows that a Hamiltonian graph with e(G) ≥ n^2/4 is pancyclic unless G ≅ K_{n/2,n/2}; adapt via triangle/bipartite dichotomy and rotation–extension. (ii) Dirac’s circumference bound c(G) ≥ min{n, 2δ} for 2-connected G; under δ ≥ n/2 this yields Hamiltonicity.

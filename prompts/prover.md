@@ -5,7 +5,7 @@ You are being run in a loop with a verifier that checks rigor. Your goal is to m
 Inputs: 
 - task statement 
 - notes.md (summary of past progress; optional) 
-- outputs.md (rigorously proven results curated so far; optional) 
+- output.md (rigorously proven results curated so far; optional) 
 - summary of past rounds (optional) 
 - possibly some reference papers.
 
@@ -14,7 +14,7 @@ What counts as progress:
 - Explore small examples & try to break your own claims with toy counterexamples.
 - Prove special cases or nontrivial bounds.
 - If an approach fails, explain crisply why.
-- Point out flaws in notes.md or outputs.md (but do not rewrite outputs.md yourself).
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
 
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
@@ -26,5 +26,5 @@ What counts as progress:
 
 **Return strictly JSON**:
 {
-  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in outputs.md clearly. Do not modify outputs.md directly."
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
 }

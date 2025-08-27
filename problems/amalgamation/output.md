@@ -16,3 +16,15 @@ Proof. When |A|≤2 there are no 3‑subsets of A, hence no 5‑sets of the form
 
 Fact 5 (Switching yields a 4‑hypertournament but may change 5‑types).
 For ε:V→{±1}, define f^ε(S):=(∏_{v∈S}ε(v))·f(S). Then f^ε encodes a 4‑hypertournament. However, for a fixed 5‑set X, switching at v∈X flips the four coordinates of p(X) corresponding to 4‑sets containing v and leaves the coordinate “missing v” unchanged; this can change the isomorphism type on X (e.g., an O5 representative (+,-,-,-,-) switches at its ‘+’ vertex to (+,+,+,+,+), a C5 representative). ∎
+Lemma 6 (Explicit formula for the S5 action on 5-vectors).
+Let X be a 5-set equipped with an increasing labeling {1,2,3,4,5}. For τ∈S5 and i∈{1,…,5}, write j:=τ^{-1}(i) and define
+c_j(τ) := |{k<j : τ(k) > τ(j)}| + |{k>j : τ(k) < τ(j)}|.
+In the isomorphism action on p∈{±1}^X given by p′_i = ε_i(τ)·p_{τ^{-1}(i)}, the sign factor is
+ε_i(τ) = sgn(τ)·(−1)^{c_j(τ)}.
+
+Proof. Let τ′ be the induced bijection from [5]\{j} to [5]\{i}, obtained by deleting position j in the domain and value i in the codomain. By definition, ε_i(τ)=sgn(τ′). The inversions of τ split into two disjoint families: those not involving j (which correspond bijectively to inversions of τ′) and those involving j, whose number is c_j(τ) by definition. Hence inv(τ)=inv(τ′)+c_j(τ), so sgn(τ)= (−1)^{inv(τ)} = (−1)^{inv(τ′)+c_j(τ)} = sgn(τ′)·(−1)^{c_j(τ)} = ε_i(τ)·(−1)^{c_j(τ)}. Rearranging gives the claimed formula. ∎
+
+Corollary 7 (Product identity for ε-factors).
+For τ∈S5, one has ∏_{i=1}^5 ε_i(τ) = sgn(τ).
+
+Proof. Using ε_i(τ) = sgn(τ)·(−1)^{c_{τ^{-1}(i)}(τ)} and the fact that each inversion contributes 1 to c_a and 1 to c_b, we have Σ_{j=1}^5 c_j(τ) = 2·inv(τ). Therefore ∏_{i=1}^5 ε_i(τ) = sgn(τ)^5 · (−1)^{Σ_j c_j(τ)} = sgn(τ)·(−1)^{2·inv(τ)} = sgn(τ). ∎

@@ -13,7 +13,7 @@ Inputs:
 
 Guidelines:
 - notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
-- output.md: should be concise and rigorous. Keep only proven theorems with clear proofs. If a statement is flawed and you cannot fix it, remove it from output.md and instead add it to notes.md with explanation.
+- output.md: should be concise and rigorous. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement is flawed and you cannot fix it, remove it from output.md and instead add it to notes.md with explanation.
 - Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
 
 Tasks:

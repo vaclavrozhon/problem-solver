@@ -194,6 +194,15 @@ class ProblemManager:
         # Store total rounds requested for this run
         runner.total_rounds_requested = rounds
         
+        # Also persist to file so it survives restarts
+        try:
+            runs_dir = problem_path / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            metadata = {"total_rounds_requested": rounds, "started_at": time.time()}
+            (runs_dir / "run_metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+        except Exception:
+            pass  # Don't fail if we can't write metadata
+        
         try:
             # Determine starting round
             runs_dir = problem_path / "runs"
@@ -697,6 +706,34 @@ else:
                 runner = st.session_state.manager.get_or_create_runner(problem)
                 total_requested = runner.total_rounds_requested
                 
+                # Try to infer total rounds if not set
+                if total_requested == 0:
+                    # First try to read from persistent metadata file
+                    try:
+                        metadata_file = runs_dir / "run_metadata.json"
+                        if metadata_file.exists():
+                            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+                            total_requested = metadata.get("total_rounds_requested", 0)
+                            if total_requested > 0:
+                                runner.total_rounds_requested = total_requested  # Cache it
+                    except Exception:
+                        pass
+                    
+                    # If still not found and process is running, try process command line
+                    if total_requested == 0 and runner.process and runner.process.poll() is None:
+                        try:
+                            import psutil
+                            proc = psutil.Process(runner.process.pid)
+                            cmdline = proc.cmdline()
+                            # Look for --rounds argument
+                            for i, arg in enumerate(cmdline):
+                                if arg == "--rounds" and i + 1 < len(cmdline):
+                                    total_requested = int(cmdline[i + 1])
+                                    runner.total_rounds_requested = total_requested  # Cache it
+                                    break
+                        except (ImportError, Exception):
+                            pass  # psutil not available or process info not accessible
+                
                 # Calculate remaining rounds
                 remaining_info = ""
                 if total_requested > 0:
@@ -707,6 +744,9 @@ else:
                         remaining = max(0, total_requested - completed_rounds)
                         if remaining > 0:
                             remaining_info = f" ({remaining} rounds until end)"
+                else:
+                    # Show unknown when we can't determine total rounds
+                    remaining_info = " (unknown rounds remaining)"
                 
                 # Display enhanced status
                 if phase != "idle":

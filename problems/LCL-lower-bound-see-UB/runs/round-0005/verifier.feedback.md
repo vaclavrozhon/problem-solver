@@ -1,0 +1,22 @@
+High-value progress: splitting the S-node into a product palette (choice vs phase subtracks) and making the outer seams constrain only choices while the central seam gates phases is the right structural move. The both-sides-offer gating, explicit Selected↔RUN wiring on the clause side, and the barrier placement immediately past the RUN footer are all aligned with the previous verifier guidance. The alphabet-size estimate is also reasonable (O(B)+poly(s) with B polynomial in s). The B=2 walkthrough and the “central seam table schema” are helpful for concreteness.
+
+However, there is a critical correctness gap: the proposed design no longer compares the variable bit and the selected occurrence bit across the seam. As written, EqL[b]/EqR[b] loops only check agreement between a block’s own bit-lane and its mirrored copy on S (trivially true by mirroring), and the NeqCheckL/R[b] relies on block-internal “Mismatch” flags that cannot be computed using only one side’s local information. A block cannot infer a cross-side mismatch without seeing the other side’s bit, and the seam pair table currently “only synchronizes phases,” so neither Eq nor Neq actually enforces cross-side equality/inequality. This invalidates the Exclusivity E′ argument and the B=2 DP trace.
+
+Fix required: move the cross-side bit tests to the central seam. For each b, the central seam pair (EqL[b],EqR[b]) must be allowed only if lbit[b]=rbit[b], and (NeqCheckL[b],NeqCheckR[b]) only if lbit[b]≠rbit[b]. This does not cause blow-up: per b there are only four bit combinations; you allow two for Eq and two for Neq. The “done”/“found-mismatch” marks can still be used to track progress, but the decisive test must be at the central seam where both mirrored bits are simultaneously visible.
+
+Barrier semantics currently conflict: one bullet says barriers “allow only PAD-plumbing of the block-internal language,” while the next says barriers “forbid all cursor/terminal phases (… CAP/PAD).” Please unify to a single rule: across any edge incident to a barrier node, no certificate/cursor/terminal substate is allowed; only neutral/block-internal non-certificate symbols may appear. In addition, at the outer seam, if the neighbor is Bar•, force S•.choice=⊥ and S•.phase=Neutral and offer•=0. This is sufficient (and necessary) for the F2 argument.
+
+Smaller points to clean up:
+- Idle alignment must also require offerL=offerR=1 (you already state this, keep it explicit in the final table).
+- The “error-chain starter” that deactivates miswired Selected/HotRID should be specified to complete within ≤2 hops and should monotonically force the neighboring Role to Neutral•, which in turn forces S•.choice=⊥ by the outer seam; ensure no transient non-neutral S-phase survives when an offer bit is 0.
+- Revisit the B=2 ON/OFF trace after fixing the central seam comparators; currently it assumes cross-side equality/inequality is actually checked.
+- Clarify that S is one node whose state has both subtracks; the “central seam table” is an internal consistency table between subtracks of the same node (or equivalently an internal edge in a radius-1 encoding). This avoids the “two S nodes” reading.
+- Microcount: with central seam comparators, the number of central pairs is O(1)+O(B) (Idle, starts, 2B Eq-steps, 2B Neq-steps, and 2 terminals), still polynomial.
+
+Concrete next steps for provers:
+1) Write the exact B=2 central seam table with bit comparators: for each b∈{0,1}, allow (EqL[b],EqR[b]) iff lbit[b]=rbit[b], and (NeqCheckL[b],NeqCheckR[b]) iff lbit[b]≠rbit[b]; forbid all Eq/Neq mixing; CAP only after all Eq steps; PAD only after some NeqCheck. Include the sign gate at CAP.
+2) Unify barrier rules as above, and give the 1-step outer-seam rule enforcing S•.choice=⊥ and S•.phase=Neutral when Role•=Bar•.
+3) Spell out the 2-step error-chain for Selected wiring and for HotRID→RIDbits/one-hot consistency, and show that any inconsistency deactivates the interface locally and prevents non-neutral S-phases via the offer bits.
+4) Re-run the B=2 DP trace (ON and OFF) using the corrected central-seam comparators.
+5) Provide the explicit alphabet microcount incorporating the per-b phase states and the comparator conditions.
+With these fixes, the Exclusivity E′ proof becomes correct and short, and the barrier-based F2 argument is valid without resorting to ⊥ padding on repeats.

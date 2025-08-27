@@ -1,0 +1,102 @@
+## Round 0005 — 2025-08-27T14:58:32.829080Z
+
+Status and plan
+- We address the verifier’s two critical seam inconsistencies by splitting each S-node into choice and phase subtracks and rewriting all three seams accordingly. We also pin down mirroring/pointer-integrity and Selected↔RUN wiring, clarify barriers and why they make (F2) automatic without using ⊥ on repeats, and give B=2 central-seam pair tables (Idle/Eq/Neq/CAP/PAD) to make Exclusivity explicit. Finally we provide an alphabet-size count and re-run the B=2 ON/OFF trace.
+- Note on outputs.md (LCL_classification.pdf): Section B.6 currently trivializes (F2) by allowing ⊥-fill on wz. This is acceptable for NEXPTIME-hardness of classification in principle, but it was flagged as dangerous for (F1) nontriviality. We will instead enforce (F2) automatically via nearest-block barriers that cut certificates (see Barrier Lemma below); this keeps (F1) nontrivial and matches the verifier’s preference.
+
+Definitions: split palettes and subtracks at S
+- S1 (variable-side S): S1 = (truth, phase, offerL, lbit[0..B−1]).
+  - truth ∈ {⊥, VT, VF}; phase ∈ {Neutral, Idle, EqStart, EqL[b], NeqStart, NeqPick[b], NeqCheckL[b], CAP, PAD} with b ∈ {0,..,B−1}; offerL ∈ {0,1} copied from RoleL; lbit[b] are read-only bit mirrors (see mirroring rules) present only when RoleL=AccVar; undefined otherwise.
+- S2 (clause-side S): S2 = (occ, phase, offerR, rbit[0..B−1], sgnsel).
+  - occ ∈ {⊥, O1, O2, O3}; phase ∈ {Neutral, Idle, EqStart, EqR[b], NeqStart, NeqPick[b], NeqCheckR[b], CAP, PAD}; offerR ∈ {0,1} copied from RoleR; rbit[b] are read-only mirrors of the selected occurrence’s ip_bits[b]; sgnsel ∈ {+,−} is the selected sign (bound to occ via Selected wiring below).
+- Roles on seam-adjacent neighbors:
+  - Left neighbor RoleL ∈ {AccVar, NeutralVar, BarVar}.
+  - Right neighbor RoleR ∈ {AccCla, NeutralCla, BarCla}.
+
+Outer seams (radius-1) — explicit constraints
+Left seam (L→S1):
+- If RoleL=AccVar:
+  - Allowed: S1.truth ∈ {VT,VF}; S1.phase ∈ any of {Idle, EqStart, EqL[b], NeqStart, NeqPick[b], NeqCheckL[b], CAP, PAD}; S1.offerL=1;
+  - Mirroring: for each b, the pair (AccVar with RIDbits[b]=x, S1 with lbit[b]=x) is allowed; and (AccVar with RIDbits[b]=x, S1 with lbit[b]=1−x) is forbidden. This ties S1.lbit[b] to RIDbits[b] locally.
+  - Pointer exposure: the AccVar interface exports PtrRID and the B bit-lanes immediately adjacent; equality/inequality cursors entering the block must follow the pointer lanes (see pointer-integrity below). We do not restrict S1.phase at the outer seam beyond barrier constraints.
+- If RoleL∈{NeutralVar, BarVar}:
+  - Allowed: only S1.truth=⊥, S1.phase=Neutral, S1.offerL=0; lbit[·] unconstrained (ignored). This deactivates the left seam locally.
+Right seam (S2→R):
+- If RoleR=AccCla:
+  - Allowed: S2.occ ∈ {O1,O2,O3}; S2.phase ∈ any of {Idle, EqStart, EqR[b], NeqStart, NeqPick[b], NeqCheckR[b], CAP, PAD}; S2.offerR=1.
+  - Selected↔RUN wiring at the edge (enforced in the out–out table): if S2.occ=Op then the pair is allowed only when (a) the clause RUN interface exposes the “export-ready” tag for p, (b) rbit[b]=ip_bits_p[b] for all b, and (c) sgnsel=sgn[p]. Any mismatch has no legal pair except to an error-chain starter on the clause-side neighbor, which transitions RoleR→NeutralCla within one local step (and thus forces S2.occ=⊥ by the above rule).
+- If RoleR∈{NeutralCla, BarCla}:
+  - Allowed: only S2.occ=⊥, S2.phase=Neutral, S2.offerR=0; rbit[·], sgnsel ignored.
+
+Central seam (S1→S2) — B=2 explicit pair tables
+We list allowed central-seam pairs in the B=2 case (b ∈ {0,1}); all unspecified pairs are forbidden.
+- Idle alignment:
+  - Allowed: (S1.phase=Idle, S2.phase=Idle) if S1.offerL=1, S2.offerR=1 and S1.truth∈{VT,VF}, S2.occ∈{O1,O2,O3}.
+- Starts (both-sides-offer gating):
+  - Allowed: (EqStart, EqStart) iff offerL=offerR=1 and S1.truth≠⊥, S2.occ≠⊥.
+  - Allowed: (NeqStart, NeqStart) under same gating.
+- Equality steps:
+  - (EqL[0], EqR[0]) allowed iff the left/right cursor lanes adjacent to S1/S2 carry the matching “at-b=0” cursor tokens; the actual bit-equality test is enforced inside blocks by pointer-integrity tiles (below); the central seam only synchronizes phases (see Remark 1).
+  - (EqL[1], EqR[1]) similarly.
+  - Terminal: (CAP,CAP) allowed iff both equality cursors have reached b=2 (checked by local “done” marks shuttled back to S1/S2 along the cursor lanes) and the sign gate holds: (S1.truth=VT ∧ sgnsel=+) ∨ (S1.truth=VF ∧ sgnsel=−).
+- Inequality steps:
+  - (NeqPick[0], NeqPick[0]) and (NeqPick[1], NeqPick[1]) are allowed from (NeqStart,NeqStart) (nondeterministic b-choice) iff offerL=offerR=1.
+  - (NeqCheckL[0], NeqCheckR[0]) allowed iff the cursors at b=0 arrive from the block-side lanes with a local mismatch witness (enforced inside blocks; see below). Similarly for b=1.
+  - Terminal: (PAD,PAD) allowed iff a valid NeqCheckL/R[b] occurred and returned to the seam (checked by the “found-mismatch” mark on both lanes at the seam). No other (PAD,PAD) is permitted.
+- Mutual exclusion:
+  - No pair mixes Eq and Neq phases, nor mixes CAP/PAD across sides, nor allows terminal pairs without the required “done/mismatch” marks.
+Remark 1 (Where the bit tests live). The central seam pairs synchronize phases; bit comparisons are enforced by (a) mirroring (outer seams) to expose bit-lanes adjacent to S, (b) pointer-integrity and cursor-propagation tiles within the nearest-block nodes, which ensure that EqL[b]/EqR[b] cursors can reach the seam only if the corresponding bit-lane checks succeeded; this avoids any exponential blow-up in the out–out tables at the central seam.
+
+Pointer-integrity and Selected wiring (local, radius-1)
+- Variable side pointer lanes: The AccVar interface exports a fixed, constant-width “address corridor” with B positions (b=0,1 for B=2 case), each consisting of a triad of nodes: Address[b] – RIDbit[b] – Return[b]. Cursor tiles enforce that EqL[b] can proceed from S1 to Address[b], then to RIDbit[b], then back via Return[b] to S1. At RIDbit[b], a comparator tile requires that the “bit value” subtrack seen equals the one mirrored to S1.lbit[b]; otherwise the cursor dies (no legal continuation). HotRID consistency (one-hot index equals binary RIDbits) is enforced in parallel by standard local tiles; any mismatch triggers an error-chain that flips RoleL to NeutralVar at that interface in ≤1 step.
+- Clause side pointer lanes: The AccCla interface similarly exports the three occurrence bundles; Selected wiring activates exactly one bundle according to S2.occ:
+  - If S2.occ=Op, a Selected=1 marker is present only on the p-th bundle; ip_bits_p[b] and sgn[p] flows through to the seam subtracks rbit[b], sgnsel via length-1 mirrors; the other bundles carry Selected=0 and are non-traversable by cursors (tiles for cursors require Selected=1 on their lane).
+  - If any two bundles claim Selected=1, or Selected=1 is present while S2.occ≠Op, or the RUN tableau row for p is inconsistent, the only allowed out–out pairs are to an error-chain starter which locally deactivates the right interface (RoleR→NeutralCla). This forbids spurious selection.
+- Inequality check tiles: At RIDbit[b] and ip_bits_p[b], dedicated tiles flip a local Mismatch flag iff the bits differ; the NeqCheckL/R[b] cursors can return to the seam only if the Mismatch flag was set on both sides for the same b; otherwise the cursor dies.
+
+Barrier lemma and (F2)
+- Placement: Each well-formed block ends with Footer followed immediately (one node closer to S) by Bar● ∈ {BarVar,BarCla} on the seam-adjacent interior node beyond RUN. The block grammar enforces Footer→Bar● within the block.
+- Barrier rules:
+  - On outer seams, Role●=Bar● forces S●.choice=⊥ and S●.phase=Neutral and S●.offer=0. Hence the central seam cannot enter any non-neutral phase if either side is Bar● (both-sides-offer gating fails).
+  - Along block-internal edges, barriers allow only PAD-plumbing of the block-internal language (not the central (PAD,PAD)) and forbid all cursor/terminal states (EqStart/EqL[b]/NeqStart/NeqPick/NeqCheck/CAP/PAD). Thus cursors cannot cross barriers.
+- Consequence: For any repeated context wz_1 S wz_2, only the nearest two blocks (the ones directly touching S) can participate in any certificate; extra repeats lie beyond barriers and are invisible to the seam. Therefore, the success/failure of the bridge does not depend on z. This makes (F2) hold automatically for our family without ⊥-padding.
+- Short proof sketch: Suppose a labeling with CAP/PAD at the central seam for z=1 exists. For any z≥2, repeat the nearest blocks; barriers ensure no cursor/phase can interact with farther copies, and the local seams inside repeats are block-internal and satisfiable by the block grammar. Conversely, if no labeling exists for z=1, adding repeating barriers cannot create a new central pair, as both-sides-offer and cursor arrivals are confined to nearest blocks; thus no z can succeed.
+
+Exclusivity E′ (radius-1, with the fixed tiles)
+- If RID = ip: For both b=0,1, equality cursors EqL[b]/EqR[b] can complete their left/right loops and return to the seam; the central seam admits (CAP,CAP) provided the sign gate (truth vs sgnsel) holds. Inequality cursors cannot set Mismatch on both sides for any b, hence cannot return with the required marks; (PAD,PAD) is forbidden.
+- If RID ≠ ip: There exists b with RIDbit[b] ≠ ip_bits[b]. The inequality cursors can set Mismatch and return, enabling (PAD,PAD); equality cursors stall at that b and cannot return a “done” mark, so (CAP,CAP) is forbidden. Mutual exclusion follows from central-seam pairs.
+
+Alphabet-size count (β=poly(s))
+- Choice tracks: truth (3 symbols), occ (4 symbols).
+- Phase tracks on S: Neutral/Idle/EqStart/NeqStart/CAP/PAD = O(1) plus per-b cursors EqL[b], EqR[b], NeqPick[b], NeqCheckL[b], NeqCheckR[b] = O(B). Total S-phase alphabet O(B).
+- Role/Offer/Barrier bits and read-only mirrors: constant tracks plus B mirrored bits per side; values are per-node data but do not multiply the alphabet (the symbols encode bit values with 2 alternatives per lane); overall symbols O(B).
+- Block-internal tiles: pointer lanes and RUN tableau alphabets are poly(s) (U runs in BO(1) per row; Selected exposes ip/sign via constant-time local rules); error-chain alphabet is O(1·poly(s)).
+- Hence |Σout| = β = poly(s) + O(B) = poly(s) since B = s^{c0}.
+
+B=2 worked DP trace under corrected tables
+- ON case: RID=10, Clause j with occurrences (i1=01,+), (i2=10,−), (i3=11,+). Choose S2.occ=O2; RUN exposes sgnsel=− and rbit[0]=0, rbit[1]=1 via Selected=1 on p=2; S1.truth=VF. Left/right interfaces are AccVar/AccCla so offerL=offerR=1; outer seams set lbit[0]=0, lbit[1]=1.
+  - Central seam Idle→EqStart (both-sides-offer). Equality cursors at b=0,1 loop inside nearest blocks, find equal bits, and return “done” marks. (CAP,CAP) passes sign gate since S1.truth=VF and sgnsel=−. Bridge succeeds.
+- OFF case: same clause, select O1 (ip=01,+). lbit=(0,1) vs rbit=(1,0) differ at b=0 and b=1. Equality stalls (cannot return both “done” marks). Inequality picks b=0 (or 1), sets Mismatch on both sides, returns, and (PAD,PAD) is accepted; sign is irrelevant for PAD. Bridge succeeds trivially for nonselected pairs; only the RID=ip pair would be constrained, and it indeed requires truth consistent with sign in the ON case.
+
+Gaps closed vs verifier feedback
+- Static vs phase contradiction at S: resolved by subtrack split; outer seams constrain only choices and offers; central seam gates phase tokens.
+- “Idle freeze” vs certificate motion: S1.truth (resp. S2.occ) is frozen while S1/S2.phase hosts cursors; corrected tables reflect this.
+- Read-only mirroring and Selected wiring: specified as seam-local equalities with error-chain fallback; Selected=1 only on the chosen occurrence; any inconsistency locally deactivates the interface.
+- Barrier semantics: clarified—barriers forbid all cursor/terminal phases and force choices=⊥, phase=Neutral; central (PAD,PAD) is not a barrier token.
+- Both-sides-offer gating: enforced by offer bits written at outer seams and required by all non-neutral central-seam pairs.
+
+What remains to formalize explicitly
+- Give the pointer-lane tiles (Address[b]–RIDbit[b]–Return[b], symmetry on clause side) and the exact error-chain transitions that flip Role● to Neutral● upon inconsistency; this is standard and local (≤2 hops) but should be listed explicitly for completeness.
+- Expand the B=2 central-seam table into a small explicit list (we already listed the schema); we can supply the exact 12–16 pairs the verifier can check by hand.
+- Include a micro-count of Σout symbols after adding the B-dependent cursor states in the concrete parameter choice c0, c1.
+
+Why useful here
+- With these seam tables and barrier rules, (F1) encodes Succinct-3SAT robustly, sign is tied to RUN, and ⊥ at S is forbidden on active seams. (F2) holds automatically by barriers (not by ⊥-plumbing), avoiding the earlier pitfall.
+- The Exclusivity Lemma is now backed by explicit, radius-1 cursor lanes and central pair tables (B=2 shown; general B analogous), so exactly one of CAP/PAD can appear on active ordered pairs.
+
+Next steps
+- Write out the exact out–out pairs for the B=2 central seam (Idle, EqStart, EqL[0], EqL[1], CAP; NeqStart, NeqPick[0/1], NeqCheck[0/1], PAD) and the corresponding outer-seam mirroring/selection pairs; include the 2–step error-chain that deactivates miswired Selected.
+- Provide the pointer-integrity tile list (3 nodes per b per side suffice) and show any deviation is caught in ≤2 steps.
+- Update the hardness section to replace Section B.6’s ⊥-based (F2) with the barrier-based (F2) and include the Barrier Lemma.
+- Optional: include a small figure of the interface with Address[b]–RIDbit[b]–Return[b] lanes and barrier location.
+

@@ -648,12 +648,15 @@ else:
                             st.session_state[clear_confirm_key] = False
                             st.rerun()
             
-            # Current phase & since when
+            # Enhanced status information
             status_file = problem / "runs" / "live_status.json"
             if status_file.exists():
                 live = json.loads(status_file.read_text(encoding="utf-8"))
                 phase = live.get("phase", "idle")
+                current_round = live.get("round", "?")
                 ts = live.get("ts")
+                models = live.get("models", {})
+                
                 elapsed = ""
                 if ts:
                     if isinstance(ts, (int, float)):
@@ -672,8 +675,27 @@ else:
                         except:
                             pass
                 
-                # Display status
-                st.info(f"🧠 Current phase: **{phase}**{elapsed}")
+                # Get current agent and remaining rounds info
+                current_agent = ""
+                if phase == "prover":
+                    prover_count = live.get("provers", {}).get("count", 1)
+                    current_agent = f"Prover {prover_count}x {models.get('prover', '?')}"
+                elif phase == "verifier":
+                    current_agent = f"Verifier {models.get('verifier', '?')}"
+                elif phase == "summarizer":
+                    current_agent = f"Summarizer {models.get('summarizer', '?')}"
+                elif phase == "idle":
+                    current_agent = "System idle"
+                
+                # Calculate remaining rounds (if we can determine it from runs)
+                runs_dir = problem / "runs"
+                completed_rounds = len([d for d in runs_dir.iterdir() if d.is_dir()]) if runs_dir.exists() else 0
+                
+                # Display enhanced status
+                if phase != "idle":
+                    st.info(f"🧠 **Round {current_round}** • **{current_agent}**{elapsed}")
+                else:
+                    st.info(f"🧠 **{phase.title()}** • {completed_rounds} rounds completed{elapsed}")
             
             # Notes.md and output.md viewers
             notes_path = problem / "notes.md"
@@ -815,12 +837,28 @@ else:
             
                     st.markdown("---")
             
-            # Show log file if exists  
+            # Show filtered orchestrator log
             log_file = runs_dir / "orchestrator.log"
             if log_file.exists():
-                with st.expander("📋 View orchestrator log"):
+                with st.expander("📋 Protocol progress"):
                     log_content = log_file.read_text(encoding="utf-8")
-                    st.text(log_content[-2000:] if len(log_content) > 2000 else log_content)
+                    
+                    # Filter log to show only protocol-relevant lines
+                    filtered_lines = []
+                    for line in log_content.split('\n'):
+                        line = line.strip()
+                        if (line.startswith(('Starting Round', 'Calling Prover', 'Calling Verifier', 
+                                           'Calling Summarizer', 'Round', 'Problem:', 'Models:', 
+                                           'OpenAI SDK:', 'Verdict:', 'Auto-committed:')) and
+                            not line.startswith(('Summary for Human:', 'High-level', 'Both reports'))):
+                            filtered_lines.append(line)
+                    
+                    # Show last 50 protocol lines or all if fewer
+                    display_lines = filtered_lines[-50:] if len(filtered_lines) > 50 else filtered_lines
+                    if display_lines:
+                        st.text('\n'.join(display_lines))
+                    else:
+                        st.caption("No protocol information available yet")
 
 # Footer
 st.markdown("---")

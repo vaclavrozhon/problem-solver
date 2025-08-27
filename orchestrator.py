@@ -225,7 +225,7 @@ def _complete_text(model: str, system_prompt: str, user_message: str,
         raise last_err
 
 class ProverOutput(BaseModel):
-    markdown_md: str = Field(..., description="Markdown answer for the verifier (KaTeX allowed)")
+    progress_md: str = Field(..., description="Append-only progress notes")
 
 class VerifierOutput(BaseModel):
     feedback_md: str = Field(..., description="Detailed feedback")
@@ -606,9 +606,9 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
 
 Current round tag: {round_tag}
 Return ONLY valid JSON with a single field:
-{{ "markdown_md": "<your markdown answer for the verifier, KaTeX allowed>" }}
+{{ "progress_md": "<your progress notes for this round>" }}
 
-Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside markdown_md."""
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md."""
 
     schema = {
         "name": "ProverOutput",
@@ -637,7 +637,7 @@ Read output.md. If you spot gaps, errors, or missing justifications in output.md
     if not data:
         shown_text = text if text.strip() else "(the model did not return anything)"
         data = {
-            "markdown_md": shown_text
+            "progress_md": shown_text
         }
 
     # No further shaping; pass through
@@ -775,7 +775,7 @@ Return ONLY valid JSON (no fences). Ensure progress_md starts with '## {round_ta
 
     if not data:
         shown_text = text if text.strip() else "(the model did not return anything)"
-        data = { "markdown_md": shown_text }
+        data = { "progress_md": shown_text }
 
     # No shaping; pass through markdown
 
@@ -789,7 +789,7 @@ def call_verifier(problem_dir: Path, round_idx: int) -> VerifierOutput:
     prover_json = round_dir / "prover.out.json"
     if prover_json.exists():
         prover_data = json.loads(prover_json.read_text(encoding="utf-8"))
-        context += f"\n=== Latest Prover Output ===\n{prover_data.get('markdown_md','')}\n"
+        context += f"\n=== Latest Prover Output ===\n{prover_data.get('progress_md','')}\n"
 
     system_prompt = load_prompt("verifier")
 
@@ -869,7 +869,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     for pfile in sorted(round_dir.glob("prover-*.out.json")):
         try:
             pdata = json.loads(pfile.read_text(encoding="utf-8"))
-            prover_blocks.append(f"=== {pfile.name} (markdown_md) ===\n{pdata.get('markdown_md','')}\n")
+            prover_blocks.append(f"=== {pfile.name} (progress_md) ===\n{pdata.get('progress_md','')}\n")
         except Exception:
             continue
 
@@ -946,7 +946,7 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
             prover_outputs.append(out)
             # Append each prover's markdown to progress.md (for human trace)
             round_tag = f"## Round {round_idx:04d} — {datetime.now().isoformat()}Z"
-            progress_content = out.markdown_md.strip()
+            progress_content = out.progress_md.strip()
             if not progress_content.startswith("##"):
                 progress_content = round_tag + "\n\n" + progress_content
             appended_progress = progress_content + "\n\n"

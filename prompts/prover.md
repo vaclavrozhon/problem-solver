@@ -26,5 +26,5 @@ What counts as progress:
 
 **Return strictly JSON**:
 {
-  "markdown_md": "Your contribution for the verifier in Markdown (KaTeX allowed). Point out any gaps in outputs.md clearly. Do not modify outputs.md directly."
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in outputs.md clearly. Do not modify outputs.md directly."
 }

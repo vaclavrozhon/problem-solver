@@ -244,9 +244,9 @@ class NotesUpdate(BaseModel):
     mode: str = Field(..., description="append|replace")
     content_md: str = Field("", description="Markdown to write to notes.md")
 
-class CallWriter(BaseModel):
-    run: bool = Field(False, description="Whether to invoke the Writer")
-    task_md: Optional[str] = Field(None, description="Instruction for the Writer")
+class OutputUpdate(BaseModel):
+    mode: str = Field(..., description="append|replace")
+    content_md: str = Field("", description="Markdown to write to output.md")
 
 class VerifierCombinedOutput(BaseModel):
     feedback_md: str
@@ -255,13 +255,9 @@ class VerifierCombinedOutput(BaseModel):
     blocking_issues: List[str] = Field(default_factory=list)
     per_prover: List[PerProverFeedback] = Field(default_factory=list)
     notes_update: Optional[NotesUpdate] = None
-    call_writer: Optional[CallWriter] = None
+    output_update: Optional[OutputUpdate] = None
 
-class WriterOutput(BaseModel):
-    status: str = Field(..., description="success|failed")
-    action: str = Field(..., description="replace")
-    tex_content: str = Field("", description="Full LaTeX document content")
-    errors_md: str = Field("", description="Compile or rigor errors, if any")
+# Writer removed for now; we keep rigorous outputs in output.md via verifier
 
 class SummarizerOutput(BaseModel):
     summary_md: str = Field(..., description="Readable summary of the round")
@@ -546,7 +542,7 @@ def _apply_notes_update(problem_dir: Path, update: Optional[NotesUpdate]) -> Non
         notes_path.write_text(existing + sep + update.content_md, encoding="utf-8")
 
 def _compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
-    """Compile outputs.tex with pdflatex; returns (ok, log_text)."""
+    """(disabled) Previously compiled outputs.tex; writer is removed for now."""
     tex_path = problem_dir / "outputs.tex"
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     log_path = round_dir / "outputs.compile.log"
@@ -582,7 +578,7 @@ def _compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
 
 def _read_notes_and_outputs(problem_dir: Path) -> tuple[str, str]:
     notes = (problem_dir / "notes.md").read_text(encoding="utf-8") if (problem_dir / "notes.md").exists() else ""
-    outputs = (problem_dir / "outputs.tex").read_text(encoding="utf-8") if (problem_dir / "outputs.tex").exists() else ""
+    outputs = (problem_dir / "output.md").read_text(encoding="utf-8") if (problem_dir / "output.md").exists() else ""
     return notes, outputs
 
 def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: int) -> ProverOutput:
@@ -593,7 +589,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     if notes_md:
         context += f"\n=== notes.md ===\n{notes_md}\n"
     if outputs_tex:
-        context += f"\n=== outputs.tex ===\n{outputs_tex}\n"
+        context += f"\n=== output.md ===\n{outputs_tex}\n"
     round_tag = f"Round {round_idx:04d} — {datetime.now().isoformat()}Z"
 
     system_prompt = load_prompt("prover").replace("{ROUND_TAG}", round_tag)
@@ -669,10 +665,10 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) 
     notes_md, outputs_tex = _read_notes_and_outputs(problem_dir)
 
     system_prompt = load_prompt("verifier")
-    user_message = """You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Optionally update notes and decide whether to call the writer.
+    user_message = """You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
 
 Prover reports (JSON):
-""" + json.dumps(reports) + "\n\nCurrent notes.md:\n" + notes_md + "\n\nCurrent outputs.tex (if any):\n" + (outputs_tex or "")
+""" + json.dumps(reports) + "\n\nCurrent notes.md:\n" + notes_md + "\n\nCurrent output.md (if any):\n" + (outputs_tex or "")
 
     schema = {
         "name": "VerifierCombinedOutput",
@@ -710,46 +706,22 @@ Prover reports (JSON):
         data["feedback_md"] = "\n".join(str(x) for x in data["feedback_md"])
     out = VerifierCombinedOutput(**data)
     _apply_notes_update(problem_dir, out.notes_update)
+    # Apply output update
+    if out.output_update and out.output_update.content_md:
+        out_path = problem_dir / "output.md"
+        existing = out_path.read_text(encoding="utf-8") if out_path.exists() else ""
+        if out.output_update.mode == "replace":
+            out_path.write_text(out.output_update.content_md, encoding="utf-8")
+        else:
+            sep = "\n" if existing and not existing.endswith("\n") else ""
+            out_path.write_text(existing + sep + out.output_update.content_md, encoding="utf-8")
     (round_dir / "verifier.feedback.md").write_text(out.feedback_md, encoding="utf-8")
     (round_dir / "verifier.summary.md").write_text(out.summary_md, encoding="utf-8")
     (round_dir / "verifier.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
     return out
 
-def call_writer(problem_dir: Path, round_idx: int, task_md: str) -> 'WriterOutput':
-    console.print(f"[bold cyan]Calling Writer (Round {round_idx})...[/bold cyan]")
-    notes_md, outputs_tex = _read_notes_and_outputs(problem_dir)
-    system_prompt = load_prompt("writer")
-    context = f"=== notes.md ===\n{notes_md}\n\n=== outputs.tex (current) ===\n{outputs_tex}"
-
-    schema = {
-        "name": "WriterOutput",
-        "schema": _normalize_schema_strict(WriterOutput.model_json_schema()),
-        "strict": True
-    }
-    text, dump = _complete_text(
-        MODEL_SUMMARIZER,  # reuse summarizer model for writer unless a dedicated model is set
-        system_prompt,
-        f"Task for writer:\n\n{task_md}\n\nContext:\n\n{context}",
-        max_tokens=100000, temperature=0.2,
-        force_json=True,
-        json_schema_obj=schema if MODEL_SUMMARIZER.startswith("gpt-5") else None
-    )
-    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-    _dump_io(round_dir, "writer", system_prompt, task_md, dump, text)
-    try:
-        data = json.loads(text) if not _is_o_model(MODEL_SUMMARIZER) or MODEL_SUMMARIZER.startswith("gpt-5") \
-               else extract_json_from_response(text)
-    except json.JSONDecodeError:
-        data = {"status": "failed", "action": "replace", "tex_content": "", "errors_md": f"Writer JSON parse failed. Raw: {text}"}
-    data = cast(Dict[str, Any], data)
-    out = WriterOutput(**data)
-    if out.status == "success":
-        (problem_dir / "outputs.tex").write_text(out.tex_content, encoding="utf-8")
-        ok, _ = _compile_latex(problem_dir, round_idx)
-        if not ok and not out.errors_md:
-            out.errors_md = "LaTeX compilation failed; see outputs.compile.log"
-    (round_dir / "writer.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
-    return out
+def call_writer(*args, **kwargs):
+    raise RuntimeError("Writer is disabled. Verifier updates output.md directly.")
 
 def call_prover(problem_dir: Path, round_idx: int) -> ProverOutput:
     console.print(f"[bold cyan]Calling Prover (Round {round_idx})...[/bold cyan]")
@@ -1014,16 +986,8 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
     t1 = time.perf_counter()
     timings["verifier"] = {"model": MODEL_VERIFIER, "duration_s": round(t1 - t0, 3)}
 
-    # ----- Step 3: Writer (optional) -----
-    writer_ran = False
-    if v_out.call_writer and v_out.call_writer.run:
-        writer_ran = True
-        task_md = v_out.call_writer.task_md or ""
-        w_out = call_writer(problem_dir, round_idx, task_md)
-        # persist was done inside call_writer; we can pass outcome to summarizer via files
-
-    # ----- Step 4: Summarizer -----
-    _write_status(problem_dir, phase="summarizer", round_idx=round_idx, extra={**timings, "writer_ran": writer_ran})
+    # ----- Step 3: Summarizer -----
+    _write_status(problem_dir, phase="summarizer", round_idx=round_idx, extra=timings)
     t0 = time.perf_counter()
     summarizer_output = call_summarizer(problem_dir, round_idx)
     t1 = time.perf_counter()

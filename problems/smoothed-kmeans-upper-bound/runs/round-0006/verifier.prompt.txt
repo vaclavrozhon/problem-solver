@@ -1,0 +1,409 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "Round 0006 \u2014 Audit, minor clarifications, and new, checkable additions (balanced split, multi-plateau probability, and a quantified O(log log k0) mixture)\n\nQuick audit of output.md (minor points and clarifications)\n- Absorbing small 1/L terms into constants. In Corollary 8 the step \u201cabsorb constants into K0 and the terms (ln m)/(L\u22121), (m/(L\u22121)) into K2(ln m)/L and K1(m ln L)/L\u201d is sound when used as an upper envelope: for L\u22652, (ln(2m))/(L\u22121) \u2264 2(ln m)/L + O(1), and a/(L\u22121) \u2264 a, so additive O(1/L) pieces can be folded into K0. It may help to add a one-line remark justifying these two inequalities to prevent confusion.\n- Third branch domain. The L\u22653 restriction is now clearly stated in Corollaries 11\u201312 and a clarifying remark follows, which fixes the earlier edge case (ln ln 2<0).\n- Endpoint term accounting. Lemma 1 bounds the aggregated endpoint term by \u2264 ln(2k0), which is sufficient for all global combinations used later.\nI see no correctness issues; below I add compact, checkable refinements that can be curated next.\n\nNew, checkable corollaries and remarks\n\n1) Balanced-split corollary (mid-split \u03c4=\u230aL/2\u230b) with safe constants (fills an intermediate regime)\n- Statement. In the setting of Theorem 3 with L\u22653 and \u03c4:=\u230aL/2\u230b, for k uniform on I=[m,m+L),\n  E_{k\u2208I} E_++[ALG/OPT]\n  \u2264 2 C_bi [ (2/3)(a + 1 + ln(4m/(L\u22121))) + 1/2 + (m/(e(L\u22121)))(ln 3 + 1) ]\n    + (C_fix(ln m + O(1)))/L,\n  where a:=2+1/(2e).\n- Proof sketch (checkable). For L\u22653, uniformly: \u03c4/(L\u22121) \u2264 2/3; (L\u22121\u2212\u03c4)/(L\u22121) \u2264 1/2; ln(2m/\u03c4) \u2264 ln(4m/(L\u22121)); and H_{L\u22122}\u2212H_{\u03c4\u22121} \u2264 ln 3 + 1 (verify directly for L=3,4 and use monotonicity for larger L). Substitute these bounds into Theorem 3. \n- Why useful. This bounds the tail by a pure (m/L) term (up to constants), sometimes improving constants over both extremes and complementing the \u03c4\u2248m/ln L branch. It can be recorded as an optional fourth candidate in the per-plateau minimum (min-of-four), or just cited as a remark for midrange L.\n\n2) Multi-plateau 1% probability guarantee (global mixing over several long plateaus)\n- Statement. Let J_long be a family of plateaus I_j=[m_j,m_j+L_j) with L_j \u2265 \u03b1 m_j, and suppose their total coverage is \u03b3:= (1/k0)\u2211_{j\u2208J_long} L_j. Then, with \u03b7=0.98 and c=2 (as in Corollary 9),\n  P_{k\u223cU([k0,2k0)),++}[ ALG_k/OPT_k \u2264 2\u00b7B_j for k\u2208I_j for some j\u2208J_long ]\n  \u2265 \u03b3\u00b7(1\u2212\u03b7\u2212O(1/ min_j L_j))\u00b7(1\u22121/2) = 0.01\u00b7\u03b3 \u2212 O(\u03b3/ min_j L_j),\n  where for each j, B_j := 2 C_bi (1 + m_j/(e(T_j\u22121))) with T_j:=max{2,\u2308\u03b7(L_j\u22121)\u2309+1}, and hence B_j \u2264 2 C_bi (1 + 1/(\u03b1 e \u03b7)) + O(1/L_j).\n- Proof. Apply Corollary 9 on each I_j with the same (\u03b7,c), then average with weights L_j/k0. The minimum L_j controls the O(1/L_j) term in the product measure.\n- Why useful. This extends Corollary 16 from \u201cone long plateau\u201d to \u201ca union covering \u03b3 of the window,\u201d yielding a clean \u22651%\u00b7\u03b3 joint probability with the same explicit constants.\n\n3) Explicit O(log log k0) mixture under polylog-long plateaus (quantified and ready to aggregate)\n- Statement (global average). Fix \u03c3\u22651. Let S be the set of plateaus I_j with L_j \u2265 m_j/(ln k0)^\u03c3, and suppose \u2211_{j\u2208S} L_j \u2265 \u03b3 k0. Then, for k uniform on [k0,2k0) and ++ randomness,\n  E[ALG/OPT] \u2264 \u03b3\u00b7[ 2 C_bi (a+1+ln(2(ln k0)^\u03c3)) ] + (1\u2212\u03b3)\u00b7[K\u2032 + K\u2033 ln(2k0)] + o(1)\n  = \u03b3\u00b7[ 2 C_bi (a+1+ln 2 + \u03c3 ln ln k0) ] + (1\u2212\u03b3)\u00b7[K\u2032 + K\u2033 ln(2k0)] + o(1).\n- Proof. On each I_j\u2208S, Corollary 5 with \u03b1=1/(ln k0)^\u03c3 gives a per-plateau constant a+1+ln(2/\u03b1) = a+1+ln 2 + \u03c3 ln ln k0, up to o(1). Weight these by L_j/k0 and sum to get the \u03b3 term; bound the complement by Corollary 14. The endpoint terms aggregate to o(1) on S (since (ln m_j)/L_j \u2264 \u03c3 ln ln k0/(ln k0)^\u03c3) and to O(ln k0) on the complement (Lemma 1), which is absorbed into the (1\u2212\u03b3) term.\n- Why useful. This is a precise, easy-to-use version of the informal \u201cO(log log k0) on long plateaus\u201d statement with explicit dependence on \u03c3 and \u03b3 and fully tied to existing corollaries.\n\nHeavy-coverage program \u2014 a crisp conditional lemma (expectation form, with parameters explicit)\n- Lemma (expected heavy-collision bound under persistence and covered-cost control). Let H be k1 optimal clusters designated \u201cheavy,\u201d and let S_H:=\u2211_{P\u2208H} OPT1(P). Define U_t(H) (uncovered heavy cost at step t), H_t(all) and U_t(L) as usual. Suppose up to the stopping time \u03c4 (when all heavy clusters become covered):\n  (i) Persistence/dominance: U_t(H) \u2265 \u03b2\u00b7(H_t(all) + U_t(L)) for all t<\u03c4;\n  (ii) Covered-heavy control in expectation: E[H_t(H)] \u2264 \u03b1 S_H for all t (\u03b1=5 suffices by the eH_t supermartingale and Lemma 4.1 of MRS).\n  Then the expected number of heavy-collisions (selections in already-covered heavy clusters) before \u03c4 is at most (\u03b1/(\u03b2+1))\u00b7k1\u00b7(S_H/ inf_{t<\u03c4} U_t(H)). In particular, if inf_{t<\u03c4} U_t(H) \u2265 S_H (a strong persistence), then E[collisions] \u2264 (\u03b1/(\u03b2+1))\u00b7k1.\n- Proof sketch (conditional and checkable). At step t, condition on the filtration. The collision probability into covered heavy is \u2264 H_t(H)/cost_t(X) \u2264 \u03b1 S_H/(U_t(H)+H_t(all)+U_t(L)) \u2264 \u03b1 S_H/((\u03b2+1)U_t(H)) by (i). Sum this bound over at most k1 heavy hits (each heavy step either covers a new heavy cluster or collides) and use U_t(H) \u2265 inf_{s<\u03c4} U_s(H). Take expectations and apply (ii).\n- Why useful. This isolates the coupon-collector-like collision control under explicit, testable parameters (\u03b2 and the persistence lower bound). The remaining step is to prove persistence from scale or geometric separation (e.g., OPT_{k1} \u226b OPT_k), at least in expectation.\n- Note on rigor. Unlike earlier sketches, this version avoids pathwise claims about eH_t; it uses the expectation control E[H_t(H)] \u2264 5 S_H and yields an expectation bound. High-probability control can then be pursued via Freedman\u2019s inequality once a concentration statement for eH_t is established.\n\nExamples and sanity checks\n- Dyadic single plateau (L\u2248m). Corollary 5 gives E[ALG/OPT] \u2264 2 C_bi (a+1+ln 2) + o(1). With C_bi=5 and a\u22482.183, this is \u2264 10\u00b7(3.183 + 0.693) + o(1) \u2248 38.8.\n- Polylog-long plateaus. With \u03c3=2 and \u03b3=1/2, the global bound in item 3 reads E[ALG/OPT] \u2264 0.5\u00b7[const + 2 C_bi\u00b72 ln ln k0] + 0.5\u00b7K\u2033 ln(2k0) + o(1); thus the long-plateau half contributes O(ln ln k0) explicitly.\n- Mid-split vs other branches. For L=m/20, the balanced split gives a tail \u2248 (m/L)\u00b7const \u2248 20\u00b7const; the log branch gives \u2248 ln(40) \u2248 3.69 up to constants; log dominates here (as expected). For L=m/ln m, the \u03c4\u2248m/ln L branch yields \u2248 (m/L)(1+ln ln L) \u2248 ln m (1+ ln ln ln m), which is looser than the log branch\u2019s \u2248 ln(2 ln m); again, the min picks the right regime.\n\nNext steps (concrete and verifiable)\n1) Curate the balanced-split corollary into output.md (as an optional candidate alongside the three existing branches). It is a direct instantiation of Theorem 3 with uniform, easy-to-check inequalities.\n2) Add the multi-plateau \u22651% probability corollary (item 2), which follows immediately from Corollary 9 by mixing; it generalizes Corollary 16.\n3) Add the quantified O(log log k0) mixture (item 3) as a corollary under the polylog-long-plateau condition with parameters (\u03c3,\u03b3); this formalizes a recurring use-case with explicit constants.\n4) Heavy-coverage: Try to prove a persistence bound inf_{t<\u03c4} U_t(H) \u2265 c\u00b7S_H and a \u03b2=\u03a9(1) dominance under a clean scale separation hypothesis, first in a simplified geometric regime (e.g., metric separation) and then from OPT_{k1} \u2265 k^C\u00b7OPT_k; combine with the expectation lemma above. Work towards concentration of eH_t to upgrade to high probability.\n\nWhy this advances the program\n- The balanced-split adds a simple, rigorous midrange option, improving constants in some regimes without increasing complexity.\n- The multi-plateau probability and quantified O(log log k0) mixture turn earlier informal remarks into precise, ready-to-use global statements with explicit parameters and constants.\n- The heavy-coverage conditional lemma is a clean step that avoids pathwise pitfalls and sets up the final task (proving persistence from scale/geometry separation) needed to harvest O(log(1/\u03b5)) from oversampling of the light part."}, {"prover_id": "02", "progress_md": "Round 0006 \u2014 Small audits, two new \u03c4-instantiations, a discrete-smoothness-to-long-plateaus lemma, and a clearer path for probability bounds\n\nAudit of output.md (no blocking issues)\n- Corollary 11/12: The \u201cthird branch only for L\u22653\u201d restriction is now clearly documented (Remark after Cor. 12). Good.\n- Corollary 13 (global aggregation): The weights and treatment of L_j=1 via the fixed-k bound are correct. The endpoint sum cap (Lemma 1) is clean and used properly in Corollary 14.\n- Corollary 16: The global \u22651% probability lower bound properly carries the plateau mass factor \u03b3. Constants are explicit.\nNo correctness errors spotted. The additions below are meant to tighten the per-plateau envelope with simple, checkable instantiations and to connect \u201cdiscrete smoothness\u201d of OPT(\u00b7) to long plateaus.\n\nNew, checkable per-plateau corollaries (to add after Corollary 10)\n1) Balanced-split with hard constants (\u03c4 = \u230aL/2\u230b)\nStatement. In Theorem 3, for L\u22653 and \u03c4:=\u230aL/2\u230b, for k uniform on I=[m,m+L):\nE_{k\u2208I} E_++[ALG/OPT] \u2264 2\u00b7C_bi [ (2/3)(a+1+ln(4m/(L\u22121))) + 1/2 + (m/(e(L\u22121)))(ln 3 + 1) ] + (C_fix(ln m + O(1)))/L,\nwith a:=2+1/(2e).\nJustification (fully checkable): For L\u22653 and \u03c4=\u230aL/2\u230b we have \u03c4/(L\u22121) \u2264 2/3; (L\u22121\u2212\u03c4)/(L\u22121) \u2264 1/2; ln(2m/\u03c4) \u2264 ln(4m/(L\u22121)); and H_{L\u22122}\u2212H_{\u03c4\u22121} \u2264 ln 3 + 1 (verify small-L cases directly). Substitute these bounds into Theorem 3. Why useful. This removes the ln L factor in the harmonic tail, replacing (m ln L)/L by a pure (m/L) term at the expense of a larger constant on the logarithmic piece. It can be tighter than both existing extremes in midrange regimes.\n\n2) Constant-tail split (\u03c4 \u2248 (L\u22121)/e)\nStatement. In Theorem 3, for L\u22653 and \u03c4:=\u230a(L\u22121)/e\u230b \u2265 1,\nE_{k\u2208I} E_++[ALG/OPT] \u2264 2\u00b7C_bi [ (1/e)(a+1+ln(2em/(L\u22121))) + (1\u22121/e) + (m/(e(L\u22121)))\u00b72 ] + (C_fix(ln m + O(1)))/L.\nJustification. With \u03c4\u2248(L\u22121)/e, we have \u03c4/(L\u22121) \u2264 1/e and (L\u22121\u2212\u03c4)/(L\u22121) \u2264 1\u22121/e. For the harmonic tail, H_{L\u22122}\u2212H_{\u03c4\u22121} \u2264 ln((L\u22121)/(\u03c4))+1 \u2264 ln e + 1 = 2. Finally ln(2m/\u03c4) \u2264 ln(2em/(L\u22121)). Substitute into Theorem 3. Why useful. This gives a third, fully explicit branch with a constant harmonic tail contribution 2\u00b7(m/(e(L\u22121))), i.e., a clean O(m/L) tail with a small constant, and a logarithmic piece whose coefficient is 1/e of that in the pure-log term. It sometimes improves over \u03c4=1 for moderate L when ln L is not small but m/L is.\n\nRemarks on regime selection (min-of-five)\n- The per-plateau min may be extended to five branches: \u03c4\u2208{L\u22121, 1, \u230am/ln L\u230b, \u230aL/2\u230b, \u230a(L\u22121)/e\u230b}. All are explicit and easy to verify. A practical recommendation is to keep the three already curated (pure-log, \u03c4=1, \u03c4=\u230am/ln L\u230b) and optionally add the constant-tail split \u03c4\u2248(L\u22121)/e when one wants a clean O(m/L) tail with a smaller constant than in the \u03c4=1 branch; the balanced-split can be listed as an optional midrange tightening.\n\nDiscrete smoothness \u21d2 long plateaus: a simple structural lemma\nLemma (discrete-smoothness-to-length). Let (v_k)_{k\u22651} be a nonincreasing positive sequence. Suppose on an interval [m, m+L) we have for some \u03b4\u2208(0,1): for all k\u2208{m+1,\u2026,m+L\u22121}, v_{k\u22121} \u2264 (1+\u03b4) v_k. Then any factor-2 drop of v_k over that interval requires L \u2265 \u2308ln 2 / ln(1+\u03b4)\u2309 \u2265 \u2308(ln 2)/\u03b4\u2309 \u2212 1.\nProof. For t steps, the total multiplicative drop is at most (1+\u03b4)^t. To drop by 2 we need (1+\u03b4)^t \u2265 2 \u21d2 t \u2265 ln 2 / ln(1+\u03b4). Since ln(1+\u03b4) \u2264 \u03b4, t \u2265 (ln 2)/\u03b4. Thus, the length L of a factor-2 plateau must satisfy L\u22121 \u2265 t, giving the displayed bound.\nCorollary (long plateau from 1/m-type smoothness). If for all k in [m,2m) we have v_{k\u22121} \u2264 (1 + A/m) v_k with some absolute A>0, then any factor-2 drop within [m,2m) requires L \u2265 c_A\u00b7m for c_A:= (ln 2)/A \u2212 o(1). In particular, L \u2265 \u03b1 m for \u03b1:= (ln 2)/A \u2212 \u03b5 once m is large, hence Corollary 5 applies and the plateau contributes O_\u03b1(1) to the average.\nWhy useful here. Instantiating v_k := OPT(k), this gives a simple, checkable surrogate for \u201clong plateaus\u201d: if the discrete per-step multiplicative decay OPT(k\u22121)/OPT(k) is at most (1+A/m) on [m,2m), then the corresponding dyadic-scale plateau inside that window is long (L \u2273 m), yielding a constant per-plateau bound and, if such windows occupy a \u03b3-fraction of [k0,2k0), a global mixture bound of the form Corollary 15. This isolates a data-agnostic regularity condition that implies the beneficial \u201coversampling by randomizing k.\u201d\n\nProbability \u2265 1% under discrete smoothness (simple consequence)\nUnder the same 1/m-type smoothness on [m,2m) with A<\u221e (hence L \u2265 \u03b1 m for \u03b1=(ln 2)/A\u2212\u03b5), Corollary 9 with \u03b7=0.98 and c=2 gives, on that plateau, joint (k,++) probability \u2265 (0.02\u2212O(1/L))\u00b70.5 for attaining ALG/OPT \u2264 2\u00b7B_I with B_I \u2264 2\u00b7C_bi(1 + 1/(\u03b1 e \u03b7)) + o(1). Mixing across [k0,2k0) by the plateau mass \u03b3 gives a global \u2265 0.01\u00b7\u03b3 \u2212 o(1) guarantee with an explicit constant, exactly as in Corollary 16.\n\nExamples and quick checks\n- If OPT(k\u22121)/OPT(k) \u2264 1 + (1/10m) for k\u2208[m,2m), then \u03b1\u2265 (ln 2)\u00b710 \u2248 6.93 > 1. Since L cannot exceed m by the window constraint, this means the dyadic drop cannot happen within [m,2m); hence the entire window is a single plateau (L\u2248m) and the per-plateau bound is O(1).\n- \u03c4\u2248(L\u22121)/e branch vs \u03c4=1: when L is large and m/L is moderate (say m/L \u2264 c), the new branch replaces (m ln L)/L with \u2248(2/e)(m/L) while the log term\u2019s coefficient is reduced by 1/e. Numerically, for L=10^6 and m/L=2, \u03c4=1 gives an O(m ln L/L) term \u2248 2\u00b7ln 10^6, while \u03c4\u2248(L\u22121)/e gives \u2248 (2/e)\u00b72 \u2248 1.47 in the tail, often improving the minimum.\n\nHeavy-coverage program (status and incremental step)\n- Conditional collision control revisited. Let H be k1 heavy optimal clusters; write S_H := \u2211_{P\u2208H} OPT1(P). For every t before heavy coverage completes, the per-step collision probability into a covered heavy cluster is p_t^{ch} = H_t(H_cov)/cost_t(X). Using the eH_t supermartingale, we have E[H_t(H_cov)] \u2264 5 S_H and hence E[p_t^{ch}] \u2264 E[5 S_H / cost_t(X)]. To turn this into a usable bound, we need a pathwise (or at least conditional-expectation) lower bound on cost_t(X) in terms of the uncovered heavy mass U_t(H); e.g., a persistence condition cost_t(X) \u2265 \u03b2\u00b7U_t(H). This remains the key missing link (as already noted in the verifier feedback). \n- Special-case metric separation (toward a fully rigorous lemma). Under the separation: for every heavy P and every y\u2209P, dist(\u00b5_P,y) \u2265 \u03bb\u00b7rad(P) with \u03bb\u226520 (rad^2(P) denotes average squared radius contributing to OPT1(P)), one can bound, for all t before covering P, \u2211_{x\u2208P} D_t(x)^2 \u2265 OPT1(P) (trivial) and show that the total D^2-mass outside all uncovered heavy clusters is at most a 1/\u0398(\u03bb^2) fraction of \u2211_{P\u2208H_uncovered} OPT1(P) plus a constant \u00b7\u2211_{Q\u2208H_cov} OPT1(Q). This implies p_t^H := Prob[next pick \u2208 uncovered heavy | F_t] \u2265 1 \u2212 O(1/\u03bb^2) \u2212 O(S_H / \u2211_{P\u2208H_uncovered} OPT1(P)). If heavy mass dominates light (scale separation), then the last term is negligible until near the end, yielding expected heavy-collisions O(k1/\u03bb^2). I will formalize this bound with explicit constants next, carefully isolating: (i) the geometric inequality that caps the outside mass per uncovered heavy cluster by \u2272 (1/\u03bb^2)\u00b7OPT1(P), and (ii) the use of eH_t to control covered-heavy contributions.\n\nNext steps (concrete, verifiable)\n- Curate the two new \u03c4-instantiations: (i) \u03c4=\u230aL/2\u230b and (ii) \u03c4=\u230a(L\u22121)/e\u230b, as explicit corollaries of Theorem 3 (proofs above). They extend the per-plateau min with constant-tail options.\n- Add the discrete-smoothness-to-length lemma and its corollary (1/m-type smoothness \u21d2 long plateau \u21d2 O(1) bound), to provide a clean structural condition guaranteeing improved averages or \u22651% probability guarantees.\n- Heavy coverage: Prove the \u201coutside mass\u201d geometric inequality rigorously under \u03bb-separation, completing the expected heavy-collision bound with explicit constants; then state a combined (\u03bb,R)-separation lemma converting into an O(log(1/\u03b5)) tail via bi-criteria oversampling of the light part.\n- Optional constants: If desired, tighten Corollary 12\u2019s K0 from 35 to 33 by re-auditing O(1/L) remainders in the pure-log branch; otherwise keep 35 for safety.\n"}]
+
+Current notes.md:
+Problem and notation
+- X ⊂ R^d finite dataset; cost(C) = ∑_{x∈X} min_{c∈C} ||x−c||^2.
+- OPT_k := min_{|C|=k} cost(C), nonincreasing in k.
+- ALG_k := cost of k-means++ after k centers; E_++[·] denotes expectation over its randomness.
+- We study E_{k∼U({k0,…,2k0−1})} E_++[ ALG_k / OPT_k ].
+
+Key external input (Makarychev–Reddy–Shan 2020)
+- There is an absolute constant C_bi (quoted as 5 in MRS) such that for any r≥1, Δ≥1,
+  E_++[cost after r+Δ centers] ≤ C_bi · min{ 2 + 1/(2e) + ln(2r/Δ), 1 + r/(e(Δ−1)) } · OPT_r.
+- For Δ=0 (fixed-k), there is an absolute constant C_fix (also ≲5 in MRS) with E_++[ALG_k] ≤ C_fix · (ln k + O(1)) · OPT_k.
+
+Per-k oversampling bound (robust to s-misalignment)
+- For any k, define s(k) := min{ s∈{1,…,k} : OPT_s ≤ 2·OPT_k }. Let Δ(k)=k−s(k).
+- If Δ(k)≥1, then
+  E_++[ALG_k] ≤ 2·C_bi · min{ 2 + 1/(2e) + ln(2 s(k)/Δ(k)), 1 + s(k)/(e(Δ(k)−1)) } · OPT_k.
+- If Δ(k)=0, fall back to E_++[ALG_k] ≤ C_fix · (ln k + O(1)) · OPT_k.
+Note: On any factor-2 plateau I=[m,m+L) (i.e., OPT_k∈(OPT_m/2,OPT_m] for k∈I), we have s(k)≤m and Δ(k)≥k−m; since the MRS bound is monotone in (s,Δ), replacing (s(k),Δ(k)) by (m,k−m) yields a valid upper bound.
+
+Per-plateau averaging and Stirling control
+- For a factor-2 plateau I=[m,m+L), L≥2, uniform k over I gives
+  E_{k,++}[ALG_k/OPT_k] ≤ 2·C_bi · (2 + 1/(2e) + (1/(L−1))∑_{Δ=1}^{L−1} ln(2m/Δ)) + (C_fix(ln m + O(1)))/L.
+- Using ln(n!) ≥ n ln n − n + 1 (n≥1),
+  (1/(L−1))∑_{Δ=1}^{L−1} ln(2m/Δ) = ln(2m) − ln((L−1)!)/(L−1) ≤ 1 + ln(2m/(L−1)).
+- Hence E_{k,++}[ALG_k/OPT_k] ≤ const + const·ln^+(2m/(L−1)) + O((ln m)/L), where ln^+(x)=max{ln x,0} and all const’s are absolute.
+
+Decomposition over [k0,2k0)
+- Partition [k0,2k0) into maximal factor-2 plateaus I_j=[m_j, m_j+L_j). For L_j≥2, the per-plateau average is bounded as above. For L_j=1, the single k in I_j contributes ≤ C_fix(ln m_j + O(1)). Averaging with weights L_j/k0 yields a global bound explicitly in terms of {(m_j,L_j)}; in the worst case many L_j=1 plateaus can force Θ(log k0).
+
+Consequences and regimes
+- Long plateaus: If some I=[m,m+L) satisfies L ≥ m/polylog(k0), then E_{k∈I,++}[ALG/OPT] = O(log log k0). If a constant fraction of [k0,2k0) is covered by such plateaus, the global average is O(log log k0).
+- Worst case without structure: If many plateaus are short (e.g., L_j=1), the global average can be Θ(log k0), aligning with classic worst-case fixed-k behavior.
+
+Open directions
+- Structural conditions on OPT(·) implying many long plateaus (e.g., bounded discrete derivative decay, quasiconvexity/regularity of k·OPT_k) to get unconditional O(log log k0).
+- Heavy-coverage lemma (conjectural): under strong scale separation OPT_{k1} ≫ OPT_k, show k-means++ hits all k1 heavy clusters w.h.p. before collisions, then apply bi-criteria on the remaining part.
+- Lower bounds: Construct instances with Δ(k)=1 for a 1−o(1) fraction of k in [k0,2k0), giving an Ω(log k0) average and clarifying optimality of random-k smoothing.
+Refinements and corrections for plateau averaging and monotonicity
+
+- Monotonicity of the MRS bi-criteria bound. Define for integers s≥1 and Δ≥1 (interpreting the second branch only for Δ≥2):
+  f(s,Δ) := min{ a + ln(2s/Δ), 1 + s/(e(Δ−1)) }, where a := 2 + 1/(2e).
+  Then f is nondecreasing in s and nonincreasing in Δ. Consequently, on any factor-2 plateau I=[m,m+L) and for k=m+Δ with Δ≥1, the per-k bound from Theorem 1 satisfies
+  f(s(k),Δ(k)) ≤ f(m,Δ), so we may safely replace (s(k),Δ(k)) by (m,Δ) in upper bounds.
+
+- Correct τ-split averaging (fixing Proposition B). On a factor-2 plateau I=[m,m+L) with L≥2, for any integer τ∈{1,…,L−1}:
+  (1/(L−1)) ∑_{Δ=1}^{L−1} min{ a+ln(2m/Δ), 1 + m/(e(Δ−1)) } (with the second term read only for Δ≥2)
+  ≤ (τ/(L−1)) [ a + 1 + ln(2m/τ) ]
+    + ((L−1−τ)/(L−1))
+    + (m/(e(L−1))) · (H_{L−2} − H_{τ−1}).
+  Proof sketch: Split the sum at τ and use Stirling ln(τ!) ≥ τ ln τ − τ + 1 to bound ∑_{Δ≤τ} ln(2m/Δ) ≤ τ(1+ln(2m/τ)). For the tail, sum 1/(Δ−1) as H_{L−2}−H_{τ−1}. This corrects two issues in earlier drafts: (i) the constant a must be multiplied by τ/(L−1), and (ii) ln(2m/Δ) cannot be upper bounded by ln(2m/τ) when Δ≤τ.
+
+- Hybrid extremes recovered from the τ-split:
+  • Choosing τ=L−1 gives the pure-logarithmic average a+1+ln(2m/(L−1)).
+  • Choosing τ=1 gives the “hybrid extreme” 1 + (a+ln(2m))/(L−1) + (m/(e(L−1))) H_{L−2}.
+  Hence we may take the minimum of these two regimes for a tighter bound, plateau by plateau.
+
+- Long-plateau corollary. If L≥α m with α∈(0,1], then a+1+ln(2m/(L−1)) ≤ a+1+ln(2/α)+O(1/L), so the plateau-average is O(1) up to the endpoint term of order (ln m)/L.
+
+- Quantile-in-Δ bound (careful threshold). For any η∈(0,1), let T := max{2, ⌈η(L−1)⌉+1}. Then, for all Δ≥T, by the large-Δ branch
+  E_++[ALG_{m+Δ}/OPT_{m+Δ}] ≤ 2·C_bi·(1 + m/(e(T−1))).
+  The fraction of k∈I with Δ≥T is (L−T+1)/L = 1 − η − O(1/L). This yields a rigorous “with probability ≥ 1−η−O(1/L) over k uniform on the plateau” expected-ratio bound; Markov then converts it into a constant-factor joint (k,++) probability if desired.
+
+- Global decomposition improvement. Using the τ-split per plateau and optimizing τ as a function of (m,L) leads to a refined global bound that, informally, scales like
+  K0 + K1 · min{ ln^+(2m/(L−1)), (m ln L)/L } + K2 · (ln m)/L,
+  up to absolute constants K0,K1,K2. Formalizing this from Theorem 3 is a next step.
+
+Open directions and next steps
+- Optimize τ in the τ-split bound and write a clean, closed-form per-plateau bound. Then aggregate over plateaus to strengthen Corollary 3.
+- Probability guarantees: phrase clean conditions under which at least a 1% measure of k (in [k0,2k0) or on a specific plateau) yields a constant expected ratio, and apply Markov to obtain joint (k,++) probability.
+- Heavy-coverage: formalize the supermartingale for heavy uncovered mass (precise citation from MRS), bound expected heavy-collisions by O(k1/R), and lift to high probability via Freedman/Azuma with a stopping time.
+- Lower bounds: construct OPT(·) with OPT_{k−1}/OPT_k ≈ 1 − Θ(1/ln k0) for most k to force Δ(k)=1 on a 1−o(1) fraction of the window, yielding an Ω(log k0) average.
+Additions and clarifications
+
+- Geometric constraint on plateau length within the window. If a factor-2 plateau I=[m,m+L) is contained in [k0,2k0), then L ≤ 2k0−m ≤ m. In particular, for L≥2 we have m/(L−1) ≥ 1. This prevents sign errors when simplifying expressions involving m/(L−1).
+
+- Min-of-extremes and an upper envelope. From Theorem 3 and Corollary 4 we can (and will) use the minimum of the two extreme instantiations τ=L−1 (pure log) and τ=1 (hybrid extreme). Using H_q ≤ ln q + 1, this yields a clean per-plateau upper envelope of the form
+  E_{k∈I} E_++[ALG_k/OPT_k] ≤ K0 + K1 · min{ ln^+(2m/(L−1)), (m ln L)/L } + K2 · (ln m)/L,
+for absolute constants K0,K1,K2 depending only on C_bi,C_fix. This is the regime split we will use in global aggregation: the log term dominates when L≪m, while the (m ln L)/L term is O(1) when L is a constant fraction of m.
+
+- Safe balanced-split (τ=⌊L/2⌋) template (optional). The following uniform bounds hold for L≥3 and τ=⌊L/2⌋:
+  • τ/(L−1) ≤ 2/3 and (L−1−τ)/(L−1) ≤ 1/2.
+  • ln(2m/τ) ≤ ln(4m/(L−1)).
+  • H_{L−2} − H_{τ−1} ≤ ln 3 + 1 (with small-L cases checked directly).
+Plugging these into Theorem 3 yields the rigorous estimate
+  E_{k∈I} E_++[ALG_k/OPT_k]
+  ≤ 2C_bi [ (2/3)(a + 1 + ln(4m/(L−1))) + 1/2 + (m/(e(L−1)))(ln 3 + 1) ]
+    + (C_fix(\ln m + O(1)))/L.
+This improves the (m ln L)/L term to a pure (m/L) term at the expense of a larger coefficient on the logarithmic piece. It may be tighter than the min-of-extremes envelope in intermediate regimes. If used, constants must be kept as above (1/2 is not a safe coefficient for τ/(L−1) when L is even).
+
+- Probability ≥ 1% guarantees under a long-plateau condition. From Corollary 6: fix η∈(0,1) and define T := max{2, ⌈η(L−1)⌉+1}. For at least a (1−η−O(1/L)) fraction of k∈I we have
+  E_++[ALG_k/OPT_k] ≤ 2C_bi (1 + m/(e(T−1))).
+By Markov, for any c≥1,
+  P_{++}[ ALG_k/OPT_k ≤ c · 2C_bi (1 + m/(e(T−1))) ] ≥ 1 − 1/c
+for each such k. Therefore, jointly over k uniform on I and ++ randomness,
+  P[ ALG_k/OPT_k ≤ c · 2C_bi (1 + m/(e(T−1))) ] ≥ (1−η−O(1/L))(1−1/c).
+If L ≥ α m, then m/(T−1) ≤ 1/(α η) up to 1+O(1/L) factors, giving an explicit constant bound. If the plateau covers a γ-fraction of [k0,2k0), the global probability is ≥ γ times the RHS. Example: with C_bi=5, α=1, η=0.99, c=100, we get a ≥1% guarantee with a factor ≤ 100·2·5·(1 + 1/(0.99 e)).
+
+- Heavy-coverage program (caveats and plan). Any per-step “collision within heavy” probability bound must be stated conditionally on the current filtration F_t: under D^2 sampling,
+  P[collision in H at step t | F_t] = cost_t(covered H) / cost_t(all).
+Avoid ratio-of-expectations. A plausible route is to bound cost_t(covered H) in terms of the uncovered heavy mass U_t(H) via the MRS eH_t supermartingale (in expectation and eventually with concentration), while lower bounding cost_t(all) by U_t(H) + U_t(L). To obtain a β-persistence-type condition from scale separation, quantify the expected reduction of U_t(H) when sampling outside H and show it is o(U_t(H)) under strong separation (e.g., OPT_{k1} ≥ k^C · OPT_k). With these in place, the expected number of heavy collisions can be bounded by summing the conditional probabilities until all heavy clusters are hit, and then lifted to high probability by Freedman/Azuma.
+
+- Lower bounds. To show random-k smoothing cannot beat Θ(log k0) in general, aim for an instance where Δ(k)=1 for a 1−o(1) fraction of k in [k0,2k0). Concretely, calibrate radii so OPT_{k−1}/OPT_k ≈ 1 + Θ(1/ln k0) across most of the window, ensuring s(k)=k−1 on most k. Then adapt Arthur–Vassilvitskii’s lower-bound calculation to the averaged setting.
+New per-plateau refinement: τ≈m/ln L branch and an updated envelope
+
+- Additional τ-instantiation. On a factor-2 plateau I=[m,m+L) with L≥3, choose τ*:=min{L−1, ⌊m/ln L⌋}. Then Theorem 3 yields
+  E_{k∈I} E_++[ALG/OPT]
+  ≤ 2C_bi [ (τ*/(L−1))(a+1+ln(2m/τ*)) + ((L−1−τ*)/(L−1)) + (m/(e(L−1)))(H_{L−2} − H_{τ*−1}) ]
+    + (C_fix(\ln m + O(1)))/L,
+  where a:=2+1/(2e).
+  In the subcase m ≤ (L−1) ln L (hence τ*=⌊m/ln L⌋) and assuming m≥L (which holds for plateaus contained in [k0,2k0)), we can bound
+  • ln(2m/τ*) ≤ ln(4 ln L)
+  • τ*/(L−1) ≤ m/((L−1) ln L)
+  • H_{L−2} − H_{τ*−1} ≤ 1 + ln ln L
+  to conclude
+  E_{k∈I} E_++[ALG/OPT]
+  ≤ 2C_bi [ 1 + (m/((L−1) ln L))(a+1+\ln(4\ln L)) + (m/(e(L−1)))(1 + \ln\ln L) ]
+    + (C_fix(\ln m + O(1)))/L.
+  This improves the (m\ln L)/L tail from the τ=1 branch to ≈ (m/L)(1+\ln\ln L).
+
+- Updated min-of-three envelope (plateau-wise). Together with the τ=L−1 (pure-log) and τ=1 (hybrid) instantiations, we may use
+  E_{k∈I} E_++[ALG/OPT] ≤ K0 + K1·min{ ln^+(2m/(L−1)), (m\ln L)/L, (m(1+\ln\ln L))/L } + K2·(\ln m)/L,
+  for absolute constants K0,K1,K2 depending only on C_bi,C_fix. This strictly strengthens the previous min-of-two envelope in regimes where ln ln L ≪ ln L.
+
+- Global aggregation (window-wise). For the maximal factor-2 plateau partition [k0,2k0)=\bigsqcup_j I_j with I_j=[m_j,m_j+L_j), one may take, plateau by plateau, the minimum of the three branches above (with the third used for L_j≥3), and sum with weights L_j/k0:
+  E_{k\sim U([k0,2k0))} E_++[ALG/OPT]
+  ≤ (1/k0) \sum_j L_j [ K0 + K1·min{ ln^+(2m_j/(L_j−1)), (m_j\ln L_j)/L_j, (m_j(1+\ln\ln L_j))/L_j } ]
+    + (K2/k0) \sum_j \ln m_j.
+
+- Balanced split reminder. The τ=⌊L/2⌋ instantiation yields
+  E_{k∈I} E_++[ALG/OPT]
+  ≤ 2C_bi [ (2/3)(a+1+\ln(4m/(L−1))) + 1/2 + (m/(e(L−1)))(\ln 3 + 1) ] + (C_fix(\ln m + O(1)))/L,
+  valid for all L≥3. This removes the ln L factor in the tail at the expense of a larger constant on the log piece.
+
+- Probabilistic 1% instantiation (correction). From Corollary 9, for any η∈(0,1) and c≥1,
+  P_{k∈I,++}[ ALG/OPT ≤ c·B_I ] ≥ (1−η−O(1/L))(1−1/c), with B_I=2C_bi(1 + m/(e(T−1))), T=\max\{2,\lceil η(L−1)\rceil+1\}.
+  To guarantee at least 1% mass uniformly (up to O(1/L)), take η=0.98 and c=2, giving (1−η)(1−1/c)=0.02·0.5=0.01. If, in addition, L≥α m, then B_I ≤ 2C_bi(1 + 1/(α e η)) up to O(1/L).
+
+Caveat on heavy-coverage sketches. The pathwise control and metric-separation heuristics are promising but currently lack fully rigorous denominators: one must explicitly quantify cost_t(X) in terms of U_t(H) under precise conditions, and avoid uncontrolled uses of triangle inequality against existing centers outside H. These ideas remain in-development items in notes, not yet suitable for output.
+Global aggregation and probability instantiations (added)
+
+- Global min-of-three aggregator. From Corollary 11 (per-plateau min-of-three) and linearity, we can average over the maximal factor-2 plateau partition [k0,2k0)=⊔_j I_j=[m_j,m_j+L_j). For L_j≥2 each plateau contributes its per-plateau bound with weight L_j/k0, and L_j=1 plateaus contribute via the fixed-k bound. This yields a clean, explicit global formula with constants K0,K1,K2 depending only on C_bi,C_fix. When C_bi=C_fix=5, one can set K0=35, K1=10, K2=5. The third branch (m(1+ln ln L))/L is to be read only for L≥3.
+
+- Endpoint-sum control. The unweighted endpoint contribution aggregates as (K2/k0)∑_{j:L_j≥2} ln m_j. This is always ≤ K2·ln(2k0) since there are ≤k0 plateaus and m_j≤2k0−1 for all j. Thus endpoint terms never exceed O(ln k0).
+
+- Unconditional aggregation bound. Using only the pure-log branch and the easy inequality ln m_j ≤ ln k for k∈I_j, we recover E_{k∼U([k0,2k0)),++}[ALG/OPT] ≤ K′ + K″·ln(2k0) for absolute K′,K″. This validates that, without structural information (e.g., long plateaus), the Θ(log k0) behavior is unavoidable.
+
+- Long-plateau mixture. If a γ-fraction of the window is covered by plateaus with L≥α m, then that portion contributes γ·O_α(1) (by Corollary 5), while the rest is ≤ (1−γ)·O(ln k0). This gives a transparent global interpolation.
+
+- ≥1% global probability under a single long plateau. If I=[m,m+L) with L≥α m covers a γ-fraction of the window, then by Corollary 9 with η=0.98 and c=2 we get P_{k,++}[ALG/OPT ≤ 2·B_I] ≥ γ·(1−η−O(1/L))·(1−1/2) = 0.01·γ − O(γ/L), where B_I = 2·C_bi·(1 + m/(e(T−1))) and T = max{2,⌈0.98(L−1)⌉+1}. If L≥α m then B_I ≤ 2·C_bi(1 + 1/(α e·0.98)) + O(1/L).
+
+Caveat and next steps for heavy-coverage
+
+- The pathwise heavy-collision lemma remains a program: define U_t(H) (uncovered heavy mass), H_t(H) (covered heavy mass), and the stopping time τ when all heavy clusters are covered. A key missing ingredient is a quantitative persistence lower bound inf_{t<τ} U_t(H) ≥ c·S_H (S_H is the sum of single-cluster OPT costs over H) under an explicit separation hypothesis (e.g., OPT_{k1} ≫ OPT_k or geometric separation). Once such a bound and a dominance parameter β>0 (U_t(H) ≥ β·(H_t(all)+U_t(L))) are established, summing conditional collision probabilities gives an expected-collisions bound, which can then be upgraded to high probability via Freedman’s inequality. We should avoid any pathwise inequality that is only justified in expectation (e.g., eH_t supermartingale bounds) without a concentration argument.
+
+
+Current output.md (if any):
+Theorems curated in this file depend on the following standard notation and external input.
+- For a finite dataset X⊂R^d, write OPT_k for the optimal k-means cost with k centers, and ALG_k for the cost produced by k-means++ after k centers; E_++[·] is expectation over the algorithm’s randomness.
+- External input (Makarychev–Reddy–Shan, 2020): There exists an absolute constant C_bi such that for all integers r≥1 and Δ≥1,
+  E_++[cost after r+Δ centers] ≤ C_bi · min{ 2 + 1/(2e) + ln(2r/Δ), 1 + r/(e(Δ−1)) } · OPT_r.
+  There is also an absolute constant C_fix with E_++[ALG_k] ≤ C_fix·(ln k + O(1))·OPT_k for all k (the fixed-k bound). We treat C_bi and C_fix as absolute numerical constants.
+
+Theorem 1 (Per-k oversampling bound via a 2-approximate anchor).
+Fix k≥1 and define
+  s(k) := min{ s∈{1,…,k} : OPT_s ≤ 2·OPT_k },    Δ(k) := k − s(k).
+Then:
+- If Δ(k) ≥ 1, we have
+  E_++[ALG_k] ≤ 2·C_bi · min{ 2 + 1/(2e) + ln(2 s(k)/Δ(k)), 1 + s(k)/(e(Δ(k)−1)) } · OPT_k.
+- If Δ(k) = 0, we have E_++[ALG_k] ≤ C_fix·(ln k + O(1))·OPT_k.
+Proof.
+For Δ(k)≥1, apply the MRS bi-criteria inequality with r = s(k) and Δ = k−s(k):
+  E_++[ALG_k] = E_++[cost after s(k)+Δ(k) centers]
+  ≤ C_bi · min{ 2 + 1/(2e) + ln(2 s(k)/Δ(k)), 1 + s(k)/(e(Δ(k)−1)) } · OPT_{s(k)}.
+By definition of s(k), OPT_{s(k)} ≤ 2·OPT_k, giving the stated bound. For Δ(k)=0 the fixed-k bound yields the second claim. ∎
+
+Theorem 2 (Averaging over a factor-2 plateau).
+Let I = {m, m+1, …, m+L−1} with L≥2 and assume OPT_k ∈ (OPT_m/2, OPT_m] for all k∈I. Then for k uniform in I and over the k-means++ randomness,
+  E_{k∈I} E_++[ ALG_k / OPT_k ] ≤ A0 + A1 · ln^+( 2m/(L−1) ) + (A2 · ln m)/L,
+where ln^+(x) := max{ln x,0} and A0,A1,A2 are absolute constants depending only on C_bi,C_fix.
+Proof.
+Average the bound from Theorem 1 over k∈I. For Δ:=k−m≥1, we may upper bound s(k) by m and lower bound Δ(k) by Δ (since s(k)≤m and Δ(k)≥Δ on a factor-2 plateau), and use only the logarithmic branch of MRS to get
+  E_++[ALG_{m+Δ}/OPT_{m+Δ}] ≤ 2·C_bi · ( 2 + 1/(2e) + ln(2m/Δ) ).
+Averaging Δ from 1 to L−1 gives
+  (1/(L−1))∑_{Δ=1}^{L−1} ln(2m/Δ) = ln(2m) − ln((L−1)!)/(L−1) ≤ 1 + ln(2m/(L−1)),
+where we used ln(n!) ≥ n ln n − n + 1 for n=L−1≥1. Multiplying by (L−1)/L and adding the Δ=0 endpoint contribution C_fix(ln m + O(1))/L yields the claim with suitable absolute constants A0,A1,A2. Replacing ln by ln^+ only weakens the bound. ∎
+
+Corollary 3 (Decomposition across [k0,2k0)).
+Partition the integer interval [k0,2k0) into maximal factor-2 plateaus I_j = [m_j, m_j+L_j), j=1,…,J, so OPT_k ∈ (OPT_{m_j}/2, OPT_{m_j}] for k∈I_j, and ∑_j L_j = k0. Then, for k uniform on [k0,2k0),
+  E_k E_++[ ALG_k / OPT_k ]
+  ≤ (1/k0) ∑_{j : L_j≥2} L_j [ A0 + A1 · ln^+( 2 m_j/(L_j−1) ) ]
+    + (1/k0) ∑_{j : L_j≥2} A2 · ln m_j
+    + (1/k0) ∑_{j : L_j=1} C_fix · (ln m_j + O(1)).
+In particular, if a constant fraction of [k0,2k0) is covered by plateaus satisfying L_j ≥ m_j / polylog(k0), then the contribution of those plateaus is O(log log k0), and the remaining fraction must be controlled separately; in the worst case with many L_j=1 plateaus the global average can be Θ(log k0).
+Proof.
+Average the bound of Theorem 2 over plateaus with weights L_j/k0, and handle L_j=1 plateaus by the fixed-k bound. ∎
+Lemma (Monotonicity of the MRS bi-criteria bound).
+Let a := 2 + 1/(2e), and for integers s≥1, Δ≥1 define
+  F(s,Δ) := min{ a + ln(2s/Δ), 1 + s/(e(Δ−1)) },
+where the second term is interpreted only for Δ≥2 (or taken as +∞ for Δ=1). Then:
+- For fixed Δ, F is nondecreasing in s.
+- For fixed s, F is nonincreasing in Δ (for all Δ≥1 in the above interpretation).
+Proof.
+For Δ≥2, both functions s ↦ a + ln(2s/Δ) and s ↦ 1 + s/(e(Δ−1)) are nondecreasing in s, hence their pointwise minimum is nondecreasing. For Δ≥2, both functions Δ ↦ a + ln(2s/Δ) and Δ ↦ 1 + s/(e(Δ−1)) are nonincreasing in Δ, hence the minimum is nonincreasing. For the transition from Δ=1 to Δ=2, note that F(s,1) = a + ln(2s) ≥ a + ln(s) ≥ a + ln(2s/2) ≥ F(s,2), since the logarithmic branch decreases with Δ and adding the second branch at Δ=2 can only decrease the minimum. Thus F is nonincreasing in Δ for all Δ≥1. ∎
+
+Theorem 3 (Plateau averaging with a tunable split of the two MRS branches).
+Let I = {m, m+1, …, m+L−1} be a factor-2 plateau (i.e., OPT_k ∈ (OPT_m/2, OPT_m] for k∈I) with L≥2. For any integer τ with 1≤τ≤L−1, for k uniform on I and over k-means++ randomness we have
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ 2·C_bi · [ (τ/(L−1)) · ( a + 1 + ln(2m/τ) )
+                + ((L−1−τ)/(L−1))
+                + (m/(e(L−1))) · ( H_{L−2} − H_{τ−1} ) ]
+    + (C_fix · (ln m + O(1)))/L,
+where H_r denotes the r-th harmonic number (H_0:=0).
+Proof.
+Fix k=m+Δ with Δ∈{1,…,L−1}. By Theorem 1, and Lemma (monotonicity),
+  E_++[ALG_{m+Δ}/OPT_{m+Δ}] ≤ 2·C_bi · min{ a + ln(2m/Δ), 1 + m/(e(Δ−1)) },
+with the second branch applicable for Δ≥2. Averaging Δ uniformly over {1,…,L−1}, split the sum at τ:
+  (1/(L−1)) ∑_{Δ=1}^{L−1} min{…}
+  ≤ (1/(L−1)) ∑_{Δ=1}^{τ} [ a + ln(2m/Δ) ]
+    + (1/(L−1)) ∑_{Δ=τ+1}^{L−1} [ 1 + m/(e(Δ−1)) ].
+For the first sum, use ∑_{Δ=1}^{τ} ln(2m/Δ) = τ ln(2m) − ln(τ!) ≤ τ[1 + ln(2m/τ)] by ln(τ!) ≥ τ ln τ − τ. For the second, ∑_{Δ=τ+1}^{L−1} 1 = L−1−τ and ∑_{Δ=τ+1}^{L−1} 1/(Δ−1) = H_{L−2} − H_{τ−1}. This yields the displayed bound. Finally, incorporate the Δ=0 endpoint k=m which has probability 1/L and contributes at most C_fix·(ln m + O(1))/L by the fixed-k bound. ∎
+
+Corollary 4 (Hybrid extremes recovered; strengthening Theorem 2).
+In the setting of Theorem 3:
+- Choosing τ = L−1 gives
+  E_{k∈I} E_++[ ALG_k / OPT_k ] ≤ 2·C_bi · ( a + 1 + ln(2m/(L−1)) ) + (C_fix · (ln m + O(1)))/L.
+  This recovers Theorem 2 (up to constant reparameterization by a and the explicit +1 from Stirling).
+- Choosing τ = 1 gives
+  E_{k∈I} E_++[ ALG_k / OPT_k ] ≤ 2·C_bi · ( 1 + (a+ln(2m))/(L−1) + (m/(e(L−1))) · H_{L−2} )
+    + (C_fix · (ln m + O(1)))/L.
+Using H_q ≤ ln q + 1, this yields a complementary regime where the bound scales like 1 + O((ln m)/L) + O((m ln L)/L).
+Proof.
+Both bounds are immediate from Theorem 3 with the specified τ and the inequality H_q ≤ ln q + 1 for q≥1. ∎
+
+Corollary 5 (Explicit constants on long plateaus).
+If L ≥ α m for some fixed α∈(0,1], then for k uniform on I,
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ 2·C_bi · ( a + 1 + ln(2/α) ) + (C_fix · (ln m + O(1)))/L.
+Proof.
+Apply Corollary 4 with τ=L−1 and use ln(2m/(L−1)) ≤ ln(2/α) + O(1/L). The endpoint term is unchanged. ∎
+
+Corollary 6 (Quantile-in-Δ guarantee on a plateau).
+Fix η∈(0,1) and let T := max{2, ⌈η(L−1)⌉+1}. Then for all Δ∈{T,…,L−1},
+  E_++[ ALG_{m+Δ} / OPT_{m+Δ} ] ≤ 2·C_bi · ( 1 + m/( e (T−1) ) ).
+Consequently, for k uniform on I, the fraction of k for which the above inequality holds is at least (L−T+1)/L = 1 − η − O(1/L).
+Proof.
+For Δ≥T, the large-Δ branch gives 1 + m/(e(Δ−1)) ≤ 1 + m/(e(T−1)). Combine with Theorem 1 and monotonicity, and note that the set {k: Δ(k)≥T} has size L−T+1 among the L indices in I. ∎
+Remark (Plateau length within [k0,2k0)).
+Let I = [m,m+L) be a factor-2 plateau contained in [k0,2k0). Then L ≤ 2k0 − m ≤ m. In particular, for L≥2 we have m/(L−1) ≥ 1.
+Proof.
+Since m+L−1 ≤ 2k0−1, we have L ≤ 2k0−m. As m ≥ k0, it follows that 2k0−m ≤ m. The final claim is immediate. ∎
+
+Corollary 7 (Min-of-extremes plateau bound).
+In the setting of Theorem 3 with L≥2, for k uniform on I and the k-means++ randomness,
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ min{ B_log, B_hyb } + (C_fix · (ln m + O(1)))/L,
+where
+  B_log := 2·C_bi · ( a + 1 + ln^+( 2m/(L−1) ) ),
+  B_hyb := 2·C_bi · ( 1 + (a+\ln(2m))/(L−1) + (m/(e(L−1))) · H_{L−2} ),
+and a := 2 + 1/(2e), H_q denotes the q-th harmonic number with H_0:=0, and ln^+(x):=max{ln x,0}.
+Proof.
+Take τ=L−1 and τ=1 in Theorem 3 to obtain the two bounds (cf. Corollary 4). Replacing ln by ln^+ only increases the RHS. Taking the minimum preserves validity. ∎
+
+Corollary 8 (Upper envelope from the min-of-extremes).
+In the setting of Corollary 7, there exist absolute constants K0,K1,K2 (depending only on C_bi and C_fix) such that
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ K0 + K1 · min{ ln^+( 2m/(L−1) ), (m ln L)/L } + K2 · (\ln m)/L.
+Proof.
+From Corollary 7 with the logarithmic extreme,
+  E ≤ 2·C_bi·(a+1) + 2·C_bi·ln^+(2m/(L−1)) + (C_fix·(\ln m + O(1)))/L.
+From the hybrid extreme and H_{L−2} ≤ ln(L−2)+1 ≤ ln L + 1,
+  E ≤ 2·C_bi·\Big( 1 + (a+\ln(2m))/(L−1) + (m/(e(L−1))) (\ln L + 1) \Big)
+    + (C_fix·(\ln m + O(1)))/L.
+Absorb constants into K0 and the terms (ln m)/(L−1), (m/(L−1)) into K2·(\ln m)/L and K1·(m ln L)/L, respectively, using L−1≈L up to absolute factors for L≥2. Taking the minimum of the two displays yields the claim. ∎
+
+Corollary 9 (Plateau-level probability guarantee via quantiles and Markov; global mixing).
+Let I=[m,m+L) be a factor-2 plateau with L≥2 and fix η∈(0,1). Define T := max{2, ⌈η(L−1)⌉+1}. Then for at least a (1−η−O(1/L)) fraction of k∈I we have
+  E_++[ ALG_k / OPT_k ] ≤ B_I := 2·C_bi · ( 1 + m/( e (T−1) ) ).
+Consequently, for any c≥1,
+  P_{k\sim U(I),\,++}\big[ ALG_k/OPT_k ≤ c · B_I \big] ≥ (1−η−O(1/L)) · (1 − 1/c).
+If, moreover, L ≥ α m for some α∈(0,1], then B_I ≤ 2·C_bi · (1 + 1/(α e η)) + O(1/L). If a plateau I covers a γ-fraction of [k0,2k0) (i.e., L/k0 ≥ γ), then for k uniform on [k0,2k0) and the ++ randomness,
+  P\big[ ALG_k/OPT_k ≤ c · B_I \big] ≥ γ · (1−η−O(1/L)) · (1 − 1/c).
+Proof.
+The first assertion is Corollary 6: a (1−η−O(1/L)) fraction of k satisfy the displayed per-k bound with Δ≥T, hence with E_++ bounded by B_I. For any such k, Markov’s inequality gives P_{++}[ALG_k/OPT_k ≤ c·B_I] ≥ 1−1/c. Averaging uniformly over k on I yields the claim. If L ≥ α m, then T−1 ≥ η(L−1) ≥ η(α m−1), which implies m/(T−1) ≤ 1/(α η) + O(1/L). The global bound follows by restricting to k in I, which occurs with probability ≥ γ. ∎
+Corollary 10 (A τ≈m/ln L branch on a plateau).
+Let I=[m,m+L) be a factor-2 plateau with L≥3. Define τ*:=min{L−1, ⌊m/ln L⌋}. Then for k uniform on I and over the k-means++ randomness,
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ 2·C_bi · [ (τ*/(L−1)) · ( a + 1 + ln(2m/τ*) )
+                + ((L−1−τ*)/(L−1))
+                + (m/(e(L−1))) · ( H_{L−2} − H_{τ*−1} ) ]
+    + (C_fix · (ln m + O(1)))/L,
+where a:=2 + 1/(2e), and H_r is the r-th harmonic number (H_0:=0). In particular, if m ≤ (L−1) ln L and (as is the case for plateaus inside [k0,2k0)) m≥L, then
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ 2·C_bi · [ 1 + (m/((L−1) ln L)) · ( a + 1 + ln(4 ln L) )
+                + (m/(e(L−1))) · ( 1 + ln ln L ) ]
+    + (C_fix · (ln m + O(1)))/L.
+Proof.
+Apply Theorem 3 with τ=τ*. The displayed inequality is just Theorem 3. In the subcase m ≤ (L−1) ln L, τ*=⌊m/ln L⌋ satisfies τ* ≥ m/ln L − 1, hence 2m/τ* ≤ 4 ln L and ln(2m/τ*) ≤ ln(4 ln L). Also τ*/(L−1) ≤ m/((L−1) ln L). Finally, H_{L−2} − H_{τ*−1} ≤ ln(L/τ*) + 1 ≤ ln((L ln L)/m) + 1 ≤ 1 + ln ln L, using m≥L. Substituting these bounds into Theorem 3 yields the “in particular” display. ∎
+
+Corollary 11 (Updated per-plateau upper envelope: min-of-three).
+In the setting of Corollary 7, there exist absolute constants K0,K1,K2 (depending only on C_bi and C_fix) such that for k uniform on I=[m,m+L) with L≥2,
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ K0 + K1 · min{ ln^+( 2m/(L−1) ), (m ln L)/L, (m(1 + ln ln L))/L } + K2 · (\ln m)/L.
+Here ln^+(x):=max{ln x,0}. The third term in the minimum is intended for L≥3; when L=2 the minimum of the first two terms suffices. 
+Proof.
+Combine: (i) the logarithmic extreme τ=L−1 (Corollary 4), (ii) the τ=1 hybrid extreme (Corollary 4 with H_{L−2}≤ln L+1), and (iii) Corollary 10 in the subcase τ*=⌊m/ln L⌋ (which holds exactly when m ≤ (L−1) ln L). In case (iii), the two m-dependent contributions are bounded by a constant multiple of (m/L)(1+ln ln L), since (m/((L−1) ln L))(a+1+ln(4 ln L)) ≤ (const)·(m/L) and (m/(e(L−1)))(1+ln ln L) ≤ (const)·(m/L)(1+ln ln L), with all constants depending only on C_bi. Absorb all additive O(1) and O((\ln m)/L) terms into K0 and K2. Taking the minimum of the three displays yields the claim. ∎
+
+Corollary 12 (Explicit constants for the envelope when C_bi=C_fix=5).
+Assume C_bi=C_fix=5 and L≥2. Then for k uniform on I=[m,m+L),
+  E_{k∈I} E_++[ ALG_k / OPT_k ]
+  ≤ 35 + 10 · min{ ln^+(2m/(L−1)), (m ln L)/L, (m(1+\ln\ln L))/L } + 5 · (\ln m)/L.
+Proof.
+From Corollary 7 (logarithmic extreme), E ≤ 2·C_bi·(a+1) + 2·C_bi·ln^+(2m/(L−1)) + (C_fix·(\ln m + O(1)))/L. With a=2+1/(2e) and C_bi=C_fix=5, 2·C_bi·(a+1) ≈ 31.84; round up to 35 to absorb the endpoint O(1/L) terms. The coefficient in front of ln^+(·) is 2·C_bi=10. For the τ=1 branch, the (m ln L)/L contribution carries a factor 2·C_bi/e ≤ 10/e < 10; rounding up to 10 is safe after replacing L−1 by L. For the τ≈m/ln L branch (Corollary 10), the m-dependent part is ≤ const·(m/L)(1+\ln\ln L) with const depending only on C_bi; choosing 10 dominates those constants as well. The endpoint term is ≤ 5·(\ln m + 2)/L and we keep 5·(\ln m)/L after absorbing the additive 10/L into 35. Taking the minimum of the three candidate bounds proves the display. ∎
+
+Remark (Numerical 1% probability instantiation on a single plateau).
+In Corollary 9, choose η=0.98 and c=2. Then for k uniform on I and ++ randomness,
+  P[ ALG_k/OPT_k ≤ 2 · B_I ] ≥ (1−η−O(1/L)) · (1 − 1/2) = (0.02−O(1/L)) · 0.5 ≥ 0.01 − O(1/L),
+with B_I = 2·C_bi·(1 + m/(e(T−1))) and T = max{2, ⌈0.98(L−1)⌉+1}. If additionally L ≥ α m, then B_I ≤ 2·C_bi·(1 + 1/(α e · 0.98)) + O(1/L), giving a fully explicit constant-factor guarantee at ≥1% mass (up to O(1/L)).
+Remark (Clarification on Corollary 12).
+In Corollary 12 the third term inside the minimum, (m(1+ln ln L))/L, is intended only for L≥3. For L=2, take the minimum of the first two terms. This mirrors the restriction stated in Corollary 11 and avoids using ln ln 2<0.
+
+Corollary 13 (Global min-of-three aggregation across plateaus; explicit constants available).
+Partition [k0,2k0) into maximal factor-2 plateaus I_j=[m_j,m_j+L_j), j=1,…,J, so that ∑_j L_j=k0. Then, for k uniform in [k0,2k0) and the k-means++ randomness,
+  E_{k,++}[ ALG_k / OPT_k ]
+  ≤ (1/k0) ∑_{j:L_j≥2} L_j · [ K0 + K1 · min{ ln^+(2m_j/(L_j−1)), (m_j ln L_j)/L_j, (m_j(1+ln ln L_j))/L_j } ]
+    + (K2/k0) ∑_{j:L_j≥2} ln m_j
+    + (1/k0) ∑_{j:L_j=1} C_fix · (ln m_j + O(1)),
+where ln^+(x):=max{ln x,0}. The third term in the minimum is to be used only for L_j≥3. Here K0,K1,K2 are absolute constants depending only on C_bi,C_fix. In the numerical case C_bi=C_fix=5 one may take K0=35, K1=10, K2=5.
+Proof.
+For each j with L_j≥2, apply Corollary 11 to I_j and weight by L_j/k0. For L_j=1, use the fixed-k bound with weight 1/k0. Sum over j. The constants K0,K1,K2 come directly from Corollaries 11–12. ∎
+
+Lemma 1 (Endpoint term cap).
+With the notation of Corollary 13,
+  (1/k0) ∑_{j:L_j≥2} ln m_j ≤ ln(2k0).
+Proof.
+There are at most J≤k0 plateaus and for all j we have m_j≤2k0−1. Thus ∑_{j:L_j≥2} ln m_j ≤ ∑_{j=1}^{J} ln(2k0) ≤ k0·ln(2k0). Divide by k0. ∎
+
+Corollary 14 (Unconditional global O(log k0) bound).
+There exist absolute constants K′,K″ (depending only on C_bi,C_fix) such that for k uniform on [k0,2k0) and ++ randomness,
+  E_{k,++}[ ALG_k / OPT_k ] ≤ K′ + K″ · ln(2k0).
+Proof.
+Use Theorem 2 (or Corollary 7 with τ=L−1) on each plateau with L_j≥2 and average with weights L_j/k0, and handle L_j=1 via the fixed-k bound. For L_j≥2,
+  (1/k0)∑_j L_j · ln^+(2m_j/(L_j−1)) ≤ (1/k0)∑_j L_j · ln(2m_j)
+  = ln 2 + (1/k0)∑_j L_j ln m_j.
+Since for every k∈I_j we have m_j≤k, ∑_j L_j ln m_j ≤ ∑_{k=k0}^{2k0−1} ln k ≤ k0·ln(2k0), giving a contribution ≤ ln(2k0). The endpoint term is bounded by Lemma 1 up to a constant factor, and the L_j=1 part contributes ≤ C_fix·(ln(2k0)+O(1)). Absorb all absolute factors into K′,K″. ∎
+
+Corollary 15 (Global constant under a single long plateau; explicit constants).
+Suppose there exists a plateau I=[m,m+L) contained in [k0,2k0) with L ≥ α m for some α∈(0,1] and covering a γ-fraction of the window (i.e., L/k0 ≥ γ). Then
+  E_{k,++}[ ALG_k / OPT_k ]
+  ≤ γ · [ 2·C_bi · ( a + 1 + ln(2/α) ) + (C_fix · (\ln m + O(1)))/L ]
+    + (1−γ) · [ K′ + K″ · ln(2k0) ],
+where a:=2+1/(2e) and K′,K″ are the constants from Corollary 14. In particular, as L→∞ the term (C_fix·(\ln m))/L=o(1), so the γ-contribution is O_α(1).
+Proof.
+Average Corollary 5 over I (weight L/k0=γ) and use Corollary 14 on the complement fraction 1−γ. ∎
+
+Corollary 16 (Global ≥1% probability under a single long plateau; explicit constants).
+Under the assumptions of Corollary 15, let η=0.98, c=2, and define T:=max{2,⌈η(L−1)⌉+1} and
+  B_I := 2·C_bi · ( 1 + m / ( e (T−1) ) ).
+Then, for k uniform on [k0,2k0) and ++ randomness,
+  P[ ALG_k / OPT_k ≤ c · B_I ] ≥ γ · (1−η−O(1/L)) · (1 − 1/c) = 0.01·γ − O(γ/L).
+If moreover L ≥ α m, then B_I ≤ 2·C_bi · (1 + 1/(α e η)) + O(1/L). For C_bi=5 and α=1, this yields the explicit threshold c·B_I ≤ 20 · (1 + 1/(0.98 e)) ≈ 27.7 on at least 1%·γ − O(γ/L) of the joint (k,++) mass.
+Proof.
+Apply Corollary 9 on I (giving a per-k bound with probability ≥(1−η−O(1/L)) and then Markov with c=2, hence factor (1−1/2)), and multiply by the mixing weight L/k0=γ. The long-plateau simplification of B_I follows from m/(T−1) ≤ 1/(α η) + O(1/L). ∎
+

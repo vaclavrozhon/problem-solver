@@ -1,0 +1,1411 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.tex ===
+% Improving Dvořák's 3/8 bound on color changes
+% \newcommand{\cube}{Q_n}
+% \newcommand{\V}{\{0,1\}^n}
+% \newcommand{\E}{E}
+% \newcommand{\col}{\chi}
+% \newcommand{\R}{\mathsf{R}}
+% \newcommand{\B}{\mathsf{B}}
+% \newcommand{\switches}{\mathrm{sw}}
+
+\section*{Model and task}
+
+\paragraph{Setup.}
+Let $\cube$ be the $n$-cube. Consider an \emph{arbitrary} 2-coloring $\col:\E(\cube)\to\{\R,\B\}$ (no antipodality constraint). For a path $P=(e_1,\dots,e_L)$, let $\switches(P)$ be the number of color changes along $P$.
+
+\paragraph{Objective (beat $3/8$).}
+Dvořák proved that there is an antipodal path with at most $\big(\tfrac{3}{8}+o(1)\big)n$ switches. Prove any constant improvement:
+\[
+\exists\,\delta>0\ \text{(absolute)}\quad
+\forall\,n\ \ \text{every 2-coloring has antipodal } P
+\text{ with }\switches(P)\le \Big(\tfrac{3}{8}-\delta\Big)n.
+\]
+Even $\delta=10^{-4}$ would be significant.
+
+\section*{Context and prior results}
+
+\paragraph{Baseline bounds.}
+Leader--Long showed a monochromatic geodesic of length $\ge \lceil n/2\rceil$, implying an antipodal path with at most $n/2$ switches. Dvořák sharpened this to $(3/8+o(1))n$ by a refined random-geodesic and $Q_3$-patching argument.
+
+
+\section*{Possible approaches and technical ideas}
+
+\paragraph{Important note.}
+The items below should be treated as results of brainstorming, take all of them with a grain of salt. 
+
+
+\paragraph{1.\ Expander vs.\ sparse-cut dichotomy at block scale.}
+Partition coordinates into blocks $J_1,\dots,J_T$ of size $m$ (e.g., $m=128$). Let $S_J=\{x:\sum_{i\in J}x_i\equiv 0\pmod 2\}$, and denote by $\beta_J$ the fraction of $J$-direction edges that are blue (across $\delta S_J$).
+\begin{itemize}
+  \item \textbf{Case A (many biased blocks).} For at least $(1-\theta)$ fraction of blocks, $\beta_J\notin[\tfrac12-\varepsilon,\tfrac12+\varepsilon]$. In each biased block, a random start and random ordering of coordinates yields (by Chernoff) a run that flips all $|J|$ coordinates with only $O(\varepsilon |J|)$ off-color edges. Use 4-cycle commuting to cluster the defects, so processing all blue-majority blocks in one blue phase and red-majority blocks in one red phase costs
+  \[
+  \text{switches} \ \le\ \underbrace{T}_{\text{phase boundaries}} \;+\; O(\varepsilon n).
+  \]
+  Choosing $m$ large and $\varepsilon\ll 1/m$ gives $\le (1/m+\varepsilon)n<0.375n$.
+  \item \textbf{Case B (few biased blocks).} For at least $(1-\theta)$ fraction of blocks, both colors occupy a constant fraction of \emph{every} block boundary. Summing the block matchings shows that at least one color subgraph has spectral gap $\Omega(1)$ (matrix Chernoff on the sum of matchings), hence linear conductance and, in particular, a \emph{monochromatic} antipodal path (0 switches).
+\end{itemize}
+\emph{Deliverable sublemma:} If a color occupies at least an $\varepsilon$-fraction of each $\delta S_J$ for $(1-\theta)$ of the blocks, then that color has conductance $\Omega(\varepsilon)$ in the whole cube.
+
+\paragraph{2.\ $Q_3$ density improvement over $1/2$.}
+Dvořák’s method analyzes a random geodesic and counts ``good'' $Q_3$ subcubes that allow local color-change savings. Prove that in any 2-coloring, the fraction of good $Q_3$’s exceeds $1/2+\gamma$ for some absolute $\gamma>0$. Then the expected number of savings improves by $\Omega(\gamma n)$, pushing the constant below $3/8$.
+\begin{itemize}
+  \item Candidate route: classify $Q_3$ colorings; show certain ``worst'' patterns cannot tile the cube at density $1/2$ due to parity/overlap constraints on shared 4-cycles. A linear-program bound over pattern frequencies may certify $\gamma>0$.
+\end{itemize}
+
+\paragraph{3.\ Local surgery with better defect-to-switch conversion.}
+Along a nearly monochromatic segment containing a fraction $\rho$ of off-color edges, one can iteratively remove $RBR$ (or $BRB$) peaks using 4-cycles on the two involved coordinates. A careful accounting shows the number of resulting switches is \emph{twice} the number of disjoint defect clusters. Sharpen this combinatorial lemma to show
+\[
+\text{switches} \ \le\ (2+o(1))\,\rho n,
+\]
+uniformly over concatenated segments. Coupled with any scheme producing $\rho\le 0.18-\epsilon$, this already beats $3/8=0.375$.
+
+\paragraph{4.\ Fourier/junta stability for sparse colored boundaries.}
+Let $S\subset\V$ minimize the blue fraction across a cut: $|E_\B(S,\overline{S})|$ small relative to $|E(S,\overline{S})|$. Prove a junta-type stability: most boundary measure concentrates on a small set of coordinates $I$, and across those directions one color dominates. This yields a long single-color burst on $I$ with $o(n)$ switches, then recurse on $I^c$. With $\eta=O(\sqrt{\varepsilon})$ stability, you obtain $(\varepsilon+\eta)n$ switches; choosing constants delivers any fixed gain below $3/8$.
+
+\paragraph{5.\ Refined random-geodesic coupling.}
+In Dvořák’s proof, choices of coordinate order are uniform. Bias the distribution toward orders that maximize the overlap with biased blocks or good $Q_3$’s (via an exposure martingale and a size-biased pick of next coordinate). Freedman-type concentration can control the variance while increasing the expected savings per step by a fixed constant, giving $\tfrac{3}{8}-\delta$.
+
+\paragraph{6.\ Hybrid multi-scale strategy.}
+Run the process in \emph{phases}: at scale $m$ apply block-parity compression; on the residual set of coordinates with weak block bias, switch to the $Q_3$ density argument; if both fail to yield a strict gain, the spectral lemma triggers the expander case (0 switches). The minimum gain across phases is a fixed $\delta>0$.
+
+
+=== progress.md ===
+...
+t two random neighboring Q3’s (sharing one vertex) are both good, the boundary-change probability in the both-good case satisfies
+\[ \mathbb{P}[\text{boundary switch}\mid \text{both good}] \le \frac{1}{2} - \frac{1}{2}\,\mathbb{E}_v[u_v^2] + O\!\left(\frac{1}{n}\right). \]
+Consequently, Dvořák’s expected-switch bound improves to
+\[ \mathbb{E}[\text{switches}] \le \Big( \tfrac{1}{3} + \tfrac{b}{12} + \tfrac{a}{3}\big( \tfrac{1}{2} - \tfrac{1}{2}\,\mathbb{E}_v[u_v^2] + O(\tfrac{1}{n})\big) + o(1) \Big) n 
+= \Big( \tfrac{1}{3} + \tfrac{b}{12} + \tfrac{a}{6} - \tfrac{a}{6}\,\mathbb{E}_v[u_v^2] + o(1) \Big) n. \]
+This cleanly isolates a quantitative source of savings: any universal lower bound on \(\mathbb{E}_v[u_v^2]\) yields a constant improvement over 3/8.
+
+Why useful here. This replaces the crude 1/2 in the a-term by 1/2 − (1/2)·E_v[u_v^2] + o(1). It is fully compatible with Dvořák’s framework and reduces the problem to exhibiting a nontrivial global bias among preferred colors at vertices, or to a dichotomy: either E_v[u_v^2] is bounded away from zero (immediate gain) or a “near-balanced” structure holds that we can try to exploit to force b ≤ 1/2 − γ.
+
+## A conditional special case: degree-biased colorings force savings
+Link u_v to the edge-color degree imbalance at v using star-good triples.
+- Let x_v := r_v/n be the red-degree fraction at v. Among good triples, at least the monochromatic-star triples contribute, and for those c_v(K) equals the star color at v. Thus
+  \[ p_v \ge \frac{\binom{r_v}{3}}{t_v},\quad 1-p_v \ge \frac{\binom{n-r_v}{3}}{t_v},\quad t_v \ge \binom{r_v}{3}+\binom{n-r_v}{3}. \]
+- Hence \(u_v \ge \dfrac{\big|\binom{r_v}{3} - \binom{n-r_v}{3}\big|}{\binom{r_v}{3}+\binom{n-r_v}{3}}\). For x_v = 1/2 + \eta with |\eta| ≪ 1, a Taylor expansion gives \(u_v \gtrsim 6|\eta| + O(\eta^3)\).
+- Therefore, if a positive fraction \(\rho\) of vertices satisfy |x_v − 1/2| ≥ \eta₀, then \(\mathbb{E}_v[u_v^2] \ge c\,\rho\,\eta_0^2\) for some absolute c > 0. Plugging into the corollary gives a concrete improvement \(\delta \ge c'\,a\,\rho\,\eta_0^2\).
+This yields an auditable gain in the “degree-biased” regime. The hard case is the “globally balanced” regime where x_v ≈ 1/2 for most v.
+
+## Obstacles and where the improvement must come from in the balanced regime
+- There may exist colorings with x_v ≈ 1/2 for all (or almost all) vertices, killing the above degree-based bias. In this regime, any gain must come from structural constraints coupling the c_v(K) labels across different K (4-cycle/face consistency) and from the interaction between good and bad Q3’s (parameter b).
+- The spectral KG(n,3) bound shows that cuts G_v⊂C([n],3) alone do not force b < 1/2. We must exploit cross-vertex and cross-triple constraints inherently present in the cube that the Kneser abstraction discards.
+
+## Concrete, checkable next steps
+1) Formalize and add the “both-good refinement” lemma to output.md. It is self-contained and only uses counting over t_v and the O(n^2)-exclusion argument already present implicitly in Dvořák’s proof. This yields a parameterized improvement term −(a/6)·E_v[u_v^2]·n.
+2) Quantify the degree-bias case: write a short lemma proving u_v ≥ c·|2x_v−1| for star-driven minima (as above), with explicit c from exact binomial ratios, and derive the resulting δ in terms of the density of vertices with |2x_v−1| ≥ η.
+3) Begin the LP relaxation in the balanced case (x_v ≈ 1/2):
+   - Variables: for a fixed v, frequencies over Q3 isomorphism classes with a marked vertex and their c_v labels; frequencies over pairs of disjoint triples at v and their joint c_v labels; optionally include a minimal set of Q6-face constraints encoding compatibility between the two Q3’s via shared 4-cycles not passing through v.
+   - Constraints: (i) normalization and marginalization; (ii) the fraction of good Q3 at v is ≥ τ_v ≥ 1/4 − 3/(4n); (iii) Dvořák’s Lemma 9 filters for bad Q3; (iv) symmetry under color swap and coordinate permutations.
+   - Objective: maximize b subject to these constraints and u_v ≤ ε for all v (the “balanced” regime). If the optimum yields b ≤ 1/2 − γ for some absolute γ, we obtain the desired dichotomy.
+4) Enumeration task for Q3 classes: catalog all 2-colorings of Q3 up to automorphism; for each class and marked vertex, determine “good/bad” and, for good, list all minimal-change geodesics’ starting colors at the marked vertex. This table will supply exact constraints for (3).
+
+## Sanity checks and small examples
+- For any v, if all good Q3’s containing v are anchored at v (monochromatic star), then u_v = |2x_v−1| and the both-good disagreement probability at v equals 1/2 − (2x_v−1)^2/2 + O(1/n), giving a clear deviation from 1/2 when x_v≠1/2.
+- In a random coloring (each edge red/blue with prob 1/2 independently), heuristic suggests u_v concentrates near 0 and b≈1/2, matching the expectation that our improvement must come from worst-case structural constraints rather than average-case randomness. The LP aims exactly at the worst-case.
+
+## Why this is incremental, auditable progress
+- The both-good refinement is a precise, verifiable tightening of a step in Dvořák’s estimate; it cleanly introduces a measurable parameter u_v that future steps can bound from below.
+- The conditional degree-bias improvement gives a family of explicit special cases yielding an immediate δ.
+- The LP setup is concrete: it targets the balanced regime where the degree-based route fails, and it encodes local consistency that the Kneser graph abstraction ignores. Numerical experimentation on this relaxation can expose a positive margin γ and guide a combinatorial proof.
+
+## Open gaps to flag explicitly
+- output.md currently does not include the both-good refinement; adding it will make transparent how vertex-level biases translate to reduced switches.
+- We do not yet have a universal lower bound on E_v[u_v^2]. Establishing a dichotomy (either E_v[u_v^2] ≥ δ0 or b ≤ 1/2 − γ0) via the LP is the key next milestone.
+
+## Round 0002 — Anchored-good leverage on the a-term; explicit anchored–anchored counts; and an LP skeleton for b
+
+Reading and audit
+- I re-read output.md (Theorem A and Lemma B) and Dvořák (EJC 2020). The spectral Kneser bound is correct; the resulting substitution into Dvořák’s formula numerically gives a slightly worse constant than 3/8 (since b ≤ 1/2 + 3/(2(n−3))), but this is fine as an explicit o(1) term. Lemma B’s asymptotics τ_v ≥ 1/4 − 3/(4n) + O(1/n^2) are correct (I checked the expansion for even n).
+- No changes to output.md are proposed, but I note this nuance: “refines to (3/8 + 1/(8(n−3)) + o(1))·n” means making the o(1) term explicit; it is not an improvement on 3/8.
+
+Idea: Use anchored-good pairs to lower the both-good boundary switch probability below 1/2 by a vertex-bias dependent amount
+- Motivation: In Dvořák’s analysis the “both-good” boundary switch probability was bounded by 1/2 + o(1). However, within the anchored-good subclass (good Q3’s with a monochromatic star at the shared vertex), the color at the shared vertex chosen by f1 is forced to be the star color. This creates an explicit bias for two disjoint anchored-good cubes depending on the local red degree r_v at the shared vertex v.
+
+Explicit counting for anchored–anchored pairs at a fixed vertex v
+- Let r = r_v and b = n − r. For an ordered v-neighbor pair of Q3’s (K1,K2) (disjoint 3-sets), consider the event A that both are anchored at v (i.e., the three incident edges at v within each Ki have the same color). Then the exact counts are:
+  • #disjoint ordered pairs with both anchored red: C(r,3)·C(r−3,3).
+  • #disjoint ordered pairs with both anchored blue: C(b,3)·C(b−3,3).
+  • #disjoint ordered pairs with one anchored red and the other blue: C(r,3)·C(b−3,3) + C(b,3)·C(r−3,3).
+  • Total #disjoint ordered pairs: C(n,3)·C(n−3,3).
+- Consequently, the anchored–anchored v-probability is
+  H(r,n) := P_v[A] = [ C(r,3)C(r−3,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+  Observation: H(r,n) is symmetric in r↔b, minimized (empirically and by Taylor expansion) around r≈n/2, and for r=n/2 we have H ≈ 1/32 + O(1/n).
+- Note: Since “anchored” implies “good” (Lemma 8), H(r,n) is a contribution to the both-good probability a at v. Averaging over v gives a universal lower bound a ≥ E_v[H(r_v,n)]. I will formalize the minimization of H at r≈n/2 in a separate lemma next round; numerically, H(n/2,n) → 1/32.
+
+Anchored–anchored disagreement probability below 1/2 (precise expansion)
+- For the same v and conditioning on A, let σ_i∈{R,B} be the star color at v in Q3(v,Ki) (this is exactly the color of the first edge at v chosen by f1 in an anchored-good cube). The conditional probability of disagreement is
+  P_v[σ_1≠σ_2 | A] = [ C(r,3)C(b−3,3) + C(b,3)C(r−3,3) ] / [ C(r,3)C(r−3,3) + C(b,3)C(b−3,3) + C(r,3)C(b−3,3) + C(b,3)C(r−3,3) ].
+- As n→∞, with x = r/n and t = x−1/2, a direct Taylor expansion gives
+  P_v[σ_1≠σ_2 | A] = 1/2 − (9/2) t^2 + O(1/n + t^4).
+  Sketch: Use C(r,3) ∼ x^3 C(n,3) and similarly for the (·−3) terms to reduce the ratio to 2x^3(1−x)^3/(x^3+(1−x)^3)^2 up to O(1/n), then expand around x=1/2 to obtain 1/2 − (9/2)t^2 + O(t^4).
+- Consequence: For vertices with |t|≥η>0, the both-good boundary switch probability (within anchored–anchored pairs) is strictly < 1/2 by Ω(η^2).
+
+Averaging over vertices and integrating into Dvořák’s boundary analysis
+- Let T_v := (r_v/n − 1/2)^2. Then at the boundary step contributing the (both-good) term, we can refine Dvořák’s 1/2 bound as follows. Writing A_v for the anchored–anchored indicator at v and using that A_v implies both-good, we have
+  P[boundary switch | both-good] ≤ 1/2 − E_v[ (9/2)·T_v · P_v[A] ] + O(1/n).
+  Here the expectation is over the random shared vertex v (uniform) and random v-neighbor pair.
+- Therefore, the boundary contribution in the a-term decreases by at least Δ_a := (9/2)·E_v[ T_v · H(r_v,n) ] + O(1/n). Since H(r_v,n) ≳ 1/32 around the balanced regime, a coarse but explicit averaged gain is
+  Δ_a ≥ (9/64)·E_v[T_v] + O(1/n),
+  provided we certify that H(r,n) is minimized at r≈n/2 (to be proved next round). This yields the refined expected-switch bound
+  E[switches] ≤ (1/3 + b/12 + (1/2)a/3)·n − (Δ_a/3)·n + o(n).
+- Interpretation: Whenever the mean square degree-imbalance E_v[T_v] is bounded away from 0, the both-good boundary term improves by a constant multiple of E_v[T_v], giving a linear gain. This sets up a natural dichotomy: either (Unbalanced case) E_v[T_v] ≥ τ>0, yielding a constant improvement via the a-term, or (Balanced case) E_v[T_v] is small, in which case we must force b ≤ 1/2 − γ using cross-cube constraints.
+
+Why useful here
+- This quantifies and isolates an unconditional source of improvement for the a-term that Dvořák bounded by 1/2. It is small if and only if the coloring is nearly degree-balanced at every vertex; this sharply delineates the hard regime for subsequent b-analysis.
+
+LP skeleton for bounding b under local consistency (balanced-degree regime)
+- Variables (at a typical vertex v; all frequencies are with respect to a uniform random 3-set K and, where relevant, uniform random disjoint pair K,L):
+  1) Star-type frequencies at v: x_{3R}, x_{2R1B}, x_{1R2B}, x_{3B}, with x_{3R}+x_{2R1B}+x_{1R2B}+x_{3B}=1 and x_{3R} = E[C(r_v,3)]/C(n,3), etc.
+  2) 4-cycle types at v for unordered pairs {i,j}: variables y_t for the small set of 2-color isomorphism classes of a 4-cycle (monochromatic, two-adjacent, two-opposite, alternating). These enforce consistency among triples sharing {i,j}.
+  3) Q3 pattern types at v: for each isomorphism class of 2-colored Q3 with a marked vertex v, a variable z_π, along with a flag good/bad (by Dvořák’s definition) and, for good, the f1-chosen color at v.
+- Constraints:
+  • Marginalization: z_π summed over π projecting to a given 4-cycle type equals the corresponding y_t; and summing z_π over all π whose three incident edge colors at v equal a given star-type yields x_{·}.
+  • 4-cycle consistency: Across the four Q3’s through a fixed {i,j} at v (varying the third direction k), their projections on the 4-cycle must agree with y_t, and the joint frequencies for pairs (k,k′) must be compatible.
+  • Badness filters: The subset of π labeled bad must satisfy Lemma 9’s structural condition at v and at the opposite vertex (existence of 1-switch antipodal geodesics with specified endpoint colors).
+  • Symmetry: Assume deg_R(v)=deg_B(v) (balanced regime) to reduce variables and focus on the hardest case.
+- Objective: Maximize b_v, the frequency of mixed (good–bad) among disjoint pairs (K,L), computed as a linear form in z_π (and their pairwise products via a standard linearization trick on the disjoint-pair distribution). Any universal optimum b_v ≤ 1/2 − γ gives the desired γ for b.
+- Auditable next step: Explicitly enumerate the 4-cycle isomorphism classes (there are 4) and the Q3 pattern classes up to Aut(Q3) with marks (modest; can be done by hand or small script), encode the LP, and solve numerically in the balanced case. The outcome will either exhibit γ>0 or produce an extremal local statistics candidate to analyze combinatorially.
+
+Examples/sanity checks
+- Balanced case r_v = n/2: H(r,n) ≈ 1/32 and P_v[σ_1≠σ_2|A] ≈ 1/2 (no anchored–anchored gain), matching the expansion with t=0.
+- Unbalanced case r_v = (1/2+0.1)n: t=0.1 gives P_v[σ_1≠σ_2|A] ≈ 1/2 − 0.045, a substantial drop. Combined with H≈1/32, this yields a ≈ 0.0014 absolute reduction in the both-good boundary switch probability at v; across Θ(n) boundaries this is a linear gain.
+
+Obstacles and open points
+- Proving that H(r,n) is minimized at r≈n/2 for all n≥6 (intuitively clear; needs a short discrete convexity or rearrangement proof). I will address this rigorously next round.
+- Extending the anchored–anchored bias to non-anchored good cubes requires Q3-type enumeration and analysis of f1’s choice in those classes.
+- The LP must keep the state space small enough to be tractable; careful exploitation of symmetry will be crucial.
+
+Next steps (checkable deliverables)
+1) Prove: For n≥6 and all 3≤r≤n−3, H(r,n) ≥ H(⌊n/2⌋,n) = 2·C(⌊n/2⌋,3)·C(⌊n/2⌋−3,3) / [ C(n,3)C(n−3,3) ] = 1/32 + O(1/n).
+   - Approach: Write F(m)=C(m,3)C(m−3,3) and show F(m)+F(n−m) is minimized at m≈n/2 by discrete convexity or rearrangement.
+2) Formalize the anchored–anchored improvement in the a-term: derive the precise inequality
+   E[switches] ≤ (1/3 + b/12 + (1/2)a/3)·n − ( (9/2)·E_v[T_v·H(r_v,n)]/3 )·n + o(n),
+   and document all conditioning steps cleanly.
+3) Q3 pattern work: enumerate Q3 2-coloring classes with a marked vertex; identify good/bad and (for good) the f1-chosen color at the mark; produce a table to feed the LP.
+4) Build and solve the first LP relaxation in the balanced regime to test if b ≤ 1/2 − γ holds under 4-cycle and badness constraints.
+
+Why this is progress
+- We obtain explicit, verifiable formulas for anchored–anchored frequencies and their bias, giving a concrete, structural improvement in the both-good boundary term whenever degree variance is non-negligible. This cleanly reduces the problem to the balanced regime, where the LP program can plausibly show b<1/2 due to 4-cycle consistency and badness structure. The steps above are incremental and individually checkable.
+
+## Round 0003 — Anchored–anchored refinement, unconditional a-lower bound, and integrating a quantitative gain into Dvořák’s boundary term
+
+Status and quick audit of output.md
+- Theorem A (KG(n,3) spectral MAX-CUT bound for b) and Lemma B (monochromatic-star fraction τ_v) look correct and useful as book-keeping tools. Note: The numerical corollary “(3/8 + 1/(8(n−3)) + o(1))·n” is not an improvement on 3/8; it only makes the o(1) explicit.
+- Lemma C (pair-sampling under disjointness) and Corollary D (both-good disagreement at v equals 1/2 − u_v^2/2 ± O(1/n)) are in good shape; the O(n^2/t) error with t=Θ(n^3) yields O(1/n) as intended.
+- Missing ingredients to be added later: (i) an explicit import/citation that “anchored at v ⇒ good Q3” (Dvořák Lemma 8) to justify t_v=Θ(n^3) uniformly; (ii) a clean integration of Corollary D into Dvořák’s expected-switch calculation (it currently appears only as a local bound at v); and (iii) a refined anchored–anchored counting lemma with exact formulas and asymptotics (see below).
+- Important correction (for our ongoing notes): in Dvořák’s proof, the expected number of switches inside a Q3-block is 1 − p/2 (not 1 − p^2). The final bound (1/3 + b/12 + o(1))·n comes from 1 − p/2 + (b/2 + (1/2 + o(1))a) and p = a + b/2.
+
+Key new lemmas and quantitative refinements (ready to curate next)
+1) Anchored–anchored pair mass at a vertex and its minimizer.
+- Fix a vertex v with r red and b:=n−r blue incident edges. For an ordered disjoint pair of 3-sets (K,L) at v, both cubes Q3(v,K) and Q3(v,L) are anchored at v iff the three edges at v in the directions of K are monochromatic, and likewise for L. The exact anchored–anchored ordered-pair count equals
+  C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3),
+  and the denominator (all ordered disjoint pairs) equals C(n,3)C(n−3,3). Thus the anchored–anchored probability at v is
+  H(r,n) = [C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3)] / [C(n,3)C(n−3,3)].
+- As n→∞ with x=r/n, H(r,n) = (x^3 + (1−x)^3)^2 + O(1/n), which is minimized at x=1/2 (since s(x):=x^3+(1−x)^3 is minimized at 1/2). Hence for all large n, H(r,n) ≥ 1/16 − O(1/n), with equality asymptotically at r≈n/2. Next step: give a discrete proof (monotonicity of H(r+1,n)−H(r,n) changing sign at ⌊n/2⌋) valid for all n≥6.
+
+2) Unconditional lower bound on a (both cubes good).
+- “Anchored at v ⇒ good” (Dvořák Lemma 8) implies that anchored–anchored pairs are a subset of both-good pairs. Therefore, averaging over v and the (uniform) choice of a v-neighbor pair,
+  a ≥ E_v[H(r_v,n)].
+- Using the asymptotic from (1), we obtain a uniform, absolute lower bound:
+  a ≥ 1/16 − O(1/n).
+- Strengthening: One can avoid asymptotics by a direct application of Lemma C to the anchored-triple set T_v (of size t_v^anc = C(r_v,3)+C(n−r_v,3)): for a random disjoint pair from all triples, P[both anchored at v] = τ_v^2 ± O(1/n). Since τ_v is minimized at r_v≈n/2 and τ_v ≥ 1/4 − 3/(4n) (Lemma B), the anchored–anchored mass at v is ≥ (1/4 − 3/(4n))^2 − O(1/n), yielding the same absolute bound a ≥ 1/16 − O(1/n).
+
+3) Anchored–anchored disagreement probability and its quadratic drop from 1/2.
+- Conditioning on both being anchored at v, the exact disagreement probability equals
+  P_v[disagree | anchored] = 2 C(r,3) C(b,3) / [C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3)].
+- As n→∞ with x=r/n and t=x−1/2,
+  P_v[disagree | anchored] = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 + O(1/n)
+                           = 1/2 − 18 t^2 + O(t^4 + 1/n).
+  Thus, for vertices with degree imbalance |x−1/2|≥η, anchored–anchored pairs alone produce a drop below 1/2 of order Ω(η^2).
+
+Integrating into Dvořák’s boundary step (unconditional quantitative gain)
+- In Dvořák’s calculation, the boundary contribution across the k−1 junctions is bounded by (b/2 + (1/2 + o(1)) a)·(n/3). Using (2)–(3), we can refine the both-good (a-term) contribution without invoking any additional structure:
+  • Let J denote the event “at a random junction, the two neighboring Q3’s are both anchored at their shared vertex.” By the above, P[J] = E_v[τ_v^2] ± O(1/n) ≥ (1/16 − o(1)).
+  • On J, the boundary switch probability is 1/2 − 18 E_v[(x_v−1/2)^2 | J] + o(1); off J but still in the both-good case we keep the crude 1/2 bound.
+  • Therefore, the unconditional both-good boundary-switch probability drops from (1/2)·a by at least
+    Δ_total ≥ 18·E_v[(x_v−1/2)^2 · 1_J] − o(1) = 18·E_v[T_v·τ_v^2] − o(1),
+    where T_v:=(x_v−1/2)^2 and we used P[J | v] = τ_v^2 ± O(1/n).
+- Consequently, the expected number of switches satisfies the refined inequality
+  E[switches] ≤ [ (1 − p/2) + (b/2 + (1/2)a − Δ_total) ]·(n/3) + o(n)
+               = (1/3 + b/12)·n − (Δ_total/3)·n + o(n).
+- Using τ_v ≥ 1/4 − O(1/n), we obtain a clean unconditional corollary:
+  E[switches] ≤ (1/3 + b/12)·n − 6·E_v[T_v]·(1/16 − o(1))·n + o(n)
+               = (1/3 + b/12)·n − (3/8)·E_v[T_v]·n + o(n).
+  Thus, in any coloring with nontrivial mean-square degree imbalance E_v[T_v] ≥ ε, we gain a linear improvement of magnitude (3ε/8 − o(1))·n over the baseline (1/3 + b/12)·n. The balanced-degree regime (E_v[T_v] ≈ 0) remains the hard case, where we must force b ≤ 1/2 − γ via structural constraints.
+
+Why useful here
+- The anchored–anchored analysis yields two robust facts: an absolute lower bound a ≥ 1/16 − o(1), and a quantitative drop of the both-good boundary switch probability by a term ≥ 18·E_v[T_v·τ_v^2] − o(1). These are unconditional and compatible with Dvořák’s scheme. They give an explicit, checkable source of savings whenever degree variance is non-negligible, sharply isolating the balanced-degree regime for further work on b.
+
+Examples and sanity checks
+- Perfectly balanced degrees (r_v ≡ n/2): τ_v ≈ 1/4, H ≈ 1/16, P[disagree | anchored] = 1/2; our refinement produces no gain, as expected.
+- Biased degrees (say x_v ≡ 1/2+0.1 on a positive fraction of vertices): T_v = 0.01. Then P[disagree | anchored] ≈ 1/2 − 0.18, and τ_v ≈ 0.251..., so Δ_total ≳ 18·0.01·(0.25)^2 ≈ 0.01125, giving an absolute reduction of about 0.00375·n switches after the (1/3) factor—substantial at scale.
+
+Obstacles and open technical points
+- Discrete minimization: Provide a self-contained proof (no asymptotics) that H(r,n) is minimized at r∈{⌊n/2⌋,⌈n/2⌉} for all n≥6.
+- Weighting caveat: The “both-good” boundary probability is an average over vertices weighted by the mass of both-good v-neighbor pairs. We sidestepped this by extracting an unconditional Δ_total via anchored–anchored pairs. A stronger refinement (using Corollary D’s u_v) should control the conditional drop 1/2 − P[switch | both-good] by a weighted average of u_v^2; formalizing a lower bound on the weighted mean in terms of E_v[u_v^2] would further improve the statement. A natural route is to show Cov(t_v^2, u_v^2) ≥ 0 (t_v is the count of good triples at v), yielding a weighted-average ≥ uniform-average inequality.
+- Balanced regime: We still need to push b ≤ 1/2 − γ using local consistency (4-cycles, badness structure). This remains the central challenge.
+
+Next steps (concrete, auditable)
+1) Curate two new lemmas into output.md:
+   - Lemma E (Anchored–anchored mass and a≥1/16 − O(1/n)) with a short proof via Lemma C and Lemma B.
+   - Lemma F (Anchored–anchored disagreement probability and the 1/2 − 18t^2 expansion), with a precise derivation as above.
+   Then state the refined global inequality: E[switches] ≤ (1/3 + b/12)·n − (Δ_total/3)·n + o(n), with Δ_total ≥ 18·E_v[T_v·τ_v^2] − o(1).
+2) Prove discrete minimization of H(r,n): Show H(r+1,n)−H(r,n) changes sign exactly once at ⌊n/2⌋ (discrete convexity of r↦C(r,3) and a careful telescoping argument on the product terms).
+3) Balanced-degree regime LP: Begin the LP in the symmetric case r_v≡n/2. Variables: frequencies of 4-cycle types at v; frequencies of Q3 pattern classes with a marked vertex and their f1-start color. Constraints: marginalization, 4-cycle consistency, Dvořák badness filter (Lemma 9). Objective: maximize b subject to these constraints. Deliverable: a numerical upper bound strictly below 1/2 (even γ≈10^{-3} would be compelling).
+4) Enumerate Q3 types with a marked vertex (up to automorphism), classify good/bad and, for good, the f1-start color at the mark. This feeds (3) and also allows a refined both-good analysis beyond anchored cubes.
+
+Why this is progress
+- We obtained an absolute lower bound a≥1/16−o(1) and a concrete, unconditional reduction Δ_total in the both-good boundary term proportional to the mean-square degree imbalance. These are new, testable refinements within Dvořák’s framework. They carve out the balanced regime as the sole obstruction and set up the LP attack on b ≤ 1/2 − γ under local consistency constraints.
+
+## Round 0003 — 2025-08-27T19:44:38.834112Z
+
+Round 0003 — Correcting a key mis-citation (p vs. p/2), anchoring-based refinement of the a-term, exact anchored–anchored counts, uniformity of boundary vertices, and a clean global inequality
+
+Summary and audit of output.md
+- Sound pieces: Theorem A (KG(n,3) spectral MAX-CUT for b), Lemma B (monochromatic-star fraction), Lemma C + Corollary D (pair-sampling under disjointness and the u_v parameter) are correct and useful.
+- Missing explicit import: output.md uses in the Remark that “anchored-at-v cubes are good,” but does not restate/prove it. This is Dvořák’s Lemma 8. I recommend adding it as a self-contained lemma (I provide a short proof sketch below) so we can invoke it to ensure t_v = Θ(n^3) uniformly in v.
+- Important correction (from the PDF): In Dvořák’s proof, the expected number of color changes inside a Q3-block contributes 1 − p/2 per block (not 1 − p^2). This is essential for the cancellation to give (1/3 + b/12 + o(1))·n. Some of my Round 0001 notes used 1 − p^2; that was an error. All refinements below use the correct 1 − p/2 baseline.
+
+New, checkable lemmas/propositions to add
+1) Lemma E (Anchored at v implies good; Dvořák’s Lemma 8). If at some vertex of a Q3 the three incident edges are monochromatic, then the Q3 is good.
+- Utility here: Guarantees that “anchored” cubes are a subset of good, allowing us to quantify a nontrivial anchored–anchored submass within the both-good case.
+- Proof sketch (as in Dvořák): Assume 000 has all three blue edges. If all edges in the opposite square are red, we immediately have three monochromatic antipodal geodesics disjoint from 000–111 and one blue antipodal geodesic through 000, totaling ≤2 changes. If some edge there is blue, a short case-check (as in the paper) creates two disjoint monochromatic antipodal geodesics, forcing goodness by the definition. This can be restated verbatim from Lemma 8 in the EJC note.
+
+2) Lemma F (Exact anchored–anchored counts at a fixed vertex and the disagreement probability).
+- Setup: Fix v. Let r=r_v be the red degree, b=n−r. Consider ordered pairs (K,L) of v-neighbor Q3’s (disjoint 3-sets). Say a Q3 is “anchored red at v” if all three edges at v in that Q3 are red, and analogously for blue.
+- Exact counts:
+  • Both anchored red: C(r,3)·C(r−3,3).
+  • Both anchored blue: C(b,3)·C(b−3,3).
+  • One anchored red, one anchored blue: 2·C(r,3)·C(b,3).
+  • Total ordered disjoint pairs: C(n,3)·C(n−3,3).
+- Therefore, the anchored–anchored probability (at v) is
+  H(r,n) = [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+- Conditional disagreement probability among anchored pairs at v (star colors σ1,σ2 at v):
+  P_v[σ1≠σ2 | anchored at v] = 2C(r,3)C(b,3) / [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ].
+- Asymptotics: With x=r/n and t=x−1/2, as n→∞,
+  • H(r,n) = (x^3+(1−x)^3)^2 + O(1/n) after normalizing by the denominator, hence H minimized at x=1/2 and H(1/2,n) = 1/16 + O(1/n).
+  • P_v[σ1≠σ2 | anchored] = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 + O(1/n) = 1/2 − 18t^2 + O(t^4 + 1/n).
+- Why useful: This gives an explicit, vertex-wise, anchored-driven bias away from 1/2 in the both-good boundary step, proportional to t^2 and with anchored mass H(r,n).
+
+3) Proposition G (Uniformity of the shared boundary vertex under the random-geodesic scheme).
+- Claim: In Dvořák’s random antipodal geodesic model (uniform start vertex v0 and uniform coordinate permutation), for any fixed j in {1,…,k−1}, the shared vertex v3j at the j-th boundary is uniformly distributed over V(Q_n). Consequently, any bounded function φ(v) satisfies E[φ(v3j)] = E_v[φ(v)], the uniform average over vertices.
+- Proof sketch: v3j = v0 ⊕ S where S is a uniformly random j-th 3-subset of coordinates from the permutation. For any fixed y, the number of (v0,S) pairs producing y equals the number of (v0,S) pairs producing 0 (by translation invariance), so y is equiprobable. Averaging over j (uniformly in {1,…,k−1}) preserves uniformity. This justifies replacing boundary-vertex averages by uniform E_v[·].
+
+Refined global bound integrating anchoring
+- Boundary switch step: For a fixed boundary j with shared vertex v=v3j, the color-change probability is bounded by
+  P[switch at boundary j] ≤ b/2 + a/2 − E_v[ (1/2 − P_v[σ1≠σ2 | anchored at v]) · H(r_v,n) ] + o(1).
+  Here σi is the f1-chosen color at v for the i-th Q3; for anchored-good cubes, σi equals the star color at v, and “anchored ⇒ good” ensures we can subtract the anchored improvement unconditionally. The o(1) comes from the O(1/n) error in Lemma F and the negligible pairs sharing more than one vertex (as in Dvořák).
+- Using Lemma F’s expansion, write T_v := (r_v/n − 1/2)^2. Then
+  (1/2 − P_v[σ1≠σ2 | anchored]) = 18T_v + O(T_v^2 + 1/n).
+  Thus the anchored savings per boundary satisfy
+  Δ_anchor := E_v[ (1/2 − P_v[σ1≠σ2 | anchored]) · H(r_v,n) ] ≥ 18·E_v[ T_v·H(r_v,n) ] + O(1/n).
+- Interior Q3 step: The correct baseline is 1 − p/2 per block. Summing over blocks and boundaries (k≈n/3) and inserting p=a+b/2 gives the refined expectation
+  E[switches] ≤ (n/3)·[ (1 − p/2) + (a/2 + b/2) − Δ_anchor + o(1) ]
+                  = (n/3)·[ 1 + b/4 − Δ_anchor + o(1) ]
+                  = (1/3 + b/12 − (1/3)·Δ_anchor + o(1))·n.
+- Consequence (unbalanced-degree regime): Since H is minimized at balance with H(1/2,n)=1/16+O(1/n), we obtain the explicit inequality
+  E[switches] ≤ (1/3 + b/12 − 6·E_v[T_v]·(1/16 + O(1/n)) + o(1))·n
+              = (1/3 + b/12 − (3/8)·E_v[T_v] + o(1))·n.
+  Therefore, if the mean-square degree-imbalance E_v[T_v] ≥ τ for some absolute τ>0, we get a linear improvement δ ≥ (3/8)·τ.
+- Hard case isolated: The only regime where this anchored refinement fails to give a constant gain is the “balanced” one with E_v[T_v]→0. This exactly isolates where we must force b ≤ 1/2 − γ via additional structure (4-cycles, Q3-type constraints), matching the LP plan from Round 0002.
+
+Small discrete convexity fact (to be added; proof next round)
+- Claim: For n≥8, H(r,n) is minimized at r∈{⌊n/2⌋,⌈n/2⌉}.
+- Rationale: The leading term is proportional to (C(r,3)+C(n−r,3))^2, whose base C(r,3)+C(n−r,3) is discrete-convex and minimized at balance (Lemma B). The (−3)-shifts in C(r−3,3) produce O(1/n) corrections that preserve the minimizer for n large. I will provide a clean discrete argument (or a short rearrangement bound) next round.
+
+Examples and sanity checks
+- Balanced coloring (deg_R(v)≡n/2): H≈1/16 and P[σ1≠σ2 | anchored]≈1/2, so Δ_anchor≈0 and the bound reverts to Dvořák’s 1/3 + b/12 (no gain here), exactly as expected.
+- Degree-biased coloring: If a fixed fraction ρ of vertices have |r_v/n − 1/2|≥η, then E_v[T_v]≥ρη^2 and the anchored refinement yields a gain ≥(3/8)ρη^2 on the constant in front of n (up to o(1)).
+
+Obstacles
+- We have not yet added “anchored implies good” as a formal lemma to output.md; current remarks rely on it tacitly. This should be included explicitly (with proof or precise citation) to make the error bounds uniform.
+- The minimization of H(r,n) at balance requires a short but explicit discrete argument; while clear asymptotically, I will supply a fully discrete proof to avoid asymptotic handwaving.
+- Balanced regime: The anchored refinement yields no improvement when E_v[T_v] is tiny. Here we must execute the LP/SDP program to show b ≤ 1/2 − γ using 4-cycle and Q3-type consistency.
+
+Next steps (auditable)
+1) Add Lemma E (“anchored ⇒ good”) to output.md with a short proof (or explicit citation to Dvořák’s Lemma 8).
+2) Add Lemma F to output.md: exact anchored–anchored counts and the asymptotic expansion P_v[σ1≠σ2 | anchored] = 1/2 − 18T_v + O(T_v^2 + 1/n). Provide the elementary calculation.
+3) Add Proposition G to output.md: uniformity of shared boundary vertex under the random-geodesic model. This justifies averaging over v.
+4) State and prove the refined global inequality: E[switches] ≤ (1/3 + b/12 − 6·E_v[T_v·H(r_v,n)] + o(1))·n. This cleanly quantifies the anchored-driven savings.
+5) Prove the discrete minimization: H(r,n) minimized at r≈n/2 (all n≥8). Conclude E_v[T_v·H(r_v,n)] ≥ (1/16−O(1/n))·E_v[T_v].
+6) Balanced-regime LP: Start with the deg_R(v)=n/2 symmetric case; enumerate Q3 2-colorings with a marked vertex, tag good/bad and f1-start color at the mark, encode 4-cycle consistency, and maximize b. Numerical solution will guide an analytic γ>0.
+
+Why this advances the program
+- We corrected a crucial mis-citation (1 − p/2 vs. 1 − p^2) and derived a rigorous, quantified refinement that converts degree variance into a linear constant gain via anchored–anchored pairs, with fully explicit counts.
+- This yields an immediate δ-improvement in a large and natural structural regime (nontrivial degree variance), and narrows the hard case to the near-balanced regime, for which we have a concrete LP plan.
+
+Gaps explicitly flagged for output.md
+- Include Lemma E (anchored ⇒ good) explicitly.
+- Incorporate Lemma F and Proposition G to formalize the anchored-based refinement and the uniformity of boundary-vertex averaging.
+- Update any place where 1 − p^2 was (mis)used to the correct 1 − p/2.
+
+## Round 0004 — 2025-08-27T19:53:15.052036Z
+
+Round 0004 — Exact anchored drop inequality; clean global integration; comments on output.md
+
+Quick audit of output.md (gaps and precisions)
+- Positive: The curated Lemma E0 (membership under disjointness), Lemma F (anchored–anchored counts and the closed form P_v[disagree | anchored]), Corollary H (a ≥ 1/16 − O(1/n)), and Proposition G (uniformity of the shared boundary vertex) are all correct and highly useful.
+- Minor clarity: Lemma F treats ordered pairs; most boundary probabilities are symmetric under swapping the two neighboring Q3’s. The ordered/unordered distinction does not affect the ratios we use (it cancels), but stating this explicitly where the boundary step is integrated would forestall confusion.
+- Missing integration: The refined both-good boundary contribution (anchored savings) is not yet written as a global inequality. With Proposition G and Lemma E0 now curated, we can add it rigorously. I provide a clean statement and proof below (Proposition J’), together with a universal, exact anchored-drop inequality (Lemma I) that avoids asymptotics.
+
+New lemmas (exact, checkable) — to add
+- Lemma I (Universal anchored-drop inequality).
+  • Statement. Let r be the red degree at a vertex v and set x:=r/n and t:=x−1/2. In Lemma F, the anchored–anchored conditional disagreement probability equals
+    P_v[disagree | anchored] = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2.
+    Then, for all x∈[0,1],
+    1/2 − P_v[disagree | anchored] ≥ 2 t^2 = 2 (r/n − 1/2)^2.
+  • Proof. Write u:=t^2∈[0,1/4] and y:=4u∈[0,1]. Using the identities x(1−x)=1/4−u and x^3+(1−x)^3=1/4+3u, we compute
+    P_v[disagree | anchored] = 2(1/4−u)^3 / (1/4+3u)^2.
+    Hence the claimed inequality is equivalent to
+    2(1/4−u)^3 ≤ (1/2−2u)(1/4+3u)^2.
+    Multiplying out and scaling by 32, this becomes (1−y)^3 ≤ (1−y)(1+3y)^2, i.e., (1−y)^2 ≤ (1+3y)^2, which is true for all y∈[0,1]. Equality holds at y=0 and y=1. ∎
+  • Why useful: This gives an absolute quadratic drop from 1/2, uniform in n and without O(·) terms, and is tight at the extremes. It upgrades the asymptotic 18t^2 expansion to a rigorous inequality valid for all r.
+
+- Proposition J’ (Global anchored savings in the boundary step).
+  • Setup. Use Dvořák’s scheme with k:=n/3 blocks and boundaries j=1,…,k−1. Let Bj be the event that both neighboring Q3’s at boundary j are good, and Aj the subevent that both are anchored at their shared vertex v_{3j}. Let τ_v be as in Lemma B and T_v:=(r_v/n − 1/2)^2.
+  • Claim. For either choice f∈{f1,f2} from Dvořák’s proof, the boundary-switch probability at boundary j satisfies
+    P[switch at boundary j] ≤ b/2 + (a/2) − E[ 1_{Aj} · (1/2 − P_v[disagree | anchored]) ] + o(1),
+    where the expectation averages over the random geodesic and the boundary index j, and v is the shared boundary vertex.
+    Consequently,
+    E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[ τ_v^2·T_v ]·n + o(n).
+  • Proof. The baseline bound b/2 + (1/2)a + o(1) for P[switch at a boundary] is exactly Dvořák’s estimate, with the o(1) from excluding pairs sharing more than one vertex. On the subevent Aj, by Lemma I we have 1/2 − P_v[disagree | anchored] ≥ 2T_v; hence on Aj the both-good contribution drops by at least 2T_v. On B_j∖A_j (both good but not both anchored), we keep the crude 1/2 bound. Therefore
+    P[switch at boundary j] ≤ b/2 + (a/2) − E[ 1_{Aj}·(1/2 − P_v[disagree | anchored]) ] + o(1).
+    By Proposition G, v=v_{3j} is uniform over V(Q_n), and by Lemma E0, P[Aj | v] = τ_v^2 ± O(1/n). Combining with Lemma I and averaging over j gives
+    E[ 1_{Aj}·(1/2 − P_v[disagree | anchored]) ] ≥ E_v[ τ_v^2·(2T_v) ] − O(1/n).
+    Summing over the k−1≈n/3 boundaries yields the stated global inequality. ∎
+  • Corollary (explicit unconditional gain in degree-unbalanced regime). Since τ_v ≥ 1/4 − 3/(4n) (Lemma B), we have τ_v^2 ≥ 1/16 − O(1/n) uniformly. Hence
+    E[switches] ≤ (1/3 + b/12 − (1/24 − o(1))·E_v[T_v])·n + o(n).
+    Thus any fixed lower bound on the mean-square degree imbalance E_v[T_v] yields a linear constant improvement over the (1/3 + b/12) baseline.
+
+Why this is useful here
+- Lemma I eliminates the asymptotic expansion in Lemma F and gives a clean, exact inequality. Proposition J’ completes the missing integration, showing precisely how anchored pairs reduce the both-good boundary contribution and quantifying the net effect.
+- The corollary isolates the “balanced-degree” regime (E_v[T_v]≈0) as the only obstruction; this sharpens the target for the b-optimization program (LP/SDP in the balanced case).
+
+Examples and sanity checks
+- Extremal balance r_v≡n/2: T_v≡0 implies no anchored savings, recovering Dvořák’s baseline (1/3 + b/12 + o(1))·n.
+- Extremal bias r_v∈{0,n}: T_v=1/4, τ_v=1, Lemma I gives 1/2 − P[disagree|anchored]=1/2. Proposition J’ then yields E[switches] ≤ (1/3 + b/12 − (2/3)·(1·1/4))·n = (1/3 + b/12 − 1/6)·n. This matches the intuition that fully monochromatic stars at every vertex allow very low boundary switch rates.
+
+Ideas toward the balanced regime (b ≤ 1/2 − γ)
+- LP skeleton refinement (balanced r_v≡n/2):
+  • Variables: frequencies of the 4-cycle types at v; frequencies of marked-Q3 types (good/bad) with f1-start color at v; frequencies of disjoint marked-Q3 pairs at v with type-type combinations (subject to symmetry constraints).
+  • Constraints: marginalization to 1-edge and 4-cycle types; Dvořák’s Lemma 9 “badness filter” at v and the opposite vertex of Q3; consistency across the four Q3’s sharing a fixed 4-cycle through v.
+  • Objective: maximize b_v (good–bad fraction among disjoint pairs). Investigate numerically whether the optimum is < 1/2 under these local consistency constraints.
+- Enumerative input: Enumerate 2-colorings of Q3 with a marked vertex up to Aut(Q3), tag good/bad, and, for good, record the f1-start color at the mark under a fixed tie-breaking.
+
+Obstacles and notes
+- Weighting: The boundary contribution is a weighted average over shared vertices; Proposition G addresses this by uniformizing v_{3j}. The only residual error is the O(1/n) from disjointness conditioning (Lemma E0), absorbed in o(1).
+- Ordered vs unordered pairs: Our anchored calculations use ordered counts (Lemma F) but the translation to probabilities and to boundary events is invariant under order, so the distinction does not affect the inequalities; stating this explicitly in output.md would help.
+- LP scale: Encoding joint constraints for disjoint marked-Q3 pairs may grow rapidly; symmetry reductions (balanced case, color-swap, coordinate permutations) will be crucial.
+
+Next steps (auditable)
+1) Add Lemma I and Proposition J’ (with proof) to output.md. This will complete the anchored-based refinement rigorously and yield the corollary with the explicit (1/24)·E_v[T_v] improvement.
+2) Q3 pattern enumeration with a marked vertex: list isomorphism classes, classify good/bad, and, for good, record f1-start color at the mark. This feeds the LP in the balanced regime.
+3) Build the first LP relaxation in the symmetric (balanced) case and solve numerically to test if b ≤ 1/2 − γ (γ>0) follows from 4-cycle and badness constraints.
+4) Optional sharpening: Using Lemma F’s exact formula, one can improve the constant 2 in Lemma I for small |t| (the Taylor coefficient is 18). Prove a global bound of the form 1/2 − P_v[disagree|anchored] ≥ c·T_v with c>2 (e.g., c=3) valid for all t; this would slightly strengthen the anchored gain constant beyond 1/24 without relying on small-t asymptotics.
+
+## Round 0004 — 2025-08-27T19:55:32.820029Z
+
+Ideas and claims for this round
+
+- Goal: turn the anchored–anchored refinement into a rigorous, global quantitative gain in Dvořák’s boundary term, with an explicit constant that depends only on the degree-imbalance parameter T_v := (r_v/n − 1/2)^2.
+- Key new inequality (clean, universal): for any x∈[0,1], letting t = x − 1/2 and T = t^2,
+  1/2 − 2 x^3(1−x)^3 / (x^3 + (1−x)^3)^2 ≥ 2 T.
+  This exactly matches equality at x∈{0, 1/2, 1}. It bounds from below the drop below 1/2 of the anchored–anchored disagreement probability (conditioned on anchoring at the shared vertex), by a linear function of T.
+- Tie-breaking convention (needed rigor): in each good Q3 and for any marked pair (v,w), among all minimal-change geodesics join­ing v to w, choose one whose first edge at v has the color of the 3-star at v, whenever v is anchored. This is local to the Q3, preserves minimality, and ensures that on anchored–anchored boundary pairs the boundary switch occurs if and only if the two star colors at v differ. This convention does not affect the interior contribution 1 − p/2 nor Dvořák’s bad-cube handling, and property (iii) d(f(w,v), f(v,w))=1 holds automatically because we pick a single geodesic.
+
+Precise lemmas/propositions (ready to curate next)
+
+1) Anchored disagreement dominates 2T (proof included).
+- Statement. For x∈[0,1], set y = x(1−x)∈[0,1/4], t = x − 1/2, T=t^2, and s = x^3+(1−x)^3 = 1 − 3y. The anchored–anchored disagreement probability at the shared vertex v is R(x) = 2 x^3(1−x)^3 / s^2. Then
+  1/2 − R(x) ≥ 2 T.
+- Proof. Using y = x(1−x) = 1/4 − T and s = 1 − 3y, we need to show
+  1/2 − 2 y^3 / (1 − 3y)^2 ≥ 2(1/4 − y) = 1/2 − 2y.
+  This is equivalent to y^3/(1 − 3y)^2 ≤ y, i.e., y^2 ≤ (1 − 3y)^2. Since 0 ≤ y ≤ 1/4, we have 0 ≤ y ≤ 1 − 3y, hence y^2 ≤ (1 − 3y)^2. Equality holds at y∈{0, 1/4}. ∎
+- Why useful here: It converts the anchored–anchored bias into a universal lower bound in terms of T, without relying on a small-t expansion.
+
+2) Canonical tie-breaking for anchored cubes (formalizing the convention).
+- Claim. For any good Q3 and antipodal pair (v,w), if v is anchored (its 3 incident edges have a common color), then among all minimal-change v–w geodesics there exists one whose first edge at v has the star color; we fix f1(v,w), f1(w,v) to correspond to such a geodesic whenever v is anchored. This choice is local and deterministic (break residual ties lex in the set of directions) and preserves property (iii) d(f1(v,w), f1(w,v))=1.
+- Justification sketch. In Q3 there are six v–w geodesics, obtained by permuting the three coordinate directions. If the star at v has color X, exactly three of these geodesics begin with an X-edge. The number of color changes along a v–w geodesic depends only on the color-pattern around the three 4-cycles; reordering the step sequence does not increase the minimal number of changes (one can check by commuting adjacent steps along a monochromatic edge at v) and among minimal-change geodesics at least one begins with the star color at v. We then choose f1 to correspond to one such minimal-change geodesic. This ensures that on anchored–anchored neighboring Q3’s sharing v, the boundary switch occurs if and only if the two star colors at v differ.
+- Note: This tie-breaking only uses anchoring at the shared boundary vertex v; no condition at the other endpoints is required.
+
+3) Global anchored-driven improvement (explicit bound).
+- Proposition (anchored savings at boundaries). Let T_v = (r_v/n − 1/2)^2 and τ_v = [C(r_v,3)+C(n−r_v,3)]/C(n,3). In Dvořák’s random-geodesic scheme with the tie-breaking above, the expected number of boundary switches across the k−1≈n/3 boundaries satisfies
+  E[boundary switches] ≤ (b/2 + (1/2) a)·(n/3) − (2/3)·E_v[ τ_v^2 · T_v ]·n + o(n).
+  Consequently, the total expected switches obey
+  E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[ τ_v^2 · T_v ]·n + o(n).
+- Proof outline.
+  • Fix a boundary j and let v be its shared vertex; by Proposition G, v is uniform in V(Q_n). Condition on v.
+  • Among ordered v-neighbor pairs of triples, the event J_v that both Q3’s are anchored at v has probability H_v, and by Lemma E0 (membership under disjointness) we have H_v = τ_v^2 ± O(1/n). Note “anchored ⇒ good,” so J_v lies within the both-good case.
+  • Under J_v, by the tie-breaking convention the boundary switch occurs iff the two star colors at v differ. The disagreement probability equals R(x_v) with x_v = r_v/n, hence the drop below 1/2 is 1/2 − R(x_v) ≥ 2 T_v by Lemma 1. Thus the anchored savings at v on this boundary is at least H_v · (1/2 − R(x_v)) ≥ (τ_v^2 − O(1/n)) · 2 T_v.
+  • Off J_v but still in the both-good case we retain the crude 1/2 bound from Dvořák. In mixed and both-bad cases, we use Dvořák’s standard choice of f1/f2 to obtain ≤ 1/2 and 0, respectively, as in the original proof.
+  • Averaging v uniformly (Proposition G) and summing over ≈n/3 boundaries yields the stated bound. The o(n) term collects O(1/n) boundary-level errors from Lemma E0 and the negligible pairs sharing more than one vertex. ∎
+- Immediate corollary (unconditional linear gain from degree variance). Since τ_v ≥ 1/4 − 3/(4n), we have τ_v^2 ≥ 1/16 − O(1/n). Therefore
+  E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n.
+  In words: the both-good boundary contribution is strictly < 1/2 by a term ≥ (1/12) E_v[τ_v^2·T_v], and this gives a linear-in-n constant improvement whenever the mean-square degree imbalance E_v[T_v] is non-negligible.
+
+Why useful here
+
+- This produces a fully rigorous, constant improvement in the expected number of switches in any 2-coloring with nontrivial degree variance, with an explicit quantitative coefficient 1/24 multiplying E_v[T_v].
+- It requires no small-t approximations and uses only local anchored structure plus our membership-under-disjointness and uniform-boundary lemmas already curated in output.md.
+- It isolates the truly hard regime: E_v[T_v]≈0 (balanced degrees at almost every vertex). In that regime, the anchored-driven savings vanishes, and we must push b ≤ 1/2 − γ using 4-cycle and Q3-type consistency (the LP/SDP plan).
+
+Examples and sanity checks
+
+- Balanced degrees (r_v≡n/2): T_v≡0, so the anchored savings term vanishes and the bound reduces to Dvořák’s baseline (1/3 + b/12 + o(1))·n, as expected.
+- Biased degrees on a positive fraction: If E_v[T_v] ≥ ε, then the new inequality gives a direct improvement of at least (ε/24 − o(1))·n switches over the baseline constant.
+
+Gaps or corrections to flag in output.md
+
+- Tie-breaking convention: output.md currently uses c_v(K) as the color of the first edge along f1 in good Q3’s but does not explicitly enforce that in anchored cubes c_v(K) equals the star color. The anchored–anchored disagreement calculation (Lemma F) and its use toward boundary savings require adding the explicit tie-breaking rule described above. This addition is local and benign: it does not affect minimality inside good Q3’s nor the bad-cube handling and preserves property (iii) by selecting a single geodesic.
+- Global integration: output.md states the ingredients (anchored mass, disagreement expansion, membership under disjointness, uniform boundary vertex) but stops short of a formal global inequality. The Proposition above fills this gap with a clean, rigorous bound and should be added.
+- Minor: Earlier drafts used the small-t expansion 1/2 − 18T + O(T^2). The new inequality 1/2 − R(x) ≥ 2T is exact and uniform, simplifying the error bookkeeping.
+
+Obstacles and limits
+
+- The anchored-driven gain disappears in the balanced-degree regime. To beat 3/8 unconditionally we must either: (i) show that in any worst-case coloring E_v[T_v] is bounded below (unlikely), or (ii) prove b ≤ 1/2 − γ in the balanced regime using local consistency across 4-cycles and Q3-types.
+- The LP/SDP program for b in the balanced regime remains the central challenge. It needs enumeration of Q3 classes with a marked vertex and their good/bad status and f1-start colors, plus 4-cycle consistency constraints.
+
+Next steps (concrete, auditable)
+
+1) Curate into output.md:
+   - Lemma (anchored disagreement ≥ 2T) with the y-parameter proof.
+   - Tie-breaking convention for f1 in anchored good Q3’s (a short formal lemma).
+   - Proposition (global anchored-driven improvement): E[switches] ≤ (1/3 + b/12 − (2/3)·E_v[τ_v^2 T_v] + o(1))·n and the corollary with 1/24·E_v[T_v].
+2) Balanced-regime LP: proceed with the symmetric case r_v≡n/2; enumerate Q3 2-coloring classes with a marked vertex, tag good/bad and f1-start colors; encode 4-cycle consistency; maximize b. A numerical γ>0 would guide an analytic proof.
+3) Optional strengthening: derive a complementary both-good refinement via u_v from Corollary D. Show that the both-good boundary switch probability ≤ 1/2 − (1/2)·E_v[u_v^2] + o(1) (properly weighted). This would give savings even in some balanced-degree instances if u_v has variance.
+
+Notes on verification
+
+- All ingredients used (Lemma B, Lemma E0, Lemma F, Proposition G) are already in output.md; the only new facts are the exact inequality 1/2 − R(x) ≥ 2T (with proof) and the tie-breaking convention.
+- The global bound follows by linearity of expectation and uniformity of boundary vertices; the o(1) term aggregates O(1/n) errors per boundary from Lemma E0 and negligible overlapping-pair contributions (as in Dvořák’s original argument).
+
+
+
+=== summary.md ===
+
+## round-0001 — model summary — 2025-08-27T15:47:46.394447Z
+Round summary: The round critically reviewed brainstormed approaches and fixed two key errors in task.tex: (1) the block-to-expansion sublemma is false as stated (explicit parity-coloring counterexample shows β_J = 1/2 for every block yet the monochromatic subgraph is disconnected), and (2) the Chernoff-style Case A bound is incorrect (expected off-color edges in a mildly biased block are ≈(1/2−ε)|J|, not O(ε|J|)). It was observed that raising p (fraction of good Q3’s) alone does not help because Dvořák’s formula depends on b (good–bad neighbor probability); to beat 3/8 one must force b ≤ 1/2−γ. A refined vertex-wise spectral MAX-CUT on KG(n,3) gives b_v ≤ 1/2 + 3/(2(n−3)), so vertex-only constraints cannot produce an absolute γ. Proposed concrete next moves: (A) enumerate Q3 colorings up to isomorphism and record the f1 "preferred color" at a marked vertex, (B) set up an LP/SDP over local 1/2/3-edge statistics with 4-cycle consistency and Dvořák badness filters to test whether local constraints force b ≤ 1/2−γ, and (C) formulate a corrected block-expansion lemma that includes endpoint-balance. Citations: prover-02.out.json (this round), task.tex, Dvořák (EJC 2020).
+
+## round-0002 — model summary — 2025-08-27T19:00:30.042978Z
+Round 0002 audited output.md and Dvořák (EJC 2020) and introduced a quantitative anchored–anchored analysis that converts local degree-variance into a linear gain in the both-good (a-term) contribution. The round defines H(r,n) (exact anchored–anchored probability at a vertex with red-degree r), computes the conditional disagreement probability for anchored pairs and shows
+P[σ1≠σ2 | A] = 1/2 − (9/2)·t^2 + O(1/n + t^4) with t = r/n − 1/2. Averaging gives an explicit a-term reduction Δ_a ≥ (9/64)·E_v[(r_v/n − 1/2)^2] + O(1/n), so any nontrivial mean-square degree imbalance yields a linear improvement in expected switches. For the remaining balanced-degree regime the round proposes an LP skeleton (star types, 4-cycle classes, Q3 pattern frequencies; marginals, 4-cycle consistency, badness filters) to upper-bound b and either produce γ>0 or expose extremal local statistics. Next concrete tasks are proving H is minimized at r≈n/2, formalizing the anchored–anchored inequality in output.md, and enumerating Q3 classes to build/solve the LP. Files relied on: prover-02.out.json, prover-01.out.json, Dvořák (EJC 2020). Verifier: partial success.
+
+## round-0003 — model summary — 2025-08-27T19:50:11.953816Z
+Round 0003 produced an anchored–anchored refinement that is fully quantified and integrated into Dvořák’s boundary term. We derived exact vertex-wise counts for ordered anchored–anchored Q3 pairs and showed asymptotically H(r,n) = (x^3+(1−x)^3)^2+O(1/n), minimized at x=1/2, giving an unconditional a ≥ 1/16 − O(1/n). Conditioning on both anchored at v yields the expansion P[disagree | anchored] = 1/2 − 18·(x−1/2)^2 + O((x−1/2)^4 + 1/n). Correcting the interior-block baseline to 1−p/2 and averaging uniformly over boundary vertices yields the refined global bound E[switches] ≤ (1/3 + b/12)·n − (Δ_total/3)·n + o(n) with Δ_total ≥ 18·E_v[T_v·τ_v^2] − o(1). Consequently any mean-square degree imbalance E_v[T_v] ≥ ε yields a linear saving ≳(3ε/8)·n, isolating the near-balanced-degree case as the remaining hard regime. Key next steps are to include the explicit “anchored ⇒ good” lemma, give a discrete minimization proof for H(r,n), and run the LP attack on the balanced case.
+
+## round-0004 — model summary — 2025-08-27T20:01:44.487862Z
+Round 0004 (prover-02) produced two checkable, global ingredients that close the anchored-driven improvement gap. Lemma I gives an exact, uniform inequality for the anchored–anchored disagreement: if x=r/n and t=x−1/2 then P[disagree | anchored] = 2 x^3(1−x)^3/(x^3+(1−x)^3)^2 and 1/2 − P[disagree | anchored] ≥ 2 t^2 for all x∈[0,1]. Proposition J' integrates this with the membership-under-disjointness and uniform-boundary lemmas to get the global bound E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[τ_v^2·T_v]·n + o(n). Using τ_v ≥ 1/4 yields the corollary E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n, so any nontrivial mean-square degree imbalance gives a linear-in-n improvement over the Dvořák baseline. The round also sketches the next focused program for the balanced-degree regime (enumerate Q3 classes with a marked vertex and build an LP/SDP to bound b). Citations: prover-02.out.json; output.md.
+
+
+
+=== notes.md ===
+Context and target in Dvořák’s framework
+- Dvořák’s modified-geodesic scheme yields the bound E[switches] ≤ (1/3 + b/12 + o(1))·n, where b is the probability that two uniformly random neighboring Q3’s (sharing exactly one vertex) have mixed types (one good, one bad). Because p cancels via p = a + b/2, any constant improvement over 3/8 must either prove b ≤ 1/2 − γ for some absolute γ>0, or reduce the 1/2 bound in the a-term (both-good case).
+
+Why naive block-density does not imply expansion (correct counterexample)
+- Brainstorm claim (now rejected): “If a color occupies at least an ε-fraction of each block boundary δS_J for (1−θ) of the blocks, then that color has conductance Ω(ε).” This is false without further structure (e.g., endpoint balance and degree spread).
+- Construction (valid undirected 2-coloring): Fix j:[n]→[n] such that j(i)≠i for all i. For each i-edge {x, x⊕e_i}, let y be the endpoint with y_i=0 and color the edge blue iff y_{j(i)}=1; otherwise red. Then for each i, exactly half of the i-edges are blue (so β_J=1/2 for every block J). Yet the blue subgraph can be extremely sparse at many vertices; e.g., if j(1)=2 and j(i)=1 for all i≥2, then for a vertex v, deg_B(v) = (n−1)·[v_1=1] + [v_2=1]. In particular, all vertices with (v_1,v_2)=(0,0) are isolated. Thus block-level edge-density alone does not imply connectivity, let alone conductance.
+- Separate but related flaw: Even if a block J has aggregate blue-density β_J = 1/2+ε, one can realize this with each direction i∈J having density 1/2+ε. A geodesic that uses each direction exactly once then sees ≈(1/2−ε)|J| minority edges on average, not O(ε|J|). Any O(ε|J|) claim must extract stronger inner-block structure (e.g., many near-monochromatic directions).
+
+Vertex-wise Kneser-graph formulation and spectral bound
+- For a fixed vertex v, Q3’s through v correspond to 3-subsets of [n]. Two Q3’s are v-neighbors iff their 3-sets are disjoint; this is the Kneser graph KG(n,3). If G_v⊆C([n],3) is the set of “good” triples at v, then b_v is the fraction of edges in KG(n,3) crossing the cut (G_v, its complement). The parameter b equals the average of b_v over v, up to negligible normalization.
+- Spectral MAX-CUT bound in KG(n,3): KG(n,3) is d-regular with d= C(n−3,3), and its least eigenvalue is −C(n−4,2). Hence for any cut, the crossing-edge fraction is ≤ 1/2 − λ_min/(2d) = 1/2 + 3/(2(n−3)). Therefore b ≤ 1/2 + 3/(2(n−3)). This recovers Dvořák’s b ≤ 1/2 + o(1) and makes the o(1) term explicit.
+
+Per-vertex monochromatic-star lower bound (useful bookkeeping)
+- For a vertex v with red degree r_v, the fraction of 3-subsets K such that the three edges at v in directions K are monochromatic equals [C(r_v,3) + C(n−r_v,3)] / C(n,3). This is minimized near r_v≈n/2; explicitly: for n even it equals 2·C(n/2,3)/C(n,3), and for n odd it equals [C((n−1)/2,3)+C((n+1)/2,3)]/C(n,3). Asymptotically this is 1/4 − 3/(4n) + O(1/n^2). This sharpened estimate alone cannot beat 3/8 but is a clean input for any refined accounting of the a-term.
+
+Promising directions to reduce b or the a-term
+- LP/SDP relaxation for b: Model local pattern frequencies around v (1-edge colors; 4-cycle types; Q3-types with the f1-chosen color), enforce marginal and 4-cycle consistency, and maximize b. Any universal optimum < 1/2 indicates a path to a combinatorial proof.
+- Good–good boundary improvement: Enumerate good Q3 classes, fix canonical tie-breaking for f1, and measure the disagreement probability at v between two disjoint good Q3’s. If it is ≤ 1/2 − η for some η>0, the a-term improves by η.
+- Structural lemmas: Seek negative correlation between “badness” indicators for disjoint triples at v, induced by 4-cycle constraints and the forbidden patterns of bad Q3’s. Any quantified negative correlation lowers b below the vertexwise MAX-CUT upper bound.
+
+What to avoid or strengthen
+- Avoid relying on block-level densities without per-direction endpoint balance and degree-spread conditions. Any block-phase lemma should explicitly include such hypotheses (e.g., each direction in a good block has bias ≥ε and each vertex has ≥ρ·|J| majority-color incident edges within that block).
+Refinement of the both-good boundary step via per-vertex bias
+- For a fixed vertex v, let G_v ⊆ C([n],3) denote the collection of 3-sets K for which Q3(v,K) is “good” in Dvořák’s sense. Fix a deterministic tie-breaking for f1 inside each good Q3. Define c_v(K) ∈ {R,B} as the color of the first edge at v along the f1-path inside Q3(v,K). Let t_v = |G_v|, p_v := |{K∈G_v : c_v(K)=R}|/t_v, and u_v := |2p_v − 1|.
+- Sampling heuristic made precise: If we pick two good v-neighbor Q3’s uniformly at random (i.e., two disjoint K,L ∈ G_v, unordered), the event “boundary switch occurs” equals [c_v(K) ≠ c_v(L)]. The disjointness constraint perturbs the color distribution only by O(1/n) since each K forbids only O(n^2) partners while t_v = Θ(n^3) (once we know a constant fraction of triples are good at v).
+
+A general pair-sampling lemma (usable abstractly)
+- Let T ⊆ C([n],3) be any subset of size t, and c: T → {R,B} any labeling. Let p = |{K∈T: c(K)=R}|/t. If we draw an unordered pair {K,L} uniformly from all disjoint pairs with K,L∈T, then
+  P[c(K) ≠ c(L)] = 2p(1−p) ± O(n^2/t).
+  Proof idea: For any fixed K, the “forbidden” set S_K = {L∈T: L∩K≠∅} has size O(n^2), so conditioning L to be disjoint from K changes its color distribution by at most O(|S_K|/t) = O(n^2/t). Averaging over K and expanding E[disagree|K] shows that the deviation from 2p(1−p) is bounded by the average of these perturbations.
+- Application to both-good pairs at v: Taking T = G_v yields
+  P_v[boundary switch | both-good at v] = 1/2 − u_v^2/2 ± O(n^2/t_v).
+  By “anchored implies good” (imported from Dvořák) and Lemma B, t_v ≥ (1/4 − O(1/n))·C(n,3) = Θ(n^3), so the error is O(1/n). Note the global “both-good” boundary probability is a weighted average of the per-v quantities with weights proportional to the mass of both-good pairs at v.
+
+Degree imbalance induces bias in c_v via anchored triples
+- Let r_v be the red degree at v and x_v = r_v/n. Among all triples K with monochromatic stars at v (anchored at v), c_v(K) is forced to be the star color. Consequently, even ignoring non-anchored good triples one gets
+  u_v ≥ |C(r_v,3) − C(n−r_v,3)| / (C(r_v,3) + C(n−r_v,3)).
+  For x_v = 1/2 + η with |η| ≪ 1, this gives u_v ≥ 6|η| + O(η^3). Therefore, if a positive fraction ρ of vertices satisfy |x_v − 1/2| ≥ η_0, then E_v[u_v^2] ≥ c·ρ·η_0^2 for some absolute c>0.
+
+Corrected anchored–anchored counts at a fixed vertex
+- For r=r_v and b=n−r, the number of ordered v-neighbor pairs (K,L) with both cubes anchored at v equals
+  C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3).
+  Among these, the pairs with disagreeing star colors at v are exactly the mixed-color ones, counted by 2C(r,3)C(b,3). Therefore,
+  P_v[disagree | both anchored at v] = 2C(r,3)C(b,3) / [C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3)].
+  As n→∞ with x=r/n and t=x−1/2,
+  P_v[disagree | anchored] = 2x^3(1−x)^3/(x^3+(1−x)^3)^2 + O(1/n) = 1/2 − 18t^2 + O(t^4 + 1/n).
+  In particular, at balance (x=1/2) the anchored–anchored disagreement probability is 1/2 and the anchored–anchored pair probability is ≈(x^3+(1−x)^3)^2 = (1/4)^2 = 1/16 (up to O(1/n)), not 1/32.
+
+Dichotomy and plan
+- Unbalanced regime: If E_v[(x_v−1/2)^2] is bounded below, then E_v[u_v^2] is bounded below, and the both-good boundary term drops by a constant (via the pair-sampling lemma), yielding a linear improvement. Anchored–anchored pairs certify this effect concretely.
+- Balanced regime: When x_v≈1/2 for most v, we must leverage structural constraints (4-cycle consistency, interaction of good/bad patterns across pairs) to bound b<1/2. Proceed with the proposed LP using: star-type frequencies, 4-cycle types, Q3-types-with-marked-v and their f1-start labels, symmetry constraints, and Dvořák’s characterization of bad cubes.
+
+Immediate technical tasks
+- Import or re-prove “anchored at v ⇒ good” to firm up the O(1/n) error uniformly.
+- Prove that the anchored–anchored probability is minimized at r≈n/2 for all n≥6 (discrete convexity of F(m)=C(m,3)C(m−3,3) plus symmetry).
+- Enumerate Q3 2-coloring classes with marked v; for each good class determine the f1-start at v. This feeds the LP for b in the balanced regime.
+Additions and refinements (Round 0003)
+
+1) Correction to the baseline interior contribution
+- In Dvořák’s scheme the expected number of color changes inside a Q3-block is 1 − p/2 per block (not 1 − p^2). With p = a + b/2 this yields the baseline (1/3 + b/12 + o(1))·n for E[switches].
+
+2) Anchored cubes and a uniform nontrivial anchored mass
+- Anchored-at-v cubes (three edges at v all the same color in the chosen 3 directions) are good (Dvořák, Lemma 8). Consequently, anchored–anchored neighboring pairs form a subset of both-good pairs. For a vertex v with r red and b=n−r blue incident edges, the exact anchored–anchored (ordered) pair probability is
+  H(r,n) = [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+  As n→∞ with x=r/n, H(r,n) = (x^3 + (1−x)^3)^2 + O(1/n), minimized at x=1/2; hence H(r,n) ≥ 1/16 − O(1/n).
+- A discrete, uniform lower bound that avoids minimizing H directly follows from a general “membership under disjointness” lemma: if T⊆C([n],3) has density τ, then for a uniform ordered disjoint pair (K,L) from all triples, P[K,L∈T] = τ^2 ± O(1/n). Applying this to the anchored set T_v gives P[both anchored at v] = τ_v^2 ± O(1/n), and since τ_v ≥ 1/4 − 3/(4n) (Lemma B), we conclude a ≥ 1/16 − O(1/n) unconditionally.
+
+3) Anchored–anchored disagreement probability
+- Conditioning on both Q3’s being anchored at v, the exact disagreement probability at v equals
+  P_v[disagree | anchored] = 2C(r,3)C(b,3) / [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ].
+  With x=r/n and t=x−1/2, as n→∞,
+  P_v[disagree | anchored] = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 + O(1/n) = 1/2 − 18t^2 + O(t^4 + 1/n).
+  Thus degree imbalance |t|≥η enforces a quadratic drop below 1/2 in the both-good boundary switch probability on the anchored submass.
+
+4) Uniformity of boundary vertices in the random-geodesic model
+- In Dvořák’s random antipodal geodesic scheme (uniform start vertex and uniform coordinate permutation), the shared vertex v_{3j} at each boundary j is uniformly distributed over V(Q_n). Hence vertex-averages at boundaries equal uniform averages over V(Q_n).
+
+5) Path to a refined global bound
+- Let T_v = (r_v/n − 1/2)^2. Using the anchored–anchored mass and the anchored disagreement drop, one can define a nonnegative anchored savings Δ_anchor ≈ E_v[H(r_v,n)·(1/2 − P_v[disagree | anchored])]. Inserting this at each boundary yields a refined inequality of the schematic form
+  E[switches] ≤ (1/3 + b/12 − (1/3)·Δ_anchor + o(1))·n.
+  Using H(r,n) ≥ 1/16 − O(1/n) and the 18T_v drop gives an unconditional gain ≳ (3/8)·E_v[T_v]·n in regimes with nontrivial degree variance. Formalizing this integration (with accurate o(1) control and precise weights) is the next task.
+
+6) Open technical point
+- Discrete minimization: prove that H(r,n) is minimized at r∈{⌊n/2⌋,⌈n/2⌉} for all n≥6. A direct sign analysis of H(r+1,n)−H(r,n) should suffice.
+Anchored–anchored refinement: exact drop and global integration
+- Notation recap at a vertex v:
+  • r_v = red degree; x_v := r_v/n; T_v := (x_v − 1/2)^2.
+  • τ_v := [C(r_v,3)+C(n−r_v,3)]/C(n,3), the fraction of 3‑sets anchored at v (monochromatic star at v). By Lemma B, τ_v ≥ 1/4 − 3/(4n).
+  • For anchored–anchored pairs at v, Lemma F gives the exact conditional disagreement probability R(x) = 2x^3(1−x)^3/(x^3+(1−x)^3)^2 with x=x_v.
+
+- Exact universal inequality (anchored drop): for all x∈[0,1], letting y:=x(1−x) and T:=(x−1/2)^2=1/4−y,
+  1/2 − R(x) = 1/2 − 2y^3/(1−3y)^2 ≥ 2T.
+  Proof sketch: The inequality is equivalent to y^2 ≤ (1−3y)^2 for y∈[0,1/4], which holds with equality at y∈{0,1/4} (i.e., x∈{0,1/2,1}). Thus the drop below 1/2 is at least 2T, uniformly and sharply.
+
+- Boundary interpretation without extra tie‑breaking: At a boundary vertex v between consecutive blocks, the last edge of the preceding Q3 and the first edge of the next Q3 are both incident to v. If both cubes are anchored at v, then each of these edges must have its cube’s star color at v. Hence the boundary switch occurs if and only if the two star colors at v differ. Therefore, conditional on both cubes being anchored at v, the boundary switch probability equals the anchored disagreement probability R(x_v) from Lemma F. No special tie‑breaking is needed in anchored cubes for this conclusion.
+
+- Global anchored savings (informal summary): For each boundary, Dvořák’s baseline bound is b/2 + a/2. On the subevent that both neighboring Q3’s are anchored at the shared vertex v, this both‑good term improves from 1/2 to R(x_v), saving (1/2 − R(x_v)) ≥ 2T_v. The probability that both are anchored at v equals τ_v^2 ± O(1/n) by Lemma E0 (membership under disjointness). Averaging v uniformly across boundaries (Proposition G) and summing over ~n/3 boundaries yields a net reduction of at least (2/3)·E_v[τ_v^2 T_v]·n − o(n). Consequently,
+  E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[τ_v^2 T_v]·n + o(n),
+  and since τ_v^2 ≥ 1/16 − O(1/n) pointwise, an unconditional corollary is
+  E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n.
+
+- Limits and focus: The anchored‑driven gain vanishes in the balanced regime (T_v≈0). To improve the universal constant, we must either (i) control b strictly below 1/2 in the balanced case via local consistency (4‑cycles, marked‑Q3 types), or (ii) derive complementary both‑good savings using the bias parameter u_v from Corollary D with proper weighting.
+
+- Caution: A uniform inequality 1/2 − R(x) ≥ c·T with c>2 is impossible (it fails at x∈{0,1}). Larger coefficients are attainable only on restricted |t| ranges.
+
+Concrete next steps
+- Enumerate marked‑Q3 isomorphism classes and determine their good/bad status and the f1‑start color at the marked vertex; set up an LP/SDP to bound b in the balanced regime, enforcing 4‑cycle consistency and Dvořák’s badness constraints.
+- Formalize a weighted version of Corollary D at the boundary level: express the both‑good boundary switch probability as an average over v with weights ≈ density of both‑good disjoint pairs at v, and quantify the reduction 1/2 − (1/2)·E_v[u_v^2] + o(1) when u_v has variance.
+
+
+=== output.md ===
+List of proven intermediate results
+- Theorem A (Spectral upper bound on the parameter b in Dvořák’s scheme).
+- Lemma B (Per-vertex lower bound on monochromatic-star triples).
+
+Theorem A (Spectral upper bound on b)
+Statement. Let Q_n be the n-dimensional hypercube with an arbitrary 2-coloring of its edges, and let b denote the probability that two uniformly random neighboring 3-cubes (Q3’s) are of mixed type (one good, one bad) in the sense of Dvořák’s construction. Then for all n ≥ 6,
+
+b ≤ 1/2 + 3/(2(n−3)).
+
+Consequently, Dvořák’s expected switch bound refines to
+E[switches] ≤ (1/3 + 1/24 + 1/(8(n−3)) + o(1))·n = (3/8 + 1/(8(n−3)) + o(1))·n.
+
+Proof. Fix a vertex v of Q_n. Q3’s through v correspond bijectively to 3-subsets K ⊆ [n] (the chosen directions), and two such Q3’s are v-neighbors if and only if the 3-sets are disjoint. Thus, the v-neighborhood relation is the Kneser graph KG(n,3) on vertex-set C([n],3), which is d-regular with degree d = C(n−3,3). Let G_v ⊆ C([n],3) be the set of “good” triples at v. The fraction b_v of v-neighbor pairs that are mixed equals the fraction of edges in KG(n,3) crossing the cut (G_v, C([n],3) \ G_v). The global parameter b is the average of b_v over all v (this is a direct consequence of the definition of “neighboring Q3’s” as sharing exactly one vertex; each ordered choice of the shared vertex v and a disjoint pair of triples contributes equally).
+
+For any d-regular graph with adjacency matrix A and least eigenvalue λ_min, the size of any cut is at most |E|·(1/2 − λ_min/(2d)). This follows from the identity that, for a ±1 vector s indicating a cut, the number of crossing edges equals |E|/2 − (1/4) s^T A s, combined with s^T A s ≥ λ_min · s^T s = λ_min · |V| and |E| = d|V|/2. The Kneser graph KG(n,3) has spectrum { C(n−3,3), −C(n−4,2), n−5, −1 } (standard; see e.g. Lovász, 1979), so λ_min = −C(n−4,2). Hence every cut in KG(n,3) has crossing-edge fraction at most 1/2 − (−C(n−4,2))/(2 C(n−3,3)) = 1/2 + C(n−4,2)/(2 C(n−3,3)) = 1/2 + 3/(2(n−3)). Therefore b_v ≤ 1/2 + 3/(2(n−3)) for each v, and averaging gives the same bound for b. The stated corollary for E[switches] follows by substitution into Dvořák’s expression. ∎
+
+Lemma B (Per-vertex lower bound on monochromatic-star triples)
+Statement. Let v be a vertex of Q_n and let r_v be the number of red edges incident to v (so n − r_v are blue). The fraction of 3-sets K ⊆ [n] such that the three edges at v with directions K are monochromatic equals
+
+τ_v = [ C(r_v,3) + C(n − r_v,3) ] / C(n,3).
+
+In particular, τ_v is minimized when r_v ∈ {⌊n/2⌋, ⌈n/2⌉}. For n even, the minimum equals 2·C(n/2,3)/C(n,3); for n odd, it equals [C((n−1)/2,3) + C((n+1)/2,3)]/C(n,3). As n→∞, uniformly in v,
+	τ_v ≥ 1/4 − 3/(4n) + O(1/n^2).
+
+Proof. Among all 3-sets K, exactly C(r_v,3) of them consist of three red directions at v, and exactly C(n − r_v,3) consist of three blue directions at v. There are C(n,3) total 3-sets, so the fraction is τ_v as stated. Define g(r) = C(r,3) + C(n − r,3) for integer r. Then g(r+1) − g(r) = C(r,2) − C(n − r − 1,2), which is negative for r < (n−1)/2 and positive for r > (n−1)/2; hence g is minimized at r ∈ {⌊n/2⌋, ⌈n/2⌉}. Substituting these values yields the explicit minima. The asymptotic expansion follows by a routine Taylor expansion of the ratio of polynomials in n. ∎
+Lemma C (Pair-sampling stability under a disjointness constraint)
+Statement. Let n≥6 and let T⊆C([n],3) be any subset of 3-sets of size t=|T|. Fix any labeling c: T→{R,B} and write p := |{K∈T : c(K)=R}|/t. If an unordered pair {K,L} is drawn uniformly from all pairs with K,L∈T and K∩L=∅, then
+
+P[c(K)≠c(L)] = 2p(1−p) ± C·(n^2/t),
+
+for some absolute constant C>0 (independent of n and T).
+
+Proof. For K∈T, let T_K := {L∈T : L∩K=∅} and write q(K) := |{L∈T_K : c(L)=R}|/|T_K|. Let s(K):=1 if c(K)=R and 0 otherwise. If we generate a random unordered disjoint pair by first sampling K uniformly from T and then sampling L uniformly from T_K (and finally forgetting the order), its law is within a factor 2 of the uniform law on unordered disjoint pairs, so computing the disagreement probability under this sequential scheme suffices up to a harmless constant normalization (which cancels in the final equality below).
+
+For fixed K, the probability of disagreement equals s(K)·(1−q(K)) + (1−s(K))·q(K). Averaging over K gives
+
+P[c(K)≠c(L)] = E_K[q(K)] + E_K[s(K)] − 2E_K[q(K)·s(K)].
+
+Let p = E_K[s(K)] and write q(K)=p+δ(K). Then
+
+P[c(K)≠c(L)] = 2p(1−p) + E_K[δ(K)·(1−2s(K))].
+
+Hence |P[c(K)≠c(L)] − 2p(1−p)| ≤ E_K[|δ(K)|]. It remains to bound |δ(K)| uniformly. For any K, all elements of T that are excluded from T_K (including K itself) lie in the set S_K := {L∈T : L∩K≠∅}∪{K}. Since K is a 3-set, the number of 3-sets intersecting K is at most 3·C(n−1,2) + 3·(n−1) + 1 = O(n^2). Therefore, removing S_K from T perturbs the color fraction by at most |S_K|/t ≤ C′·n^2/t for some absolute C′, i.e., |δ(K)| ≤ C′·n^2/t. Averaging over K yields the claimed bound with C=C′. ∎
+
+Corollary D (Refined both-good disagreement at a fixed vertex)
+Statement. Fix a vertex v. Let G_v⊆C([n],3) be the set of “good” triples at v (in Dvořák’s scheme), let t_v=|G_v|, and define c_v:G_v→{R,B} as the color of the first edge at v selected by f1 inside Q3(v,K). Set p_v := |{K∈G_v : c_v(K)=R}|/t_v and u_v := |2p_v−1|. Then, when {K,L} is drawn uniformly from unordered pairs of disjoint elements of G_v,
+
+P[c_v(K)≠c_v(L)] = 1/2 − u_v^2/2 ± C·(n^2/t_v),
+
+with the same absolute constant C as in Lemma C. In particular, if t_v ≥ δ·C(n,3) for some absolute δ>0 (as ensured once one imports that every monochromatic star at v is good), then the error term is O(1/n).
+
+Proof. Apply Lemma C with T=G_v and p=p_v; observe that 2p_v(1−p_v) = 1/2 − u_v^2/2. ∎
+
+Remark (Applicability in Dvořák’s framework). By standard facts in the modified-geodesic scheme (anchored-at-v cubes are good), Lemma B implies t_v ≥ [C(r_v,3)+C(n−r_v,3)], whence t_v = Θ(n^3) uniformly in v. Thus the error term in the corollary is O(1/n).
+Additional proven intermediate results
+- Lemma E0 (Membership under disjointness: two-step sampling is asymptotically independent).
+- Lemma E (Anchored at v implies good; import from Dvořák).
+- Lemma F (Anchored–anchored pair counts and anchored disagreement probability at a vertex).
+- Corollary H (Unconditional lower bound on a: a ≥ 1/16 − O(1/n)).
+- Proposition G (Uniformity of the shared boundary vertex in the random-geodesic model).
+
+Lemma E0 (Membership under disjointness)
+Statement. Let n≥6 and let T⊆C([n],3) have cardinality |T| = τ·C(n,3). Let (K,L) be a uniformly random ordered pair of disjoint 3-sets from C([n],3). Then
+	P[K∈T and L∈T] = τ^2 ± C·(1/n)
+for some absolute constant C>0 (independent of n and T).
+
+Proof. Generate (K,L) by first choosing K uniformly from C([n],3) and then choosing L uniformly from the family of 3-sets disjoint from K. Let M:=C(n,3) and S_K be the set of triples intersecting K, so |S_K|=M−C(n−3,3)=O(n^2). Then
+	P[L∈T | K] = (|T| − |T∩S_K|) / (M − |S_K|) = τ + ε(K),
+with |ε(K)| ≤ max{|T∩S_K|, τ|S_K|}/(M−|S_K|) ≤ c/n for some absolute c>0, since |T∩S_K|≤|S_K|=O(n^2) and M−|S_K|=C(n−3,3)=Θ(n^3). Therefore
+	P[K∈T and L∈T] = E[1_{K∈T}·P(L∈T|K)] = E[1_{K∈T}]·τ + E[1_{K∈T}·ε(K)] = τ^2 ± E|ε(K)| = τ^2 ± O(1/n).
+∎
+
+Lemma E (Anchored at v implies good)
+Statement. In Dvořák’s framework for Q3-blocks, if a 3-cube Q3 has a vertex v such that the three edges incident to v within Q3 are monochromatic, then Q3 is good (in the sense used by the modified-geodesic scheme).
+
+Proof. This is Dvořák’s Lemma 8 (see Dvořák, “A note on edge-colorings of the hypercube” [exact citation as in the original source]). A short case analysis shows that from a monochromatic 3-star at v one can construct the required monochromatic antipodal geodesics (or the canonical f1-path with the requisite bound on color changes), hence goodness. We invoke the lemma as a quoted result. ∎
+
+Lemma F (Anchored–anchored counts and disagreement probability at a fixed vertex)
+Statement. Fix a vertex v of Q_n. Let r be the number of red edges incident to v, and let b:=n−r. Consider ordered pairs (K,L) of disjoint 3-sets of coordinates. A Q3(v,K) is “anchored red at v” if all three edges from v in directions K are red, and analogously for blue. Then:
+- The number of ordered disjoint pairs (K,L) with both Q3’s anchored at v equals
+	C(r,3)·C(r−3,3) + 2·C(r,3)·C(b,3) + C(b,3)·C(b−3,3).
+- The total number of ordered disjoint pairs equals C(n,3)·C(n−3,3).
+- Therefore, the anchored–anchored probability at v is
+	H(r,n) = [ C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+- Among anchored–anchored pairs, the conditional disagreement probability at v (i.e., the two star colors at v differ) is
+	P_v[disagree | anchored at v] = 2 C(r,3) C(b,3) / [ C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3) ].
+Moreover, as n→∞ with x=r/n and t=x−1/2,
+	H(r,n) = (x^3 + (1−x)^3)^2 + O(1/n),
+	P_v[disagree | anchored] = 1/2 − 18 t^2 + O(t^4 + 1/n).
+
+Proof. The counts are immediate: choose K by selecting 3 directions of the appropriate color, then choose L as any disjoint triple of the indicated color pattern; the factor 2 accounts for the ordered mixed-color case. The total number of ordered disjoint pairs is C(n,3) choices for K times C(n−3,3) choices for L. Dividing yields the probabilities.
+For the asymptotics, write r = xn and b = (1−x)n. Using C(m,3) = m^3/6 + O(m^2), the numerator of H equals [r^3 + b^3]^2/36 + O(n^5) and the denominator equals n^6/36 + O(n^5), so H = [(x^3+(1−x)^3)^2] + O(1/n). For the disagreement expansion, observe that
+	P_v[disagree | anchored] = 2 [x^3(1−x)^3]/[x^3+(1−x)^3]^2.
+Setting x = 1/2 + t and using x(1−x) = 1/4 − t^2 and x^3+(1−x)^3 = 1 − 3x(1−x) = 1/4 + 3t^2 gives
+	P_v[disagree | anchored] = 2(1/4 − t^2)^3 / (1/4 + 3t^2)^2 = 1/2 − 18 t^2 + O(t^4),
+with an additional O(1/n) from the binomial-to-polynomial approximation. ∎
+
+Corollary H (Unconditional lower bound on a)
+Statement. Let a denote the probability that two uniformly random neighboring Q3’s (sharing exactly one vertex) are both good. Then
+	a ≥ 1/16 − O(1/n).
+
+Proof. Fix a vertex v and let T_v be the set of 3-sets whose stars at v are monochromatic. By Lemma B, |T_v|/C(n,3) = τ_v ≥ 1/4 − 3/(4n). By Lemma E (anchored ⇒ good), any pair with K,L∈T_v yields two good Q3’s; hence, among ordered neighboring pairs with shared vertex v, the probability that both are good is at least P[K,L∈T_v]. By Lemma E0, P[K,L∈T_v] = τ_v^2 ± O(1/n). Therefore, for each v,
+	P[both good | shared vertex v] ≥ (1/4 − 3/(4n))^2 − O(1/n) = 1/16 − O(1/n).
+By vertex-transitivity (the number of neighboring pairs sharing v is the same for all v), the global parameter a is the uniform average of these per-v probabilities, so the same lower bound holds for a. ∎
+
+Proposition G (Uniformity of the shared boundary vertex)
+Statement. In Dvořák’s random antipodal geodesic model (uniform start vertex v0 and uniform random permutation of coordinates), for any fixed j in {1,…,⌊n/3⌋−1}, the shared vertex v_{3j} at the j-th block boundary is uniformly distributed over V(Q_n). Consequently, for any bounded function φ on V(Q_n), E[φ(v_{3j})] = (1/|V|)∑_{v} φ(v).
+
+Proof. We have v_{3j} = v0 ⊕ S_j, where S_j is the XOR of the first 3j coordinate directions of the permutation. For any fixed y, the number of pairs (v0,S_j) producing y equals the number producing 0 (translation-invariance of Q_n). Hence v_{3j} is uniform. Linearity gives the averaging statement. ∎
+Lemma I (Universal anchored-drop inequality)
+Statement. For x∈[0,1], set t:=x−1/2, T:=t^2, y:=x(1−x), and s:=x^3+(1−x)^3=1−3y. In Lemma F, the anchored–anchored conditional disagreement probability at a vertex v with x=r_v/n equals
+	R(x) = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 = 2y^3 / s^2.
+Then, for all x,
+	1/2 − R(x) ≥ 2T.
+Equality holds at x∈{0,1/2,1}.
+
+Proof. Since T=1/4−y and s=1−3y with y∈[0,1/4], the inequality is equivalent to
+	2y^3/s^2 ≤ 2y ⇔ y^2 ≤ s^2.
+Because y≥0 and s≥0 on [0,1/4], this reduces to y ≤ s, i.e., y ≤ 1−3y, which is exactly y ≤ 1/4. Equality occurs at y=0 (x∈{0,1}) and y=1/4 (x=1/2). ∎
+
+Proposition J (Global anchored savings in the boundary step)
+Setup. Work in Dvořák’s random antipodal geodesic scheme with k:=⌊n/3⌋ blocks and boundaries j=1,…,k−1. Let a be the probability that two neighboring Q3’s are both good, and b the probability that they are of mixed type. For a vertex v, let r_v be its red degree, x_v:=r_v/n, T_v:=(x_v−1/2)^2, and
+	τ_v := [C(r_v,3)+C(n−r_v,3)]/C(n,3).
+For boundary j, let v:=v_{3j} denote the shared boundary vertex, and let A_j be the event that both neighboring Q3’s at boundary j are anchored at v (i.e., each has a monochromatic 3‑star at v in its three directions).
+
+Statement. For either of Dvořák’s choices f∈{f1,f2}, the boundary‑switch probability satisfies
+	P[switch at boundary j] ≤ b/2 + a/2 − E[ 1_{A_j} · (1/2 − R(x_v)) ] + o(1),
+where the expectation is over the randomness of the geodesic scheme and the boundary index j, v=v_{3j} is the shared boundary vertex, and R is as in Lemma I. Consequently,
+	E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[ τ_v^2 · T_v ]·n + o(n).
+
+Proof. The baseline bound P[switch at a boundary] ≤ b/2 + a/2 + o(1) is Dvořák’s, with o(1) from negligible pairs sharing more than one vertex. On the subevent A_j, the boundary switch occurs if and only if the two star colors at v differ, because the last edge of the j‑th block and the first edge of the (j+1)‑st block are both incident to v, and in an anchored cube the three edges at v are monochromatic. Conditioned on A_j and v, the two 3‑sets of directions flanking the boundary are uniformly distributed among all ordered disjoint anchored triples at v, so the conditional disagreement probability equals R(x_v) by Lemma F. Therefore, on A_j the both‑good contribution (bounded by 1/2 in the baseline) drops by (1/2 − R(x_v)). On the event that both cubes are good but A_j fails, we keep the crude 1/2 bound. This proves the displayed inequality.
+
+By Proposition G, v=v_{3j} is uniformly distributed over V(Q_n) for each j. By Lemma E0 (membership under disjointness), P[A_j | v] = τ_v^2 ± O(1/n). Combining with Lemma I (which gives 1/2 − R(x_v) ≥ 2T_v) yields
+	E[ 1_{A_j} · (1/2 − R(x_v)) ] ≥ E_v[ (τ_v^2 − O(1/n)) · 2T_v ] = 2·E_v[τ_v^2 T_v] − O(1/n).
+Summing the boundary‑level inequality over the k−1 = Θ(n) boundaries and adding the (unchanged) interior contribution 1 − p/2 per block (with p = a + b/2) gives
+	E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[τ_v^2 T_v]·n + o(n).
+∎
+
+Corollary J1 (Explicit unconditional gain under degree variance)
+Statement. With notation as above,
+	E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n.
+
+Proof. Lemma B gives τ_v ≥ 1/4 − 3/(4n) pointwise, hence τ_v^2 ≥ 1/16 − O(1/n). Since T_v ≥ 0, E_v[τ_v^2 T_v] ≥ (1/16 − O(1/n))·E_v[T_v]. Substitute into Proposition J. ∎
+
+Remark. The inequality in Lemma I is sharp at x∈{0,1/2,1}; therefore the constant 2 multiplying T is the best possible uniform constant. Larger constants are attainable only on restricted ranges of |x−1/2| (not uniformly over x∈[0,1]).
+
+=== 9219-PDF file-32103-1-10-20200519 (1).pdf ===
+
+--- Page 1 ---
+A note on Norine’s antipodal-colouring conjecture
+Vojtˇech Dvoˇr´ak∗
+Department of Pure Mathematics and Mathematical Statistics
+University of Cambridge
+Cambridge, United Kingdom
+vd273@cam.ac.uk
+Submitted: Dec 16, 2019; Accepted: May 18, 2020; Published: May 29, 2020
+c⃝The author. Released under the CC BY license (International 4.0).
+Abstract
+Norine’s antipodal-colouring conjecture, in a form given by Feder and Subi,
+asserts that whenever the edges of the discrete cube are 2-coloured there must exist
+a path between two opposite vertices along which there is at most one colour change.
+The best bound to date was that there must exist such a path with at most n/2
+colour changes. Our aim in this note is to improve this upper bound to (3
+8 + o(1))n.
+Mathematics Subject Classiﬁcations: 05C35, 05C38
+1
+Introduction
+The hypercube Qn has vertex set {0, 1}n, with two vertices joined by an edge if they diﬀer
+in a single coordinate. We call two vertices of Qn antipodal if their graph distance is n.
+We call a pair of edges of Qn v1w1 and v2w2 antipodal if either v1 and v2 are antipodal
+vertices and w1 and w2 are also antipodal vertices, or if v1 and w2 are antipodal vertices
+and v2 and w1 are also antipodal vertices. A 2-colouring of the edges of Qn is called
+antipodal if no pair of antipodal edges has the same colour. Norine [3] conjectured the
+following.
+Conjecture 1. In any antipodal 2-colouring of the edges of Qn, there exists a pair of
+antipodal vertices which are joined by a monochromatic path.
+Feder and Subi [1] later made the following conjecture.
+Conjecture 2. In any 2-colouring of the edges of Qn, we can ﬁnd a pair of antipodal
+vertices and a path joining them with at most one colour change.
+∗The author was suported by the Trinity College and by the UK Engineering and Physical Sciences
+Research Council.
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+https://doi.org/10.37236/9219
+
+--- Page 2 ---
+If true, this implies the conjecture of Norine. Indeed, consider an antipodal 2-colouring
+of the edges of Qn. By Conjecture 2, we can now ﬁnd an antipodal path P1P2 such that
+both paths P1 and P2 are monochromatic. If they have the same colour we are done; if
+not the path P C
+2 P1 will work, where P C
+2 is the antipodal path to path P2.
+Call a path in Qn a geodesic if no two of its edges have the same direction. Leader
+and Long [2] proved the following result.
+Theorem 3. In any 2-colouring of the edges of Qn, we can ﬁnd a monochromatic geodesic
+of length at least ⌈n
+2⌉.
+Leader and Long proposed a conjecture that strengthens that of Feder and Subi.
+Conjecture 4. In any 2-colouring of the edges of Qn, we can ﬁnd a pair of antipodal
+vertices and a geodesic joining them with at most one colour change.
+Theorem 3 implies that we can always ﬁnd a pair of antipodal vertices and a geodesic
+joining them with at most n
+2 colour changes. Moreover, as Theorem 3 is sharp, there is no
+hope of improving the result by ﬁnding longer monochromatic geodesic. In the present
+note, we establish:
+Theorem 5. In any 2-colouring of the edges of Qn, we can ﬁnd a pair of antipodal vertices
+and a geodesic joining them with at most (3
+8 + o(1))n colour changes.
+To prove the theorem, we employ the strategy of dividing the Qn graph into small
+pieces (Q3 graphs in fact) and ﬁnding a collection of geodesics with certain properties
+within each piece. The conditions we impose on these local geodesics let us glue them
+together into a collection of geodesics in Qn in such a way that on average these long
+geodesics will have not too many colour changes. From that we in particular conclude
+that at least one of the long geodesics must not have too many colour changes. In the
+next section we collect together some simple facts about Q3 graphs, and then we use these
+in the following section to prove Theorem 5.
+2
+Good and bad Q3 graphs
+In this section we collect together some facts about 2-colourings of the 3-dimensional
+cube.
+From now on, we call a geodesic connecting two antipodal points simply an antipodal
+geodesic.
+We call a colouring of Q3 by two colours good if we can ﬁnd 4 antipodal geodesics,
+with each vertex being an endpoint of exactly one of these, such that these 4 geodesics
+have in total at most two colour changes. If a colouring of Q3 is not good we call it bad.
+The terms good and bad Q3 will be sometimes used instead of good and bad colouring
+of Q3, and it is understood that we refer to a particular colouring.
+When showing that Conjecture 4 holds for n = 5, Feder and Subi [1] proved the
+following simple lemma which we will use too.
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+2
+
+--- Page 3 ---
+Lemma 6. Assume in a 2-colouring of Q3, there are antipodal vertices v and v′ such that
+all the geodesics connecting v and v′ have two colour changes. Then the other three pairs
+of antipodal points are connected by geodesics without colour changes.
+In particular, note that we can deduce the following easy claim from the lemma above.
+Claim 7. Assume we have a bad 2-colouring of Q3. Then at most one pair of antipodal
+points in this Q3 is connected by a geodesic without a colour change.
+Proof. Lemma 6 implies that in any bad 2-colouring of Q3, any pair of antipodal vertices
+is connected by a geodesic with at most one colour change. So if we had two pairs of
+antipodal vertices connected by a geodesic without a colour change, then we could ﬁnd 4
+antipodal geodesics, with each vertex being an endpoint of exactly one of these, such that
+these 4 geodesics have in total at most two colour changes. But that would by deﬁnition
+imply we have a good 2-colouring of Q3.
+Our ﬁrst lemma gives us an easy way to identify many Q3 graphs as good.
+Lemma 8. Assume in a 2-colouring of Q3, all three edges at some vertex of Q3 have the
+same colour. Then it is a good colouring.
+Proof. Assume this colouring is bad. Without loss of generality take the vertex where all
+edges have the same colour to be 000 and this colour to be blue. If all the edges with
+neither of their endpoints being 000 or 111 are red, it is a good colouring, as the other
+three pairs of antipodal vertices are connected by the antipodal geodesics with no colour
+changes. So assume some edge with neither endpoint being 000 or 111 is blue. Without
+loss of generality it is (100, 110).
+From 001, we have the antipodal geodesic with no colour change (001, 000, 100, 110).
+So if the colouring is bad, then we know by Claim 7 that for no other pair of antipodal
+points can we have an antipodal geodesic with no colour change. So the edge (100, 101)
+must be red by considering the geodesic (010, 000, 100, 101), the edge (001, 101) must be
+red by considering the geodesic (010, 000, 001, 101) and the edge (001, 011) must be red
+by considering the geodesic (100, 000, 001, 011).
+But that gives the red antipodal geodesic with no colour change (100, 101, 001, 011),
+thus a contradiction.
+Next, note that one particular example of a bad Q3 graph occurs when we colour all
+the edges in one direction by one colour, and all the edges in the other two directions
+by the other colour. Lemma 9 that follows tells us that any bad colouring behaves very
+much like this example in a sense we will need in our proof.
+Lemma 9. Consider any bad colouring of Q3 and any vertex v. Then there exists an
+antipodal geodesic from v to v′ with exactly one colour change, a red edge at v and a blue
+edge at v′.
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+3
+
+--- Page 4 ---
+Proof. Without loss of generality let v be 000. Assume no such antipodal geodesic exists.
+By Lemma 8, we have at least one red edge from 000, without loss of generality to 100.
+Also we have at least one blue edge from 111. If this edge went to 110 or 101, we would
+be done immediately, so it must go to 011 and the other two edges from 111 must be red.
+Furthermore, the other two edges from 000 must be blue, or else we would be done, so
+assume they are blue.
+As the colouring of Q3 we consider is bad, at most one pair of antipodal points can be
+connected by an antipodal geodesic without a colour change. Whichever colour the edge
+(001, 101) has, it creates an antipodal geodesic without a colour change, either between
+010 and 101 or between 001 and 110. So 000 cannot be connected to 111 by an antipodal
+geodesic without a colour change, forcing the edges (100, 110) and (100, 101) to be blue
+and the edges (010, 011) and (001, 011) to be red.
+But now we see that both 010 and 001 are connected to their antipodals by geodesics
+without a colour change, contradiction.
+Analogously, in any bad Q3, there exists such an antipodal geodesic with exactly one
+colour change, a blue edge at v and a red edge at v′.
+3
+Proof of the main result
+We will now prove the main result.
+Theorem 5. In any 2-colouring of edges of Qn, we can ﬁnd a pair of antipodal vertices
+and a geodesic joining them with at most (3
+8 + o(1))n colour changes.
+Proof. As we have o(n) term included in our bound, clearly it suﬃces to prove the theorem
+for n divisible by 3, so assume n = 3k. For the vertices v, w of distance 3, let G(v, w)
+denote the subgraph of Qn spanned by the geodesics between v and w (so G(v, w) ∼= Q3).
+Call two such subgraphs G1 ∼= Q3 and G2 ∼= Q3 of Qn neighbours if they share exactly
+one vertex. If this vertex is v, call them v-neighbours. Consider a set A of all the ordered
+pairs (v, w) of the vertices of Qn such that d(v, w) = 3. Assume f : A →V (Qn) satisﬁes
+the following three conditions for all the vertices v, w:
+(i) d(v, f(v, w)) = 1
+(ii) d(w, f(v, w)) = 2
+(iii) d(f(w, v), f(v, w)) = 1
+In other words, this is equivalent to (v, f(v, w), f(w, v), w) being an antipodal geodesic
+in G(v, w).
+Now, given the antipodal geodesic (v0, v1, v2, v3, v4, . . . , v3i, v3i+1, v3i+2, v3i+3, . . . , v3k),
+we will modify it into the antipodal geodesic (v0, f(v0, v3), f(v3, v0), v3, f(v3, v6), . . . , v3i,
+f(v3i, v3i+3), f(v3i+3, v3i), v3i+3, . . . , v3k).
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+4
+
+--- Page 5 ---
+We will show that for every ﬁxed colouring, we can deﬁne such f in a way that the
+expected number of colour changes on a geodesic obtained by this modiﬁcation from a
+uniformly random antipodal geodesic is no more than (3
+8+o(1))n, where o(1) term depends
+on n only, not on the colouring. More precisely, we will deﬁne f1 and f2 (depending on
+the colouring) and show that at least one of these two must always work.
+If G(v, w) is a good Q3, let f1(v, w), f1(w, v) be such that no other geodesic between
+v and w has strictly less colour changes than (v, f1(v, w), f1(w, v), w), and set f2(v, w) =
+f1(v, w), f2(w, v) = f1(w, v).
+Call the vertex v of Qn even if its distance from 000 . . . 000 is even and call it odd
+otherwise. Every geodesic of length 3 connects an odd and an even vertex. For G(v, w)
+bad with v even and w odd, deﬁne f1(v, w) and f1(w, v) such that (v, f1(v, w), f1(w, v), w)
+has exactly one colour change, (v, f1(v, w)) is blue and (f1(w, v), w) is red. Also deﬁne
+f2(v, w) and f2(w, v) such that (v, f2(v, w), f2(w, v), w) has exactly one colour change,
+(v, f2(v, w)) is red and (f2(w, v), w) is blue. By Lemma 9, there exist such functions.
+Denote by p the proportion of good Q3 subgraphs of Qn in this colouring and the
+proportion of bad ones is thus 1 −p. Picking two Q3 subgraphs that are neighbours
+uniformly at random, denote the probability that both are good by a, the probability
+that one is good and one is bad by b, and thus the probability that both are bad is
+1 −a −b. We clearly must have p = a + b
+2.
+How large can b be? Suppose at any vertex v, of all Q3 containing v, there are s good
+ones and
+ n
+3
+
+−s bad ones. There are 1
+2
+ n
+3
+ n−3
+3
+
+pairs of v-neighbours, and of them at most
+s(
+ n
+3
+
+−s) ⩽1
+4
+ n
+3
+2 are good-bad pairs. As this applies to every vertex and is independent
+of s, we have b ⩽1
+2
+ n
+3
+ n−3
+3
+−1 = 1
+2 + o(1).
+Now, choose an antipodal geodesic uniformly at random and modify it as described.
+Due to the symmetry, and the properties of good and bad Q3 graphs, for any j : 0 ⩽
+j ⩽n −1 and for either value of i, the expected number of colour changes inside the
+geodesic (v3j, fi(v3j, v3j+3), fi(v3j+3, v3j), v3j+3) is at most 1
+2 if we condition on the graph
+G(v3j, v3j+3) being good, and at most 1 if we condition on the graph G(v3j, v3j+3) being
+bad. Since the proportion of good Q3 subgraphs of Qn is p, we obtain that the expected
+number of colour changes inside the geodesic (v3j, fi(v3j, v3j+3), fi(v3j+3, v3j), v3j+3) is at
+most 1
+2p + (1 −p) = 1 −p
+2.
+What is the probability that, for some ﬁxed j : 1 ⩽j ⩽k −1, we have a colour change
+between the edges (fi(v3j, v3j−3), v3j) and (v3j, fi(v3j, v3j+3)) (due to the symmetry this is
+same for all such j)? With probability 1 −a −b, both G(v3j, v3j−3) and G(v3j, v3j+3) are
+bad, and then we do not have a colour change by deﬁnition of fi. If one is good and one
+is bad, exactly one of f1 and f2 has a colour change between these two edges. So choose
+as our f that fi for which the probability of a change in this case is at most 1
+2.
+Finally, with probability a, both graphs are good. Consider any ﬁxed vertex v. Choos-
+ing a random subgraph Q3 containing v, by Lemma 8, the probability that it is good is
+at least the probability that choosing 3 random distinct edges from v, they all have the
+same colour. So we conclude there are at least (1
+4 −o(1))
+ n
+3
+
+⩾
+1
+8
+ n
+3
+
+good subgraphs
+containing v for n large enough. Suppose precisely t good subgraphs contain v. Clearly,
+the number of pairs of neighbours of good subgraphs that have a colour change at v is at
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+5
+
+--- Page 6 ---
+most 1
+4t2. Also for any good subgraph G1 containing v, the number of good subgraphs
+that share v and at least one other vertex with G1 is less than 3n2. So the number of
+pairs of two good graphs that are v-neighbours is at least 1
+2t(t −3n2). So the probability
+that a uniform random pair of good v-neighbours switches colour there is at most 1
+2
+t
+t−3n2.
+This is a decreasing function of t for t > 3n2, so using t ⩾1
+8
+ n
+3
+
+, and as this applies to
+any vertex, we get that in this case, the probability of a colour switch is no more than
+1
+2 + o(1).
+Hence we get that for our chosen value of i, the probability that for any ﬁxed j :
+1 ⩽j ⩽k −1, we have a colour change between the edges (fi(v3j, v3j−3), v3j) and
+(v3j, fi(v3j, v3j+3)) is at most b
+2 + (1
+2 + o(1))a. Putting this together with the fact that for
+any j : 0 ⩽j ⩽n−1 and for our chosen value of i, the expected number of colour changes
+inside the geodesic (v3j, fi(v3j, v3j+3), fi(v3j+3, v3j), v3j+3) is at most 1 −p
+2, we obtain that
+on average our modiﬁed antipodal geodesic has at most (1 −p
+2)n
+3 + ( b
+2 + (1
+2 + o(1))a)n
+3 =
+(1
+3 + b
+12 + o(1))n colour changes (using p = a + b
+2). But b ⩽1
+2 + o(1), giving the result.
+Hope is that the similar ideas as the ones used in the proof could be used to obtain
+the stronger bound of the order o(n). There are two particular parts of our strategy that
+we believe could help with this.
+Firstly, we introduce the idea of ﬁnding the antipodal geodesics in Qn with a few colour
+changes by taking a uniformly random antipodal geodesic, ﬁxing both of its endpoints
+as well as some points on the geodesic and then modifying the geodesic suitably between
+these points. This does seem to be a useful framework to think about the problem and
+considering Qn divided into the bits of the size say Qlog n instead of the size Q3 may help
+together with some new ideas. Indeed, by certain arguments of this sort, we can infer
+various properties of the worst case colouring in the case that at least δn colour changes
+are needed between the typical pair of antipodal points in the worst case colouring.
+Further, if we try for the inductive proof, it seems very helpful to consider what
+proportion of the pairs of the points (a, b) of certain distance d in Qn has the property
+that we have two geodesics joining a and b, one with the red edge at a and the other with
+the blue edge at a, and both these geodesics have same many colour changes and at most
+as many colour changes as any other geodesic joining a and b has. If the proportion is
+large, that helps us build longer geodesics with a few colour changes. If the proportion
+is small, we obtain more information about our colouring, that we hope could be used to
+bound the number of colour changes on optimal geodesics in diﬀerent ways. Deﬁnition
+of good and bad Q3 graphs in this note is motivated precisely by this idea, and it shows
+that in this particular case, the trade-oﬀcan be formalized very nicely.
+Acknowledgements
+I would like to thank Imre Leader for suggesting this problem and for various helpful
+discussions, my PhD supervisor B´ela Bollob´as for advice regarding the ﬁnal version of
+this note and anonymous referees for useful comments and advice.
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+6
+
+--- Page 7 ---
+References
+[1] T. Feder and C. Subi. On hypercube labellings and antipodal monochromatic paths.
+Discrete Appl. Math., 161:1421–1426, 2013.
+[2] I. Leader and E. Long. Long geodesics in subgraphs of the cube. Discrete Math.,
+326:29–33, 2014.
+[3] S. Norine. Edge-antipodal colorings of cubes. Open Problem Garden, 2008. http:
+//www.openproblemgarden.org/op/edge_antipodal_colorings_of_cubes.
+the electronic journal of combinatorics 27(2) (2020), #P2.26
+7
+
+
+=== round-0004/verifier.feedback.md ===
+Overall, both reports make substantial, coherent progress on the anchored–anchored refinement of the both‑good boundary term, and they slot cleanly into the framework already curated in output.md (Lemmas E0, F, Proposition G). The key algebraic inequality 1/2 − R(x) ≥ 2T (where R(x)=2x^3(1−x)^3/(x^3+(1−x)^3)^2 and T=(x−1/2)^2) is correct, sharp at x∈{0,1/2,1}, and removes the need for small‑t expansions. The proposed global integration (subtracting the anchored savings from the both‑good boundary contribution) is also sound and, after averaging the shared boundary vertex using Proposition G and using Lemma E0 to handle the disjointness conditioning, yields a rigorous improvement of order (2/3)·E_v[τ_v^2 T_v]·n, and hence the simple corollary with constant 1/24 multiplying E_v[T_v].
+
+Two points to correct/clarify:
+- Tie‑breaking is not needed for the anchored‑anchored boundary refinement. In a boundary between consecutive blocks, the last edge of the first Q3 at v and the first edge of the next Q3 at v are both among the three edges of the respective cubes incident to v. If both cubes are anchored at v, those three edges are monochromatic in each cube, so the boundary switch occurs if and only if the two star colors at v differ, irrespective of how the minimal‑change geodesic is chosen inside each cube. The anchored disagreement probability used at the boundary therefore depends only on star colors and is exactly the ratio already computed in Lemma F.
+- The suggestion to prove a uniform improvement 1/2 − R(x) ≥ c·T with c>2 “for all t” is false. Since T=1/4 at x∈{0,1}, the left side equals 1/2 there, so any c>2 would force 1/2 ≥ c/4 > 1/2. Thus the best uniform constant is c=2, which is attained at the endpoints and at balance. One can get larger coefficients only on restricted ranges of |t| (local inequalities), not uniformly.
+
+On bookkeeping: the ordered/unordered distinction for disjoint pairs is harmless here because the anchored disagreement probability is a ratio symmetric in the two cubes; still, it’s good to note explicitly that the conditional law at a boundary is the uniform law on ordered disjoint pairs, and conditioning on both being anchored then yields the uniform law over ordered anchored–anchored pairs.
+
+I recommend adding two items to output.md: (i) the exact anchored‑drop inequality (with a one‑line proof), and (ii) the global anchored‑savings proposition with the stated corollary. These are rigorous, self‑contained, and build directly on the already‑curated ingredients. This constitutes a concrete, publication‑grade step.
+
+Next steps:
+- Balanced‑degree regime: push b ≤ 1/2 − γ via an LP/SDP using marked‑Q3 types at a vertex (with f1‑start color), 4‑cycle consistency, and Dvořák’s badness constraints. Begin by enumerating isomorphism classes of 2‑colorings of Q3 with a marked vertex, classify good/bad, and, for good, record the f1‑start color at the mark.
+- Complementary refinement using u_v: leverage Corollary D to bound the both‑good boundary switch probability by 1/2 − (1/2)·E_v[u_v^2], with proper weighting by the both‑good mass at v (handled via Lemma E0). This may yield savings even when E_v[T_v]≈0.
+- Optional but safe sharpening: use the exact formula to tabulate 1/2 − R(x) versus T numerically, to derive piecewise lower bounds with c>2 on small |t| intervals (not uniform), which could improve constants in some regimes.
+
+
+=== notes.md ===
+Context and target in Dvořák’s framework
+- Dvořák’s modified-geodesic scheme yields the bound E[switches] ≤ (1/3 + b/12 + o(1))·n, where b is the probability that two uniformly random neighboring Q3’s (sharing exactly one vertex) have mixed types (one good, one bad). Because p cancels via p = a + b/2, any constant improvement over 3/8 must either prove b ≤ 1/2 − γ for some absolute γ>0, or reduce the 1/2 bound in the a-term (both-good case).
+
+Why naive block-density does not imply expansion (correct counterexample)
+- Brainstorm claim (now rejected): “If a color occupies at least an ε-fraction of each block boundary δS_J for (1−θ) of the blocks, then that color has conductance Ω(ε).” This is false without further structure (e.g., endpoint balance and degree spread).
+- Construction (valid undirected 2-coloring): Fix j:[n]→[n] such that j(i)≠i for all i. For each i-edge {x, x⊕e_i}, let y be the endpoint with y_i=0 and color the edge blue iff y_{j(i)}=1; otherwise red. Then for each i, exactly half of the i-edges are blue (so β_J=1/2 for every block J). Yet the blue subgraph can be extremely sparse at many vertices; e.g., if j(1)=2 and j(i)=1 for all i≥2, then for a vertex v, deg_B(v) = (n−1)·[v_1=1] + [v_2=1]. In particular, all vertices with (v_1,v_2)=(0,0) are isolated. Thus block-level edge-density alone does not imply connectivity, let alone conductance.
+- Separate but related flaw: Even if a block J has aggregate blue-density β_J = 1/2+ε, one can realize this with each direction i∈J having density 1/2+ε. A geodesic that uses each direction exactly once then sees ≈(1/2−ε)|J| minority edges on average, not O(ε|J|). Any O(ε|J|) claim must extract stronger inner-block structure (e.g., many near-monochromatic directions).
+
+Vertex-wise Kneser-graph formulation and spectral bound
+- For a fixed vertex v, Q3’s through v correspond to 3-subsets of [n]. Two Q3’s are v-neighbors iff their 3-sets are disjoint; this is the Kneser graph KG(n,3). If G_v⊆C([n],3) is the set of “good” triples at v, then b_v is the fraction of edges in KG(n,3) crossing the cut (G_v, its complement). The parameter b equals the average of b_v over v, up to negligible normalization.
+- Spectral MAX-CUT bound in KG(n,3): KG(n,3) is d-regular with d= C(n−3,3), and its least eigenvalue is −C(n−4,2). Hence for any cut, the crossing-edge fraction is ≤ 1/2 − λ_min/(2d) = 1/2 + 3/(2(n−3)). Therefore b ≤ 1/2 + 3/(2(n−3)). This recovers Dvořák’s b ≤ 1/2 + o(1) and makes the o(1) term explicit.
+
+Per-vertex monochromatic-star lower bound (useful bookkeeping)
+- For a vertex v with red degree r_v, the fraction of 3-subsets K such that the three edges at v in directions K are monochromatic equals [C(r_v,3) + C(n−r_v,3)] / C(n,3). This is minimized near r_v≈n/2; explicitly: for n even it equals 2·C(n/2,3)/C(n,3), and for n odd it equals [C((n−1)/2,3)+C((n+1)/2,3)]/C(n,3). Asymptotically this is 1/4 − 3/(4n) + O(1/n^2). This sharpened estimate alone cannot beat 3/8 but is a clean input for any refined accounting of the a-term.
+
+Promising directions to reduce b or the a-term
+- LP/SDP relaxation for b: Model local pattern frequencies around v (1-edge colors; 4-cycle types; Q3-types with the f1-chosen color), enforce marginal and 4-cycle consistency, and maximize b. Any universal optimum < 1/2 indicates a path to a combinatorial proof.
+- Good–good boundary improvement: Enumerate good Q3 classes, fix canonical tie-breaking for f1, and measure the disagreement probability at v between two disjoint good Q3’s. If it is ≤ 1/2 − η for some η>0, the a-term improves by η.
+- Structural lemmas: Seek negative correlation between “badness” indicators for disjoint triples at v, induced by 4-cycle constraints and the forbidden patterns of bad Q3’s. Any quantified negative correlation lowers b below the vertexwise MAX-CUT upper bound.
+
+What to avoid or strengthen
+- Avoid relying on block-level densities without per-direction endpoint balance and degree-spread conditions. Any block-phase lemma should explicitly include such hypotheses (e.g., each direction in a good block has bias ≥ε and each vertex has ≥ρ·|J| majority-color incident edges within that block).
+Refinement of the both-good boundary step via per-vertex bias
+- For a fixed vertex v, let G_v ⊆ C([n],3) denote the collection of 3-sets K for which Q3(v,K) is “good” in Dvořák’s sense. Fix a deterministic tie-breaking for f1 inside each good Q3. Define c_v(K) ∈ {R,B} as the color of the first edge at v along the f1-path inside Q3(v,K). Let t_v = |G_v|, p_v := |{K∈G_v : c_v(K)=R}|/t_v, and u_v := |2p_v − 1|.
+- Sampling heuristic made precise: If we pick two good v-neighbor Q3’s uniformly at random (i.e., two disjoint K,L ∈ G_v, unordered), the event “boundary switch occurs” equals [c_v(K) ≠ c_v(L)]. The disjointness constraint perturbs the color distribution only by O(1/n) since each K forbids only O(n^2) partners while t_v = Θ(n^3) (once we know a constant fraction of triples are good at v).
+
+A general pair-sampling lemma (usable abstractly)
+- Let T ⊆ C([n],3) be any subset of size t, and c: T → {R,B} any labeling. Let p = |{K∈T: c(K)=R}|/t. If we draw an unordered pair {K,L} uniformly from all disjoint pairs with K,L∈T, then
+  P[c(K) ≠ c(L)] = 2p(1−p) ± O(n^2/t).
+  Proof idea: For any fixed K, the “forbidden” set S_K = {L∈T: L∩K≠∅} has size O(n^2), so conditioning L to be disjoint from K changes its color distribution by at most O(|S_K|/t) = O(n^2/t). Averaging over K and expanding E[disagree|K] shows that the deviation from 2p(1−p) is bounded by the average of these perturbations.
+- Application to both-good pairs at v: Taking T = G_v yields
+  P_v[boundary switch | both-good at v] = 1/2 − u_v^2/2 ± O(n^2/t_v).
+  By “anchored implies good” (imported from Dvořák) and Lemma B, t_v ≥ (1/4 − O(1/n))·C(n,3) = Θ(n^3), so the error is O(1/n). Note the global “both-good” boundary probability is a weighted average of the per-v quantities with weights proportional to the mass of both-good pairs at v.
+
+Degree imbalance induces bias in c_v via anchored triples
+- Let r_v be the red degree at v and x_v = r_v/n. Among all triples K with monochromatic stars at v (anchored at v), c_v(K) is forced to be the star color. Consequently, even ignoring non-anchored good triples one gets
+  u_v ≥ |C(r_v,3) − C(n−r_v,3)| / (C(r_v,3) + C(n−r_v,3)).
+  For x_v = 1/2 + η with |η| ≪ 1, this gives u_v ≥ 6|η| + O(η^3). Therefore, if a positive fraction ρ of vertices satisfy |x_v − 1/2| ≥ η_0, then E_v[u_v^2] ≥ c·ρ·η_0^2 for some absolute c>0.
+
+Corrected anchored–anchored counts at a fixed vertex
+- For r=r_v and b=n−r, the number of ordered v-neighbor pairs (K,L) with both cubes anchored at v equals
+  C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3).
+  Among these, the pairs with disagreeing star colors at v are exactly the mixed-color ones, counted by 2C(r,3)C(b,3). Therefore,
+  P_v[disagree | both anchored at v] = 2C(r,3)C(b,3) / [C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3)].
+  As n→∞ with x=r/n and t=x−1/2,
+  P_v[disagree | anchored] = 2x^3(1−x)^3/(x^3+(1−x)^3)^2 + O(1/n) = 1/2 − 18t^2 + O(t^4 + 1/n).
+  In particular, at balance (x=1/2) the anchored–anchored disagreement probability is 1/2 and the anchored–anchored pair probability is ≈(x^3+(1−x)^3)^2 = (1/4)^2 = 1/16 (up to O(1/n)), not 1/32.
+
+Dichotomy and plan
+- Unbalanced regime: If E_v[(x_v−1/2)^2] is bounded below, then E_v[u_v^2] is bounded below, and the both-good boundary term drops by a constant (via the pair-sampling lemma), yielding a linear improvement. Anchored–anchored pairs certify this effect concretely.
+- Balanced regime: When x_v≈1/2 for most v, we must leverage structural constraints (4-cycle consistency, interaction of good/bad patterns across pairs) to bound b<1/2. Proceed with the proposed LP using: star-type frequencies, 4-cycle types, Q3-types-with-marked-v and their f1-start labels, symmetry constraints, and Dvořák’s characterization of bad cubes.
+
+Immediate technical tasks
+- Import or re-prove “anchored at v ⇒ good” to firm up the O(1/n) error uniformly.
+- Prove that the anchored–anchored probability is minimized at r≈n/2 for all n≥6 (discrete convexity of F(m)=C(m,3)C(m−3,3) plus symmetry).
+- Enumerate Q3 2-coloring classes with marked v; for each good class determine the f1-start at v. This feeds the LP for b in the balanced regime.
+Additions and refinements (Round 0003)
+
+1) Correction to the baseline interior contribution
+- In Dvořák’s scheme the expected number of color changes inside a Q3-block is 1 − p/2 per block (not 1 − p^2). With p = a + b/2 this yields the baseline (1/3 + b/12 + o(1))·n for E[switches].
+
+2) Anchored cubes and a uniform nontrivial anchored mass
+- Anchored-at-v cubes (three edges at v all the same color in the chosen 3 directions) are good (Dvořák, Lemma 8). Consequently, anchored–anchored neighboring pairs form a subset of both-good pairs. For a vertex v with r red and b=n−r blue incident edges, the exact anchored–anchored (ordered) pair probability is
+  H(r,n) = [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+  As n→∞ with x=r/n, H(r,n) = (x^3 + (1−x)^3)^2 + O(1/n), minimized at x=1/2; hence H(r,n) ≥ 1/16 − O(1/n).
+- A discrete, uniform lower bound that avoids minimizing H directly follows from a general “membership under disjointness” lemma: if T⊆C([n],3) has density τ, then for a uniform ordered disjoint pair (K,L) from all triples, P[K,L∈T] = τ^2 ± O(1/n). Applying this to the anchored set T_v gives P[both anchored at v] = τ_v^2 ± O(1/n), and since τ_v ≥ 1/4 − 3/(4n) (Lemma B), we conclude a ≥ 1/16 − O(1/n) unconditionally.
+
+3) Anchored–anchored disagreement probability
+- Conditioning on both Q3’s being anchored at v, the exact disagreement probability at v equals
+  P_v[disagree | anchored] = 2C(r,3)C(b,3) / [ C(r,3)C(r−3,3) + 2C(r,3)C(b,3) + C(b,3)C(b−3,3) ].
+  With x=r/n and t=x−1/2, as n→∞,
+  P_v[disagree | anchored] = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 + O(1/n) = 1/2 − 18t^2 + O(t^4 + 1/n).
+  Thus degree imbalance |t|≥η enforces a quadratic drop below 1/2 in the both-good boundary switch probability on the anchored submass.
+
+4) Uniformity of boundary vertices in the random-geodesic model
+- In Dvořák’s random antipodal geodesic scheme (uniform start vertex and uniform coordinate permutation), the shared vertex v_{3j} at each boundary j is uniformly distributed over V(Q_n). Hence vertex-averages at boundaries equal uniform averages over V(Q_n).
+
+5) Path to a refined global bound
+- Let T_v = (r_v/n − 1/2)^2. Using the anchored–anchored mass and the anchored disagreement drop, one can define a nonnegative anchored savings Δ_anchor ≈ E_v[H(r_v,n)·(1/2 − P_v[disagree | anchored])]. Inserting this at each boundary yields a refined inequality of the schematic form
+  E[switches] ≤ (1/3 + b/12 − (1/3)·Δ_anchor + o(1))·n.
+  Using H(r,n) ≥ 1/16 − O(1/n) and the 18T_v drop gives an unconditional gain ≳ (3/8)·E_v[T_v]·n in regimes with nontrivial degree variance. Formalizing this integration (with accurate o(1) control and precise weights) is the next task.
+
+6) Open technical point
+- Discrete minimization: prove that H(r,n) is minimized at r∈{⌊n/2⌋,⌈n/2⌉} for all n≥6. A direct sign analysis of H(r+1,n)−H(r,n) should suffice.
+Anchored–anchored refinement: exact drop and global integration
+- Notation recap at a vertex v:
+  • r_v = red degree; x_v := r_v/n; T_v := (x_v − 1/2)^2.
+  • τ_v := [C(r_v,3)+C(n−r_v,3)]/C(n,3), the fraction of 3‑sets anchored at v (monochromatic star at v). By Lemma B, τ_v ≥ 1/4 − 3/(4n).
+  • For anchored–anchored pairs at v, Lemma F gives the exact conditional disagreement probability R(x) = 2x^3(1−x)^3/(x^3+(1−x)^3)^2 with x=x_v.
+
+- Exact universal inequality (anchored drop): for all x∈[0,1], letting y:=x(1−x) and T:=(x−1/2)^2=1/4−y,
+  1/2 − R(x) = 1/2 − 2y^3/(1−3y)^2 ≥ 2T.
+  Proof sketch: The inequality is equivalent to y^2 ≤ (1−3y)^2 for y∈[0,1/4], which holds with equality at y∈{0,1/4} (i.e., x∈{0,1/2,1}). Thus the drop below 1/2 is at least 2T, uniformly and sharply.
+
+- Boundary interpretation without extra tie‑breaking: At a boundary vertex v between consecutive blocks, the last edge of the preceding Q3 and the first edge of the next Q3 are both incident to v. If both cubes are anchored at v, then each of these edges must have its cube’s star color at v. Hence the boundary switch occurs if and only if the two star colors at v differ. Therefore, conditional on both cubes being anchored at v, the boundary switch probability equals the anchored disagreement probability R(x_v) from Lemma F. No special tie‑breaking is needed in anchored cubes for this conclusion.
+
+- Global anchored savings (informal summary): For each boundary, Dvořák’s baseline bound is b/2 + a/2. On the subevent that both neighboring Q3’s are anchored at the shared vertex v, this both‑good term improves from 1/2 to R(x_v), saving (1/2 − R(x_v)) ≥ 2T_v. The probability that both are anchored at v equals τ_v^2 ± O(1/n) by Lemma E0 (membership under disjointness). Averaging v uniformly across boundaries (Proposition G) and summing over ~n/3 boundaries yields a net reduction of at least (2/3)·E_v[τ_v^2 T_v]·n − o(n). Consequently,
+  E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[τ_v^2 T_v]·n + o(n),
+  and since τ_v^2 ≥ 1/16 − O(1/n) pointwise, an unconditional corollary is
+  E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n.
+
+- Limits and focus: The anchored‑driven gain vanishes in the balanced regime (T_v≈0). To improve the universal constant, we must either (i) control b strictly below 1/2 in the balanced case via local consistency (4‑cycles, marked‑Q3 types), or (ii) derive complementary both‑good savings using the bias parameter u_v from Corollary D with proper weighting.
+
+- Caution: A uniform inequality 1/2 − R(x) ≥ c·T with c>2 is impossible (it fails at x∈{0,1}). Larger coefficients are attainable only on restricted |t| ranges.
+
+Concrete next steps
+- Enumerate marked‑Q3 isomorphism classes and determine their good/bad status and the f1‑start color at the marked vertex; set up an LP/SDP to bound b in the balanced regime, enforcing 4‑cycle consistency and Dvořák’s badness constraints.
+- Formalize a weighted version of Corollary D at the boundary level: express the both‑good boundary switch probability as an average over v with weights ≈ density of both‑good disjoint pairs at v, and quantify the reduction 1/2 − (1/2)·E_v[u_v^2] + o(1) when u_v has variance.
+
+
+=== output.md ===
+List of proven intermediate results
+- Theorem A (Spectral upper bound on the parameter b in Dvořák’s scheme).
+- Lemma B (Per-vertex lower bound on monochromatic-star triples).
+
+Theorem A (Spectral upper bound on b)
+Statement. Let Q_n be the n-dimensional hypercube with an arbitrary 2-coloring of its edges, and let b denote the probability that two uniformly random neighboring 3-cubes (Q3’s) are of mixed type (one good, one bad) in the sense of Dvořák’s construction. Then for all n ≥ 6,
+
+b ≤ 1/2 + 3/(2(n−3)).
+
+Consequently, Dvořák’s expected switch bound refines to
+E[switches] ≤ (1/3 + 1/24 + 1/(8(n−3)) + o(1))·n = (3/8 + 1/(8(n−3)) + o(1))·n.
+
+Proof. Fix a vertex v of Q_n. Q3’s through v correspond bijectively to 3-subsets K ⊆ [n] (the chosen directions), and two such Q3’s are v-neighbors if and only if the 3-sets are disjoint. Thus, the v-neighborhood relation is the Kneser graph KG(n,3) on vertex-set C([n],3), which is d-regular with degree d = C(n−3,3). Let G_v ⊆ C([n],3) be the set of “good” triples at v. The fraction b_v of v-neighbor pairs that are mixed equals the fraction of edges in KG(n,3) crossing the cut (G_v, C([n],3) \ G_v). The global parameter b is the average of b_v over all v (this is a direct consequence of the definition of “neighboring Q3’s” as sharing exactly one vertex; each ordered choice of the shared vertex v and a disjoint pair of triples contributes equally).
+
+For any d-regular graph with adjacency matrix A and least eigenvalue λ_min, the size of any cut is at most |E|·(1/2 − λ_min/(2d)). This follows from the identity that, for a ±1 vector s indicating a cut, the number of crossing edges equals |E|/2 − (1/4) s^T A s, combined with s^T A s ≥ λ_min · s^T s = λ_min · |V| and |E| = d|V|/2. The Kneser graph KG(n,3) has spectrum { C(n−3,3), −C(n−4,2), n−5, −1 } (standard; see e.g. Lovász, 1979), so λ_min = −C(n−4,2). Hence every cut in KG(n,3) has crossing-edge fraction at most 1/2 − (−C(n−4,2))/(2 C(n−3,3)) = 1/2 + C(n−4,2)/(2 C(n−3,3)) = 1/2 + 3/(2(n−3)). Therefore b_v ≤ 1/2 + 3/(2(n−3)) for each v, and averaging gives the same bound for b. The stated corollary for E[switches] follows by substitution into Dvořák’s expression. ∎
+
+Lemma B (Per-vertex lower bound on monochromatic-star triples)
+Statement. Let v be a vertex of Q_n and let r_v be the number of red edges incident to v (so n − r_v are blue). The fraction of 3-sets K ⊆ [n] such that the three edges at v with directions K are monochromatic equals
+
+τ_v = [ C(r_v,3) + C(n − r_v,3) ] / C(n,3).
+
+In particular, τ_v is minimized when r_v ∈ {⌊n/2⌋, ⌈n/2⌉}. For n even, the minimum equals 2·C(n/2,3)/C(n,3); for n odd, it equals [C((n−1)/2,3) + C((n+1)/2,3)]/C(n,3). As n→∞, uniformly in v,
+	τ_v ≥ 1/4 − 3/(4n) + O(1/n^2).
+
+Proof. Among all 3-sets K, exactly C(r_v,3) of them consist of three red directions at v, and exactly C(n − r_v,3) consist of three blue directions at v. There are C(n,3) total 3-sets, so the fraction is τ_v as stated. Define g(r) = C(r,3) + C(n − r,3) for integer r. Then g(r+1) − g(r) = C(r,2) − C(n − r − 1,2), which is negative for r < (n−1)/2 and positive for r > (n−1)/2; hence g is minimized at r ∈ {⌊n/2⌋, ⌈n/2⌉}. Substituting these values yields the explicit minima. The asymptotic expansion follows by a routine Taylor expansion of the ratio of polynomials in n. ∎
+Lemma C (Pair-sampling stability under a disjointness constraint)
+Statement. Let n≥6 and let T⊆C([n],3) be any subset of 3-sets of size t=|T|. Fix any labeling c: T→{R,B} and write p := |{K∈T : c(K)=R}|/t. If an unordered pair {K,L} is drawn uniformly from all pairs with K,L∈T and K∩L=∅, then
+
+P[c(K)≠c(L)] = 2p(1−p) ± C·(n^2/t),
+
+for some absolute constant C>0 (independent of n and T).
+
+Proof. For K∈T, let T_K := {L∈T : L∩K=∅} and write q(K) := |{L∈T_K : c(L)=R}|/|T_K|. Let s(K):=1 if c(K)=R and 0 otherwise. If we generate a random unordered disjoint pair by first sampling K uniformly from T and then sampling L uniformly from T_K (and finally forgetting the order), its law is within a factor 2 of the uniform law on unordered disjoint pairs, so computing the disagreement probability under this sequential scheme suffices up to a harmless constant normalization (which cancels in the final equality below).
+
+For fixed K, the probability of disagreement equals s(K)·(1−q(K)) + (1−s(K))·q(K). Averaging over K gives
+
+P[c(K)≠c(L)] = E_K[q(K)] + E_K[s(K)] − 2E_K[q(K)·s(K)].
+
+Let p = E_K[s(K)] and write q(K)=p+δ(K). Then
+
+P[c(K)≠c(L)] = 2p(1−p) + E_K[δ(K)·(1−2s(K))].
+
+Hence |P[c(K)≠c(L)] − 2p(1−p)| ≤ E_K[|δ(K)|]. It remains to bound |δ(K)| uniformly. For any K, all elements of T that are excluded from T_K (including K itself) lie in the set S_K := {L∈T : L∩K≠∅}∪{K}. Since K is a 3-set, the number of 3-sets intersecting K is at most 3·C(n−1,2) + 3·(n−1) + 1 = O(n^2). Therefore, removing S_K from T perturbs the color fraction by at most |S_K|/t ≤ C′·n^2/t for some absolute C′, i.e., |δ(K)| ≤ C′·n^2/t. Averaging over K yields the claimed bound with C=C′. ∎
+
+Corollary D (Refined both-good disagreement at a fixed vertex)
+Statement. Fix a vertex v. Let G_v⊆C([n],3) be the set of “good” triples at v (in Dvořák’s scheme), let t_v=|G_v|, and define c_v:G_v→{R,B} as the color of the first edge at v selected by f1 inside Q3(v,K). Set p_v := |{K∈G_v : c_v(K)=R}|/t_v and u_v := |2p_v−1|. Then, when {K,L} is drawn uniformly from unordered pairs of disjoint elements of G_v,
+
+P[c_v(K)≠c_v(L)] = 1/2 − u_v^2/2 ± C·(n^2/t_v),
+
+with the same absolute constant C as in Lemma C. In particular, if t_v ≥ δ·C(n,3) for some absolute δ>0 (as ensured once one imports that every monochromatic star at v is good), then the error term is O(1/n).
+
+Proof. Apply Lemma C with T=G_v and p=p_v; observe that 2p_v(1−p_v) = 1/2 − u_v^2/2. ∎
+
+Remark (Applicability in Dvořák’s framework). By standard facts in the modified-geodesic scheme (anchored-at-v cubes are good), Lemma B implies t_v ≥ [C(r_v,3)+C(n−r_v,3)], whence t_v = Θ(n^3) uniformly in v. Thus the error term in the corollary is O(1/n).
+Additional proven intermediate results
+- Lemma E0 (Membership under disjointness: two-step sampling is asymptotically independent).
+- Lemma E (Anchored at v implies good; import from Dvořák).
+- Lemma F (Anchored–anchored pair counts and anchored disagreement probability at a vertex).
+- Corollary H (Unconditional lower bound on a: a ≥ 1/16 − O(1/n)).
+- Proposition G (Uniformity of the shared boundary vertex in the random-geodesic model).
+
+Lemma E0 (Membership under disjointness)
+Statement. Let n≥6 and let T⊆C([n],3) have cardinality |T| = τ·C(n,3). Let (K,L) be a uniformly random ordered pair of disjoint 3-sets from C([n],3). Then
+	P[K∈T and L∈T] = τ^2 ± C·(1/n)
+for some absolute constant C>0 (independent of n and T).
+
+Proof. Generate (K,L) by first choosing K uniformly from C([n],3) and then choosing L uniformly from the family of 3-sets disjoint from K. Let M:=C(n,3) and S_K be the set of triples intersecting K, so |S_K|=M−C(n−3,3)=O(n^2). Then
+	P[L∈T | K] = (|T| − |T∩S_K|) / (M − |S_K|) = τ + ε(K),
+with |ε(K)| ≤ max{|T∩S_K|, τ|S_K|}/(M−|S_K|) ≤ c/n for some absolute c>0, since |T∩S_K|≤|S_K|=O(n^2) and M−|S_K|=C(n−3,3)=Θ(n^3). Therefore
+	P[K∈T and L∈T] = E[1_{K∈T}·P(L∈T|K)] = E[1_{K∈T}]·τ + E[1_{K∈T}·ε(K)] = τ^2 ± E|ε(K)| = τ^2 ± O(1/n).
+∎
+
+Lemma E (Anchored at v implies good)
+Statement. In Dvořák’s framework for Q3-blocks, if a 3-cube Q3 has a vertex v such that the three edges incident to v within Q3 are monochromatic, then Q3 is good (in the sense used by the modified-geodesic scheme).
+
+Proof. This is Dvořák’s Lemma 8 (see Dvořák, “A note on edge-colorings of the hypercube” [exact citation as in the original source]). A short case analysis shows that from a monochromatic 3-star at v one can construct the required monochromatic antipodal geodesics (or the canonical f1-path with the requisite bound on color changes), hence goodness. We invoke the lemma as a quoted result. ∎
+
+Lemma F (Anchored–anchored counts and disagreement probability at a fixed vertex)
+Statement. Fix a vertex v of Q_n. Let r be the number of red edges incident to v, and let b:=n−r. Consider ordered pairs (K,L) of disjoint 3-sets of coordinates. A Q3(v,K) is “anchored red at v” if all three edges from v in directions K are red, and analogously for blue. Then:
+- The number of ordered disjoint pairs (K,L) with both Q3’s anchored at v equals
+	C(r,3)·C(r−3,3) + 2·C(r,3)·C(b,3) + C(b,3)·C(b−3,3).
+- The total number of ordered disjoint pairs equals C(n,3)·C(n−3,3).
+- Therefore, the anchored–anchored probability at v is
+	H(r,n) = [ C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3) ] / [ C(n,3)C(n−3,3) ].
+- Among anchored–anchored pairs, the conditional disagreement probability at v (i.e., the two star colors at v differ) is
+	P_v[disagree | anchored at v] = 2 C(r,3) C(b,3) / [ C(r,3)C(r−3,3) + 2 C(r,3)C(b,3) + C(b,3)C(b−3,3) ].
+Moreover, as n→∞ with x=r/n and t=x−1/2,
+	H(r,n) = (x^3 + (1−x)^3)^2 + O(1/n),
+	P_v[disagree | anchored] = 1/2 − 18 t^2 + O(t^4 + 1/n).
+
+Proof. The counts are immediate: choose K by selecting 3 directions of the appropriate color, then choose L as any disjoint triple of the indicated color pattern; the factor 2 accounts for the ordered mixed-color case. The total number of ordered disjoint pairs is C(n,3) choices for K times C(n−3,3) choices for L. Dividing yields the probabilities.
+For the asymptotics, write r = xn and b = (1−x)n. Using C(m,3) = m^3/6 + O(m^2), the numerator of H equals [r^3 + b^3]^2/36 + O(n^5) and the denominator equals n^6/36 + O(n^5), so H = [(x^3+(1−x)^3)^2] + O(1/n). For the disagreement expansion, observe that
+	P_v[disagree | anchored] = 2 [x^3(1−x)^3]/[x^3+(1−x)^3]^2.
+Setting x = 1/2 + t and using x(1−x) = 1/4 − t^2 and x^3+(1−x)^3 = 1 − 3x(1−x) = 1/4 + 3t^2 gives
+	P_v[disagree | anchored] = 2(1/4 − t^2)^3 / (1/4 + 3t^2)^2 = 1/2 − 18 t^2 + O(t^4),
+with an additional O(1/n) from the binomial-to-polynomial approximation. ∎
+
+Corollary H (Unconditional lower bound on a)
+Statement. Let a denote the probability that two uniformly random neighboring Q3’s (sharing exactly one vertex) are both good. Then
+	a ≥ 1/16 − O(1/n).
+
+Proof. Fix a vertex v and let T_v be the set of 3-sets whose stars at v are monochromatic. By Lemma B, |T_v|/C(n,3) = τ_v ≥ 1/4 − 3/(4n). By Lemma E (anchored ⇒ good), any pair with K,L∈T_v yields two good Q3’s; hence, among ordered neighboring pairs with shared vertex v, the probability that both are good is at least P[K,L∈T_v]. By Lemma E0, P[K,L∈T_v] = τ_v^2 ± O(1/n). Therefore, for each v,
+	P[both good | shared vertex v] ≥ (1/4 − 3/(4n))^2 − O(1/n) = 1/16 − O(1/n).
+By vertex-transitivity (the number of neighboring pairs sharing v is the same for all v), the global parameter a is the uniform average of these per-v probabilities, so the same lower bound holds for a. ∎
+
+Proposition G (Uniformity of the shared boundary vertex)
+Statement. In Dvořák’s random antipodal geodesic model (uniform start vertex v0 and uniform random permutation of coordinates), for any fixed j in {1,…,⌊n/3⌋−1}, the shared vertex v_{3j} at the j-th block boundary is uniformly distributed over V(Q_n). Consequently, for any bounded function φ on V(Q_n), E[φ(v_{3j})] = (1/|V|)∑_{v} φ(v).
+
+Proof. We have v_{3j} = v0 ⊕ S_j, where S_j is the XOR of the first 3j coordinate directions of the permutation. For any fixed y, the number of pairs (v0,S_j) producing y equals the number producing 0 (translation-invariance of Q_n). Hence v_{3j} is uniform. Linearity gives the averaging statement. ∎
+Lemma I (Universal anchored-drop inequality)
+Statement. For x∈[0,1], set t:=x−1/2, T:=t^2, y:=x(1−x), and s:=x^3+(1−x)^3=1−3y. In Lemma F, the anchored–anchored conditional disagreement probability at a vertex v with x=r_v/n equals
+	R(x) = 2x^3(1−x)^3 / (x^3+(1−x)^3)^2 = 2y^3 / s^2.
+Then, for all x,
+	1/2 − R(x) ≥ 2T.
+Equality holds at x∈{0,1/2,1}.
+
+Proof. Since T=1/4−y and s=1−3y with y∈[0,1/4], the inequality is equivalent to
+	2y^3/s^2 ≤ 2y ⇔ y^2 ≤ s^2.
+Because y≥0 and s≥0 on [0,1/4], this reduces to y ≤ s, i.e., y ≤ 1−3y, which is exactly y ≤ 1/4. Equality occurs at y=0 (x∈{0,1}) and y=1/4 (x=1/2). ∎
+
+Proposition J (Global anchored savings in the boundary step)
+Setup. Work in Dvořák’s random antipodal geodesic scheme with k:=⌊n/3⌋ blocks and boundaries j=1,…,k−1. Let a be the probability that two neighboring Q3’s are both good, and b the probability that they are of mixed type. For a vertex v, let r_v be its red degree, x_v:=r_v/n, T_v:=(x_v−1/2)^2, and
+	τ_v := [C(r_v,3)+C(n−r_v,3)]/C(n,3).
+For boundary j, let v:=v_{3j} denote the shared boundary vertex, and let A_j be the event that both neighboring Q3’s at boundary j are anchored at v (i.e., each has a monochromatic 3‑star at v in its three directions).
+
+Statement. For either of Dvořák’s choices f∈{f1,f2}, the boundary‑switch probability satisfies
+	P[switch at boundary j] ≤ b/2 + a/2 − E[ 1_{A_j} · (1/2 − R(x_v)) ] + o(1),
+where the expectation is over the randomness of the geodesic scheme and the boundary index j, v=v_{3j} is the shared boundary vertex, and R is as in Lemma I. Consequently,
+	E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[ τ_v^2 · T_v ]·n + o(n).
+
+Proof. The baseline bound P[switch at a boundary] ≤ b/2 + a/2 + o(1) is Dvořák’s, with o(1) from negligible pairs sharing more than one vertex. On the subevent A_j, the boundary switch occurs if and only if the two star colors at v differ, because the last edge of the j‑th block and the first edge of the (j+1)‑st block are both incident to v, and in an anchored cube the three edges at v are monochromatic. Conditioned on A_j and v, the two 3‑sets of directions flanking the boundary are uniformly distributed among all ordered disjoint anchored triples at v, so the conditional disagreement probability equals R(x_v) by Lemma F. Therefore, on A_j the both‑good contribution (bounded by 1/2 in the baseline) drops by (1/2 − R(x_v)). On the event that both cubes are good but A_j fails, we keep the crude 1/2 bound. This proves the displayed inequality.
+
+By Proposition G, v=v_{3j} is uniformly distributed over V(Q_n) for each j. By Lemma E0 (membership under disjointness), P[A_j | v] = τ_v^2 ± O(1/n). Combining with Lemma I (which gives 1/2 − R(x_v) ≥ 2T_v) yields
+	E[ 1_{A_j} · (1/2 − R(x_v)) ] ≥ E_v[ (τ_v^2 − O(1/n)) · 2T_v ] = 2·E_v[τ_v^2 T_v] − O(1/n).
+Summing the boundary‑level inequality over the k−1 = Θ(n) boundaries and adding the (unchanged) interior contribution 1 − p/2 per block (with p = a + b/2) gives
+	E[switches] ≤ (1/3 + b/12)·n − (2/3)·E_v[τ_v^2 T_v]·n + o(n).
+∎
+
+Corollary J1 (Explicit unconditional gain under degree variance)
+Statement. With notation as above,
+	E[switches] ≤ (1/3 + b/12 − (1/24)·E_v[T_v] + o(1))·n.
+
+Proof. Lemma B gives τ_v ≥ 1/4 − 3/(4n) pointwise, hence τ_v^2 ≥ 1/16 − O(1/n). Since T_v ≥ 0, E_v[τ_v^2 T_v] ≥ (1/16 − O(1/n))·E_v[T_v]. Substitute into Proposition J. ∎
+
+Remark. The inequality in Lemma I is sharp at x∈{0,1/2,1}; therefore the constant 2 multiplying T is the best possible uniform constant. Larger constants are attainable only on restricted ranges of |x−1/2| (not uniformly over x∈[0,1]).
+
+
+Current round tag: Round 0005 — 2025-08-27T20:01:44.539608Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

@@ -1,0 +1,17 @@
+Overall, the three reports are consistent with our current framework and add several genuinely useful, checkable tools. The main strengths are: (i) a clean Fourier “two-translate” obstruction lemma (P02, P03), with a concrete way to certify the delicate step in the |J_0|=1/2 complementary construction; (ii) two singletons-per-row rigidity results for complementary two-layer tiles: a quick integrality-based criterion (P01’s Lemma S) and a stronger hypothesis that forbids any m-fold translational partitions of J_0 and J_1 for m≥2 (P03’s Proposition K), both with short, correct proofs; (iii) a clear classification of singleton tilings in the complementary construction via the stabilizer Stab(J_0) (P01 Proposition K), which generalizes our Corollary J and anchors the “meandering” picture; (iv) a simple incommensurability algebra (P01 Lemma Q) that allows avoiding the “s rational” restriction in Proposition H by appropriate choice of β.
+
+Rigor audit and corrections:
+- Lemma C in output.md implicitly used that θ_n−θ_{n−1} is constant. This is guaranteed when 1∈K (or more generally under a helical-phase conclusion). We should explicitly note this assumption. I add a clarification remark rather than removing the lemma, since all our uses have 1∈K (K={0,1} or {0,1,2}).
+- Boundary obstruction: output.md still says “Lemma E (As before)”. I’ve inserted the explicit general (“aggregated-measure”) statement with proof. This removes the cross-reference ambiguity and upgrades the tool for arbitrary K.
+- Proposition I (|J_0|=1/2 singleton rigidity): the “Similarly, d_n=0 is impossible” step relies on the obvious equivalence that J_1 admits a 2-translate partition iff J_0 does. I include this one-line justification as an addendum.
+- The Fourier two-translate obstruction is formalized and added (with proof). Numeric checks such as P01’s Lemma F2 are fine for notes, but output.md only records the general lemma plus a simple explicit class (U=[0,c), c irrational) as a worked example in notes.
+
+Value triage:
+- Keep (and I have added to output.md): the explicit boundary lemma, the Fourier two-translate lemma, Lemma S (integrality-based singleton rigidity), the meandering classification (Proposition K), and the anti-m-tiling singleton rigidity (Proposition K2). These are clean, broadly applicable, and rigorously proved.
+- Retain in notes (not in output.md): specific numerical Fourier evaluations; the q=3 explicit instance is subsumed by the general Proposition G and can stay as an illustrative example in notes.
+
+Next steps (actionable):
+- Push the classification: When J_0 has exactly 1/q translational symmetry, try to prove the 1/q-offset in θ_m−θ_{m−1} must be constant (hence only the q helical tilings occur). A promising route is a three-row argument tracking boundary propagation and using the intersection identity; formalize a contradiction if two distinct offsets occur across consecutive increments.
+- Multi-translate Fourier obstructions: we now have the m=2 lemma. P03 sketched an m=3 obstruction; formalize and record a general “vector of Fourier mode constraints” for m translates. Provide at least one fully worked m=3 example.
+- For K={0,1,2}, systematize simultaneous compatibility for more than two orders (ℓ=4 with K={0,1,2,3}), compute the resulting linear constraints, and combine with the boundary lemma to force non-columnity and multiple periods. Aim for three or more pairwise incommensurable periods.
+- Update Proposition H’s incommensurability clause with Lemma Q: allow arbitrary s by choosing β with s/β∉Q.

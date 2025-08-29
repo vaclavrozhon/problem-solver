@@ -1,0 +1,285 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "Headlines for this round\n- We corrected and consolidated the analytic underpinnings for the product-state regime and adjusted the plan to avoid unsound linearizations. The key shift is to formulate a sound, finite, nonlinear feasibility test (MIQCP/QCQP) at objective value 1 based on a single stationary 6-block distribution, which already encodes: (i) perfect properness on all adjacent edges in the window; (ii) shift-consistency (Kolmogorov consistency for a stationary 1D process); and (iii) exact pair-independence at lag \u03b4 = 5 (the 2r+1 separation for r = 2). This test is strictly necessary for any r-round product-state output and will be attempted with global nonconvex solvers (BARON/Couenne/SCIP-NLP). If infeasible, it yields a clean, auditable contradiction to perfect success.\n- We acknowledge the verifier\u2019s cautions: (1) block-level independence is inherently nonlinear; (2) color-symmetry averaging is not w.l.o.g. under independence constraints; (3) any parity-type intuition about pair equality for each fixed proper coloring is false; (4) ring-level \u201cdistance mix\u201d experiments do not carry over straightforwardly to r = 2 as matching r-views forces equality of expectations for r-local algorithms. We therefore pivot away from linearizations relying on color symmetry and from distance-mix experiments for r = 2 in the near term.\n\nCorrections and clarifications (to be reflected in output.md)\n- Markov-chain two-point correlation. We have already corrected the equality-probability for the stationary 3-state no-self-loop chain to P[X_t = X_{t+d}] = 1/3 + (2/3)(\u22121/2)^d (Lemma 14), which now matches d = 1 (value 0) and d = 2 (value 1/2), and excludes the witness as soon as any lag-\u03b4 pair independence is imposed (Corollary 15).\n- No linear block-level independence. Our earlier suggestion that length-2 block-independence becomes linear under color symmetry is incorrect in general; the independence equalities remain bilinear (products of marginal probabilities) even with symmetric marginals (except in the degenerate single-site P_equal case under uniform marginals). We will not employ such linearizations.\n- Color-symmetry w.l.o.g. is not available once independence constraints are in play. A global random color-permutation can destroy unconditional independence across distant sets. We therefore refrain from imposing color-symmetry constraints in independence-augmented models unless we separately prove their admissibility.\n- View-equivalence experiments for r = 2. Matching the distribution of r-views exactly forces equality of expectations for any r-local Heisenberg-evolved effect (by non-signaling). Hence the r = 1 \u201cdistance mix\u201d trick does not directly extend to r = 2. We do not pursue this path further until/unless we identify a different observable (or sampling scheme) whose r-view distributions can be equalized while still forcing separation on proper colorings.\n\nA sound nonlinear feasibility test for the product-state regime (r = 2)\nGoal. Prove that perfect success (objective = 1) on a long enough segment is impossible under exact independence across disjoint r-neighborhoods (i.e., lag-5 independence), even before invoking amplification. This yields the desired constant-error bound for 2-round two-way LOCAL algorithms without entanglement (by Corollary 3) once a finite k is certified.\n\nKey modeling choice: a single stationary 6-block distribution\n- Variables: For a 1D stationary process (X_t) over \u03a3 = {1,2,3}, introduce a single 6-block distribution t(\u03b6) for \u03b6 \u2208 \u03a3^6. This is interpreted as the common distribution of (X_i,\u2026,X_{i+5}) for all i in the interior of a long segment. Number of variables: 3^6 = 729.\n- Linear constraints:\n  1) Nonnegativity and normalization: t(\u03b6) \u2265 0, \u2211_\u03b6 t(\u03b6) = 1.\n  2) Shift-consistency (Kolmogorov consistency): For all \u03b1 \u2208 \u03a3^5, let M_1(\u03b1) = \u2211_{\u03b6: \u03b6_1..\u03b6_5=\u03b1} t(\u03b6) and M_2(\u03b1) = \u2211_{\u03b6: \u03b6_2..\u03b6_6=\u03b1} t(\u03b6). Impose M_1(\u03b1) = M_2(\u03b1). This enforces stationary consistency of length-5 marginals across overlapping 6-windows.\n  3) Perfect properness on adjacent edges within the window: For j = 1,\u2026,5 and a \u2208 \u03a3, \u2211_{\u03b6: \u03b6_j = \u03b6_{j+1} = a} t(\u03b6) = 0. (No equal adjacent colors on any interior edge in the 6-window.)\n- Nonlinear (bilinear) independence constraints at lag \u03b4 = 5:\n  Let m(a) = \u2211_{\u03b6: \u03b6_1 = a} t(\u03b6) (single-site marginal; stationarity implies the same for position 6), and p(a,b) = \u2211_{\u03b6: \u03b6_1 = a, \u03b6_6 = b} t(\u03b6) (pair marginal across lag 5 within the 6-block).\n  Impose for all a,b \u2208 \u03a3: p(a,b) = m(a) \u00b7 m(b).\n  This encodes exact pair-independence at separation 5 (which is the 2r+1 threshold for r = 2) and is a necessary condition for any product-state r-round output process.\n\nWhy this is sound (and minimalist)\n- Stationarity and shift-consistency: These are necessary in the interior by interior-placement invariance (Definition 6 specialized to single frames and their shifts) and by uniform channels across vertices. Using a single 6-block distribution is the most compact way to enforce both translation invariance and Kolmogorov consistency.\n- Perfect properness: Objective = 1 on sufficiently long segments implies no equal-color adjacencies anywhere; imposing it on every adjacent pair inside the 6-block is necessary.\n- Pair-independence at lag 5: In the product-state regime, independence across sets whose r-neighborhoods are disjoint (Theorem 2; Proposition 13) implies independence of (X_i, X_{i+5}). Since the 6-block covers positions i and i+5, enforcing p(a,b) = m(a) m(b) within the window is necessary.\n- No color-symmetry assumed: We avoid any averaging or symmetry constraints that could invalidate independence.\n- Feasibility at value 1 implies existence of a stationary measure on bi-infinite strings consistent with all constraints (Kolmogorov extension applies under shift-consistency and positivity). Thus, if the MIQCP is infeasible, perfect success is impossible for any product-state r-round process.\n\nPractical MIQCP formulation and solvers\n- Problem size: 729 continuous variables; linear equality constraints: 3^5 shift constraints (243) plus properness constraints (5\u00b73 = 15) plus normalization; nonnegativity; and 3^2 = 9 bilinear equalities p(a,b) \u2212 m(a)m(b) = 0.\n- Solvers: BARON, Couenne (via IPOPT/Bonmin), SCIP-NLP with ANTIGONE or Juniper, or Gurobi/CPLEX with nonconvex quadratic support (MIQCP) can handle this scale. Our target is an infeasibility certificate. If the solver returns feasible solutions, we can inspect them and adjust (e.g., add \u03b4 = 6 constraints by moving to a 7-block with analogous structure) or tighten via additional necessary constraints (e.g., pair-independence for both boundary pairs (1,6) and any extra far-separated pair inside a 7-block).\n- Extension knobs:\n  \u2022 Add lag-6 independence (\u03b4 = 6) by moving to a single 7-block distribution (3^7 = 2187 variables) and enforcing p(1,7) = m(1)m(7).\n  \u2022 Add multi-lag constraints (\u03b4 = 5 and 6) to preclude pathological constructions.\n\nWhy we expect infeasibility\n- The stationary \u201cno self-loop\u201d Markov chain shows that properness alone is easy. However, that chain exhibits nonzero correlations at lag 5: P_equal(5) = 1/3 + (2/3)(\u22121/2)^5 \u2260 \u2211_a m(a)^2 under any nontrivial marginal m(\u00b7) consistent with perfect properness. The MIQCP mandates exact independence at lag 5, which the chain fails, and stationarity/shift-consistency constrain the space of candidates enough that we expect no distribution can satisfy all three: (i) perfect properness for all 5 interior edges; (ii) stationarity with shift-consistency; (iii) lag-5 pair independence.\n\nSoundness boundary (why this suffices for Corollary 3 if infeasible)\n- If the MIQCP is infeasible, then no stationary r-round product-state output process can be perfectly proper on all edges while obeying lag-5 independence. A fortiori, no interior-invariant segment distribution induced by an r-round product-state algorithm can have objective value 1 on a sufficiently long segment. By Corollary 3, this yields a constant-error lower bound and, with independence, exponential decay for cycles with stride k + 2r.\n\nActionable next steps (auditable)\n1) Implement the stationary 6-block MIQCP (r = 2):\n   - Variables: t(\u03b6), \u03b6 \u2208 \u03a3^6.\n   - Linear constraints: nonnegativity, normalization, shift-consistency (243 equalities), properness on 5 interior edges (15 equalities).\n   - Nonlinear constraints: 9 bilinear equalities p(a,b) = m(a)m(b).\n   - Solver: BARON or Couenne; report feasibility status and, if infeasible, the solver\u2019s proof log/statistics for audit.\n2) If 6-block is feasible, move to 7-block with lag-6 independence added; repeat.\n3) If still feasible, add both \u03b4 = 5 and \u03b4 = 6 independence in a single 7-block formulation. If infeasible anywhere, record and archive the exact model file and solver transcript.\n4) (If needed) As a cross-check, attempt to construct an explicit candidate distribution numerically (e.g., via alternating projections) to see whether the constraints can be satisfied approximately; this can guide which additional necessary constraints to add.\n\nSmall gaps or missing justifications in output.md\n- Color symmetry comments. The current output.md correctly avoids using color-symmetry to linearize independence, but it would help to add a short remark stating explicitly that color-symmetry is not w.l.o.g. under independence constraints (cf. our Corrections section), to prevent accidental overuse of symmetry in future modeling.\n- Experiments for r = 2. The text mentions the \u201cexperiments\u201d route only in a high-level remark; given the obstacles identified (equalizing r-view distributions forces equality of expectations), we suggest adding a note that the r = 1 distance-mix method does not directly carry to r = 2 two-way, thereby motivating our focus on product-state MIQCP.\n\nWhy this plan is promising\n- The 6/7-block stationary MIQCP precisely encodes only necessary conditions (stationarity, properness, and exact lag-independence) and avoids any extraneous modeling assumptions. A single-block variable drastically reduces dimensionality while preserving shift-consistency and interior invariance. If infeasibility at objective = 1 is certified, it yields a clean lower bound in the product-state regime compatible with our amplification template.\n\nAppendix: explicit constraints summary for the 6-block MIQCP\n- Variables: t(\u03b6), \u03b6 \u2208 \u03a3^6.\n- For \u03b1 \u2208 \u03a3^5: \u2211_{\u03b6: \u03b6_1..\u03b6_5=\u03b1} t(\u03b6) \u2212 \u2211_{\u03b6: \u03b6_2..\u03b6_6=\u03b1} t(\u03b6) = 0.\n- For j = 1,\u2026,5 and a \u2208 \u03a3: \u2211_{\u03b6: \u03b6_j = \u03b6_{j+1} = a} t(\u03b6) = 0.\n- \u2211_\u03b6 t(\u03b6) = 1; t(\u03b6) \u2265 0.\n- For a \u2208 \u03a3: m(a) = \u2211_{\u03b6: \u03b6_1 = a} t(\u03b6).\n- For a,b \u2208 \u03a3: p(a,b) = \u2211_{\u03b6: \u03b6_1 = a, \u03b6_6 = b} t(\u03b6) and enforce p(a,b) \u2212 m(a)m(b) = 0.\n- (Optional convenience) Eliminate p(\u00b7,\u00b7) by writing constraints directly as \u2211_{\u03b6: \u03b6_1=a, \u03b6_6=b} t(\u03b6) = (\u2211_{\u03b6: \u03b6_1=a} t(\u03b6)) (\u2211_{\u03b6: \u03b6_1=b} t(\u03b6)).\n\nWe will proceed to implement item (1) immediately and report feasibility status and solver certificates in the next round."}]
+
+Current notes.md:
+Scope and goal
+We seek lower bounds for 2–3 round quantum LOCAL algorithms that 3-color an n-cycle. We separate two resource regimes: (i) no initial shared entanglement (initial product state across vertices), and (ii) arbitrary initial shared entanglement. Our strategy follows and extends Le Gall–Rosmanis (LGR, 2022): reduce to a line-segment optimization under r-local non-signaling constraints, then lift to cycles. Two technical pillars are (A) light-cone localization of measurements in r rounds (implying r-non-signaling), and (B) independence across well-separated regions when the initial state is a product.
+
+Key corrections/new facts
+- Independence threshold is 2r, not r, in the two-way model without entanglement. After reversing r communication layers, any measurement on a block depends only on the block’s r-neighborhood. Thus independence of multiple blocks requires their r-neighborhoods to be disjoint, i.e., pairwise distances > 2r. Counterexample to “> r” for r = 1: on a path 0–1–2, one round suffices for node 1 to broadcast a private random bit to nodes 0 and 2, correlating their outputs at distance 2.
+- Non-signaling beyond r holds with or without shared entanglement: the marginal on a set S depends only on the initial state on N_r(S). This follows from Heisenberg-picture localization of effects under depth-r local circuits/channels.
+
+Amplification templates
+- No entanglement (product initial state): If there exists k and q < 1 such that every r-non-signaling distribution on a length-k segment makes the segment proper with probability at most q, then on cycles C_n the success probability is at most q^{⌊n/(k+2r)⌋}. Partition C_n into ⌊n/(k+2r)⌋ disjoint windows of length k separated by gaps of size 2r; window events are independent by the 2r-separation lemma; ring proper implies all windows are proper.
+- With entanglement allowed: For any fixed window W of length k, ring proper implies W is proper. The distribution on W (restricted to placements with r-buffers inside W) is feasible for the r-non-signaling LP, hence P[ring proper] ≤ P[W proper] ≤ q. There is no improvement from packing without independence; the optimal general bound is the n-independent constant q.
+
+LP plan for r = 2, 3
+- Variables: probabilities over colorings on r-gapped placements (collections of frames) inside [1..k]. Placements include cores and r-buffers fully contained in [1..k].
+- Constraints: non-signaling equalities enforcing that the marginal distribution on a given core is independent of the surrounding placement context as long as r-buffers are intact (equalities of marginals across placements that agree on the core).
+- Objective: maximize P[all k − 1 edges inside [1..k] are properly 3-colored].
+- Symmetries: quotient by S3 color permutations; translations (and reflections, if used). It is safe (as a relaxation) to enforce only a generating set of non-signaling constraints; for the final certificate, include all placements that respect the segment.
+- Execution: sweep k ≈ 10–16 for r = 2 (then smaller k for r = 3), solve numerically, and extract dual certificates for any instance with optimum < 1.
+
+What remains to be computed
+- A concrete (r, k, q) with q < 1 via the LP. Once obtained, immediately plug into the amplification templates above. Note the stride is k + 2r (not k + r) in the independence-based exponential bound.
+
+Reference counterexample (to avoid regression)
+- Two-way, r = 1, no entanglement: path 0–1–2. Node 1 samples b ∈ {0,1}, sends b to 0 and 2, both output b. Outputs at distance 2 are perfectly correlated; independence beyond r = 1 fails. Independence holds only when r-neighborhoods are disjoint (distance > 2r).
+Additional clarifications and refinements
+
+1) Interior placement invariance: correct assumptions and a counterexample
+- Valid regimes. For an r-round uniform LOCAL algorithm on a cycle C_n, invariance of interior placements (i.e., equality of core marginals for all gap-r placements whose r-buffers lie within a window W) holds under either of the following assumptions:
+  (a) No shared entanglement and identical local initial states (product initial state ⊗_v ρ, with the same ρ at every vertex).
+  (b) Shared entanglement is allowed, but the global initial state ρ_0 is invariant under the automorphisms of C_n (rotations and reflections). Uniformity of the local channels across vertices is also required.
+- Why. In the Heisenberg picture, the effect for a core event depends only on the union of r-neighborhoods of the cores. Two interior placements of the same frame family induce isomorphic unions; the corresponding effects are related by a permutation of registers. If ρ_0 is invariant under that permutation (true in (a) and (b)), the probabilities coincide.
+- Necessity of the symmetry assumption with entanglement. Without (b), the statement can fail. Counterexample (r = 0): prepare EPR pairs on disjoint edges (1,2), (3,4), … around the cycle, and have each vertex measure Z and output a color that is a function of its bit. Then the joint distribution on two adjacent cores depends on whether the placement coincides with a paired edge (correlated) or straddles a pair boundary (independent). Hence, equality across placements fails.
+
+2) Segment LP (precise, and what it models)
+- Alphabet Σ = {1,2,3}. Fix r ≥ 1 and k ≥ 1. Let a frame family F = ({{s_1}}, …, {{s_t}}), each {{s_j}} a contiguous core of length s_j.
+- An r-gapped placement ω of F inside [1..k] is a t-tuple of start positions (ω_1,…,ω_t) such that the r-buffers [[ω_j − r .. ω_j + s_j − 1 + r]] are subsets of [1..k] and pairwise disjoint. The cores are C_j = [[ω_j .. ω_j + s_j − 1]].
+- Variables: p_ψ for ψ ∈ Σ^k, with p_ψ ≥ 0 and ∑_ψ p_ψ = 1.
+- Objective: maximize ∑_ψ p_ψ · 1{ψ has no equal-color adjacencies on edges (i, i+1), i = 1..k−1}.
+- Constraints (interior placement invariance): For every family F and every core assignment ζ = (ζ_1,…,ζ_t), the marginal probability ∑_{ψ: ∀j ψ|_{C_j} = ζ_j} p_ψ is the same for all gap-r placements ω of F (whose r-buffers lie in [1..k]).
+- Soundness: These constraints are necessary for distributions induced by r-round uniform algorithms in regimes (1a) or (1b). Dropping some equalities yields a relaxation (weaker constraints and thus a larger feasible set); any optimum < 1 for a relaxation implies the true optimum < 1 as well.
+
+3) Monotonicity in segment length
+Let q(r,k) denote the LP optimum at parameters (r,k) as above. Then q(r,k+1) ≤ q(r,k). Proof idea: Any feasible distribution on Σ^{k+1} marginalizes to a feasible distribution on Σ^k (equalities on interior placements survive marginalization), and 1{proper on k+1} ≤ 1{proper on first k} pointwise.
+
+4) Why a point mass on a proper coloring violates the constraints
+Under the single-core placement-invariance constraints, the distribution of s-blocks (e.g., s ∈ {1,2}) must be identical for all interior positions. A point mass on a single proper ψ has position-dependent s-blocks unless ψ is constant (impossible if ψ is proper). Hence a Dirac mass cannot be feasible—this is a useful solver sanity check.
+
+5) Amplification stride and regimes
+- No entanglement (product initial state): independence requires gaps of size 2r (not r). The exponential amplification stride is k + 2r. This is tight in general (see r = 1 path 0–1–2 counterexample).
+- With entanglement: constant-error bounds via the LP above are valid if the initial shared state is automorphism-invariant; without that symmetry, the placement-equality constraints need not hold (cf. the counterexample in item 1).
+
+6) Computational plan (r = 2)
+- Variables: p_ψ, ψ ∈ Σ^k. For k = 10, |Σ^k| = 59,049; for k = 12, |Σ^k| = 531,441.
+- Symmetry/useful reductions: quotient by S_3 (color permutations) and reflection; treat translation of placements via equality constraints.
+- Constraints to start with: all single-core families with s ∈ {1,2,3}; then add two-core families (1,1), (2,1), (2,2) at several separations, over all interior placements.
+- Certification: if optimum < 1, extract a dual certificate (constraint multipliers) that verifies the bound.
+Important correction: geometry-aware interior placement invariance
+- The equalities we enforce must respect automorphism classes of placements. Two placements of t cores are guaranteed to have equal core marginals only if they are related by a cycle automorphism (rotation; reflection only if the model is reflection-invariant). Equating placements with different inter-core distances is not justified by light-cone localization plus uniformity.
+- Minimal counterexample (r = 0, entangled, rotation-invariant): let ρ0 be the 1/2-mixture of the two perfect matchings of EPR pairs around the cycle. Adjacent vertices have Z-correlations (EPR half the time); vertices at distance 2 are uncorrelated. Thus, two singleton cores at distance 1 vs distance 2 have different joint marginals, defeating geometry-agnostic equality constraints.
+- Fix: Parameterize multi-core constraints by geometry (core lengths s = (s1,…,st) and inter-core gaps δ = (δ1,…,δt−1), where δj is the number of vertices between cores j and j+1). Require equality only across translations inside [1..k] (and optionally reflections) for the same (s, δ), with the additional admissibility condition δj ≥ 2r ensuring disjoint r-buffers.
+
+Monotonicity in r (new)
+- Let q(r,k) be the (revised, geometry-aware) LP optimum. Then q(r+1,k) ≥ q(r,k). Reason: when r increases, fewer placements are admissible, so fewer equalities are enforced; the feasible region enlarges and the optimum cannot decrease.
+
+Extreme-point structure (new)
+- The feasible set is a nonempty polytope in R^{3^k} (uniform distribution is feasible), defined by linear equalities (geometry-aware invariance), nonnegativity, and normalization. Hence an optimal distribution exists and can be taken at an extreme point (basic feasible solution). This supports sparse-support searches and dual-certificate extraction.
+
+Amplification reminders (unchanged)
+- No entanglement: independence requires gaps of size 2r, so the exponential stride is k+2r. The r = 1 path 0–1–2 counterexample shows smaller gaps are insufficient.
+- With entanglement: constant-error bounds require automorphism-invariant initial states (or an admissible public random rotation to enforce it). Without that symmetry, interior-placement equalities need not hold.
+
+Computation plan (r = 2), updated to geometry-aware constraints
+- Variables: p_ψ, ψ ∈ Σ^k. Quotient by S3 color permutations; do not assume reflection unless explicitly imposed.
+- Constraints (progressive):
+  • Single-core: s ∈ {1,2,3}, equality across all interior translations.
+  • Two-core: (s1,s2) ∈ {(1,1),(2,1),(2,2)}, at several admissible separations δ ≥ 2r; enforce equality across translations for each fixed δ.
+  • If needed, add t = 3 families similarly.
+- Certification: For any q < 1, extract a dual and archive (r,k), the (s,δ) list, the dual vector, and the inequality certifying ∑_ψ p_ψ·1{proper} ≤ q.
+
+Transfer-matrix/Markov cross-check
+- Restricting to stationary Markov chains (order d) is a subset of the LP-feasible set; maximizing properness yields a lower bound on q(r,k), useful for catching modeling/solver errors but not a certifying upper bound.
+
+Pitfalls and checks
+- Do not equate placements with different δ. Keep separate runs with and without reflection constraints. Validate symmetry reductions on small k against the full (unreduced) LP.
+- Ensure all placements counted in constraints have r-buffers fully inside [1..k].
+Critical correction: the segment LP (Definition 6) is too weak for two-way
+- New fact. For every r ≥ 1 and k ≥ 1, the LP optimum q(r,k) in Definition 6 equals 1. A feasible witness achieving objective 1 is given by the order-1 Markov chain on Σ={1,2,3} with stationary distribution u≡1/3 and transition matrix P with P(i,i)=0 and P(i,j)=1/2 for j≠i. Let p_k be the law of (X_1,…,X_k) with X_1∼u and X_{t+1}|X_t∼P. Then p_k assigns probability 1 to internally proper strings, and because (X_t) is strictly stationary, all core marginals for any fixed geometry (s,δ) are invariant under interior translations, hence all Definition 6 constraints hold. If reflection constraints are included, the chain remains feasible because it is reversible under u.
+- Implication. The current LP cannot certify any nontrivial bound q<1 in the two-way model (with or without entanglement). Corollary 10 remains formally valid but is vacuous with this LP (it upper-bounds by 1).
+
+Why the witness satisfies the geometry-aware equalities (minimal checks)
+- Single core (t=1). For any s and any interior position i, the s-block (X_i,…,X_{i+s−1}) has the stationary s-block law; translation of i within the window preserves the law.
+- Two cores (t=2). For s=(s1,s2) and gap δ≥2r, the joint law of the two blocks depends only on δ (and s1,s2); by strict stationarity, translating the placement within [1..k] does not change this joint law.
+- Three cores (t=3). Similarly, for s=(s1,s2,s3) and gaps δ=(δ1,δ2) with δj≥2r, the joint law of the three blocks depends only on the inter-core separations, not on absolute position; interior translations preserve it.
+
+Consequences for modeling and plan (forked)
+- Track A (product-state, no entanglement): Independence across regions whose r-neighborhoods are disjoint (>2r separation) must be used. This is nonlinear (factorization). Two practical approaches:
+  1) Lifted linear relaxation (Sherali–Adams style): Introduce auxiliary variables for joint marginals on small tuples of cores; enforce linear consistency across overlaps and interior-translation equalities; add necessary linear bounds implied by independence (e.g., Fréchet inequalities for all pairs). This excludes some spurious correlated witnesses (including the Markov chain) and may already force q<1 for small r,k.
+  2) Nonlinear exact factorization: Add constraints P(A∩B)=P(A)P(B) for cylinder events A,B supported on disjoint r-buffers. Solve the resulting bilinear system for r=2 and k≤12 using algebraic/MIP methods. Any infeasibility at value 1 yields the desired q(r,k)<1.
+- Track B (entanglement allowed): The segment LP cannot help. Pursue ring-level methods: (i) tailor LGR-style experiments for two-way r=2 to derive linear identities that cannot hold simultaneously under properness; (ii) indistinguishability/φ-LOCAL arguments to prove uniform ε(r)>0 constant-error lower bounds for fixed small r. Start at r=2.
+
+Near-term to-dos
+- Archive a formal statement and proof that q(r,k)=1 (now added to output.md) to prevent regressions.
+- Implement Track A level-1/2 lift and a small exact factorization instance for r=2, k≤12, and test whether q<1 emerges. Extract and store any dual certificates (linear inequalities) obtained.
+- Begin a concrete r=2 indistinguishability construction: enumerate r-views on the cycle; design two globally incompatible templates sharing those r-views on a positive fraction of positions; quantify a constant contradiction via averaging.
+Addendum: independence-linearization, color symmetry, and corrected chain correlation
+
+1) Pair independence at large separations and its linearization
+- In the product-state regime (no shared entanglement), independence across sets whose r-neighborhoods are disjoint (distance > 2r) implies, for single-site cores at positions i and j with |i − j| ≥ 2r + 1:
+  P[X_i = a, X_j = b] = P[X_i = a] · P[X_j = b] for all colors a, b.
+- This yields, for the equality event:
+  P_equal(i, j) := P[X_i = X_j] = ∑_{a∈{1,2,3}} P[X_i = a] P[X_j = a].
+- If, in addition, the single-site marginals are uniform, i.e., P[X_u = a] = 1/3 for all a and all interior positions u, then P_equal(i, j) = 1/3. This is the proposed linear identity I1(δ) for δ ≥ 2r + 1.
+- Caution (soundness): Enforcing uniform marginals (color symmetry) is harmless for the base LP (geometry-aware placement equalities), but combining it with independence-derived constraints needs justification. A global random color-permutation used only for symmetrization can introduce correlations across far-apart sets (breaking unconditional independence). Therefore, unless we prove that restricting to color-symmetric algorithms is w.l.o.g. even under independence constraints, using I1(δ) as a necessary linear condition is not sound. As a safe alternative, either (i) keep the exact (nonlinear) independence equalities, or (ii) prove the w.l.o.g. color-symmetry claim for the product-state model.
+
+2) Corrected two-point correlation for the stationary “no self-loop” 3-state chain
+Let (X_t) be the stationary order-1 Markov chain on {1,2,3} with transition matrix P(i,i) = 0 and P(i,j) = 1/2 for j ≠ i and stationary distribution u ≡ 1/3. Then, for d ≥ 1,
+  P[X_t = X_{t+d}] = 1/3 + (2/3) (−1/2)^d.
+This follows from the spectral decomposition of P (eigenvalues 1, −1/2, −1/2). In particular, P[X_t = X_{t+1}] = 0 and P[X_t = X_{t+2}] = 1/2. Consequently, for any finite d ≥ 1, this chain violates the identity P_equal(d) = 1/3.
+
+3) Track A (product-state) implementation notes
+- Sound feasibility test at objective 1 should include exact (nonlinear) pair independence for δ ∈ {2r+1, 2r+2}, along with placement equalities by geometry. For r = 2 and k ∈ {10, 11, 12}, this should be within reach of a MIP/CP-SAT solver. An infeasibility certificate at value 1 would be decisive.
+- If you pursue the linearized I1(δ) route, first prove rigorously that restricting to color-symmetric strategies is w.l.o.g. with independence preserved in the relevant sense (i.e., that the resulting distribution still satisfies the imposed independence equalities). Otherwise, any certificate obtained may not upper-bound the true product-state optimum.
+
+4) Track B (entanglement allowed) clarifications
+- r-view equivalence lemma to formalize: If two experiments induce the same distribution over the Heisenberg-evolved effects for the queried event at depth r (as random placements on the cycle), then every r-LOCAL strategy yields equal expectations for the two experiments. Your weight-solving LP should enforce exact equality of the induced multiset of r-view isomorphism types (including gap size if it is part of the view definition).
+- Separation on proper colorings must be uniform over all proper colorings (for n beyond some threshold). The parity-oscillation intuition is valid for the stationary chain or the uniform measure over proper colorings, but not for each fixed coloring; e.g., the 2-color alternating pattern has P_equal(d) ∈ {0,1} depending on parity. Therefore, after finding (D1, D2) with equal r-views, compute the minimum separation over all proper colorings (e.g., by transfer-matrix enumeration) and certify a positive gap.
+
+5) Practical next steps
+- Product-state: implement the exact pair-independence feasibility test at value 1 for r = 2, k ≤ 12. If infeasible, record the specific contradiction (solver proof log) and the list of constraints used. If feasible, extend δ or add three-core geometry constraints.
+- Entanglement allowed: enumerate r = 2 pair-view types up to distance 10–12; solve for two mixtures with equal view distributions; compute the minimum separation over proper colorings and report whether a uniform ε > 0 is achieved.
+
+
+Current output.md (if any):
+Main theorems proved in this file
+- Light-cone localization and r-non-signaling for r-round LOCAL algorithms (with or without initial entanglement).
+- Independence beyond 2r for two-way r-round LOCAL algorithms with product initial states (no shared entanglement).
+- Exponential amplification without entanglement given a segment-level bound q(r,k) < 1.
+- Automorphism-covariant interior placement invariance within fixed geometry classes.
+- Segment LP with geometry-aware interior invariance; structural lemmas: monotonicity in k, monotonicity in r, extreme-point optimality.
+- Constant-error bound with entanglement under automorphism invariance.
+
+Preliminaries
+Let G = (V, E) be a graph (cycles are of primary interest). An r-round quantum LOCAL algorithm consists of r synchronous layers of local channels acting on vertex/edge registers, followed by local measurements at the vertices that output colors in {1,2,3}. Each round is modeled as a product of CPTP maps localized on vertices/edges (purifiable to local unitaries by Stinespring dilation). For S ⊆ V, let N_r(S) = {v ∈ V : dist(v, S) ≤ r} denote the r-neighborhood of S.
+
+Theorem 1 (Light-cone localization and r-non-signaling)
+Fix an r-round quantum LOCAL algorithm. Let S ⊆ V, and let M_S be any POVM element that depends only on the final local measurements in S. Then there exists a positive operator X_S supported only on the registers associated with N_r(S) (and ancillas therein) such that, for every initial global state ρ (possibly entangled), the probability of M_S is Tr[ρ X_S]. Consequently, if two initial states ρ and ρ′ agree on N_r(S), then the output marginal on S is the same under ρ and ρ′.
+
+Proof sketch (standard): Purify to a depth-r circuit of local unitaries. In the Heisenberg picture, conjugating M_S backward through each round enlarges its support by at most one graph hop. After r rounds, the evolved effect X_S is supported on N_r(S). For any ρ, P[M_S] = Tr[ρ X_S]. If ρ and ρ′ coincide on N_r(S), then Tr[ρ X_S] = Tr[ρ′ X_S].
+
+Theorem 2 (Independence beyond 2r without initial entanglement)
+Assume the initial state is a product across vertices, ρ = ⊗_{v∈V} ρ_v. Let S_1, …, S_m ⊆ V have pairwise disjoint r-neighborhoods (equivalently, dist(S_i, S_j) > 2r for i ≠ j). For each i, let M_{S_i} be any event depending only on measurements in S_i, and let X_{S_i} be its Heisenberg-evolved effect from Theorem 1. Then the random outcomes on S_1, …, S_m are mutually independent; in particular,
+Tr[ρ X_{S_1} ⋯ X_{S_m}] = ∏_{i=1}^m Tr[ρ_{N_r(S_i)} X_{S_i}].
+
+Proof: Each X_{S_i} acts only on N_r(S_i); these supports are disjoint, and ρ factors across them. The trace of the product factors, which is precisely independence.
+
+Corollary 3 (Exponential amplification without entanglement)
+Let r ≥ 1. Fix k ≥ 1 and suppose there exists q < 1 such that, for every distribution on a length-k path segment that satisfies the LP constraints in Definition 6 (below), the probability the segment is internally proper is at most q. Then, for any r-round two-way quantum LOCAL algorithm on the n-cycle with product initial state, the success probability satisfies
+P_success(C_n) ≤ q^{⌊n / (k + 2r)⌋}.
+
+Proof: Partition the cycle into m = ⌊n / (k + 2r)⌋ disjoint windows of length k separated by gaps of size 2r. If the cycle is proper, each window is internally proper. Let E_i be “window i is internally proper,” and X_i its Heisenberg-evolved effect. Supports N_r(W_i) are disjoint, so E_i are independent by Theorem 2. By the segment-level bound, P[E_i] ≤ q. Hence P_success(C_n) ≤ ∏_i P[E_i] ≤ q^m.
+
+Remark 4 (Necessity of the 2r separation)
+For r = 1 on a path 0–1–2, one round suffices for node 1 to correlate nodes 0 and 2 (e.g., by broadcasting a private random bit), so outputs at distance 2 need not be independent. Thus 2r is tight in general.
+
+Lemma 5 (Automorphism-covariant interior placement invariance for fixed geometries)
+Fix an r-round uniform quantum LOCAL algorithm on a cycle C_n, with initial global state ρ_0. Let W ⊆ C_n be any contiguous window of length k. Consider t cores with lengths s = (s_1,…,s_t), and let δ = (δ_1,…,δ_{t−1}) be nonnegative integers encoding the inter-core gaps (δ_j is the number of vertices strictly between core j and core j+1). Let ω and ω′ be two r-gapped placements of (s, δ) inside W (i.e., all r-buffers lie in W and δ_j ≥ 2r). Assume ρ_0 is invariant under the rotations of C_n (reflections as well if the model is reflection-invariant). Then, for every core assignment ζ, the probability that the outputs on the cores equal ζ is the same for ω and ω′.
+
+Proof: Let U_ω ⊆ W and U_{ω′} ⊆ W be the unions of the r-neighborhoods of the cores. Because ω and ω′ have the same geometry (s, δ), there exists a rotation (and possibly a reflection) π of C_n mapping U_ω to U_{ω′} and carrying each core in ω to the corresponding core in ω′. By Theorem 1, there exist positive operators X_ω and X_{ω′} supported on U_ω and U_{ω′} giving the core-event probabilities as Tr[ρ_0 X_ω] and Tr[ρ_0 X_{ω′}]. Uniformity implies covariance under π: X_{ω′} = U_π X_ω U_π^†. Since ρ_0 is invariant under π, Tr[ρ_0 X_{ω′}] = Tr[ρ_0 X_ω].
+
+Definition 6 (Segment LP with geometry-aware interior invariance)
+Fix Σ = {1,2,3}, r ≥ 1, k ≥ 1. A geometry is a pair (s, δ) with s = (s_1,…,s_t) positive integers and δ = (δ_1,…,δ_{t−1}) nonnegative integers. An r-gapped placement ω of (s, δ) inside [1..k] is a t-tuple of start positions (ω_1 < ⋯ < ω_t) such that each core C_j = [ω_j .. ω_j + s_j − 1] has its r-buffer C_j^{(+r)} = [ω_j − r .. ω_j + s_j − 1 + r] contained in [1..k], these r-buffers are pairwise disjoint, and ω_{j+1} = ω_j + s_j + δ_j. The variables are p_ψ for ψ ∈ Σ^k, with p_ψ ≥ 0 and ∑_ψ p_ψ = 1. The objective is to maximize ∑_ψ p_ψ · 1{ψ has no equal-color adjacencies on edges (i,i+1), i = 1..k−1}. The constraints enforce interior placement invariance within fixed geometries: for every geometry (s, δ), every core assignment ζ, and every two r-gapped placements ω, ω′ of (s, δ) inside [1..k], the marginal ∑_{ψ: ∀j ψ|_{C_j(ω)} = ζ_j} p_ψ equals ∑_{ψ: ∀j ψ|_{C_j(ω′)} = ζ_j} p_ψ. Denote the optimum by q(r,k).
+
+Remark 6.1 (Soundness regimes and symmetry)
+These equality constraints are necessary for r-round uniform algorithms under either of the following assumptions: (i) product initial states with identical local marginals (⊗_v ρ; rotation-invariant), or (ii) arbitrary shared entanglement provided the initial global state is invariant under the rotations of the cycle (reflections as well if the model is reflection-invariant). Without such symmetry in the initial state, the constraints need not hold across placements, even within the same window.
+
+Lemma 7 (Monotonicity in k)
+For all r ≥ 1 and k ≥ 1, q(r,k+1) ≤ q(r,k).
+
+Proof: Let p be feasible for (r,k+1). Its marginal p′ on the first k coordinates satisfies all geometry-aware invariance constraints for (r,k): any placement inside [1..k] remains a placement inside [1..k+1], and equalities are preserved under marginalization. Moreover 1{proper on k+1} ≤ 1{proper on first k} pointwise, hence ∑_ψ p_ψ·1{proper on k+1} ≤ ∑_{ψ′} p′_{ψ′}·1{proper on k}. Taking suprema over feasible p proves the claim.
+
+Lemma 8 (Monotonicity in r)
+For all r ≥ 1 and k ≥ 1, q(r+1,k) ≥ q(r,k).
+
+Proof: As r increases to r+1, the set of admissible placements (and hence the set of equality constraints) for any geometry (s, δ) weakens: some placements cease to be admissible because r-buffers no longer fit or become non-disjoint. Therefore the feasible set enlarges, and the supremum cannot decrease.
+
+Lemma 9 (Extreme-point optimality)
+For each fixed (r,k), the feasible region of Definition 6 is a nonempty polytope in R^{3^k} defined by linear equalities, nonnegativity, and normalization. Hence an optimal solution exists and can be taken at an extreme point (basic feasible solution).
+
+Proof: Nonemptiness follows from the uniform distribution p_ψ = 3^{-k}, which satisfies all equality constraints. Boundedness follows from nonnegativity and normalization. Linear programming theory guarantees that a maximum exists and is achieved at an extreme point of the polytope.
+
+Corollary 10 (Constant-error bound with entanglement under automorphism invariance)
+Let r ≥ 1 and k ≥ 1, and let q(r,k) be as in Definition 6. Consider any r-round uniform quantum LOCAL algorithm on C_n whose initial global state is invariant under the rotations of the cycle. Then, for all n ≥ k, the success probability obeys P_success(C_n) ≤ q(r,k).
+
+Proof: Fix any contiguous window W ⊆ C_n of length k. If the cycle is properly colored, then W is internally proper. By Lemma 5, the distribution on W (restricted to events supported on geometry-aware r-buffered placements) satisfies the invariance constraints of Definition 6. Therefore it is feasible for the LP, and the probability that W is internally proper is at most q(r,k). Since {cycle proper} ⊆ {W proper}, P_success(C_n) ≤ q(r,k). (Necessity of the symmetry assumption is illustrated by the EPR counterexample in the notes.)
+Proposition 11 (Trivialization of the segment LP under Definition 6)
+For every r ≥ 1 and k ≥ 1, the optimum q(r,k) in Definition 6 satisfies q(r,k) = 1.
+
+Proof.
+Let Σ = {1,2,3}. Consider the order-1 Markov chain (X_t) with stationary distribution u(i) = 1/3 for i∈Σ and transition matrix P with P(i,i)=0 and P(i,j)=1/2 for j≠i. For k ≥ 1, define a distribution p on Σ^k by drawing (X_1,…,X_k) according to X_1 ∼ u and X_{t+1} | X_t ∼ P.
+
+(i) Objective value. Because P(i,i)=0, adjacent colors are never equal: P[X_t = X_{t+1}] = 0 for all t. Therefore p assigns probability 1 to the event “ψ has no equal-color adjacencies on edges (t,t+1), t=1..k−1,” and the objective equals 1.
+
+(ii) Feasibility (geometry-aware interior invariance). Since u is stationary for P, the process (X_t) is strictly stationary. Fix any geometry (s,δ) and two r-gapped placements ω, ω′ of (s,δ) inside [1..k]. Let C(ω) ⊆ {1,…,k} be the ordered list of core indices of ω (similarly C(ω′)). Because ω and ω′ have the same (s,δ), there exists an integer shift τ such that C(ω′) = C(ω) + τ (coordinatewise). Strict stationarity implies that the joint law of (X_i)_{i∈C(ω)} equals the joint law of (X_{i+τ})_{i∈C(ω)} = (X_j)_{j∈C(ω′)}. Hence for every core assignment ζ, the marginal probability that the cores equal ζ is the same for ω and ω′. Nonnegativity and normalization of p are immediate. Thus p is feasible with objective value 1, and so q(r,k) ≥ 1. Since the objective is at most 1 for all feasible p, q(r,k)=1.
+
+Corollary 12 (No segment-LP constant-error bound in two-way under Definition 6)
+Under Definition 6, the segment LP cannot certify any nontrivial bound for two-way algorithms: for all r,k we have q(r,k)=1. Consequently, Corollary 10 specializes to the trivial inequality P_success(C_n) ≤ 1 in the entanglement-allowed regime and gives no constant-error lower bound.
+
+Remark 12.1 (Scope). Proposition 11 does not contradict the soundness of the constraints in Definition 6 for actual r-round algorithms under the symmetry assumptions of Remark 6.1; it shows that these constraints alone are insufficient. To obtain nontrivial upper bounds in the product-state regime, independence across sets with disjoint r-neighborhoods (>2r separation) must be incorporated, which is nonlinear (factorization). In the entanglement-allowed regime, no such independence holds, so segment-based linear constraints of this form cannot lead to q<1.
+New results appended
+
+Proposition 13 (Pair-equality identity at large separation in the product-state regime)
+Assume no initial entanglement (product initial state). Let r ≥ 1, and let i, j be two vertices in a path segment whose r-neighborhoods are disjoint (equivalently, |i − j| ≥ 2r + 1). Then, for any r-round two-way LOCAL algorithm, the equality probability satisfies
+  P[X_i = X_j] = ∑_{a∈{1,2,3}} P[X_i = a] · P[X_j = a].
+In particular, if the single-site marginals at i and j are uniform (P[X_i = a] = P[X_j = a] = 1/3 for all a), then P[X_i = X_j] = 1/3.
+
+Proof.
+By Theorem 2 in this file, the outcomes on {i} and {j} are independent because their r-neighborhoods are disjoint. Hence, for any a, b,
+  P[X_i = a, X_j = b] = P[X_i = a] P[X_j = b].
+Summing over a = b gives the displayed identity. If the marginals are uniform, the sum is 3 · (1/3) · (1/3) = 1/3.
+
+Lemma 14 (Two-point correlation for the 3-state no-self-loop chain)
+Let Σ = {1,2,3}. Consider the stationary order-1 Markov chain (X_t) with stationary distribution u(i) = 1/3 and transition probabilities P(i,i) = 0, P(i,j) = 1/2 for j ≠ i. Then for all integers d ≥ 1,
+  P[X_t = X_{t+d}] = 1/3 + (2/3)(−1/2)^d.
+
+Proof.
+The transition matrix P has eigenvalues 1 and −1/2 (with multiplicity 2). Diagonalizing P gives, for i ≠ j,
+  P^d(i,i) = 1/3 + (2/3)(−1/2)^d,   P^d(i,j) = 1/3 − (1/3)(−1/2)^d.
+Under the stationary initial law u, we have
+  P[X_t = X_{t+d}] = ∑_{i} u(i) P^d(i,i) = (1/3) · 3 · [1/3 + (2/3)(−1/2)^d] = 1/3 + (2/3)(−1/2)^d.
+This equals 0 at d = 1 and tends monotonically to 1/3 in absolute value with rate (1/2)^d.
+
+Corollary 15 (Markov-chain witness violates the pair-equality identity)
+For the chain in Lemma 14 and every d ≥ 1,
+  P[X_t = X_{t+d}] ≠ 1/3.
+Therefore, for any r ≥ 1 and any δ ≥ 2r + 1, the Markov-chain distributions used in Proposition 11 cannot satisfy the pair-equality identity of Proposition 13 at separation δ (in particular, they cannot satisfy the specialized form P_equal = 1/3 under uniform single-site marginals).
+
+Remark.
+Proposition 13 provides a sound linear identity (after imposing uniform marginals) that must be satisfied by any product-state strategy at separations ≥ 2r + 1. Lemma 14 certifies that the order-1 Markov-chain witness (which trivializes the base LP) is excluded as soon as these independence-driven identities are enforced.
+

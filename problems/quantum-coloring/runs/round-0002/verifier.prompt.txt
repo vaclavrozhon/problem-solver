@@ -1,0 +1,102 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md: should be concise and rigorous. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement is flawed and you cannot fix it, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|uncertain|nothing so far"
+}
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "Ideas and clarifications added this round\n- We fixed the separation threshold (now correctly 2r) in the independence lemma and propagated it to the amplification stride (k + 2r). This matches the counterexample on a 3-node path for r = 1.\n- We isolated a \u201cplacement invariance\u201d principle for interior frames on a line segment: for any r-round algorithm with identical initial local states and uniform local channels, the marginal distribution over the cores of any r-gapped placement that lies fully r-buffered inside the segment is the same for all placements of the same frame family F (same core lengths, same t). This is the mechanism that justifies the LP constraints equating marginals across placements; it relies on light-cone localization and on the fact that all such placements induce isomorphic r-neighborhoods with identical initial reduced states. We will add this explicitly to output.md.\n\nLP for r-non-signaling on a line segment (precise formulation)\n- Domain: \u03a3 = {1,2,3}. Fix r \u2265 1 and k \u2265 1. Let [k] := {1,\u2026,k}. For a \u201cfamily\u201d F = ({{s1}},\u2026,{{st}}) of sliding frames (each {{sj}} a length-sj contiguous core), a gap-r placement \u03c9 of F is a t-tuple of start indices (\u03c91,\u2026,\u03c9t) such that the r-buffers [[\u03c9j \u2212 r .. \u03c9j + sj \u2212 1 + r]] are all subsets of [1..k] and pairwise disjoint. The induced cores are Cj = [[\u03c9j .. \u03c9j + sj \u2212 1]].\n- Variables: p\u03c8 for each \u03c8 \u2208 \u03a3^k, with p\u03c8 \u2265 0 and \u03a3\u03c8 p\u03c8 = 1.\n- Objective: maximize \u03a3\u03c8 p\u03c8 \u00b7 1{\u03c8 is proper on [1..k]} (i.e., no equal adjacent colors on edges (i,i+1), i=1..k\u22121).\n- r-non-signaling constraints (segment version): For every fixed family F and every core assignment \u03b6 = (\u03b61,\u2026,\u03b6t) with \u03b6j \u2208 \u03a3^{sj}, the marginal probability that the segment-coloring \u03c8 induces \u03b6 on the cores must be independent of the placement \u03c9 of F (as long as all r-buffers lie inside [1..k]):\n  \u03a3\u03c8: \u2200j \u03c8|Cj = \u03b6j p\u03c8 is equal for all gap-r placements \u03c9 of F.\n- Implementation note: It suffices to equate all placements to a fixed choice per F and \u03b6; equivalently, enforce equality for all consecutive placements or to the average. For a valid (non-relaxed) certificate, include all placements \u03c9 whose r-buffers lie in [1..k].\n- Symmetries to reduce size: (i) color permutations S3; (ii) reversals (reflection of the segment); (iii) translations of placements (realized as equality constraints; also exploitable to quotient variables if one switches to a marginal-based parameterization, but we keep p\u03c8 for simplicity). Dropping some constraints gives a relaxation; if its optimum < 1, the true optimum is also < 1.\n\nSmall structural lemmas (useful to guide computation)\n- Monotonicity in k: Let q(r,k) be the LP optimum for fixed r,k. Then q(r,k+1) \u2264 q(r,k). Proof sketch: restriction from length-(k+1) distributions to [1..k] preserves r-non-signaling (buffers still internal), and P[proper on k+1] \u2264 P[proper on first k] pointwise, hence the supremum decreases.\n- Placement invariance (segment version; to be added to output.md): For a fixed r-round quantum LOCAL algorithm with identical initial local states and uniform channels, and for any family F whose r-buffers fit inside [1..k], the distribution of \u03a8(\u03c9+F) is the same for all gap-r placements \u03c9 of F. Proof idea: Heisenberg-evolved effect for the event \u201ccores equal \u03b6\u201d is supported on the union of the r-neighborhoods of the cores. For two placements \u03c9, \u03c9\u2032 inside the segment, these unions are isomorphic balls with identical initial reduced states; therefore the resulting probabilities Tr[\u03c1 X_\u03c9] and Tr[\u03c1 X_\u03c9\u2032] coincide.\n\nConcrete plan for r = 2 LP instances (k \u2248 10\u201316)\n- Variables: p\u03c8, \u03c8 \u2208 \u03a3^k. For k = 12, |\u03a3^k| = 531,441; with S3 color quotienting (factor ~6) and reflection (factor ~2), the effective unknowns can drop by ~10\u00d7\u201312\u00d7. For k = 10 (|\u03a3^k| = 59,049), even a straightforward LP is feasible with a commercial solver; for k = 12 a symmetry-reduced LP ought to be solvable.\n- Constraints: we start with all F consisting of a single core {{s}} with s \u2208 {1,2,3} and all placements \u03c9 with r=2 buffers internal; this enforces translation invariance of 1-, 2-, 3-block marginals. Then we add selected F with two cores (t=2), e.g., ({{1}},{{1}}), ({{2}},{{1}}), ({{2}},{{2}}), with varying separations, again over all placements with r-buffers internal. This matches the spirit of LGR and is already quite restrictive. For a final, fully rigorous certificate, we can include all families F up to, say, t \u2264 3 and core lengths up to 3, across all placements; empirically, this suffices in r=1 to detect q<1.\n- Objective: maximize the probability of 0 violations among the k\u22121 adjacent edges; computed as \u03a3\u03c8 p\u03c8 1{proper(\u03c8)}.\n- Solving and certification: Use a high-precision LP solver; if optimum < 1, extract a dual solution (constraints multipliers) as a certificate. We will archive (r,k,q) alongside the dual to make the bound verifiable.\n\nWhy a point-mass on a proper coloring is infeasible (important sanity check)\n- On a line segment, concentrating p\u03c8 on a single proper \u03c8 does not satisfy non-signaling across placements: single-core constraints force the distribution of s-blocks to be identical for all interior positions; a fixed \u03c8 yields position-dependent s-blocks unless \u03c8 is periodic with period 1 (impossible). Hence the LP can detect q<1 even though proper colorings exist.\n\nGaps or missing details in output.md\n- The current output.md does not yet formalize the \u201cplacement invariance on segments\u201d lemma; we propose to add it, as it justifies the LP constraints from algorithmic locality and symmetry (no IDs, identical initial states).\n- Theorem 1 and Theorem 2 are stated with proof sketches; for a curated document, we should include a short, fully rigorous Heisenberg-picture derivation (operator support growth by at most one hop per round; product initial state factorization yields independence once N_r(S_i) are disjoint). We can reuse the projector construction from LGR Appendix A verbatim with symmetric buffers.\n- We should add an explicit definition subsection for the r-non-signaling LP (variables, constraints, objective) and the monotonicity lemma q(r,k+1) \u2264 q(r,k).\n\nNext steps (auditable)\n1) Add the \u201cplacement invariance on segments\u201d lemma with a concise proof to output.md, and expand proofs of Theorem 1\u20132 to full detail (2\u20133 paragraphs each).\n2) Implement the r = 2 LP generator:\n   - Enumerate \u03a3^k with S3/reflection orbits and map constraints accordingly.\n   - Generate constraints for F \u2208 {(single-core s \u2208 {1,2,3}), (1,1), (2,1), (2,2)} across all gap-2 placements.\n   - Solve for k \u2208 {10,\u2026,16}. Target: locate first k with optimum q < 1; extract dual certificate.\n3) If found (r=2,k,q<1), immediately record: (i) constant error bound with entanglement, P_success(C_n) \u2264 q for n \u2265 k; (ii) exponential bound without entanglement, P_success(C_n) \u2264 q^{\u230an/(k+4)\u230b}.\n4) In parallel, attempt r = 3 with k \u2264 14 under the same constraint families.\n5) Optional analytic route: explore representing feasible processes via stationary order-r Markov chains on \u03a3 and bounding P[no equal adjacencies] under chain constraints; this may yield closed-form witnesses for small k.\n\nSanity checks and toy instances\n- Monotonicity: verify numerically that the LP optimum decreases (or stays equal) as k grows.\n- Minimal placements: confirm that with only single-core constraints, q(r,k) = 1 (insufficient); adding two-core constraints should reduce optimum.\n- Counterexample retention: keep the r=1, 3-node path example in output.md to prevent regressions on the 2r threshold.\n"}]
+
+Current notes.md:
+Scope and goal
+We seek lower bounds for 2–3 round quantum LOCAL algorithms that 3-color an n-cycle. We separate two resource regimes: (i) no initial shared entanglement (initial product state across vertices), and (ii) arbitrary initial shared entanglement. Our strategy follows and extends Le Gall–Rosmanis (LGR, 2022): reduce to a line-segment optimization under r-local non-signaling constraints, then lift to cycles. Two technical pillars are (A) light-cone localization of measurements in r rounds (implying r-non-signaling), and (B) independence across well-separated regions when the initial state is a product.
+
+Key corrections/new facts
+- Independence threshold is 2r, not r, in the two-way model without entanglement. After reversing r communication layers, any measurement on a block depends only on the block’s r-neighborhood. Thus independence of multiple blocks requires their r-neighborhoods to be disjoint, i.e., pairwise distances > 2r. Counterexample to “> r” for r = 1: on a path 0–1–2, one round suffices for node 1 to broadcast a private random bit to nodes 0 and 2, correlating their outputs at distance 2.
+- Non-signaling beyond r holds with or without shared entanglement: the marginal on a set S depends only on the initial state on N_r(S). This follows from Heisenberg-picture localization of effects under depth-r local circuits/channels.
+
+Amplification templates
+- No entanglement (product initial state): If there exists k and q < 1 such that every r-non-signaling distribution on a length-k segment makes the segment proper with probability at most q, then on cycles C_n the success probability is at most q^{⌊n/(k+2r)⌋}. Partition C_n into ⌊n/(k+2r)⌋ disjoint windows of length k separated by gaps of size 2r; window events are independent by the 2r-separation lemma; ring proper implies all windows are proper.
+- With entanglement allowed: For any fixed window W of length k, ring proper implies W is proper. The distribution on W (restricted to placements with r-buffers inside W) is feasible for the r-non-signaling LP, hence P[ring proper] ≤ P[W proper] ≤ q. There is no improvement from packing without independence; the optimal general bound is the n-independent constant q.
+
+LP plan for r = 2, 3
+- Variables: probabilities over colorings on r-gapped placements (collections of frames) inside [1..k]. Placements include cores and r-buffers fully contained in [1..k].
+- Constraints: non-signaling equalities enforcing that the marginal distribution on a given core is independent of the surrounding placement context as long as r-buffers are intact (equalities of marginals across placements that agree on the core).
+- Objective: maximize P[all k − 1 edges inside [1..k] are properly 3-colored].
+- Symmetries: quotient by S3 color permutations; translations (and reflections, if used). It is safe (as a relaxation) to enforce only a generating set of non-signaling constraints; for the final certificate, include all placements that respect the segment.
+- Execution: sweep k ≈ 10–16 for r = 2 (then smaller k for r = 3), solve numerically, and extract dual certificates for any instance with optimum < 1.
+
+What remains to be computed
+- A concrete (r, k, q) with q < 1 via the LP. Once obtained, immediately plug into the amplification templates above. Note the stride is k + 2r (not k + r) in the independence-based exponential bound.
+
+Reference counterexample (to avoid regression)
+- Two-way, r = 1, no entanglement: path 0–1–2. Node 1 samples b ∈ {0,1}, sends b to 0 and 2, both output b. Outputs at distance 2 are perfectly correlated; independence beyond r = 1 fails. Independence holds only when r-neighborhoods are disjoint (distance > 2r).
+
+
+Current output.md (if any):
+Main theorems proved in this file
+- Light-cone localization and r-non-signaling for r-round LOCAL algorithms (with or without initial entanglement).
+- Independence beyond 2r for two-way r-round LOCAL algorithms with product initial states (no shared entanglement).
+- Amplification lemmas: (i) exponential decay in n without entanglement given a segment-level r-non-signaling bound q < 1; (ii) constant error bound with entanglement given the same segment-level bound.
+
+Preliminaries
+Let G = (V, E) be a graph (here, cycles are of primary interest). An r-round quantum LOCAL algorithm consists of r synchronous layers of local channels acting on vertex and edge registers, followed by local measurements at the vertices that output colors in {1,2,3}. We model each round as a product of completely positive trace-preserving (CPTP) maps localized on vertices and edges (purifiable to local unitaries by Stinespring dilation). For S ⊆ V, let N_r(S) = {v ∈ V : dist(v, S) ≤ r} denote the r-neighborhood of S.
+
+Theorem 1 (Light-cone localization and r-non-signaling)
+Fix an r-round quantum LOCAL algorithm as above. Let S ⊆ V, and let M_S be any POVM element that depends only on the final local measurements in S (e.g., the indicator of a specified color pattern on S). Then there exists a positive operator X_S supported only on the registers associated with N_r(S) (and local ancillas therein) such that, for every initial global state ρ (possibly entangled), the probability of the event M_S is Tr[ρ X_S]. Consequently, if two initial states ρ and ρ′ agree on N_r(S) (i.e., have identical reduced density matrices on N_r(S)), then the output marginal on S is the same under ρ and ρ′. In particular, the output on S is non-signaling with respect to changes outside N_r(S).
+
+Proof sketch (fully rigorous upon standard dilation): Purify the algorithm to a depth-r circuit of local unitaries by introducing vertex-local ancillas. In the Heisenberg picture, conjugating M_S backward through each round enlarges its support by at most one graph hop (only gates that touch the current support can change it). After r rounds, the Heisenberg-evolved effect X_S is supported on N_r(S). For any initial state ρ, P[M_S] = Tr[ρ X_S]. If ρ and ρ′ coincide on N_r(S), then Tr[ρ X_S] = Tr[ρ′ X_S], proving r-non-signaling.
+
+Theorem 2 (Independence beyond 2r without initial entanglement)
+Assume the initial state is a product state across vertices (no shared entanglement or shared randomness). Let S_1, …, S_m ⊆ V be subsets whose r-neighborhoods N_r(S_i) are pairwise disjoint (equivalently, dist(S_i, S_j) > 2r for i ≠ j). For each i, let M_{S_i} be any event depending only on the final measurements in S_i, and let X_{S_i} be its Heisenberg-evolved effect from Theorem 1. Then the random outcomes on the sets S_1, …, S_m are mutually independent; in particular,
+Tr[ρ X_{S_1} ⋯ X_{S_m}] = ∏_{i=1}^m Tr[ρ_{N_r(S_i)} X_{S_i}],
+so the joint distribution factors. This applies to the events “S_i is properly 3-colored internally,” etc.
+
+Proof: By Theorem 1, each X_{S_i} acts only on the registers in N_r(S_i). By hypothesis, these supports are disjoint, and ρ = ⊗_v ρ_v factorizes across the partition of V induced by the disjoint supports. Therefore, the trace of the product factors as claimed, which is precisely independence of the outcomes on S_1, …, S_m.
+
+Corollary 3 (Exponential amplification without entanglement)
+Let r ≥ 1. Fix k ≥ 1 and suppose there exists q < 1 such that, for every r-non-signaling distribution on a length-k path segment, the probability that the segment is properly 3-colored is at most q. Then, for any r-round two-way quantum LOCAL algorithm on the n-cycle with product initial state (no shared entanglement), the success probability satisfies
+P_success(C_n) ≤ q^{⌊n / (k + 2r)⌋}.
+
+Proof: Partition the cycle into m = ⌊n / (k + 2r)⌋ disjoint windows W_1, …, W_m of length k separated by gaps of size 2r. If the entire cycle is properly 3-colored, then each window W_i is internally proper. For each i, let E_i be the event “W_i is internally proper,” and X_i its Heisenberg-evolved effect. Each X_i is supported on N_r(W_i), and these supports are disjoint by construction, so the events E_i are independent by Theorem 2. By the hypothesis on the segment-level bound, P[E_i] ≤ q for each i, hence P_success(C_n) ≤ P[⋂_i E_i] = ∏_i P[E_i] ≤ q^m.
+
+Corollary 4 (Constant-error bound with shared entanglement)
+Let r, k, q be as in Corollary 3. For any r-round two-way quantum LOCAL algorithm on the n-cycle (allowing arbitrary shared entanglement), the success probability obeys
+P_success(C_n) ≤ q for all n ≥ k.
+
+Proof: Fix any length-k contiguous window W ⊆ C_n. If the entire cycle is properly 3-colored, then W is internally proper. Let E be the event “W is internally proper.” By Theorem 1, the distribution on W (for placements whose r-buffers lie within W) is r-non-signaling with respect to changes outside W. By the definition of q, P[E] ≤ q. Since {cycle proper} ⊆ {E}, we have P_success(C_n) ≤ P[E] ≤ q.
+
+Remark on the tightness of independence: The threshold 2r is necessary in general. For r = 1 on a path 0–1–2, one round suffices for node 1 to correlate nodes 0 and 2 (e.g., by broadcasting a private random bit), so outputs at distance 2 need not be independent.
+

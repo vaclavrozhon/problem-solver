@@ -1,0 +1,790 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.md ===
+
+We study **translational tilings** with a single tile in the group $\mathbb{Z}\times S^1$, where $\mathbb{Z}$ denotes the integers and $S^1$ the unit circle with addition modulo 1.
+
+A **tile** is a set of the form
+
+$$
+A = \bigcup_{i=1}^\ell \{k_i\}\times [a_i,b_i],
+$$
+
+where the indices $k_i \in \mathbb{Z}$ may repeat, and each $[a_i,b_i]\subseteq S^1$ is an interval.
+
+A **tiling** is a set $T\subseteq \mathbb{Z}\times S^1$ such that
+
+$$
+A+T = \mathbb{Z}\times S^1
+\quad\text{and}\quad 
+(A+t)\cap (A+t')
+$$
+
+has measure zero whenever $t\neq t'$.
+
+We say that a tile $A$ is a **column** if it tiles a set of the form $\{n_1,\dots,n_m\}\times S^1$.
+
+We call a tiling $T$ **irreducible** if it cannot be written as a disjoint union $T=T_1\sqcup T_2$ of two nonempty sets such that there exists a partition $\mathbb{Z}=X_1\sqcup X_2$ with
+
+$$
+A+T_i = X_i\times S^1
+\quad\text{for } i=1,2.
+$$
+
+The problem is to decide whether there exists a tile $A$ which is **not a column**, and which admits two different **irreducible** tilings $T$ and $T'$ of $\mathbb{Z}\times S^1$, such that:
+
+* $T$ has period $(k,\alpha)$ and $T'$ has period $(k',\alpha')$ with $k,k'>0$,
+* the periods are *incommensurable*, i.e. $\alpha/\alpha'\notin \mathbb{Q}$.
+
+
+
+=== progress.md ===
+...
+
+- Theorem A is essentially correct and now contains a valid non-column proof using a “component-length” obstruction when |J_0|=1/2. The tiling constructions (periods (1,α) and (1,α+1/2)), irreducibility (singleton with K={0,1}), and incommensurability are all sound.
+- Minor simplification available: the non-column step for Theorem A can be made even simpler if we do not insist that |J_0|=1/2. The same two tilings work for any J_0 with 1/2-periodicity; if we pick |J_0|∉{1/m: m∈N}, then the boundary recurrence forces an integer contradiction immediately (details below). The current proof keeps |J_0|=1/2 and uses the component-length obstruction to rule out the special case d_p=2; both approaches are fine, but the “non-1/m” route is simpler to state and verify.
+- Proposition D (K={0,1,2}, two orders when c_1=c_3) is correct; the proof sketch via Lemma C is standard. The output currently labels this family as “pending a non-column verification.” I supply below a clean, short non-column criterion that completes this second family under very mild numerical assumptions (in particular, it works for the concrete examples already suggested).
+
+Lemma E (non-column for K={0,1,2} with one interval per layer)
+- Statement. Let A have layers at K=(0,1,2) with lengths c_1,c_2,c_3>0, c_1+c_2+c_3=1. If A tiles a finite set X×S^1, set d_n:=|T_n|. Then necessarily 1/c_1 and 1/c_3 are (nonnegative) integers. In particular, if either c_1 or c_3 is not the reciprocal of an integer, then A is not a column.
+- Proof. The per-row measure identities are
+  c_1 d_n + c_2 d_{n-1} + c_3 d_{n-2} = 1_{n∈X},  for all n∈Z.
+  Let p:=min X. For n=p−2, the right-hand side is 0, all coefficients are positive, hence d_{p−2}=d_{p−3}=d_{p−4}=0. For n=p−1, we get c_1 d_{p−1}=0, so d_{p−1}=0. For n=p, 1=c_1 d_p, so d_p=1/c_1∈N. A symmetric argument at the right boundary q:=max X gives d_{q−2}=1/c_3∈N. This proves the claim. ∎
+- Consequence for the “two-order” family: If we impose c_1=c_3=s and choose s not of the form 1/m (e.g., s=2/5 as in the worked example, or any irrational in (0,1/2)), then A cannot be a column. Combined with Proposition D and the singleton irreducibility criterion, this completes a second explicit family of examples with two irreducible periodic tilings and incommensurable periods (β and β−s).
+
+Lemma F (simpler non-column for the complementary 2-layer construction)
+- Setting: Same as Theorem A except we do not fix |J_0|=1/2; still assume J_0+1/2=J_0 and J_1:=S^1\(J_0+α).
+- Claim. If |J_0|∉{1/m: m∈N}, then A is not a column.
+- Proof. The per-row measures are |J_0| d_n + (1−|J_0|) d_{n−1} = 1_{n∈X}. Let p:=min X. For n=p−1, 0=|J_0| d_{p−1}+(1−|J_0|) d_{p−2} forces d_{p−1}=d_{p−2}=0. For n=p, 1=|J_0| d_p, so d_p=1/|J_0|∈N. Contradiction unless |J_0|=1/m. ∎
+- Remark. This shows the component-length hypothesis in Theorem A is only needed in the special endpoint case |J_0|=1/2 (when the boundary recurrence yields d_p=2). Keeping |J_0|=1/2 is perfectly fine (current output), but the theorem can be simplified by picking |U| so that |J_0|≠1/2 and |J_0| is not a reciprocal of an integer; then the non-column conclusion is immediate from the boundary equations.
+
+Proposition G (q-phase generalization of the 2-layer construction)
+- Statement. Fix q≥2. Suppose J_0⊂S^1 is 1/q-periodic (J_0+1/q=J_0). For any irrational α, define J_1:=S^1\(J_0+α) and A:=( {0}×J_0 )∪( {1}×J_1 ). Then for each j=0,1,…,q−1 there is a singleton tiling T_{α+j/q} with period (1,α+j/q). If j≠j′, the periods (1,α+j/q) and (1,α+j′/q) are incommensurable. If moreover |J_0|∉{1/m: m∈N}, then A is not a column.
+- Proof. Define T_{α+j/q}:={(n,θ_0+n(α+j/q))}. On row n, contributions are (J_0+θ_n) and (J_1+θ_{n−1}). Since J_0+1/q=J_0, J_0+θ_n=J_0+(θ_{n−1}+α+j/q)=J_0+(θ_{n−1}+α); hence J_1+θ_{n−1} is the complement of J_0+θ_n, so we have a tiling with period (1,α+j/q). If (α+j/q)/(α+j′/q)∈Q with j≠j′, rearranging gives α as a rational number, contradiction; thus the periods are incommensurable. The non-column condition follows as in Lemma F. ∎
+
+Concrete check for the K={0,1,2} family (completing the second mechanism)
+- Parameters: c_1=c_3=2/5, c_2=1/5; pick β irrational (e.g., β=√2/10), set a_1=0, and define a_2≡a_1+c_1+β, a_3≡a_2+c_2+β (mod 1). Then:
+  • Order σ=(1→2→3→1) produces a tiling with slope β.
+  • Order σ′=(1→3→2→1) produces a tiling with slope β′≡β−c_1 (mod 1).
+  • By Lemma E, A is not a column because 1/c_1=5/2∉N.
+  • β/(β′) is irrational since β/(β−c_1)∈Q ⇒ β∈Q (with c_1 rational), a contradiction.
+  • Irreducibility follows from the singleton irreducibility lemma (H=⟨K−K⟩=Z).
+
+Why useful here
+- Lemma E fills the “pending non-column” gap for the K={0,1,2} two-order family under a very mild numerical requirement (e.g., c_1=c_3 not a reciprocal of an integer), thus upgrading that mechanism to a complete existence scheme.
+- Lemma F and Proposition G streamline and extend Theorem A: they show the complementary 2-layer construction yields q distinct incommensurable periods, and provide a simpler non-column criterion.
+
+Obstacles and cautions
+- Endpoints: All uses of measure additivity rely on a.e. disjointness; overlaps can occur at finitely many endpoints only, hence measure zero—consistent with the tiling definition.
+- For Theorem A as stated (|J_0|=1/2), the “component-length” obstruction should specify that translation preserves the multiset of component lengths, while (S^1\J_0) inheres the multiset from the complement of U in [0,1/2); the difference is guaranteed by the hypothesis on U. This is correct as written, but the simpler alternative via Lemma F avoids this case distinction entirely.
+
+Next steps (suggested updates to output.md)
+- Add Lemma E to complete the K={0,1,2} mechanism as a second explicit family of examples.
+- Optionally, rephrase Theorem A to allow arbitrary |J_0| (with 1/2-periodicity) and replace the non-column hypothesis by “|J_0|∉{1/m: m∈N},” or keep the current |J_0|=1/2 statement and append Lemma F as a remark.
+- Record Proposition G (q-phase generalization) with its incommensurability claim; this shows one tile can admit multiple (≥2) pairwise incommensurable periods simultaneously.
+
+## Audit of output.md and pinpointed gaps
+
+- Lemma C (“equivalent” congruences) needs a brief sufficiency argument. The current proof sketches necessity (matching endpoints in a fixed cyclic order yields the congruences). To justify equivalence, one should prove: if β and the a_i satisfy (k_i−k_{σ(i)})β ≡ a_i+c_i−a_{σ(i)} (mod 1), then defining θ_n:=θ_0+nβ produces, for each row m, a phase φ_m with θ_{m−k_i} = φ_m + c_i − a_i and the σ-adjacency equalities, hence a valid end-to-end partition of S^1 by the intervals [a_i+θ_{m−k_i}, a_i+θ_{m−k_i}+c_i]. This is a straightforward check but should be inserted to fully justify “equivalent.”
+- Theorem A(iii) (non-column): the step “Because X is finite, d_n=0 for all sufficiently large |n|” is true but could be tightened. For K={0,1}, any anchor z contributes to rows z and z+1. If X is finite with p:=min X and q:=max X, then necessarily T_z=∅ unless z∈[p−1,q], hence d_n=0 for n<p−1 and n>q. This explicit localisation can be cited before deducing d_{p−1}=0 and d_p=2.
+- Endpoint convention for J_1: The remark at the end covers this, but it may help to explicitly state in Theorem A that J_1 can be chosen as a finite union of closed arcs differing from S^1\(J_0+α) on a null set, keeping within the tile format.
+- Proposition D: the explicit algebra is given in the “Supplement,” which is excellent. To align with Lemma C’s “equivalence,” it would be good to add a one-liner that, conversely, these congruences ensure the σ and σ′ partitions exist with θ_n=θ_0+nβ and θ′_n=θ′_0+nβ′.
+- Proposition H (incommensurability clause): it currently asserts incommensurability “if s is rational.” The algebra shows more: if β is irrational then for any s∈(0,1), β/(β−s)∈Q implies β∈Q unless p=q (which would force s=0). So the periods are incommensurable for all s∈(0,1) (rational or irrational). The non-column hypothesis s∉{1/m} is separate.
+
+## New small lemmas (auditable, to strengthen and extend the record)
+
+1) Sufficiency for Lemma C (singleton, fixed order produces a tiling).
+- Statement. Suppose K={k_1,…,k_ℓ} with 1∈K, lengths c_i>0, ∑ c_i=1, a_i∈S^1, and a cyclic order σ. If β∈S^1 satisfies (k_i−k_{σ(i)})β ≡ a_i+c_i−a_{σ(i)} for all i, then for any θ_0 the sequence θ_n:=θ_0+nβ produces, at each row m, an a.e. disjoint σ-ordered partition of S^1 by the arcs [a_i+θ_{m−k_i}, a_i+θ_{m−k_i}+c_i].
+- Proof sketch. Define c_{σ(1)}:=0 and c_{σ(j+1)}:=c_{σ(j)}+c_{σ(j)} (cumulative along σ) so that c_{σ(ℓ+1)}≡1. For row m, set φ_m:=θ_{m−k_{σ(1)}}−c_{σ(1)}+a_{σ(1)}. The congruences ensure θ_{m−k_{σ(j+1)}} ≡ θ_{m−k_{σ(j)}} + (a_{σ(j)}+c_{σ(j)}−a_{σ(j+1)}) (mod 1), hence the right endpoint of the j-th arc equals the left endpoint of the (j+1)-st arc, cycling back after ℓ steps. The arcs meet end-to-end and have total length 1, hence they a.e. partition S^1.
+
+2) Rigidity of fiber cardinalities for Theorem A-type tiles.
+- Setting. K={0,1}, J_1:=S^1\(J_0+α) and A=({0}×J_0)∪({1}×J_1). Assume J_0 does not admit any m-fold translational tiling of S^1 for m∈{2} (i.e., there is no δ with J_0 ⊔ (J_0+δ) = S^1 a.e.).
+- Claim. In any tiling A+T=Z×S^1, one must have |T_n|=1 for all n.
+- Proof sketch (|J_0|=|J_1|=1/2 case). Let d_n:=|T_n|. The per-row measure identity yields d_n+d_{n−1}=2 for all n. If some n has d_n=2, then d_{n−1}=0 and row n is covered solely by two disjoint translates of J_0, contradicting the no-2-fold-tiling hypothesis. Similarly, d_n=0 is impossible. Hence d_n=1 for all n.
+- Use. This strengthens irreducibility (every tiling for such A is singleton) and closes a potential loophole in uniqueness of fiber sizes.
+
+3) Quick incommensurability check in Proposition H (clarified, no rationality of s needed).
+- If β is irrational and β′≡β−s, s∈(0,1), then β/β′∈Q ⇒ (q−p)β=−ps ∈ Q with p/q=β/β′ ⇒ β∈Q unless p=q (forcing s=0). Thus incommensurability holds for any s∈(0,1).
+
+## Examples (sanity checks)
+
+- Theorem A instance. Take U=[0,0.2]∪[0.3,0.35] and α=√2/10. Then J_0:=U∪(U+1/2), J_1:=S^1\(J_0+α). On row 0, choose θ_0=0; the two sets are J_0 and S^1\(J_0+α)=S^1\(J_0+θ_0+α), complementary a.e. Irreducibility holds, and non-column follows either from d_n+d_{n−1}=2 and the 2-fold-tiling obstruction (component-lengths), or from Lemma E at the left boundary combined with the Fourier obstruction if |J_0|=1/2.
+- K={0,1,2} two-order instance. c_1=c_3=2/5, c_2=1/5, β=√2/10, a_1=0, a_2≡a_1+c_1+β, a_3≡a_1+c_1+c_2+2β. Then σ=(1→2→3→1) works with slope β; σ′ works with β′≡β−2/5. By Lemma E, A is not a column; irreducible as ⟨K−K⟩=Z.
+
+## Obstacles and open tasks
+
+- For Lemma 2 in “Rigidity of fiber cardinalities,” a general statement (|J_0| arbitrary, prohibiting any m-fold translational tiling for m near 1/|J_0|) would cover more cases. The Fourier constraint (from previous notes) provides a practical test when |J_0|=1/m: if two even Fourier modes of 1_{J_0} are nonzero and incompatible with the same δ-system, no 2-fold partition exists.
+- Classification question: For the complementary 2-layer tiles, are the helical tilings T_{α+j/q} the only tilings (up to null sets), under mild anti-m-tiling hypotheses on J_0? The d_n-identity and the complement structure suggest a rigidity theorem; a full proof would track phase-sets, not only counts.
+
+## Next steps (concrete, checkable additions to output.md)
+
+1) Append the sufficiency half of Lemma C as “Lemma C’” (above) with its short proof.
+2) Add the “rigidity of fiber cardinalities” lemma for Theorem A-type tiles (|J_0|=1/2) to conclude that any tiling must be singleton; this reinforces irreducibility and rules out exotic d_n patterns.
+3) Strengthen Proposition H’s incommensurability statement to remove the extra hypothesis “s rational.”
+4) Optionally incorporate the Fourier obstruction as a separate lemma to handle the |J_0|=1/m cases uniformly.
+
+These are all incremental, auditable improvements that either close small gaps (equivalence in Lemma C) or add robustness (rigidity and incommensurability clarifications).
+
+## Round 0003 — 2025-08-28T14:41:05.235521Z
+
+Round 0003 — audit, tightenings, and small new lemmas/examples
+
+Quick audit of output.md (what’s solid, what to tighten)
+- Theorem A (complementary two-layer tile) is correct: it yields two singleton tilings with periods (1,α) and (1,α+1/2) and a clean irreducibility proof via the singleton/gcd criterion. The non-column proof is valid in the |J_0|=1/2 case by the “component-length” obstruction.
+- Proposition G generalizes Theorem A to 1/q-periodic J_0 and shows q distinct incommensurable periods; the boundary obstruction gives a simple non-column criterion when |J_0|∉{1/m: m∈N}.
+- Proposition H completes the K={0,1,2} two-order mechanism with a simple non-column boundary argument; the “Supplement to Proposition D” fills the computational gap.
+- Minor presentational gap: Lemma B (irreducibility for singleton tilings) is given “as sketched.” For completeness, we should include the short closure argument explicitly (see below).
+- Small streamlining opportunity: Theorem A can be reframed without |J_0|=1/2 by appealing to Corollary F (pick |J_0|∉{1/m}), while still producing the two tilings with slopes α and α+1/2 (using J_0+1/2=J_0). The current version is correct; a remark could point out this simplification.
+
+New, small, checkable additions
+1) Necessity of gcd condition for irreducibility (complements Lemma B)
+- Lemma (reducibility when gcd>1). Let H:=⟨K−K⟩≤Z. If H≠Z (i.e., g:=gcd{ k_i−k_j } >1), then every tiling A+T of Z×S^1 is reducible by splitting T into g classes T^{(r)} according to the anchor’s first coordinate modulo g and letting X_r:=gZ+r. Then A+T^{(r)}=X_r×S^1 a.e., and the union is disjoint. Why useful: records the converse to Lemma B and clarifies that H=Z is necessary for irreducibility in any regime, not only singleton.
+- Sketch proof. Any translate (z,θ) of A contributes only to rows z+k_i, which are all ≡ z (mod g). Therefore, contributions from anchors in residue class r (mod g) cover exactly the rows in X_r, and different residue classes never interact; hence a nontrivial decomposition exists whenever g>1.
+
+2) Explicit closure step for Lemma B (singleton irreducibility)
+- Detail to add. If T=T_1⊔T_2 and Z=X_1⊔X_2 with A+T_i=X_i×S^1, then for any m∈X_1 the row m must be fully covered by T_1. In the singleton regime row m uses precisely the anchors at indices m−k_i, i=1,…,ℓ; hence m−k_i∈X_1 for all i. Now take any i,j. If m∈X_1 then m−k_i∈X_1; if m+(k_j−k_i)∉X_1, then row m+(k_j−k_i) is in X_2 and must be covered solely by T_2, which requires (m+(k_j−k_i))−k_j=m−k_i∈X_2—contradiction. Thus X_1 is closed under addition by all differences k_j−k_i. Hence X_1 is a union of cosets of H=⟨K−K⟩. If H=Z then X_1 is either ∅ or Z, proving irreducibility.
+
+3) General “rational shift” incommensurability lemma (used implicitly several times)
+- Lemma. If α∉Q and r∈Q\{0}, then α/(α+r)∉Q. Proof: α/(α+r)=p/q ⇒ α = (pr)/(q−p) ∈ Q unless p=q (which would force r=0). Why useful: it packages the incommensurability step used in Theorem A (r=1/2) and Proposition H (r=c_1 rational) into a one-liner.
+
+Concrete examples for testing
+- Theorem A numeric instance. Take U=[0,0.2]∪[0.3,0.35], α=√2/10. Then J_0:=U∪(U+1/2), J_1:=S^1\(J_0+α), and A=({0}×J_0)∪({1}×J_1). The two tilings T_α and T_{α+1/2} exist; both are singleton and hence irreducible. The periods are incommensurable by the lemma above. Non-column follows by the component-length mismatch (U has component lengths {0.2,0.05} while its complement in [0,1/2) has {0.1,0.15}).
+- Proposition H numeric instance. Let c_1=c_3=2/5, c_2=1/5; pick β=√2/10 and set a_1=0, a_2≡a_1+c_1+β, a_3≡a_1+c_1+c_2+2β. Then the σ=(1→2→3→1) and σ′=(1→3→2→1) congruences both hold, with slopes β and β′≡β−2/5 (mod 1). The tile is not a column by Lemma E (1/c_1=5/2∉N). Periods are incommensurable since β∉Q and c_1∈Q.
+
+Optional alternative non-column tool (recorded for future use)
+- Fourier complement obstruction (already noted in notes.md). If E+δ=S^1\E a.e., then e^{2π i t δ} = −1 for every t with \hat{1_E}(t)≠0. Choosing J_0 so that at least two even Fourier modes are nonzero (e.g., t=2,4) forbids such δ. This is particularly handy if one insists on |J_0|=1/2 (where the boundary lemma alone does not rule out “2-fold tiling” at the boundary).
+
+Gaps or clarifications suggested for output.md
+- Add the explicit closure argument to Lemma B (as above). This removes any ambiguity in the “sketch.”
+- Consider adding the gcd-necessity lemma for irreducibility (above) to clarify that H=Z is not just sufficient but necessary for irreducibility. It is short and strengthens the structural picture.
+- Theorem A could include a remark that the |J_0|=1/2 hypothesis is not needed for the existence of the two tilings; any J_0 with J_0+1/2=J_0 works. If one also chooses |J_0|∉{1/m}, non-column follows immediately by Corollary F, avoiding the component-length hypothesis.
+
+Next steps (auditable targets)
+- Rigidity for complementary two-layer tiles. Attempt to show that for A=({0}×J_0)∪({1}×(S^1\(J_0+α))) with J_0+1/q=J_0 and |J_0|∉{1/m}, every tiling is necessarily singleton (d_n≡1). Plan: use row-by-row complementarity and a boundary bootstrap to rule out d_n≥2 by propagating a contradiction across rows. Start with the q=2 case.
+- m-fold partition obstruction. For |J_0|=1/m, develop a clean criterion (Fourier or component-length) that forbids S^1 being a.e. a disjoint union of m translates of J_0. This would close the remaining corner cases for non-columnity under periodicity.
+- Expand the “two orders” mechanism to K of larger span (e.g., K={0,1,3}). Using Lemma C, classify when two distinct orders are simultaneously compatible and extract the induced affine relations among slopes; then apply a boundary lemma to ensure non-column.
+
+## Audit of output.md (consistency and small gaps)
+- Minor inconsistency: The top “Summary of proven results” still labels the K={0,1,2} two-order family as “pending a non-column verification,” but later Proposition H provides a complete non-column proof using the boundary lemma. Recommend updating the summary to reflect that this family is now fully established under s=c_1=c_3∉{1/m}.
+- Lemma B (irreducibility for singleton tilings) is correct; its proof could benefit from one explicit step: if a row m is assigned to X_1, then all anchors at indices m−k_i must also lie in X_1 (else A+T_1 cannot cover row m), hence X_1 is closed under subtraction by each k_i; this gives the closure under K−K used in the lemma.
+- Endpoint convention and J_1 as a union of intervals: the “Remark on endpoints” addresses this. No action needed.
+
+## New results (small, auditable lemmas advancing structure)
+
+### Lemma 1 (Singleton classification for the complementary two-layer construction)
+Setting: Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α) (α arbitrary), and suppose A+T=Z×S^1 is a tiling. Let d_n=|T_n| and at row m write
+- U_m := ⋃_{θ∈T_m} (J_0+θ) (pairwise a.e. disjoint by tiling disjointness across anchors),
+- V_m := ⋃_{θ∈T_{m-1}} (J_1+θ) (also pairwise a.e. disjoint).
+Then U_m⊔V_m=S^1 a.e. and, using J_1=S^1\(J_0+α), we have
+V_m = ⋃_{θ∈T_{m-1}} (S^1\(J_0+α+θ)) = S^1 \ ⋂_{θ∈T_{m-1}} (J_0+α+θ).
+Taking complements yields
+(∗)  U_m = ⋂_{θ∈T_{m-1}} (J_0+α+θ)  a.e.
+Claim. Necessarily d_m=d_{m-1}=1 for all m; hence every tiling by such A is singleton-per-row.
+Proof. Since the members of U_m are a.e. disjoint translates of J_0, |U_m| = d_m·|J_0|. The right-hand side of (∗) is an intersection of d_{m-1} translates of J_0, hence has measure at most |J_0|, with strict inequality if d_{m-1}≥2 and the translates are distinct a.e. (duplicates are ruled out because corresponding J_1-shifts would coincide, contradicting disjointness of distinct anchors). Thus:
+- If d_{m-1}≥2, then |U_m| < |J_0|, but |U_m|=d_m·|J_0|≥|J_0| if d_m≥1, a contradiction. Hence d_{m-1}≤1.
+- Symmetrically (exchanging the roles of J_0 and J_1 via V_m = S^1\U_m), one gets d_m≤1.
+But the per-row measure identity |J_0|d_m+(1−|J_0|)d_{m-1}=1 forces d_m=d_{m-1}=1. ∎
+Why useful here. This shows that for the complementary two-layer tiles (Theorem A, Proposition G), every tiling—not just the exhibited helical ones—is automatically singleton-per-row, so irreducibility follows immediately from Lemma B (gcd(K−K)=1). It also rigidifies the setting and simplifies further analysis.
+
+### Corollary 2 (Row-to-row increment constraint)
+In the setting of Lemma 1, let T_m={θ_m}. Then for all m,
+J_0+θ_m = J_0+(α+θ_{m−1}) a.e., hence θ_m−θ_{m−1}−α belongs to the stabilizer Stab(J_0):={t∈S^1: J_0+t=J_0}.
+In particular, if J_0 has 1/q-periodicity and no finer translational invariance, then θ_m−θ_{m−1} ∈ α + (1/q)Z for all m.
+Why useful here. This explains precisely why Proposition G yields the family of periods (1,α+j/q): if the increment were constant θ_m−θ_{m−1}≡α+j/q, we recover the helical tilings in Prop. G. The corollary shows any tiling must step by α plus a 1/q-increment at each row; in a further refinement, one can aim to prove that this increment is constant (hence classify all tilings) under mild nondegeneracy conditions.
+
+### Lemma 3 (No multi-translate coverage at a row for complementary tiles)
+In the setting of Lemma 1, it is impossible to have d_m=0 or d_{m-1}=0 for any m.
+Proof. If d_m=0 then V_m=S^1, i.e., ⋃_{θ∈T_{m-1}} (J_1+θ)=S^1 with the union a.e. disjoint. Hence 1=|V_m|=d_{m-1}(1−|J_0|), forcing d_{m-1}=1/(1−|J_0|)∈N. When |J_0|≠1−1/k this already contradicts integrality. Even in the special case |J_0|=1/2 (Theorem A), one would need d_{m-1}=2 and hence two a.e. disjoint translates of J_1 to partition S^1. For generic J_0, J_1=S^1\(J_0+α) is not a translational tiler by two copies (component-length or Fourier obstruction), so this cannot occur. The case d_{m-1}=0 is symmetric.
+Why useful. This is a direct complement to Lemma 1 and helps rule out degenerate boundary behaviors in any classification.
+
+## Strengthening existing statements (cleaner non-column proofs)
+- Theorem A’s non-column proof currently invokes a component-length invariant at |J_0|=1/2. Using Lemma E/Corollary F already recorded in output.md, if we simply pick |J_0|∉{1/m}, the non-columnity is immediate from the boundary obstruction, avoiding the specialized component-length check altogether. Suggest adding this as a remark, or presenting a variant “Theorem A′” with |J_0| irrational and the same two tilings (then the second tiling uses α→α+1/2 only if J_0 has 1/2-periodicity; otherwise the q-phase generalization, Prop. G, supplies many tilings with j/q shifts).
+- Proposition H (K={0,1,2} two-order family) is now complete; suggest updating the initial summary to drop “pending.”
+
+## Examples (explicit, checkable)
+- Theorem A instance: U=[0,0.2]∪[0.3,0.35], α=√2/10. Then J_0:=U∪(U+1/2), J_1:=S^1\(J_0+α). Lemma 1 implies every tiling by A is singleton-per-row; T_α and T_{α+1/2} are two such tilings; irreducibility by Lemma B; incommensurability by (iv). Non-column holds either by component-length or by Corollary F if we modify |U| to make |J_0|∉{1/m}.
+- K={0,1,2} two-order instance: c_1=c_3=2/5, c_2=1/5, β=√2/10, a_1=0, a_2≡a_1+c_1+β, a_3≡a_2+c_2+β. Then σ and σ′ tilings exist with slopes β and β′≡β−2/5; irreducible (Lemma B), non-column (Lemma E since 1/c_1∉N), incommensurable (β irrational, s rational).
+
+## Obstacles, caveats, and why some avenues fail
+- Classifying all tilings for the complementary construction: Lemma 1 shows per-row singleton-ness and Corollary 2 constrains the row increment modulo the stabilizer of J_0. Proving the increment is constant (hence all tilings are helical with period (1,α+j/q)) likely requires a rigidity argument exploiting disjointness across neighboring rows. I attempted a direct “union/complement equals intersection/union” argument to force constancy but found it insufficient without an extra nondegeneracy hypothesis (e.g., small boundary or no repeated componentlengths). This is a promising next target.
+- Ratio ambiguity and representatives: Periods live in S^1; we consistently choose representatives α,α′∈[0,1). All incommensurability tests used identities of the form α/(α+c)∉Q with c rational (or β/(β−s)) which are invariant under changing representatives by integers, so no ambiguity occurs in the stated results.
+
+## Next steps (incremental, testable targets)
+1) Rigidity for the complementary construction. Prove that in Lemma 1’s setting with J_0 having only 1/q-periodicity (no finer invariances), the increments θ_m−θ_{m−1} are constant modulo 1/q, so every tiling is one of the q helical tilings in Proposition G. A concrete plan: compare rows m and m+1 to show that varying the increment creates overlap between A+(m,θ_m) and A+(m+1,θ_{m+1}) on the intermediate row, contradicting a.e. disjointness.
+2) Fourier variant for the two-copy obstruction. Formalize the “two disjoint translates of J_1 cannot tile S^1” statement via the Fourier lemma (already outlined in earlier rounds) and record it in output.md as a tool applicable when |J_0|=1/2.
+3) Broader multi-order mechanisms for K={0,1,2}. Systematically enumerate permutations σ for ℓ=3 and characterize simultaneous compatibilities beyond c_1=c_3, yielding possibly three or more distinct singleton tilings from a single tile. Each yields relations among slopes (linear in the c_i), and boundary Lemma E gives simple non-column criteria.
+4) Numerical verification scripts (for the record). For the provided examples, check: (a) row-by-row endpoint equalities; (b) a.e. disjointness; (c) period transport T_{n+1}=T_n+α (or α+j/q); (d) non-column boundary equalities d_{p−k_min}μ_{k_min}=1 failing integrality. These are straightforward to code and audit.
+
+## Gaps flagged for output.md
+- Update the opening “Summary of proven results” to remove “pending” for the K={0,1,2} family, as Proposition H completes the non-column part.
+- Consider appending Lemma 1 and Corollary 2 to output.md: they substantially strengthen Theorem A and Proposition G by showing all tilings for those tiles are singleton-per-row, streamlining irreducibility and setting the stage for a full classification.
+
+## Round 0004 — 2025-08-28T14:59:40.047269Z
+
+Round 0004 — audit, tightenings, and small new results/lemmas
+
+Audit of output.md (gaps and clarifications)
+- Theorem A, item (iii) remark. The proof of non-columnity (for the specific choice |J_0|=1/2) is correct via the component-length obstruction. The parenthetical remark “(iii) can also be deduced from Corollary F by instead choosing |J_0|∉{1/m}” changes the construction (different J_0). That is fine as a variant, but strictly it does not prove (iii) for the J_0 fixed in Theorem A. Suggest: move this to a separate “variant” remark (Theorem A′) where we choose |U|≠1/4 so that |J_0|=2|U|∉{1/m} and appeal directly to Corollary F.
+- Proposition I (“singleton rigidity,” |J_0|=1/2). The step “Similarly, d_n=0 is impossible” tacitly uses that J_1 cannot admit a two-translate partition of S^1. This follows from the assumption on J_0 because E+δ=S^1\E iff (S^1\E)+δ=E. Since J_1=(S^1\J_0)+α is a translate of S^1\J_0, forbidding J_0 ⊔ (J_0+δ)=S^1 automatically forbids J_1 ⊔ (J_1+δ′)=S^1. Suggest adding this one-line justification explicitly.
+- Lemma E (Boundary obstruction). In output.md it is labeled “As before.” To avoid cross-referencing, I recommend restating the lemma explicitly: if k_min:=min K and μ_min:=|⋃_{i: k_i=k_min}[a_i,b_i]|, then for any finite-column tiling A+T=X×S^1 with p:=min X we must have d_{p−k_min}·μ_min=1 (hence 1/μ_min∈N); similarly at the right boundary with k_max.
+- Endpoint convention is consistently addressed; OK.
+
+New results and refinements (small, auditable)
+1) Fourier obstruction to two-translate complements (formal statement and proof)
+- Lemma (Fourier two-copy obstruction). Let E⊂S^1 be measurable. If there exists δ with E+δ = S^1\E a.e., then for every nonzero t∈Z with \hat{1_E}(t)≠0 we have e^{2\pi i t δ} = −1. In particular, if \hat{1_E}(2) and \hat{1_E}(4) are both nonzero, such a δ cannot exist.
+  Proof. Taking Fourier coefficients in 1_{E+δ}+1_E=1 yields e^{2\pi i t δ} \hat{1_E}(t)+\hat{1_E}(t)=0 for all t≠0, hence the first claim. For t=2 and t=4 this would force e^{4\pi i δ}=−1 and e^{8\pi i δ}=−1 simultaneously, which is impossible. ∎
+- Why useful here. This cleanly certifies the “no two-translate” hypothesis in Proposition I for many explicit J_0. For example, if J_0=U∪(U+1/2) with U=[0,c) and c∉Q, then \hat{1_{J_0}}(2)=2\hat{1_U}(2)=(e^{4\pi i c}−1)/(2\pi i)≠0 and similarly \hat{1_{J_0}}(4)≠0, hence no δ with J_0+δ=S^1\J_0 exists. This provides an alternate, short certification for the concrete tiles used in Theorem A (if we take U with irrational length).
+
+2) Boundary obstruction (general K, explicit statement)
+- Lemma (Boundary integrality, general form). Let A=\bigcup_i\{k_i\}×[a_i,b_i], and for each height k define the aggregated layer J_k:=⋃_{i: k_i=k}[a_i,b_i] with μ_k:=|J_k|. Suppose A+T=X×S^1 with X finite and let d_n:=|T_n|. If p:=min X and k_min:=min\{k_i\}, then only anchors z=p−k_min can contribute to row p, hence d_{p−k_min}·μ_{k_min}=1. Symmetrically, with q:=max X and k_max:=max\{k_i\}, we have d_{q−k_max}·μ_{k_max}=1. In particular, if 1/μ_{k_min}∉N or 1/μ_{k_max}∉N, A is not a column.
+  Proof. Standard localization at the boundary: any anchor z<p−k_min would create coverage below p; any anchor z=p−k with k>k_min would create coverage at row p−(k−k_min)<p. Thus row p is covered solely by d_{p−k_min} disjoint translates of J_{k_min}, forcing the identity. The right boundary is analogous. ∎
+- This subsumes Lemma E and makes the obstruction reusable for arbitrary K (not only {0,1,2}).
+
+3) Classification in the complementary two-layer setting (|J_0|=1/2)
+- Proposition (Increment parameterization under singleton and complementarity). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α) and |J_0|=|J_1|=1/2. Assume J_0 admits no two-translate tiling. Then every tiling A+T=Z×S^1 is singleton per row (Proposition I), and is determined by a sequence (θ_m)_{m∈Z} with the recursion
+  θ_{m}−θ_{m−1} ∈ α + Stab(J_0)  for all m,
+  where Stab(J_0):=\{t∈S^1: J_0+t=J_0 a.e.\}. Conversely, any bi-infinite sequence (θ_m) obeying this recursion defines a tiling. In particular, if J_0 has exactly 1/2-periodicity (Stab(J_0)={0,1/2}+Z), the allowable increments are α or α+1/2 independently at each step m.
+  Proof. Proposition I gives |T_m|≡1. Row m’s identity U_m=J_0+θ_m=S^1\V_m and V_m=J_1+θ_{m−1}=S^1\(J_0+α+θ_{m−1}) forces J_0+θ_m=J_0+α+θ_{m−1} a.e., hence the increment constraint. Conversely, given any sequence satisfying the constraint, the two sets J_0+θ_m and J_1+θ_{m−1} are complementary in row m, providing a tiling with a.e. disjointness. ∎
+- Why this matters. It shows Theorem A’s complementary construction has a large family of (irreducible) tilings, encompassing the helical tilings T_α and T_{α+1/2} as the constant-increment choices. This also clarifies that demanding a specific period further fixes the increment to be constant.
+
+4) Worked explicit choices ensuring “no two-translate” via Fourier
+- Example. Take U=[0,c) with c=\sqrt{2}/10. Then J_0:=U∪(U+1/2) has \hat{1_{J_0}}(2)=2\hat{1_U}(2)=(e^{4\pi i c}−1)/(2\pi i)≠0 and \hat{1_{J_0}}(4)=2\hat{1_U}(4)=(e^{8\pi i c}−1)/(4\pi i)≠0 (since 2c,4c∉Z). By the Fourier lemma, J_0 admits no δ with J_0+δ=S^1\J_0. Thus Proposition I applies. Picking any irrational α then produces two irreducible tilings with periods (1,α) and (1,α+1/2), incommensurable by Lemma R.
+
+Small corrections/caveats to record
+- Proposition H (K={0,1,2} two-order family): the incommensurability clause correctly keeps s rational. Removing that hypothesis can fail (counterexample: β=\sqrt{2}, s=β/2 gives β/(β−s)=2∈Q).
+- As noted above, J_1 has a two-translate tiling iff J_0 does (since J_1=(S^1\J_0)+α). This justifies the symmetry step in Proposition I’s proof.
+
+Why these additions advance the program
+- They provide a compact, verifiable obstruction (Fourier) to the only delicate step in the |J_0|=1/2 regime (ruling out 2-fold partitions), applicable to many explicit U. This simplifies checking Theorem A (iii) concretely.
+- The general boundary lemma is a reusable tool beyond K={0,1,2}, and makes non-column checks almost mechanical for many tiles.
+- The increment-parameterization proposition clarifies the full family of tilings for the complementary construction (in the singleton regime), isolating the exact freedom and showing how the helical tilings sit inside it. This aligns with Corollary J and avoids overclaiming uniqueness.
+
+Ideas to pursue next (auditable targets)
+- Record the Fourier lemma as a formal tool in output.md and apply it to a few concrete U (single-interval U with irrational length, or two-interval U with simple rational endpoints), computing \hat{1_{J_0}}(2), \hat{1_{J_0}}(4) explicitly to certify non-columnity in Theorem A.
+- State and prove the boundary integrality lemma (general K) explicitly in output.md and reference it in Proposition H, replacing “As before.”
+- Multi-order extensions beyond K={0,1,2}: using Lemma C, list all σ for ℓ=4 with K={0,1,2,3} and compute the resulting linear constraints; look for simultaneous compatibilities yielding ≥3 distinct slopes, and then apply the boundary lemma to certify non-columnity (e.g., force 1/μ_{k_min}∉N).
+- Quantify incommensurability in the q-phase family: for any irrational α and 0≤j<j′<q, (α+j/q)/(α+j′/q)∉Q by Lemma R; record this explicitly with a short proof in output.md (currently indicated parenthetically under Proposition G).
+
+Potential pitfalls and how we avoid them
+- Overclaiming singleton rigidity for general |J_0|. We restrict singleton rigidity to |J_0|=1/2 with a “no 2-translate” hypothesis (Proposition I). For general |J_0|, the boundary equation can allow patterns like (d_m,d_{m−1})=(1/|J_0|,0); forbidding these requires forbidding m-translate tilings for m=1/|J_0| (Fourier can help), but we do not claim this generally here.
+- Endpoint issues are kept as a standing a.e. convention; all Fourier arguments rely on L^2-coefficients and are stable under null boundary changes.
+
+Concrete checklist for the verifier
+- For the U=[0,\sqrt{2}/10) example, compute \hat{1_{J_0}}(2), \hat{1_{J_0}}(4) explicitly from the single-interval formula and verify they are nonzero; conclude “no two-translate.”
+- Insert the explicit statement/proof of the boundary integrality lemma into output.md; confirm Proposition H cites it correctly.
+- Add the one-line symmetry justification in Proposition I about J_1 and J_0 two-translate equivalence.
+- Optionally, include the increment-parameterization proposition (with its short proof) to make Corollary J’s content explicit as a classification statement in the |J_0|=1/2 complementary case.
+
+## Round 0004 — 2025-08-28T15:00:39.446418Z
+
+Round 0004 — audit, strengthened rigidity, and Fourier obstructions
+
+Audit of output.md (small gaps and clarifications)
+- Lemma C (fixed-order singleton congruences). The proof (both directions) implicitly uses that θ_n−θ_{n−1} is constant in n (so that θ_{m−k_i}−θ_{m−k_{σ(i)}}=(k_{σ(i)}−k_i)β). This is guaranteed when 1∈K (or more generally when H:=⟨K−K⟩=Z and one anchors the order consistently to deduce helical behavior). Suggest explicitly adding the hypothesis “1∈K” (as in our applications K={0,1} and {0,1,2}) or appending a brief pre-lemma: fixed cyclic order across rows implies helical phases when H=Z.
+- Measure identity at a row. The Additional tools section correctly uses the aggregated layer measures μ_k:=|J_k| to write ∑_k μ_k d_{m−k} = 1, which is robust even if, within a height k, multiple arcs in A overlap. The “Basic facts” line in notes.md stating ∑_i |T_{m−k_i}|(b_i−a_i)=1 tacitly assumes within-height disjointness; I recommend consistently using the aggregated form (as in output.md) throughout to avoid ambiguity.
+
+New results (incremental, auditable)
+1) General singleton rigidity for complementary two-layer tiles under a mild anti-m-tiling hypothesis
+- Proposition K (singleton rigidity beyond |J_0|=1/2). Let A=({0}×J_0)∪({1}×J_1) with J_1:=S^1\(J_0+α). Suppose both J_0 and J_1 fail to admit any m-fold translational tiling of S^1 by pairwise a.e. disjoint translates, for every m≥2. Then any tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+  Proof. For row m, set d_m:=|T_m|, U_m:=⋃_{θ∈T_m} (J_0+θ) and V_m:=⋃_{θ∈T_{m−1}} (J_1+θ). As before, U_m⊔V_m=S^1 a.e. and also U_m=⋂_{θ∈T_{m−1}} (J_0+α+θ) a.e. If d_{m−1}≥2 then T_{m−1} contains θ≠θ′ with θ′−θ∉Stab(J_1)=Stab(J_0) (else the two copies of J_1 would coincide a.e., violating a.e. disjointness). Hence the intersection of J_0+α+θ and J_0+α+θ′ has measure strictly less than |J_0|, so |U_m|<|J_0| and therefore d_m·|J_0|=|U_m|<|J_0|, forcing d_m=0. But then V_m=S^1, so S^1 is the a.e. disjoint union of d_{m−1} copies of J_1; thus d_{m−1}=1/|J_1|∈N and J_1 m-tiles S^1—a contradiction. Therefore d_{m−1}≤1. By symmetry, d_m≤1 for all m. Finally, d_{m−1}=0 is impossible: it would force U_m=S^1 and thus d_m=1/|J_0|∈N and an m-fold tiling by translates of J_0, again contradicting the hypothesis. Hence d_{m−1}=d_m=1 for all m. ∎
+  Why useful here. This strictly generalizes Proposition I: it yields |T_n|=1 for every complementary two-layer tile as soon as we forbid any multi-translate partition for J_0 and J_1 (e.g., by choosing |J_0|,|J_1|∉{1/m} or via Fourier/component-length obstructions when |J_•|=1/m). It streamlines irreducibility (Lemma B) and supports classification attempts.
+  Corollary K1 (quick criterion). If |J_0|∉{1/m} and |J_1|=1−|J_0|∉{1/m}, then every tiling by A is singleton-per-row. Combining with Corollary F (non-column when |J_0|∉{1/m}) gives a very robust family: non-column, all tilings singleton, and (with J_0+1/q=J_0) q distinct helical periods as in Proposition G.
+
+2) Fourier obstructions to multi-translate partitions (extensions)
+- Lemma (two-translate obstruction, recorded precisely). If E⊂S^1 and E+δ=S^1\E a.e., then for all t∈Z\{0} with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, if \hat{1_E}(t_1) and \hat{1_E}(t_2) are nonzero for two distinct t’s such that there is no δ with e^{2π i t_1 δ}=e^{2π i t_2 δ}=−1, then no such δ exists. This is exactly the tool used implicitly in Theorem A; keeping it explicit helps certify the “no two-translate” hypothesis when |J_0|=1/2.
+- Lemma (three-translate obstruction). Suppose E⊂S^1 and there exist t with \hat{1_E}(t)≠0 and \hat{1_E}(2t)≠0. If S^1 is a.e. the disjoint union of three translates E+δ_1, E+δ_2, E+δ_3, then e^{2π i t δ_1}+e^{2π i t δ_2}+e^{2π i t δ_3}=0 and also e^{2π i 2t δ_1}+e^{2π i 2t δ_2}+e^{2π i 2t δ_3}=0. But the second equation reads (e^{2π i t δ_1})^2+(e^{2π i t δ_2})^2+(e^{2π i t δ_3})^2=0, which is incompatible with the first unless the e^{2π i t δ_j} are precisely the three cube roots of unity up to a common rotation. In that case the second sum equals 3e^{4π i t c}≠0, contradiction. Hence no 3-translate tiling exists. This gives a quick certificate to forbid 3-fold partitions for concrete E (check two Fourier modes).
+  Why useful here. These Fourier tests let us enforce the hypotheses of Proposition K and Proposition I in concrete examples, especially in the delicate |J_0|=1/m cases where the boundary integrality does not itself obstruct columns.
+
+3) Concrete q=3 example (non-column, three incommensurable periods, all tilings singleton)
+- Pick t:=√2/30 and set U:=[0,t)⊂[0,1/3). Let J_0:=U∪(U+1/3)∪(U+2/3). Then |J_0|=3t is irrational and J_0+1/3=J_0. Fix irrational α (e.g., α=√3/10 mod 1) and define J_1:=S^1\(J_0+α). By Corollary F A:=({0}×J_0)∪({1}×J_1) is not a column (since |J_0|∉{1/m}). By Proposition K every tiling is singleton-per-row. By Proposition G there are three tilings with periods (1,α+j/3) for j=0,1,2, pairwise incommensurable (Lemma R). This furnishes a clean, fully explicit “many periods” family.
+
+4) Small elaboration: boundary obstruction for K={0,1,2}, one interval per height
+- Lemma E currently deduces that in any finite-column tiling one must have 1/c_1,1/c_3∈N. One can also note the two-sided variant: at the left boundary p we obtain c_1 d_p=1, and at the right boundary q we obtain c_3 d_{q−2}=1 with d_p,d_{q−2}∈N. If c_1 and c_3 are rationally independent (over Q), this yields an immediate contradiction, so A is not a column. This gives another simple non-column certificate for the K={0,1,2} family beyond the condition c_1∉{1/m}.
+
+Examples and checks (how to audit)
+- Proposition K sanity check on Theorem A’s tiles. For U as in Theorem A but with |U| chosen so that |J_0|∉{1/m}, both J_0 and J_1 have irrational measure and cannot m-tile S^1 for any integer m. Therefore every tiling must be singleton by Proposition K, recovering Proposition I’s conclusion without requiring the special |J_0|=1/2 case.
+- Fourier certificates. For J_0=U∪(U+1/2) with U=[0,.2]∪[.3,.35], direct interval-Fourier computation shows \hat{1_{J_0}}(2), \hat{1_{J_0}}(4)≠0; hence no δ with J_0+δ = S^1\J_0 exists (two-translate obstruction), validating the “no two-translate” hypothesis in Proposition I.
+
+Obstacles and why some routes fail
+- Attempted global classification for complementary two-layer tiles. Corollary J shows θ_m−θ_{m−1}∈α+Stab(J_0) for all m. For J_0 with exactly 1/q-periodicity, this pins θ_m−θ_{m−1} to α+(1/q)Z but does not by itself force constancy of the 1/q-offset across m. A direct disjointness argument between neighboring anchors does not exclude variations because J_1+θ_m and J_0+θ_{m+1} are complementary regardless of the 1/q-offset. Proving constancy seems to require an additional nondegeneracy (e.g., constraining boundary propagation) or a more delicate combinatorial argument across multiple rows.
+
+Next steps (concrete, testable)
+- Insert Proposition K into output.md: it unifies and extends the singleton rigidity statements (beyond |J_0|=1/2) under a clear, checkable hypothesis (no m-fold partitions for J_0 and J_1). Include its short proof.
+- Add the m=3 Fourier obstruction lemma (above) to the tools list, next to the two-translate version. This will cover more corner cases where |J_0| or |J_1| happens to be 1/3.
+- Clarify Lemma C’s hypothesis: add “assume 1∈K” (as used throughout), or precede it with a short lemma that fixed order implies helical phases when H=Z.
+- Classification target. Under J_0 with minimal translational invariance (1/q) and with the anti-m-tiling hypothesis (so d_n≡1), attempt to show the 1/q-offset is constant by tracking boundary points across three consecutive rows and exploiting the fact that two distinct offsets would yield an overlap at a shared row. I will try to formalize this three-row argument next.
+
+## Round 0004 — 2025-08-28T15:00:52.153865Z
+
+Round 0004 — audit, corrections, and new small results (measurable, checkable)
+
+Quick audit of output.md (what’s solid; small clarifications)
+- Theorem A: Correct construction; two tilings T_α and T_{α+1/2} exist, are singleton, hence irreducible by Lemma B. Non-column proof via the “two-translate impossibility” is sound because at the left boundary one forces two a.e. disjoint translates of J_0 to cover S^1. The endpoint issue is already covered by the “Remark on endpoints.” A small presentational note: the parenthetical “(iii) can also be deduced from Corollary F by instead choosing |J_0|∉{1/m})” refers to a variant of the theorem (with |J_0| not fixed to 1/2); as written, (iii) is proven via the component-length obstruction.
+- Proposition H: The incommensurability clause correctly assumes s rational. We record below a slightly more flexible sufficient condition (s/β ∉ Q), which can be used to ensure incommensurability for arbitrary s by choosing β appropriately.
+- Proposition I: Good fix of an earlier overreach; the additional hypothesis “no two-translate partition of S^1 by J_0” is essential in the |J_0|=1/2 case.
+
+New small lemmas/propositions (auditable, with short proofs)
+1) Singleton rigidity for complementary two-layer tiles under a mild integrality exclusion.
+- Lemma S. Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). If either 1/(1−|J_0|)∉N or 1/|J_0|∉N, then every tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+  Proof. Let d_n:=|T_n|. The per-row measure identity yields |J_0| d_n + (1−|J_0|) d_{n−1} = 1 for all n. The intersection identity (recorded in output.md) implies: if d_{n−1}≥1 then d_n≤1. If 1/(1−|J_0|)∉N and some d_m=0, then (1−|J_0|) d_{m−1}=1 forces a contradiction; hence d_n≥1 for all n, thus d_n≤1 by the previous inequality, so d_n=1. Symmetrically, if 1/|J_0|∉N and some d_{m−1}=0, then |J_0| d_m=1 contradicts integrality; shifting indices gives d_n≥1 for all n, hence d_n=1 by the inequality. ∎
+  Why useful here. This supplies an easy route to singleton-per-row (hence irreducibility) for many complementary tiles without invoking the two-translate obstruction; it also streamlines non-column arguments when combined with Lemma B.
+
+2) Meandering classification of singleton tilings for the complementary construction.
+- Proposition K (classification). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). Assume a tiling is singleton-per-row, T_n={θ_n}. Then for every n one has J_0+θ_n = J_0+(α+θ_{n−1}) a.e., i.e. δ_n:=θ_n−θ_{n−1}−α ∈ Stab(J_0):={t: J_0+t=J_0 a.e.}. Conversely, for any sequence (δ_n) with values in Stab(J_0), the sequence defined by θ_n:=θ_0+∑_{j=1}^n(α+δ_j) yields a singleton tiling T={ (n,θ_n) }.
+  Proof. The “only if” direction is Corollary J. For the converse, on row n we have J_0+θ_n and J_1+θ_{n−1}=S^1\(J_0+α+θ_{n−1}). Since δ_n∈Stab(J_0), J_0+θ_n=J_0+α+θ_{n−1}+δ_n=J_0+α+θ_{n−1} a.e., so the two contributions are complementary a.e. Pairwise a.e. disjointness holds because different anchors contribute on disjoint rows or contribute complementary sets on the same row. ∎
+  Why useful here. This shows there are many (generally aperiodic) irreducible singleton tilings for complementary two-layer tiles; periodic choices correspond to δ_n constant, recovering the families in Theorem A and Proposition G. It corrects a prior (overly rigid) heuristic that increments must be constant.
+
+3) Flexible incommensurability for the K={0,1,2} two-order family.
+- Lemma Q. If s∈(0,1) and β∉Q satisfy s/β∉Q, then β/(β−s)∉Q.
+  Proof. If β/(β−s)=p/q∈Q, then (q−p)β=ps, so s/β=(q−p)/p∈Q, contradiction. ∎
+  Why useful here. Proposition H can achieve incommensurability without assuming s rational by choosing β so that s/β∉Q (e.g., β irrational and rationally independent from s).
+
+4) Fourier obstruction to two-translate complement (explicit numeric check for Theorem A’s U).
+- Lemma F2 (explicit check). For U=[0,0.2]∪[0.3,0.35] and J_0:=U∪(U+1/2), one has \hat{1_{J_0}}(2) and \hat{1_{J_0}}(4) both nonzero. Indeed, \hat{1_{J_0}}(t)=(1+e^{-π i t})\hat{1_U}(t), so it suffices to show \hat{1_U}(2),\hat{1_U}(4)≠0. Direct computation yields
+  \hat{1_U}(2) ≈ 0.01787 − 0.10419 i,  \hat{1_U}(4) ≈ −0.05229 − 0.07196 i,
+  hence \hat{1_{J_0}}(2)≈0.03573−0.20838 i and \hat{1_{J_0}}(4)≈−0.10458−0.14391 i. By the Fourier complement lemma (already recorded in notes), the existence of δ with J_0+δ=S^1\J_0 a.e. would force e^{2π i t δ}=−1 for all t with \hat{1_{J_0}}(t)≠0, impossible for t=2 and t=4 simultaneously. Thus J_0 has no two-translate complement, validating Theorem A’s non-column step via Fourier as an alternative to component-lengths.
+  Why useful here. It provides a concrete, fully checkable obstruction for the numeric Theorem A instance.
+
+Examples and quick checks
+- Theorem A instance (as in output.md). The explicit Fourier values above certify the “no two-translate” hypothesis; T_α and T_{α+1/2} are singleton tilings; Lemma B gives irreducibility; incommensurability by Lemma R.
+- K={0,1,2} instance. Take c_1=c_3=2/5, c_2=1/5. Pick β=√2/10 so that s/β= (2/5)/(√2/10)=4/√2=2√2∉Q; then β/(β−s) is irrational by Lemma Q. Non-column holds by Lemma E (1/c_1=5/2∉N). Irreducible by Lemma B.
+
+Corrections and obstacles (what failed and how we fixed it)
+- Earlier “rigidity” attempt (all increments equal) is false in general: Proposition K shows any sequence of increments in Stab(J_0) works in the singleton regime. Constant increments are just a special (periodic) case.
+- The |J_0|=1/2 rigidity in Proposition I necessarily uses a further obstruction (no two-translate tiling for J_0); Lemma S shows an alternative path to singleton-per-row when either reciprocal measure is not an integer.
+
+What to add/adjust in output.md (gaps and suggested insertions)
+- Add Lemma S (singleton rigidity under 1/(1−|J_0|)∉N or 1/|J_0|∉N). It provides a simple, general route to singleton-per-row for complementary tiles beyond |J_0|=1/2.
+- Add Proposition K (meandering classification) to make explicit that all singleton tilings for the complementary construction are parameterized by sequences in Stab(J_0); note that periodic sequences yield the families in Theorem A and Proposition G.
+- In Proposition H, mention the alternative incommensurability criterion “s/β∉Q” (Lemma Q), allowing s arbitrary by a suitable choice of β.
+- Optionally include the explicit Fourier check for the Theorem A example (Lemma F2) as an alternative to the component-length argument in (iii).
+
+Next steps (concrete, testable)
+- Formalize a “q-phase meandering classification”: with Stab(J_0)=(1/q)Z, characterize all periods arising from sequences δ_n taking values in (1/q)Z (e.g., constant sequences give periods (1,α+j/q), periodic δ_n of period r give periods (r, rα + sum δ_n), etc.).
+- For K={0,1,2}, explore simultaneous compatibility for more than two orders and derive the associated linear relations among slopes; combine with Lemma E to obtain multi-period families, aiming at three or more pairwise incommensurable periods.
+- Strengthen the Fourier obstruction into a general “no m-translate partition” test for |J_0|=1/m, recording explicit coefficient constraints and supplying at least one fully worked example for m=3.
+
+
+
+=== summary.md ===
+
+## round-0001 — model summary — 2025-08-28T14:26:26.298481Z
+This round produced multiple explicit constructions showing a non-column finite tile A ⊂ Z×S^1 can admit two distinct irreducible periodic tilings with incommensurable vertical shifts. Two mechanisms emerged: (a) a 3-layer singleton-per-row scheme (K={0,1,2}) where two different cyclic orders of the three intervals give two different slopes α, α' (synchronizing conditions achieved when L_1=L_3); (b) a 2-layer construction (K={0,1}) using a 1/2-periodic layer J_0 that yields tilings with slopes α and α+1/2. Both approaches include proofs of irreducibility and arguments that the tile is not a column (the 3-layer non-column argument is sketched and planned to be formalized). Choosing irrational length parameters (or irrational shift α) gives α/α'∉Q. Verifier: success. Citations: prover-01.out.json, prover-02.out.json, prover-03.out.json.
+
+## round-0002 — model summary — 2025-08-28T14:37:14.500976Z
+Round 0002 audited output.md and supplied several clean lemmas and simplifications. Theorem A (the complementary 2-layer construction) is confirmed: it yields two irreducible singleton tilings with incommensurable periods. Key additions: Lemma E completes the K={0,1,2} two-order family by a simple boundary argument; a general boundary lemma (d_{p−k_min}·μ_min = 1 ⇒ 1/μ_min ∈ N) streamlines all non-column proofs; Proposition G (q‑phase) produces q distinct incommensurable singleton tilings when J_0 is 1/q-periodic; and a Fourier obstruction gives a concrete test forbidding translational complements/partitions. An explicit algebraic check fills a computation gap in Proposition D (compatibility iff c1=c3, with β'≡β−c1). Recommended edits: add these lemmas/propositions to output.md and optionally relax the |J_0|=1/2 hypothesis in Theorem A. See prover-01.out.json, prover-02.out.json, prover-03.out.json for details. Verifier verdict: partial success.
+
+## round-0003 — model summary — 2025-08-28T14:55:14.738946Z
+Round 0003 audit and tightenings: the three reports confirm Theorem A and Proposition H are correct and add several small, auditable lemmas that strengthen and close gaps. Key additions: a gcd-necessity lemma (reducibility when gcd(K−K)>1), an explicit closure step for Lemma B, a one-line rational-shift incommensurability lemma, and (crucially) Lemma 1 + Corollary 2 showing that for the complementary two-layer construction every tiling is singleton-per-row and that row increments lie in α+Stab(J_0) (hence in α+(1/q)Z when J_0 is 1/q-periodic). Prover 03 supplies the sufficiency half of Lemma C (congruences ⇒ helical tilings) and tightens incommensurability claims for the K={0,1,2} family. Remaining work: prove increment-constancy (rigidity) to classify all tilings and formalize the Fourier obstruction for |J_0|=1/m corner cases. Verifier verdict: partial success. Sources: prover-01.out.json, prover-02.out.json, prover-03.out.json.
+
+## round-0004 — model summary — 2025-08-28T15:06:20.403010Z
+Round 0004 audited output.md and added several short, checkable lemmas/tools that tighten constructions and non-column arguments. Main confirmations: Theorem A’s complementary two-layer construction is correct and the two helical tilings T_α and T_{α+1/2} are singleton and irreducible. New/strengthened results include Lemma S (singleton rigidity under integrality exclusions 1/(1−|J_0|)∉N or 1/|J_0|∉N), Proposition K (meandering classification: singleton tilings parameterized by increments δ_n ∈ Stab(J_0)), a generalized singleton rigidity result forbidding any m-fold translational tiling ⇒ |T_n|=1, Fourier two- and three-translate obstructions (with an explicit numeric check Lemma F2 for Theorem A), and a boundary-integrality lemma for general K. Concrete examples (q=3 family) and an incommensurability criterion (Lemma Q: s/β∉Q ⇒ β/(β−s)∉Q) were supplied. Verifier verdict: partial success. Citations: prover-01.out.json, prover-02.out.json, prover-03.out.json.
+
+
+
+=== notes.md ===
+Set-up and notation
+- Work in G = Z × S^1 (S^1 = R/Z). A tile A is a finite union of layers of the form {k_i}×[a_i,b_i] with 0 < b_i−a_i < 1, i=1,…,ℓ. A tiling T ⊂ Z×S^1 is a set of translations such that the (almost everywhere) disjoint union of A+(n,θ) over (n,θ)∈T equals Z×S^1. The fiber at n is T_n := {θ ∈ S^1 : (n,θ) ∈ T}. A period (k,α) means T+(k,α)=T.
+
+Basic facts
+- Fiber finiteness. In any tiling, every T_n is finite, and for each m we have ∑_i |T_{m−k_i}|·(b_i−a_i) = 1.
+- Period transport. If (k,α) is a period then T_{n+k} = T_n + α for all n.
+
+Singleton-per-row tilings
+- Definition: |T_n|=1 for all n. Write T_n={θ_n}. Then column m is the (a.e.) disjoint union of the ℓ intervals [a_i+θ_{m−k_i}, b_i+θ_{m−k_i}], i=1,…,ℓ.
+- Fixed cyclic order formulation. If, at each m, the ℓ intervals appear in the same cyclic order σ and meet end-to-end, then for some row phase φ_m one has θ_{m−k_i} = φ_m + c_i − a_i, where c_i are order-dependent constants with c_{σ(i)} ≡ c_i + (b_i−a_i) (mod 1). Consequently θ_{m−k_i} − θ_{m−k_j} is independent of m. If 1∈{k_i}, then θ_n−θ_{n−1} is constant, i.e. T has period (1,β) with β := θ_n−θ_{n−1}.
+- Linear congruence system (Prover 03). Under a fixed order σ,
+  (k_i − k_{σ(i)}) β ≡ a_i + (b_i−a_i) − a_{σ(i)}  (mod 1),  i=1,…,ℓ.
+  For ℓ=3, K={0,1,2}, and orders σ=(1→2→3→1), σ'=(1→3→2→1), the two orders are simultaneously compatible for the same endpoints a_i iff c_1=c_3, and then the slopes satisfy β' ≡ β − c_1 (mod 1). This yields two distinct singleton tilings for the same tile when c_1=c_3.
+- Irreducibility (singleton, gcd=1). Let H:=⟨K−K⟩≤Z. If H≠Z then any tiling splits along residue classes mod H; hence irreducibility forces H=Z. Moreover, if |T_n|=1 and H=Z then any partition T=T_1⊔T_2 induces Z=X_1⊔X_2 with X_1 closed under subtraction by each k_i and hence under ±(K−K); since H=Z, X_1 is either ∅ or Z. Thus singleton tilings with gcd(K−K)=1 are irreducible.
+
+Two complementary-layer construction (explicit)
+- Choose U⊂S^1 a finite union of disjoint intervals with |U|=1/4 and U∩(U+1/2)=∅ (e.g., U=[0,0.2)∪[0.3,0.35)). Let J_0:=U∪(U+1/2). Then |J_0|=1/2 and J_0+1/2=J_0. Pick an irrational α∈(0,1/2), and set J_1:=S^1\(J_0+α). Define A:=({0}×J_0)∪({1}×J_1).
+- Two tilings. For any θ_0, define T_α={ (n, θ_0+nα): n∈Z }. On row n the contributions are (J_0+θ_n) and (J_1+θ_{n−1}) with θ_n=θ_0+nα, which are complementary because J_1=S^1\(J_0+α). Thus A+T_α=Z×S^1 a.e., and T_α has period (1,α). Using J_0+1/2=J_0 the same argument works for α' := α+1/2, giving a tiling T_{α'} with period (1,α'). Both are singleton tilings, hence irreducible by the lemma above (K={0,1} has gcd 1).
+- Incommensurability. If α∉Q, then α/(α+1/2)∉Q: from α/(α+1/2)=p/q one deduces α=p/(2(q−p))∈Q, a contradiction.
+- Non-column property (finite-column tilings impossible). Say A+T=X×S^1 with X finite. Let d_n:=|T_n|. On row n the union is a.e. disjoint, so |J_0| d_n + |J_1| d_{n−1} = 1_{n∈X}. With |J_0|=|J_1|=1/2 this yields d_n + d_{n−1} = 2·1_{n∈X}. Because X is finite, d_n=0 for all n sufficiently large/small. At the left boundary p of any connected component of X, we get d_{p−1}=0 and hence d_p=2; so row p is tiled by two disjoint translates of J_0 alone. Therefore S^1 is a.e. the disjoint union of two translates of J_0, which forces J_0+δ = S^1\J_0 for some δ. Our choice of U ensures this is impossible (the multiset of lengths of connected components of J_0 differs from that of its complement). Hence no such finite X exists: A is not a column.
+
+Consequences
+- This explicit A is a non-column tile that admits two irreducible periodic tilings with incommensurable vertical periods (1,α) and (1,α+1/2).
+- Independently, for ℓ=3 and K={0,1,2} with c_1=c_3, the congruence mechanism produces two distinct singleton tilings of the same tile with slopes β and β'≡β−c_1. Picking β irrational makes β/(β') irrational unless a rational relation holds; such relations are at most countable in the parameter.
+
+Next directions
+- q-periodic generalization: If J_0 has 1/q-periodicity, the same complementary construction yields q tilings with slopes α+j/q; non-column persists under the same “no translational complement” obstruction.
+- Non-column for K={0,1,2} singleton tiles: adapt the boundary-recurrence method with |J_•| = c_• to force a boundary row covered by a single layer, then forbid that layer from tiling S^1 by finitely many translates via a connected-component-length invariant.
+Additional tools and extensions
+
+1) Boundary obstruction to finite-column tilings (general form). For a tile A, define for each height k the aggregated layer J_k⊂S^1 as the union of all arcs at that height, and μ_k:=|J_k|. In any finite-column tiling A+T=X×S^1 with X finite and d_n:=|T_n|, the per-row measure identity is
+  ∑_k μ_k · d_{m−k} = 1_{m∈X}, for all m∈Z.
+If p:=min X and k_min:=min K, then only anchors with z=p−k_min can appear (any other anchor would create coverage outside X below p). Therefore d_{p−k_min} μ_{k_min}=1, so 1/μ_{k_min}∈N. Symmetrically, with q:=max X and k_max:=max K we get d_{q−k_max} μ_{k_max}=1, hence 1/μ_{k_max}∈N.
+
+Consequences:
+- K={0,1}: μ_{0}=|J_0|, μ_{1}=|J_1|. If |J_0|∉{1/m} then A is not a column. (This yields a very quick non-column test for two-layer tiles, including the complementary construction.)
+- K={0,1,2}: If c_i denotes the total measure at height i (e.g., one interval per layer), then necessarily 1/c_1 and 1/c_3 are integers in any finite-column tiling. In particular, if c_1 or c_3 is not a reciprocal of an integer, the tile is not a column.
+
+2) q-phase generalization of the complementary 2-layer construction. If J_0⊂S^1 is 1/q-periodic (J_0+1/q=J_0) and J_1:=S^1\(J_0+α) with α irrational, then for each j=0,1,…,q−1 the singleton set T_{α+j/q}:={(n,θ_0+n(α+j/q))} is a tiling with period (1,α+j/q). For j≠j′, the ratio (α+j/q)/(α+j′/q) cannot be rational (else α would be rational). If additionally |J_0|∉{1/m}, the boundary obstruction implies A is not a column. Irreducibility follows from the singleton-gcd criterion (K={0,1}).
+
+3) Two-order singleton family for K={0,1,2} completed. When c_1=c_3=s, Lemma C shows the two cyclic orders (1→2→3→1) and (1→3→2→1) are simultaneously compatible and the slopes satisfy β′≡β−s (mod 1). If s∉{1/m}, the boundary obstruction rules out columns. If s is rational and β is irrational, then β/(β′) cannot be rational (else β would be rational), so the two periods are incommensurable.
+
+4) Fourier alternative to translational complement. If E⊂S^1 satisfies E+δ = S^1\E a.e., then for all t≠0 with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, if two distinct t’s have nonzero coefficients and cannot share a δ with e^{2π i t δ}=−1 simultaneously, such a δ cannot exist. This certifies non-columnity in cases like |J_0|=1/m when the boundary obstruction alone does not suffice.
+
+Remark on endpoints. Complements produce open arcs; choosing closed representatives changes sets only on measure-zero boundaries and does not affect any of our tiling or measure identities.
+Updates, corrections, and new tools
+
+1) On the “complementary two-layer” structure A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α)
+- Intersection identity. For any tiling A+T and row m, writing U_m:=⋃_{θ∈T_m}(J_0+θ) and V_m:=⋃_{θ∈T_{m−1}}(J_1+θ), we have U_m⊔V_m=S^1 a.e. and
+  V_m = ⋃_{θ∈T_{m−1}} (S^1\(J_0+α+θ)) = S^1 \ ⋂_{θ∈T_{m−1}} (J_0+α+θ).
+  Hence U_m = ⋂_{θ∈T_{m−1}} (J_0+α+θ) a.e. In particular, if d_{m−1}:=|T_{m−1}|≥1 then |U_m|≤|J_0|, which implies d_m≤1 (since U_m is a disjoint union of d_m translates of J_0). A symmetric statement holds one step forward: if d_m≥1 then d_{m+1}≤1.
+- Degeneracy (0/2) is not excluded without extra hypotheses. For |J_0|=|J_1|=1/2, the per-row identity is d_m+d_{m−1}=2. The pattern (…,2,0,2,0,…) is compatible with this identity; ruling it out requires forbidding two-translate tilings of J_0 (and hence of J_1). Our Theorem A already enforces this (via component-length mismatch). Under this “no two-translate” hypothesis we can prove d_m=1 for all m (see new Proposition I in output.md).
+
+2) Irreducibility and gcd(K−K)
+- Necessity. If H:=⟨K−K⟩≠Z (say gcd g>1), any tiling splits along residue classes modulo g: for T^{(r)}:={ (z,θ)∈T : z≡r (mod g) } one has A+T^{(r)} = X_r×S^1 a.e. where X_r:=gZ+r, and the union over r is disjoint. Thus H=Z is necessary for irreducibility, not only in the singleton regime.
+- Sufficiency in the singleton case. We include the full closure argument: if T=T_1⊔T_2 yields A+T_i=X_i×S^1, then from m∈X_1 all m−k_i∈X_1, hence X_1 is a union of cosets of H. If H=Z, X_1 is ∅ or Z.
+
+3) Singleton with fixed cyclic order: equivalence (Lemma C)
+- We now record the sufficiency half: if β and the a_i satisfy (k_i−k_{σ(i)})β≡a_i+c_i−a_{σ(i)} (mod 1), then θ_n:=θ_0+nβ produces, at each row m, ℓ arcs that meet end-to-end in the σ-order and (since ∑c_i=1) a.e. partition S^1.
+
+4) Incommensurability tools
+- General rational-shift test. If α∉Q and a≠b∈Q, then (α+a)/(α+b)∉Q. In particular, if α∉Q and r∈Q\{0}, then α/(α+r)∉Q. This packages the algebra used repeatedly in Theorem A and Prop. G.
+- Caution (Prop. H). The statement “β/(β−s)∉Q for all s∈(0,1)” is false without assuming s∈Q; e.g., β=√2 and s=β/2 give β/(β−s)=2∈Q. We retain the hypothesis s rational in the incommensurability clause of Prop. H.
+
+5) Fourier two-copy obstruction (record)
+- If E+δ=S^1\E a.e., then for every t≠0 with \hat{1_E}(t)≠0 we have e^{2πitδ}=−1. This is useful to forbid two-translate tilings when |E|=1/2 (or more generally |E|=1/m), and underpins the “no two-translate” hypothesis.
+
+6) Next targets (rigidity and classification)
+- Under J_0 with only 1/q-translational invariance, prove that any complementary two-layer tiling must have constant increment θ_m−θ_{m−1} modulo 1/q; hence classify all tilings as the q helical ones from Prop. G. Strategy: use the intersection identity row-to-row and endpoint propagation to show that varying the 1/q offset produces overlaps.
+- Systematically extend the multi-order mechanism beyond K={0,1,2}, again leveraging Lemma C and boundary obstruction Lemma E.
+Additions and clarifications (Round 0004)
+
+1) Clarification for Lemma C (singleton congruences)
+- The necessity part implicitly uses that the increment β:=θ_n−θ_{n−1} is constant in n. This is guaranteed when 1∈K (as in K={0,1} and K={0,1,2} used here), or more generally when the fixed order across rows implies a helical structure. All our applications satisfy 1∈K.
+
+2) Complementary two-layer: singleton tools
+- Integrality-based singleton rigidity. For A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α), the per-row identity is |J_0| d_m + (1−|J_0|) d_{m−1}=1 and the intersection identity implies: if d_{m−1}≥1 then d_m≤1, and symmetrically. If either 1/|J_0|∉N or 1/(1−|J_0|)∉N then no d_m can be 0 (else we would force one of these reciprocals to be an integer), and the inequality forces d_m≤1. Thus d_m=1 for all m. This recovers singleton-per-row without the special |J_0|=1/2 case.
+- Anti-m-tiling singleton rigidity (stronger hypothesis). If neither J_0 nor J_1 admits any m-fold partition of S^1 by disjoint translates for any m≥2, then d_m=1 for all m: if d_{m−1}≥2, then |U_m|<|J_0| so d_m=0, which forces an m-tile by J_1; contradiction. Symmetrically, d_{m−1}=0 would force an m-tile by J_0. Hence all d’s are 1.
+- Meandering classification (singleton regime). Assuming d_m=1, the complementary structure forces J_0+θ_m = J_0+(α+θ_{m−1}) a.e., i.e. θ_m−θ_{m−1}−α ∈ Stab(J_0). Conversely, any sequence of increments in α+Stab(J_0) yields a valid singleton tiling. This exhibits many (often aperiodic) singleton tilings; helical ones are obtained by taking a constant offset.
+
+3) Fourier obstructions
+- Two-translate obstruction. If E+δ=S^1\E a.e., then for any t≠0 with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, nonvanishing at two even modes (e.g., t=2 and t=4) forbids such δ since no δ can satisfy both e^{4π i δ}=−1 and e^{8π i δ}=−1 simultaneously.
+- Worked class: if J_0=U∪(U+1/2) with U=[0,c) and c∉Q, then \hat{1_{J_0}}(2k)=2\hat{1_U}(2k) with \hat{1_U}(2k)=(e^{4π i k c}−1)/(4π i k)≠0 for all k≥1, so no two-translate complement exists. This gives an easy certification for many explicit choices of U (including variants of Theorem A when |J_0|≠1/2).
+- Sketch for m=3 (to be formalized): If \hat{1_E}(t) and \hat{1_E}(2t) are nonzero and S^1 is partitioned a.e. by three translates of E, then the sums of first and second powers of e^{2π i t δ_j} vanish simultaneously, which is incompatible unless the three are cube roots of unity up to rotation; that in turn contradicts the second equation. This yields a quick “no 3-translate tiling” test.
+
+4) Incommensurability algebra
+- If s/β∉Q then β/(β−s)∉Q. Thus, in the K={0,1,2} two-order family, one can ensure incommensurability by choosing β so that s/β is irrational (no need to assume s rational).
+
+5) Symmetry of two-translate complements
+- E+δ=S^1\E a.e. iff (S^1\E)+δ=E a.e. Hence “no two-translate tiling” is symmetric under complement and translation. This justifies the symmetric step in the |J_0|=1/2 singleton rigidity proof.
+
+6) Concrete directions
+- Prove that when Stab(J_0)=(1/q)Z with no finer invariance, the offsets θ_m−θ_{m−1}−α (mod 1/q) must be constant across m; deduce that only the q helical tilings occur in that regime.
+- Formalize the m=3 Fourier obstruction and apply it to explicit J_0 at |J_0|=1/3 to enforce the hypotheses of the anti-m-tiling singleton rigidity.
+- For K={0,1,2,3}, enumerate fixed orders, write the congruence systems, and search for simultaneous compatibilities; combine with boundary integrality to certify non-columnity and extract ≥3 incommensurable periods.
+
+
+=== output.md ===
+Summary of proven results and why they matter
+- Main existence theorem (Theorem A). We construct an explicit tile A⊂Z×S^1 that is not a column yet admits two irreducible tilings with periods (1,α) and (1,α+1/2), with α irrational; these two periods are incommensurable. This positively settles the core existence question.
+- General structure for singleton tilings. We record a concise congruence system that characterizes singleton-per-row tilings with a fixed cyclic order, now with both necessity and sufficiency, and an irreducibility criterion. We also prove that gcd(K−K)=1 is not only sufficient (in the singleton setting) but that gcd(K−K)>1 forces reducibility in general.
+- Complementary two-layer family: q-phase generalization. If J_0 has 1/q-periodicity, the complementary construction yields q singleton tilings with incommensurable vertical periods (1,α+j/q). A quick boundary test certifies non-columnity whenever |J_0|∉{1/m}.
+- Two-order mechanism for K={0,1,2} completed. When c_1=c_3, a single tile admits two distinct singleton tilings corresponding to the cyclic orders (1→2→3→1) and (1→3→2→1); the slopes differ by c_1 modulo 1. Non-columnity follows from the boundary obstruction when c_1∉{1/m}. If c_1 is rational and the slope is irrational, the two periods are incommensurable.
+- Rigidity for Theorem A-type tiles. For the complementary two-layer tiles with |J_0|=1/2 that do not admit a two-translate partition of S^1, every tiling is automatically singleton-per-row. This streamlines irreducibility and supports further classification.
+
+Theorem A (Non-column tile with two incommensurable periods). Fix an irrational α∈(0,1/2). Let U⊂S^1 be a finite union of disjoint intervals of total length 1/4 such that U∩(U+1/2)=∅ and the multiset of lengths of connected components of U is different from that of its complement in [0,1/2). Define J_0:=U∪(U+1/2) (so |J_0|=1/2 and J_0+1/2=J_0), J_1:=S^1\(J_0+α), and set A:=( {0}×J_0 ) ∪ ( {1}×J_1 ). Then:
+(i) There is a tiling T_α with period (1,α), and a tiling T_{α+1/2} with period (1,α+1/2).
+(ii) Both tilings are irreducible.
+(iii) A is not a column (i.e., there is no finite X⊂Z and T⊂Z×S^1 with A+T=X×S^1).
+(iv) The periods are incommensurable: α/(α+1/2)∉Q.
+Proof. (i)–(iv) As in the previous version; we only note that (iii) can also be deduced from Corollary F by instead choosing |J_0|∉{1/m}, in which case the boundary obstruction immediately rules out finite-column tilings. ∎
+
+Lemma B (Irreducibility for singleton tilings with gcd(K−K)=1). Let A have layers at K={k_1,…,k_ℓ} and suppose |T_n|=1 for all n (singleton). Let H:=⟨K−K⟩≤Z. If H=Z then any tiling is irreducible.
+Proof. Assume a decomposition T=T_1⊔T_2 such that A+T_i=X_i×S^1 with Z=X_1⊔X_2 disjoint. Fix m∈X_1. In row m the contributing anchors are exactly at indices m−k_i (one per i). If for some i we had m−k_i∉X_1, then the corresponding interval [a_i+θ_{m−k_i},b_i+θ_{m−k_i}] would belong to A+T_2 and yet lie inside row m∈X_1, contradicting A+T_1=X_1×S^1. Hence m−k_i∈X_1 for all i, so X_1 is closed under subtraction by each k_i, hence under ±(K−K). Therefore X_1 is a union of cosets of H. If H=Z, only ∅ and Z occur, proving irreducibility. ∎
+
+Lemma B′ (Reducibility when gcd(K−K)>1). Let H:=⟨K−K⟩ and suppose H≠Z, with index g:=[Z:H]>1. For r=0,1,…,g−1 let T^{(r)}:={ (z,θ)∈T : z≡r (mod g) } and X_r:=gZ+r. Then A+T^{(r)}=X_r×S^1 a.e., and thus A+T is reducible into g disjoint tilings along residue classes mod g.
+Proof. A translate anchored at z contributes only to rows z+k_i, each ≡z (mod g). Hence only anchors with z≡r can contribute to rows in X_r, and conversely all coverage of a row m∈X_r comes from T^{(r)}. Disjointness across distinct r is automatic since they occupy disjoint rows. ∎
+
+Lemma C (Singleton congruences under a fixed cyclic order: necessity and sufficiency). Assume |T_n|=1 and that on every row the ℓ intervals appear in the same cyclic order σ and meet end-to-end. Let c_i:=b_i−a_i and β:=θ_n−θ_{n−1} (mod 1). Then the adjacency constraints are equivalent to the congruence system
+  (k_i − k_{σ(i)}) β ≡ a_i + c_i − a_{σ(i)}  (mod 1),  i=1,…,ℓ.
+Proof. Necessity: matching the right endpoint of i with the left endpoint of σ(i) and using θ_{m−k_i}−θ_{m−k_{σ(i)}}=(k_{σ(i)}−k_i)β gives the displayed congruences. Sufficiency: Given β solving these congruences, define θ_n:=θ_0+nβ. At row m put intervals I_i:=[a_i+θ_{m−k_i}, a_i+θ_{m−k_i}+c_i]. The congruences read a_i+θ_{m−k_i}+c_i ≡ a_{σ(i)}+θ_{m−k_{σ(i)}}, so the right endpoint of I_i equals the left endpoint of I_{σ(i)}. Summing lengths gives ∑_i|I_i|=∑_ic_i=1. Thus the I_i meet end-to-end around the circle in the σ-order and (apart from endpoints) are disjoint, forming an a.e. partition of S^1. ∎
+
+Lemma E (Boundary obstruction to finite-column tilings). [As before.] ∎
+
+Corollary F (Quick non-column test for two-layer tiles). [As before.] ∎
+
+Proposition G (q-phase generalization of the complementary 2-layer construction). [As before; incommensurability follows from the rational-shift Lemma R below by taking a=j/q, b=j′/q.] ∎
+
+Proposition H (Completion of the K={0,1,2} two-order mechanism: non-column family with two incommensurable periods). Let K=(0,1,2) and c_i=b_i−a_i>0 with c_1+c_2+c_3=1. Assume c_1=c_3=s and s∉{1/m: m∈N}. Then there exist endpoints a_1,a_2,a_3 and an irrational slope β such that the tile A:=⋃_{i=1}^3({k_i}×[a_i,b_i]) admits two distinct singleton tilings corresponding to the cyclic orders σ=(1→2→3→1) and σ′=(1→3→2→1), with slopes β and β′≡β−s (mod 1), respectively. Both tilings are irreducible, their periods are incommensurable if s is rational, and A is not a column.
+Proof. As before: Lemma C and its supplement give existence; Lemma B yields irreducibility (⟨K−K⟩=Z). If s∈Q and β∉Q, then β/β′∈Q would force β∈Q. Non-column follows from Lemma E at k=0 and k=2 since 1/s∉N. ∎
+
+Supplement to Proposition D (explicit algebra). [As before.] ∎
+
+Proposition I (Singleton rigidity for the |J_0|=1/2 complementary tiles). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α) and |J_0|=|J_1|=1/2. Assume J_0 does not admit a two-translate partition of S^1 (i.e., there is no δ with J_0 ⊔ (J_0+δ)=S^1 a.e.). Then every tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+Proof. Let d_n:=|T_n|. The per-row measure identity gives d_n+d_{n−1}=2 for all n. If d_n=2 for some n, then d_{n−1}=0 and row n is covered solely by two disjoint translates of J_0, contradicting the hypothesis. Similarly, d_n=0 is impossible. Hence d_n=1 for all n. ∎
+
+Corollary J (Row-to-row increment constraint in the complementary case). In the setting of Proposition I, writing T_n={θ_n}, for every m we have J_0+θ_m = J_0+(α+θ_{m−1}) a.e. Hence θ_m−θ_{m−1}−α∈Stab(J_0):={t∈S^1 : J_0+t=J_0 a.e.}. In particular, if J_0 has 1/q-periodicity and no finer translational invariance, then θ_m−θ_{m−1}∈α+(1/q)Z for all m.
+Proof. From U_m=⋃_{θ∈T_m}(J_0+θ) and U_m=S^1\V_m with V_m=⋃_{θ∈T_{m−1}}(J_1+θ), Proposition I gives d_m=d_{m−1}=1, so U_m=J_0+θ_m and also U_m=J_0+(α+θ_{m−1}). Thus J_0+θ_m=J_0+(α+θ_{m−1}) a.e. The stabilizer conclusion follows immediately. ∎
+
+Lemma R (Rational-shift incommensurability). If α∉Q and a≠b∈Q, then (α+a)/(α+b)∉Q. In particular, if α∉Q and r∈Q\{0}, then α/(α+r)∉Q.
+Proof. If (α+a)/(α+b)=p/q∈Q, then α+a=(p/q)(α+b), so (1−p/q)α=(p/q)b−a∈Q. Since a≠b, 1−p/q≠0, hence α∈Q, a contradiction. The special case takes b=0 and a=r. ∎
+
+Remark on endpoint conventions. Complements produce open arcs; choosing closed representatives modifies sets only on measure-zero boundaries and does not affect any a.e. tiling statements or measure identities above.
+Additions, clarifications, and new tools
+
+Remark (clarification for Lemma C). In the necessity direction we used the identity θ_{m−k_i}−θ_{m−k_{σ(i)}}=(k_{σ(i)}−k_i)β with β:=θ_n−θ_{n−1} independent of n. This constancy holds when 1∈K (as in our applications K={0,1} and {0,1,2}). For general K one needs a helical-phase conclusion from the fixed-order hypothesis before specializing to a constant β.
+
+Lemma E (Boundary obstruction to finite-column tilings: explicit statement). Let A=\bigcup_i\{k_i\}×[a_i,b_i] and, for each height k, let the aggregated layer be J_k:=\bigcup_{i: k_i=k}[a_i,b_i] with measure μ_k:=|J_k|. Suppose A+T=X×S^1 with X finite, and write d_n:=|T_n|. Then for all m∈Z we have the per-row identity
+  \sum_k μ_k · d_{m−k} = 1_{m∈X}.
+If p:=min X and k_min:=min\{k_i\}, then only anchors at z=p−k_min can contribute to row p, hence μ_{k_min}·d_{p−k_min}=1. Similarly, if q:=max X and k_max:=max\{k_i\}, then μ_{k_max}·d_{q−k_max}=1. In particular, if 1/μ_{k_min}∉N or 1/μ_{k_max}∉N, then no such finite-column tiling exists (A is not a column).
+Proof. The per-row identity is the a.e. disjointness of the row-unions. The boundary constraints follow by localization: any anchor z<p−k_min would create coverage below p; any anchor z=p−k with k>k_min creates coverage at row p−(k−k_min)<p. Thus only z=p−k_min contributes to row p, where S^1 is partitioned a.e. by d_{p−k_min} copies of J_{k_min}. The right boundary is analogous. ∎
+
+Lemma T (Fourier two-translate obstruction). Let E⊂S^1 be measurable. If there exists δ with E+δ = S^1\E a.e., then for every t∈Z\{0} with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, if \hat{1_E}(2) and \hat{1_E}(4) are both nonzero, no such δ can exist.
+Proof. Taking Fourier coefficients in 1_{E+δ}+1_E=1 gives e^{2π i t δ} \hat{1_E}(t)+\hat{1_E}(t)=0 for all t≠0, hence e^{2π i t δ}=−1 whenever \hat{1_E}(t)≠0. For t=2 and t=4 this would impose δ≡1/2 (mod 1) and δ≡1/4 (mod 1) simultaneously, impossible. ∎
+
+Proposition S (Singleton rigidity via integrality exclusion for complementary two-layer tiles). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). If either 1/|J_0|∉N or 1/|J_1|=1/(1−|J_0|)∉N, then every tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+Proof. Let d_n:=|T_n| and U_n:=\bigcup_{θ∈T_n}(J_0+θ). The intersection identity yields U_n = \bigcap_{θ∈T_{n−1}}(J_0+α+θ) a.e., hence if d_{n−1}≥1 then |U_n|≤|J_0| and therefore d_n≤1 (since U_n is a disjoint union of d_n copies of J_0). If some d_m=0, then the per-row measure identity |J_0| d_m + (1−|J_0|) d_{m−1}=1 forces (1−|J_0|) d_{m−1}=1, contradicting 1/(1−|J_0|)∉N. Symmetrically, if some d_{m−1}=0, then |J_0| d_m=1 contradicts 1/|J_0|∉N. Thus no d is 0; since d_{n−1}≥1 we get d_n≤1 for all n, hence d_n=1. ∎
+
+Proposition K (Meandering classification of singleton tilings for the complementary construction). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). Suppose A+T=Z×S^1 is singleton per row (T_n={θ_n}). Then for every n,
+  J_0+θ_n = J_0+(α+θ_{n−1}) a.e., equivalently Δ_n:=θ_n−θ_{n−1}−α ∈ Stab(J_0):=\{t∈S^1 : J_0+t=J_0 a.e.\}.
+Conversely, for any bi-infinite sequence (Δ_n) with values in Stab(J_0), the sequence θ_n:=θ_0+\sum_{j=1}^n(α+Δ_j) defines a singleton tiling T={(n,θ_n)}.
+Proof. The “only if” follows from U_n=J_0+θ_n=S^1\V_n and V_n=\bigcup_{θ∈T_{n−1}}(J_1+θ)=S^1\(J_0+α+θ_{n−1}). The “if” direction: if Δ_n∈Stab(J_0), then J_0+θ_n=J_0+α+θ_{n−1} a.e., so in row n the two contributions are complementary a.e., giving a tiling with a.e. disjointness across all rows. ∎
+
+Proposition K2 (Singleton rigidity for complementary two-layer tiles under anti-m-tiling hypotheses). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). Suppose neither J_0 nor J_1 admits an m-fold partition of S^1 by pairwise a.e. disjoint translates for any integer m≥2. Then every tiling A+T=Z×S^1 is singleton per row: |T_n|=1 for all n.
+Proof. Let d_n:=|T_n| and U_n:=\bigcup_{θ∈T_n}(J_0+θ), V_n:=\bigcup_{θ∈T_{n−1}}(J_1+θ). As before U_n⊔V_n=S^1 a.e. and U_n=\bigcap_{θ∈T_{n−1}}(J_0+α+θ) a.e. If d_{n−1}≥2, then there exist θ≠θ′ in T_{n−1} with θ′−θ∉Stab(J_1)=Stab(J_0), hence |(J_0+α+θ)∩(J_0+α+θ′)|<|J_0| and thus |U_n|<|J_0|, forcing d_n=0. Then V_n=S^1 a.e., so S^1 is the a.e. disjoint union of d_{n−1} copies of J_1, i.e. an m-translate tiling with m=d_{n−1}≥2, a contradiction. Hence d_{n−1}≤1; by symmetry d_n≤1. Finally, d_{n−1}=0 would force U_n=S^1 and hence an m-translate tiling by J_0 with m=d_n≥2, again a contradiction. Therefore d_{n−1}=d_n=1 for all n. ∎
+
+Lemma Q (Incommensurability via ratio). If s∈(0,1) and β∉Q satisfy s/β∉Q, then β/(β−s)∉Q.
+Proof. If β/(β−s)=p/q∈Q, then (q−p)β=ps, hence s/β=(q−p)/p∈Q, a contradiction. ∎
+
+Addendum to Proposition I. The symmetric step “d_n=0 is impossible” uses that J_1 admits a two-translate partition iff J_0 does: E+δ=S^1\E a.e. iff (S^1\E)+δ=E a.e. Since J_1 is a translate of S^1\J_0, the hypothesis for J_0 automatically forbids the corresponding partition for J_1. ∎
+
+
+=== round-0004/verifier.feedback.md ===
+Overall, the three reports are consistent with our current framework and add several genuinely useful, checkable tools. The main strengths are: (i) a clean Fourier “two-translate” obstruction lemma (P02, P03), with a concrete way to certify the delicate step in the |J_0|=1/2 complementary construction; (ii) two singletons-per-row rigidity results for complementary two-layer tiles: a quick integrality-based criterion (P01’s Lemma S) and a stronger hypothesis that forbids any m-fold translational partitions of J_0 and J_1 for m≥2 (P03’s Proposition K), both with short, correct proofs; (iii) a clear classification of singleton tilings in the complementary construction via the stabilizer Stab(J_0) (P01 Proposition K), which generalizes our Corollary J and anchors the “meandering” picture; (iv) a simple incommensurability algebra (P01 Lemma Q) that allows avoiding the “s rational” restriction in Proposition H by appropriate choice of β.
+
+Rigor audit and corrections:
+- Lemma C in output.md implicitly used that θ_n−θ_{n−1} is constant. This is guaranteed when 1∈K (or more generally under a helical-phase conclusion). We should explicitly note this assumption. I add a clarification remark rather than removing the lemma, since all our uses have 1∈K (K={0,1} or {0,1,2}).
+- Boundary obstruction: output.md still says “Lemma E (As before)”. I’ve inserted the explicit general (“aggregated-measure”) statement with proof. This removes the cross-reference ambiguity and upgrades the tool for arbitrary K.
+- Proposition I (|J_0|=1/2 singleton rigidity): the “Similarly, d_n=0 is impossible” step relies on the obvious equivalence that J_1 admits a 2-translate partition iff J_0 does. I include this one-line justification as an addendum.
+- The Fourier two-translate obstruction is formalized and added (with proof). Numeric checks such as P01’s Lemma F2 are fine for notes, but output.md only records the general lemma plus a simple explicit class (U=[0,c), c irrational) as a worked example in notes.
+
+Value triage:
+- Keep (and I have added to output.md): the explicit boundary lemma, the Fourier two-translate lemma, Lemma S (integrality-based singleton rigidity), the meandering classification (Proposition K), and the anti-m-tiling singleton rigidity (Proposition K2). These are clean, broadly applicable, and rigorously proved.
+- Retain in notes (not in output.md): specific numerical Fourier evaluations; the q=3 explicit instance is subsumed by the general Proposition G and can stay as an illustrative example in notes.
+
+Next steps (actionable):
+- Push the classification: When J_0 has exactly 1/q translational symmetry, try to prove the 1/q-offset in θ_m−θ_{m−1} must be constant (hence only the q helical tilings occur). A promising route is a three-row argument tracking boundary propagation and using the intersection identity; formalize a contradiction if two distinct offsets occur across consecutive increments.
+- Multi-translate Fourier obstructions: we now have the m=2 lemma. P03 sketched an m=3 obstruction; formalize and record a general “vector of Fourier mode constraints” for m translates. Provide at least one fully worked m=3 example.
+- For K={0,1,2}, systematize simultaneous compatibility for more than two orders (ℓ=4 with K={0,1,2,3}), compute the resulting linear constraints, and combine with the boundary lemma to force non-columnity and multiple periods. Aim for three or more pairwise incommensurable periods.
+- Update Proposition H’s incommensurability clause with Lemma Q: allow arbitrary s by choosing β with s/β∉Q.
+
+
+=== notes.md ===
+Set-up and notation
+- Work in G = Z × S^1 (S^1 = R/Z). A tile A is a finite union of layers of the form {k_i}×[a_i,b_i] with 0 < b_i−a_i < 1, i=1,…,ℓ. A tiling T ⊂ Z×S^1 is a set of translations such that the (almost everywhere) disjoint union of A+(n,θ) over (n,θ)∈T equals Z×S^1. The fiber at n is T_n := {θ ∈ S^1 : (n,θ) ∈ T}. A period (k,α) means T+(k,α)=T.
+
+Basic facts
+- Fiber finiteness. In any tiling, every T_n is finite, and for each m we have ∑_i |T_{m−k_i}|·(b_i−a_i) = 1.
+- Period transport. If (k,α) is a period then T_{n+k} = T_n + α for all n.
+
+Singleton-per-row tilings
+- Definition: |T_n|=1 for all n. Write T_n={θ_n}. Then column m is the (a.e.) disjoint union of the ℓ intervals [a_i+θ_{m−k_i}, b_i+θ_{m−k_i}], i=1,…,ℓ.
+- Fixed cyclic order formulation. If, at each m, the ℓ intervals appear in the same cyclic order σ and meet end-to-end, then for some row phase φ_m one has θ_{m−k_i} = φ_m + c_i − a_i, where c_i are order-dependent constants with c_{σ(i)} ≡ c_i + (b_i−a_i) (mod 1). Consequently θ_{m−k_i} − θ_{m−k_j} is independent of m. If 1∈{k_i}, then θ_n−θ_{n−1} is constant, i.e. T has period (1,β) with β := θ_n−θ_{n−1}.
+- Linear congruence system (Prover 03). Under a fixed order σ,
+  (k_i − k_{σ(i)}) β ≡ a_i + (b_i−a_i) − a_{σ(i)}  (mod 1),  i=1,…,ℓ.
+  For ℓ=3, K={0,1,2}, and orders σ=(1→2→3→1), σ'=(1→3→2→1), the two orders are simultaneously compatible for the same endpoints a_i iff c_1=c_3, and then the slopes satisfy β' ≡ β − c_1 (mod 1). This yields two distinct singleton tilings for the same tile when c_1=c_3.
+- Irreducibility (singleton, gcd=1). Let H:=⟨K−K⟩≤Z. If H≠Z then any tiling splits along residue classes mod H; hence irreducibility forces H=Z. Moreover, if |T_n|=1 and H=Z then any partition T=T_1⊔T_2 induces Z=X_1⊔X_2 with X_1 closed under subtraction by each k_i and hence under ±(K−K); since H=Z, X_1 is either ∅ or Z. Thus singleton tilings with gcd(K−K)=1 are irreducible.
+
+Two complementary-layer construction (explicit)
+- Choose U⊂S^1 a finite union of disjoint intervals with |U|=1/4 and U∩(U+1/2)=∅ (e.g., U=[0,0.2)∪[0.3,0.35)). Let J_0:=U∪(U+1/2). Then |J_0|=1/2 and J_0+1/2=J_0. Pick an irrational α∈(0,1/2), and set J_1:=S^1\(J_0+α). Define A:=({0}×J_0)∪({1}×J_1).
+- Two tilings. For any θ_0, define T_α={ (n, θ_0+nα): n∈Z }. On row n the contributions are (J_0+θ_n) and (J_1+θ_{n−1}) with θ_n=θ_0+nα, which are complementary because J_1=S^1\(J_0+α). Thus A+T_α=Z×S^1 a.e., and T_α has period (1,α). Using J_0+1/2=J_0 the same argument works for α' := α+1/2, giving a tiling T_{α'} with period (1,α'). Both are singleton tilings, hence irreducible by the lemma above (K={0,1} has gcd 1).
+- Incommensurability. If α∉Q, then α/(α+1/2)∉Q: from α/(α+1/2)=p/q one deduces α=p/(2(q−p))∈Q, a contradiction.
+- Non-column property (finite-column tilings impossible). Say A+T=X×S^1 with X finite. Let d_n:=|T_n|. On row n the union is a.e. disjoint, so |J_0| d_n + |J_1| d_{n−1} = 1_{n∈X}. With |J_0|=|J_1|=1/2 this yields d_n + d_{n−1} = 2·1_{n∈X}. Because X is finite, d_n=0 for all n sufficiently large/small. At the left boundary p of any connected component of X, we get d_{p−1}=0 and hence d_p=2; so row p is tiled by two disjoint translates of J_0 alone. Therefore S^1 is a.e. the disjoint union of two translates of J_0, which forces J_0+δ = S^1\J_0 for some δ. Our choice of U ensures this is impossible (the multiset of lengths of connected components of J_0 differs from that of its complement). Hence no such finite X exists: A is not a column.
+
+Consequences
+- This explicit A is a non-column tile that admits two irreducible periodic tilings with incommensurable vertical periods (1,α) and (1,α+1/2).
+- Independently, for ℓ=3 and K={0,1,2} with c_1=c_3, the congruence mechanism produces two distinct singleton tilings of the same tile with slopes β and β'≡β−c_1. Picking β irrational makes β/(β') irrational unless a rational relation holds; such relations are at most countable in the parameter.
+
+Next directions
+- q-periodic generalization: If J_0 has 1/q-periodicity, the same complementary construction yields q tilings with slopes α+j/q; non-column persists under the same “no translational complement” obstruction.
+- Non-column for K={0,1,2} singleton tiles: adapt the boundary-recurrence method with |J_•| = c_• to force a boundary row covered by a single layer, then forbid that layer from tiling S^1 by finitely many translates via a connected-component-length invariant.
+Additional tools and extensions
+
+1) Boundary obstruction to finite-column tilings (general form). For a tile A, define for each height k the aggregated layer J_k⊂S^1 as the union of all arcs at that height, and μ_k:=|J_k|. In any finite-column tiling A+T=X×S^1 with X finite and d_n:=|T_n|, the per-row measure identity is
+  ∑_k μ_k · d_{m−k} = 1_{m∈X}, for all m∈Z.
+If p:=min X and k_min:=min K, then only anchors with z=p−k_min can appear (any other anchor would create coverage outside X below p). Therefore d_{p−k_min} μ_{k_min}=1, so 1/μ_{k_min}∈N. Symmetrically, with q:=max X and k_max:=max K we get d_{q−k_max} μ_{k_max}=1, hence 1/μ_{k_max}∈N.
+
+Consequences:
+- K={0,1}: μ_{0}=|J_0|, μ_{1}=|J_1|. If |J_0|∉{1/m} then A is not a column. (This yields a very quick non-column test for two-layer tiles, including the complementary construction.)
+- K={0,1,2}: If c_i denotes the total measure at height i (e.g., one interval per layer), then necessarily 1/c_1 and 1/c_3 are integers in any finite-column tiling. In particular, if c_1 or c_3 is not a reciprocal of an integer, the tile is not a column.
+
+2) q-phase generalization of the complementary 2-layer construction. If J_0⊂S^1 is 1/q-periodic (J_0+1/q=J_0) and J_1:=S^1\(J_0+α) with α irrational, then for each j=0,1,…,q−1 the singleton set T_{α+j/q}:={(n,θ_0+n(α+j/q))} is a tiling with period (1,α+j/q). For j≠j′, the ratio (α+j/q)/(α+j′/q) cannot be rational (else α would be rational). If additionally |J_0|∉{1/m}, the boundary obstruction implies A is not a column. Irreducibility follows from the singleton-gcd criterion (K={0,1}).
+
+3) Two-order singleton family for K={0,1,2} completed. When c_1=c_3=s, Lemma C shows the two cyclic orders (1→2→3→1) and (1→3→2→1) are simultaneously compatible and the slopes satisfy β′≡β−s (mod 1). If s∉{1/m}, the boundary obstruction rules out columns. If s is rational and β is irrational, then β/(β′) cannot be rational (else β would be rational), so the two periods are incommensurable.
+
+4) Fourier alternative to translational complement. If E⊂S^1 satisfies E+δ = S^1\E a.e., then for all t≠0 with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, if two distinct t’s have nonzero coefficients and cannot share a δ with e^{2π i t δ}=−1 simultaneously, such a δ cannot exist. This certifies non-columnity in cases like |J_0|=1/m when the boundary obstruction alone does not suffice.
+
+Remark on endpoints. Complements produce open arcs; choosing closed representatives changes sets only on measure-zero boundaries and does not affect any of our tiling or measure identities.
+Updates, corrections, and new tools
+
+1) On the “complementary two-layer” structure A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α)
+- Intersection identity. For any tiling A+T and row m, writing U_m:=⋃_{θ∈T_m}(J_0+θ) and V_m:=⋃_{θ∈T_{m−1}}(J_1+θ), we have U_m⊔V_m=S^1 a.e. and
+  V_m = ⋃_{θ∈T_{m−1}} (S^1\(J_0+α+θ)) = S^1 \ ⋂_{θ∈T_{m−1}} (J_0+α+θ).
+  Hence U_m = ⋂_{θ∈T_{m−1}} (J_0+α+θ) a.e. In particular, if d_{m−1}:=|T_{m−1}|≥1 then |U_m|≤|J_0|, which implies d_m≤1 (since U_m is a disjoint union of d_m translates of J_0). A symmetric statement holds one step forward: if d_m≥1 then d_{m+1}≤1.
+- Degeneracy (0/2) is not excluded without extra hypotheses. For |J_0|=|J_1|=1/2, the per-row identity is d_m+d_{m−1}=2. The pattern (…,2,0,2,0,…) is compatible with this identity; ruling it out requires forbidding two-translate tilings of J_0 (and hence of J_1). Our Theorem A already enforces this (via component-length mismatch). Under this “no two-translate” hypothesis we can prove d_m=1 for all m (see new Proposition I in output.md).
+
+2) Irreducibility and gcd(K−K)
+- Necessity. If H:=⟨K−K⟩≠Z (say gcd g>1), any tiling splits along residue classes modulo g: for T^{(r)}:={ (z,θ)∈T : z≡r (mod g) } one has A+T^{(r)} = X_r×S^1 a.e. where X_r:=gZ+r, and the union over r is disjoint. Thus H=Z is necessary for irreducibility, not only in the singleton regime.
+- Sufficiency in the singleton case. We include the full closure argument: if T=T_1⊔T_2 yields A+T_i=X_i×S^1, then from m∈X_1 all m−k_i∈X_1, hence X_1 is a union of cosets of H. If H=Z, X_1 is ∅ or Z.
+
+3) Singleton with fixed cyclic order: equivalence (Lemma C)
+- We now record the sufficiency half: if β and the a_i satisfy (k_i−k_{σ(i)})β≡a_i+c_i−a_{σ(i)} (mod 1), then θ_n:=θ_0+nβ produces, at each row m, ℓ arcs that meet end-to-end in the σ-order and (since ∑c_i=1) a.e. partition S^1.
+
+4) Incommensurability tools
+- General rational-shift test. If α∉Q and a≠b∈Q, then (α+a)/(α+b)∉Q. In particular, if α∉Q and r∈Q\{0}, then α/(α+r)∉Q. This packages the algebra used repeatedly in Theorem A and Prop. G.
+- Caution (Prop. H). The statement “β/(β−s)∉Q for all s∈(0,1)” is false without assuming s∈Q; e.g., β=√2 and s=β/2 give β/(β−s)=2∈Q. We retain the hypothesis s rational in the incommensurability clause of Prop. H.
+
+5) Fourier two-copy obstruction (record)
+- If E+δ=S^1\E a.e., then for every t≠0 with \hat{1_E}(t)≠0 we have e^{2πitδ}=−1. This is useful to forbid two-translate tilings when |E|=1/2 (or more generally |E|=1/m), and underpins the “no two-translate” hypothesis.
+
+6) Next targets (rigidity and classification)
+- Under J_0 with only 1/q-translational invariance, prove that any complementary two-layer tiling must have constant increment θ_m−θ_{m−1} modulo 1/q; hence classify all tilings as the q helical ones from Prop. G. Strategy: use the intersection identity row-to-row and endpoint propagation to show that varying the 1/q offset produces overlaps.
+- Systematically extend the multi-order mechanism beyond K={0,1,2}, again leveraging Lemma C and boundary obstruction Lemma E.
+Additions and clarifications (Round 0004)
+
+1) Clarification for Lemma C (singleton congruences)
+- The necessity part implicitly uses that the increment β:=θ_n−θ_{n−1} is constant in n. This is guaranteed when 1∈K (as in K={0,1} and K={0,1,2} used here), or more generally when the fixed order across rows implies a helical structure. All our applications satisfy 1∈K.
+
+2) Complementary two-layer: singleton tools
+- Integrality-based singleton rigidity. For A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α), the per-row identity is |J_0| d_m + (1−|J_0|) d_{m−1}=1 and the intersection identity implies: if d_{m−1}≥1 then d_m≤1, and symmetrically. If either 1/|J_0|∉N or 1/(1−|J_0|)∉N then no d_m can be 0 (else we would force one of these reciprocals to be an integer), and the inequality forces d_m≤1. Thus d_m=1 for all m. This recovers singleton-per-row without the special |J_0|=1/2 case.
+- Anti-m-tiling singleton rigidity (stronger hypothesis). If neither J_0 nor J_1 admits any m-fold partition of S^1 by disjoint translates for any m≥2, then d_m=1 for all m: if d_{m−1}≥2, then |U_m|<|J_0| so d_m=0, which forces an m-tile by J_1; contradiction. Symmetrically, d_{m−1}=0 would force an m-tile by J_0. Hence all d’s are 1.
+- Meandering classification (singleton regime). Assuming d_m=1, the complementary structure forces J_0+θ_m = J_0+(α+θ_{m−1}) a.e., i.e. θ_m−θ_{m−1}−α ∈ Stab(J_0). Conversely, any sequence of increments in α+Stab(J_0) yields a valid singleton tiling. This exhibits many (often aperiodic) singleton tilings; helical ones are obtained by taking a constant offset.
+
+3) Fourier obstructions
+- Two-translate obstruction. If E+δ=S^1\E a.e., then for any t≠0 with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, nonvanishing at two even modes (e.g., t=2 and t=4) forbids such δ since no δ can satisfy both e^{4π i δ}=−1 and e^{8π i δ}=−1 simultaneously.
+- Worked class: if J_0=U∪(U+1/2) with U=[0,c) and c∉Q, then \hat{1_{J_0}}(2k)=2\hat{1_U}(2k) with \hat{1_U}(2k)=(e^{4π i k c}−1)/(4π i k)≠0 for all k≥1, so no two-translate complement exists. This gives an easy certification for many explicit choices of U (including variants of Theorem A when |J_0|≠1/2).
+- Sketch for m=3 (to be formalized): If \hat{1_E}(t) and \hat{1_E}(2t) are nonzero and S^1 is partitioned a.e. by three translates of E, then the sums of first and second powers of e^{2π i t δ_j} vanish simultaneously, which is incompatible unless the three are cube roots of unity up to rotation; that in turn contradicts the second equation. This yields a quick “no 3-translate tiling” test.
+
+4) Incommensurability algebra
+- If s/β∉Q then β/(β−s)∉Q. Thus, in the K={0,1,2} two-order family, one can ensure incommensurability by choosing β so that s/β is irrational (no need to assume s rational).
+
+5) Symmetry of two-translate complements
+- E+δ=S^1\E a.e. iff (S^1\E)+δ=E a.e. Hence “no two-translate tiling” is symmetric under complement and translation. This justifies the symmetric step in the |J_0|=1/2 singleton rigidity proof.
+
+6) Concrete directions
+- Prove that when Stab(J_0)=(1/q)Z with no finer invariance, the offsets θ_m−θ_{m−1}−α (mod 1/q) must be constant across m; deduce that only the q helical tilings occur in that regime.
+- Formalize the m=3 Fourier obstruction and apply it to explicit J_0 at |J_0|=1/3 to enforce the hypotheses of the anti-m-tiling singleton rigidity.
+- For K={0,1,2,3}, enumerate fixed orders, write the congruence systems, and search for simultaneous compatibilities; combine with boundary integrality to certify non-columnity and extract ≥3 incommensurable periods.
+
+
+=== output.md ===
+Summary of proven results and why they matter
+- Main existence theorem (Theorem A). We construct an explicit tile A⊂Z×S^1 that is not a column yet admits two irreducible tilings with periods (1,α) and (1,α+1/2), with α irrational; these two periods are incommensurable. This positively settles the core existence question.
+- General structure for singleton tilings. We record a concise congruence system that characterizes singleton-per-row tilings with a fixed cyclic order, now with both necessity and sufficiency, and an irreducibility criterion. We also prove that gcd(K−K)=1 is not only sufficient (in the singleton setting) but that gcd(K−K)>1 forces reducibility in general.
+- Complementary two-layer family: q-phase generalization. If J_0 has 1/q-periodicity, the complementary construction yields q singleton tilings with incommensurable vertical periods (1,α+j/q). A quick boundary test certifies non-columnity whenever |J_0|∉{1/m}.
+- Two-order mechanism for K={0,1,2} completed. When c_1=c_3, a single tile admits two distinct singleton tilings corresponding to the cyclic orders (1→2→3→1) and (1→3→2→1); the slopes differ by c_1 modulo 1. Non-columnity follows from the boundary obstruction when c_1∉{1/m}. If c_1 is rational and the slope is irrational, the two periods are incommensurable.
+- Rigidity for Theorem A-type tiles. For the complementary two-layer tiles with |J_0|=1/2 that do not admit a two-translate partition of S^1, every tiling is automatically singleton-per-row. This streamlines irreducibility and supports further classification.
+
+Theorem A (Non-column tile with two incommensurable periods). Fix an irrational α∈(0,1/2). Let U⊂S^1 be a finite union of disjoint intervals of total length 1/4 such that U∩(U+1/2)=∅ and the multiset of lengths of connected components of U is different from that of its complement in [0,1/2). Define J_0:=U∪(U+1/2) (so |J_0|=1/2 and J_0+1/2=J_0), J_1:=S^1\(J_0+α), and set A:=( {0}×J_0 ) ∪ ( {1}×J_1 ). Then:
+(i) There is a tiling T_α with period (1,α), and a tiling T_{α+1/2} with period (1,α+1/2).
+(ii) Both tilings are irreducible.
+(iii) A is not a column (i.e., there is no finite X⊂Z and T⊂Z×S^1 with A+T=X×S^1).
+(iv) The periods are incommensurable: α/(α+1/2)∉Q.
+Proof. (i)–(iv) As in the previous version; we only note that (iii) can also be deduced from Corollary F by instead choosing |J_0|∉{1/m}, in which case the boundary obstruction immediately rules out finite-column tilings. ∎
+
+Lemma B (Irreducibility for singleton tilings with gcd(K−K)=1). Let A have layers at K={k_1,…,k_ℓ} and suppose |T_n|=1 for all n (singleton). Let H:=⟨K−K⟩≤Z. If H=Z then any tiling is irreducible.
+Proof. Assume a decomposition T=T_1⊔T_2 such that A+T_i=X_i×S^1 with Z=X_1⊔X_2 disjoint. Fix m∈X_1. In row m the contributing anchors are exactly at indices m−k_i (one per i). If for some i we had m−k_i∉X_1, then the corresponding interval [a_i+θ_{m−k_i},b_i+θ_{m−k_i}] would belong to A+T_2 and yet lie inside row m∈X_1, contradicting A+T_1=X_1×S^1. Hence m−k_i∈X_1 for all i, so X_1 is closed under subtraction by each k_i, hence under ±(K−K). Therefore X_1 is a union of cosets of H. If H=Z, only ∅ and Z occur, proving irreducibility. ∎
+
+Lemma B′ (Reducibility when gcd(K−K)>1). Let H:=⟨K−K⟩ and suppose H≠Z, with index g:=[Z:H]>1. For r=0,1,…,g−1 let T^{(r)}:={ (z,θ)∈T : z≡r (mod g) } and X_r:=gZ+r. Then A+T^{(r)}=X_r×S^1 a.e., and thus A+T is reducible into g disjoint tilings along residue classes mod g.
+Proof. A translate anchored at z contributes only to rows z+k_i, each ≡z (mod g). Hence only anchors with z≡r can contribute to rows in X_r, and conversely all coverage of a row m∈X_r comes from T^{(r)}. Disjointness across distinct r is automatic since they occupy disjoint rows. ∎
+
+Lemma C (Singleton congruences under a fixed cyclic order: necessity and sufficiency). Assume |T_n|=1 and that on every row the ℓ intervals appear in the same cyclic order σ and meet end-to-end. Let c_i:=b_i−a_i and β:=θ_n−θ_{n−1} (mod 1). Then the adjacency constraints are equivalent to the congruence system
+  (k_i − k_{σ(i)}) β ≡ a_i + c_i − a_{σ(i)}  (mod 1),  i=1,…,ℓ.
+Proof. Necessity: matching the right endpoint of i with the left endpoint of σ(i) and using θ_{m−k_i}−θ_{m−k_{σ(i)}}=(k_{σ(i)}−k_i)β gives the displayed congruences. Sufficiency: Given β solving these congruences, define θ_n:=θ_0+nβ. At row m put intervals I_i:=[a_i+θ_{m−k_i}, a_i+θ_{m−k_i}+c_i]. The congruences read a_i+θ_{m−k_i}+c_i ≡ a_{σ(i)}+θ_{m−k_{σ(i)}}, so the right endpoint of I_i equals the left endpoint of I_{σ(i)}. Summing lengths gives ∑_i|I_i|=∑_ic_i=1. Thus the I_i meet end-to-end around the circle in the σ-order and (apart from endpoints) are disjoint, forming an a.e. partition of S^1. ∎
+
+Lemma E (Boundary obstruction to finite-column tilings). [As before.] ∎
+
+Corollary F (Quick non-column test for two-layer tiles). [As before.] ∎
+
+Proposition G (q-phase generalization of the complementary 2-layer construction). [As before; incommensurability follows from the rational-shift Lemma R below by taking a=j/q, b=j′/q.] ∎
+
+Proposition H (Completion of the K={0,1,2} two-order mechanism: non-column family with two incommensurable periods). Let K=(0,1,2) and c_i=b_i−a_i>0 with c_1+c_2+c_3=1. Assume c_1=c_3=s and s∉{1/m: m∈N}. Then there exist endpoints a_1,a_2,a_3 and an irrational slope β such that the tile A:=⋃_{i=1}^3({k_i}×[a_i,b_i]) admits two distinct singleton tilings corresponding to the cyclic orders σ=(1→2→3→1) and σ′=(1→3→2→1), with slopes β and β′≡β−s (mod 1), respectively. Both tilings are irreducible, their periods are incommensurable if s is rational, and A is not a column.
+Proof. As before: Lemma C and its supplement give existence; Lemma B yields irreducibility (⟨K−K⟩=Z). If s∈Q and β∉Q, then β/β′∈Q would force β∈Q. Non-column follows from Lemma E at k=0 and k=2 since 1/s∉N. ∎
+
+Supplement to Proposition D (explicit algebra). [As before.] ∎
+
+Proposition I (Singleton rigidity for the |J_0|=1/2 complementary tiles). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α) and |J_0|=|J_1|=1/2. Assume J_0 does not admit a two-translate partition of S^1 (i.e., there is no δ with J_0 ⊔ (J_0+δ)=S^1 a.e.). Then every tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+Proof. Let d_n:=|T_n|. The per-row measure identity gives d_n+d_{n−1}=2 for all n. If d_n=2 for some n, then d_{n−1}=0 and row n is covered solely by two disjoint translates of J_0, contradicting the hypothesis. Similarly, d_n=0 is impossible. Hence d_n=1 for all n. ∎
+
+Corollary J (Row-to-row increment constraint in the complementary case). In the setting of Proposition I, writing T_n={θ_n}, for every m we have J_0+θ_m = J_0+(α+θ_{m−1}) a.e. Hence θ_m−θ_{m−1}−α∈Stab(J_0):={t∈S^1 : J_0+t=J_0 a.e.}. In particular, if J_0 has 1/q-periodicity and no finer translational invariance, then θ_m−θ_{m−1}∈α+(1/q)Z for all m.
+Proof. From U_m=⋃_{θ∈T_m}(J_0+θ) and U_m=S^1\V_m with V_m=⋃_{θ∈T_{m−1}}(J_1+θ), Proposition I gives d_m=d_{m−1}=1, so U_m=J_0+θ_m and also U_m=J_0+(α+θ_{m−1}). Thus J_0+θ_m=J_0+(α+θ_{m−1}) a.e. The stabilizer conclusion follows immediately. ∎
+
+Lemma R (Rational-shift incommensurability). If α∉Q and a≠b∈Q, then (α+a)/(α+b)∉Q. In particular, if α∉Q and r∈Q\{0}, then α/(α+r)∉Q.
+Proof. If (α+a)/(α+b)=p/q∈Q, then α+a=(p/q)(α+b), so (1−p/q)α=(p/q)b−a∈Q. Since a≠b, 1−p/q≠0, hence α∈Q, a contradiction. The special case takes b=0 and a=r. ∎
+
+Remark on endpoint conventions. Complements produce open arcs; choosing closed representatives modifies sets only on measure-zero boundaries and does not affect any a.e. tiling statements or measure identities above.
+Additions, clarifications, and new tools
+
+Remark (clarification for Lemma C). In the necessity direction we used the identity θ_{m−k_i}−θ_{m−k_{σ(i)}}=(k_{σ(i)}−k_i)β with β:=θ_n−θ_{n−1} independent of n. This constancy holds when 1∈K (as in our applications K={0,1} and {0,1,2}). For general K one needs a helical-phase conclusion from the fixed-order hypothesis before specializing to a constant β.
+
+Lemma E (Boundary obstruction to finite-column tilings: explicit statement). Let A=\bigcup_i\{k_i\}×[a_i,b_i] and, for each height k, let the aggregated layer be J_k:=\bigcup_{i: k_i=k}[a_i,b_i] with measure μ_k:=|J_k|. Suppose A+T=X×S^1 with X finite, and write d_n:=|T_n|. Then for all m∈Z we have the per-row identity
+  \sum_k μ_k · d_{m−k} = 1_{m∈X}.
+If p:=min X and k_min:=min\{k_i\}, then only anchors at z=p−k_min can contribute to row p, hence μ_{k_min}·d_{p−k_min}=1. Similarly, if q:=max X and k_max:=max\{k_i\}, then μ_{k_max}·d_{q−k_max}=1. In particular, if 1/μ_{k_min}∉N or 1/μ_{k_max}∉N, then no such finite-column tiling exists (A is not a column).
+Proof. The per-row identity is the a.e. disjointness of the row-unions. The boundary constraints follow by localization: any anchor z<p−k_min would create coverage below p; any anchor z=p−k with k>k_min creates coverage at row p−(k−k_min)<p. Thus only z=p−k_min contributes to row p, where S^1 is partitioned a.e. by d_{p−k_min} copies of J_{k_min}. The right boundary is analogous. ∎
+
+Lemma T (Fourier two-translate obstruction). Let E⊂S^1 be measurable. If there exists δ with E+δ = S^1\E a.e., then for every t∈Z\{0} with \hat{1_E}(t)≠0 we have e^{2π i t δ}=−1. In particular, if \hat{1_E}(2) and \hat{1_E}(4) are both nonzero, no such δ can exist.
+Proof. Taking Fourier coefficients in 1_{E+δ}+1_E=1 gives e^{2π i t δ} \hat{1_E}(t)+\hat{1_E}(t)=0 for all t≠0, hence e^{2π i t δ}=−1 whenever \hat{1_E}(t)≠0. For t=2 and t=4 this would impose δ≡1/2 (mod 1) and δ≡1/4 (mod 1) simultaneously, impossible. ∎
+
+Proposition S (Singleton rigidity via integrality exclusion for complementary two-layer tiles). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). If either 1/|J_0|∉N or 1/|J_1|=1/(1−|J_0|)∉N, then every tiling A+T=Z×S^1 satisfies |T_n|=1 for all n.
+Proof. Let d_n:=|T_n| and U_n:=\bigcup_{θ∈T_n}(J_0+θ). The intersection identity yields U_n = \bigcap_{θ∈T_{n−1}}(J_0+α+θ) a.e., hence if d_{n−1}≥1 then |U_n|≤|J_0| and therefore d_n≤1 (since U_n is a disjoint union of d_n copies of J_0). If some d_m=0, then the per-row measure identity |J_0| d_m + (1−|J_0|) d_{m−1}=1 forces (1−|J_0|) d_{m−1}=1, contradicting 1/(1−|J_0|)∉N. Symmetrically, if some d_{m−1}=0, then |J_0| d_m=1 contradicts 1/|J_0|∉N. Thus no d is 0; since d_{n−1}≥1 we get d_n≤1 for all n, hence d_n=1. ∎
+
+Proposition K (Meandering classification of singleton tilings for the complementary construction). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). Suppose A+T=Z×S^1 is singleton per row (T_n={θ_n}). Then for every n,
+  J_0+θ_n = J_0+(α+θ_{n−1}) a.e., equivalently Δ_n:=θ_n−θ_{n−1}−α ∈ Stab(J_0):=\{t∈S^1 : J_0+t=J_0 a.e.\}.
+Conversely, for any bi-infinite sequence (Δ_n) with values in Stab(J_0), the sequence θ_n:=θ_0+\sum_{j=1}^n(α+Δ_j) defines a singleton tiling T={(n,θ_n)}.
+Proof. The “only if” follows from U_n=J_0+θ_n=S^1\V_n and V_n=\bigcup_{θ∈T_{n−1}}(J_1+θ)=S^1\(J_0+α+θ_{n−1}). The “if” direction: if Δ_n∈Stab(J_0), then J_0+θ_n=J_0+α+θ_{n−1} a.e., so in row n the two contributions are complementary a.e., giving a tiling with a.e. disjointness across all rows. ∎
+
+Proposition K2 (Singleton rigidity for complementary two-layer tiles under anti-m-tiling hypotheses). Let A=({0}×J_0)∪({1}×J_1) with J_1=S^1\(J_0+α). Suppose neither J_0 nor J_1 admits an m-fold partition of S^1 by pairwise a.e. disjoint translates for any integer m≥2. Then every tiling A+T=Z×S^1 is singleton per row: |T_n|=1 for all n.
+Proof. Let d_n:=|T_n| and U_n:=\bigcup_{θ∈T_n}(J_0+θ), V_n:=\bigcup_{θ∈T_{n−1}}(J_1+θ). As before U_n⊔V_n=S^1 a.e. and U_n=\bigcap_{θ∈T_{n−1}}(J_0+α+θ) a.e. If d_{n−1}≥2, then there exist θ≠θ′ in T_{n−1} with θ′−θ∉Stab(J_1)=Stab(J_0), hence |(J_0+α+θ)∩(J_0+α+θ′)|<|J_0| and thus |U_n|<|J_0|, forcing d_n=0. Then V_n=S^1 a.e., so S^1 is the a.e. disjoint union of d_{n−1} copies of J_1, i.e. an m-translate tiling with m=d_{n−1}≥2, a contradiction. Hence d_{n−1}≤1; by symmetry d_n≤1. Finally, d_{n−1}=0 would force U_n=S^1 and hence an m-translate tiling by J_0 with m=d_n≥2, again a contradiction. Therefore d_{n−1}=d_n=1 for all n. ∎
+
+Lemma Q (Incommensurability via ratio). If s∈(0,1) and β∉Q satisfy s/β∉Q, then β/(β−s)∉Q.
+Proof. If β/(β−s)=p/q∈Q, then (q−p)β=ps, hence s/β=(q−p)/p∈Q, a contradiction. ∎
+
+Addendum to Proposition I. The symmetric step “d_n=0 is impossible” uses that J_1 admits a two-translate partition iff J_0 does: E+δ=S^1\E a.e. iff (S^1\E)+δ=E a.e. Since J_1 is a translate of S^1\J_0, the hypothesis for J_0 automatically forbids the corresponding partition for J_1. ∎
+
+
+
+Current round tag: Round 0005 — 2025-08-28T15:06:20.453966Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

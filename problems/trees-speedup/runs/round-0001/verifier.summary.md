@@ -1,0 +1,5 @@
+High-level assessment
+- Both reports are aligned on a natural pipeline: reduce the online notion to a locally sequential rule; compute a distance-power coloring of G^k in O(k log* n); simulate the per-node decisions by color phases; conclude O(log* n) time on bounded-degree trees. This is a well-trodden technique in LOCAL theory.
+- However, there is a critical modeling fork. There are (at least) two “online local” notions in the literature:
+  1) A sequential local/greedy model (sometimes called LCA or order-oblivious sequential local algorithm): when a vertex v is processed, its decision depends only on the r-hop topology and already fixed outputs within that r-ball; no global mutable state, no messages beyond reading previously fixed outputs. Under this model, the pipeline is sound and easy to formalize.
+  2) The Online-LOCAL model of Akbari–Eslami–Lievonen–Melnyk–Särkijärvi–Suomela (ICALP’23): an adversary picks an arrival order; when a vertex arrives, the algorithm is allowed t sync

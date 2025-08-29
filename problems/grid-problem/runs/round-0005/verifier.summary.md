@@ -1,0 +1,1 @@
+Overall, both reports contain good ideas and some clean, checkable additions, but they also include a few statements whose hypotheses are too weak. I flag the specific issues and give fixes, plus concrete next steps.

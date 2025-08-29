@@ -1,0 +1,5 @@
+Round recap: Developed a “hybrid” plateau-averaging lemma that combines both MRS branches to give explicit, checkable plateau averages. For a factor-2 plateau I=[m,m+L) the authors show
+E_{k∈I} E_++[ALG_k/OPT_k] ≤ 2·C_bi·min{Ā,B̄} + C_fix(ln m + O(1))/L,
+with Ā = 2 + 1/(2e) + ln(2m) − ln((L−1)!)/(L−1) (≤ 3 + 1/(2e) + ln(2m/(L−1))) and
+B̄ = 1 + (2 + 1/(2e) + ln(2m))/(L−1) + (m/(e(L−1)))·H_{L−2}.
+This yields a two‑regime consolidation (logarithmic branch vs. large‑Δ branch) giving O(1) in both natural regimes, an explicit plateau quantile/probability bound (convertible via Markov; e.g. L ≥ 101·m gives ≈98% on that plateau), and a strengthened global decomposition summing per‑plateau min terms. Also advanced a micro‑lemma toward heavy‑coverage: expected heavy collisions ≤ O(k1/R) under scale separation R ≥ k^C. Verifier: partial success. Cited: prover-02.out.json.

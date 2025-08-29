@@ -1,0 +1,2 @@
+Summary and triage
+- The previously archived bridge lemmas (sequential rules with bounded reads/writes; output-only and t-local-dependence reductions; corrected K = max(2W, R+W)) remain correct and valuable. They provide a clean O(log* n) pipeline for output-only/t-local-dependence variants.

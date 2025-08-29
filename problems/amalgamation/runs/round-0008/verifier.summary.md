@@ -1,0 +1,3 @@
+High-level assessment
+- There is solid, rigorous progress this round. The most valuable additions are: (i) internal S5-induced symmetries of the local tables F(α,β) (P01, Lemmas 21–23), (ii) a simple product-of-entries invariant for O5 (P02), and (iii) two concrete forbidden ordered triples with explicit τ-witnesses (P02: (++−)∉F(+,-); P03: (−, +, +)∉F(+,+)). All of these are compatible with the fixed coordinate convention already in output.md and can be cleanly integrated.
+- The exact S-oracle framework (ε-cocycle, generators, pair-set S, Lemma 20) continues to hold up; the new results leverage it correctly.

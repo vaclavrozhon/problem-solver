@@ -1,0 +1,2 @@
+High-level audit and triage
+- Balanced split (τ=⌊L/2⌋). Both provers’ instantiations are correct and align with the safe template we had in notes. The key inequalities are all valid for L≥3: τ/(L−1)≤2/3, (L−1−τ)/(L−1)≤1/2, ln(2m/τ)≤ln(4m/(L−1)), and H_{L−2}−H_{τ−1}≤ln 3+1 (small-L cases verifiable directly). This is a clean, checkable branch that converts the tail to O(m/L) with explicit constants. This is worth curating into output.md as a separate corollary and can be considered as an optional fourth candidate in the per-plateau minimum.

@@ -1,0 +1,2074 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.tex ===
+
+The task is to show $\Omega(\log^2 n)$ lower bound for sorting bit-reversal sequence in a model defined next. (Alternatively, provide $o(\log^2 n)$ algorithm if there is one)
+
+
+\section{Model explanation and the statement of the problem}
+
+\paragraph{Model (one step).}
+We start with an array $A$ containing the integers $0,1,\dots,n-1$ in some order.
+A single \emph{step} of the algorithm consists of:
+\begin{enumerate}
+  \item Partition $A$ into disjoint, consecutive intervals that cover $A$.
+  \item Select some disjoint pairs of \emph{adjacent} intervals.
+  \item For each selected pair, \emph{swap} the two intervals as whole blocks (these swaps occur in parallel).
+  \item Unmatched intervals remain in place.
+\end{enumerate}
+The partition and the chosen pairs may depend on the current contents of $A$.
+
+\paragraph{Example of one step ($n=16$).}
+Start with
+\[
+[0,1,2,3,\;\;4,5,6,7,\;\;8,9,10,11,12,\;\;13,14,\;\;15].
+\]
+Partition into $I_1=[0,1,2,3]$, $I_2=[4,5,6,7]$, $I_3=[8,9,10,11,12]$, $I_4=[13,14]$, $I_5=[15]$.
+Match $(I_1,I_2)$ and $(I_4,I_5)$; leave $I_3$ unmatched. After the step:
+\[
+[4,5,6,7,\;\;0,1,2,3,\;\;8,9,10,11,12,\;\;15,\;\;13,14].
+\]
+
+\paragraph{Bit-reversal order}
+Let $n=2^d$. The \emph{bit-reversal order} lists $0,1,\dots,n-1$ and reverses the $d$-bit representations to obtain the input permutation.
+
+\paragraph{Example ($n=16$, $d=4$).}
+\[
+\underbrace{0,\;8,\;4,\;12,\;2,\;10,\;6,\;14,\;1,\;9,\;5,\;13,\;3,\;11,\;7,\;15}_{\text{bit-reversal sequence}}.
+\]
+Write bits (from MSB $b_3$ to LSB $b_0$) under the sequence:
+\[
+\begin{array}{l|cccccccccccccccc}
+\text{values} & 0&8&4&12&2&10&6&14&1&9&5&13&3&11&7&15\\\hline
+b_3\;(\text{MSB}) & 0&1&0&1&0&1&0&1&0&1&0&1&0&1&0&1\\
+b_2 & 0&0&1&1&0&0&1&1&0&0&1&1&0&0&1&1\\
+b_1 & 0&0&0&0&1&1&1&1&0&0&0&0&1&1&1&1\\
+b_0\;(\text{LSB}) & 0&0&0&0&0&0&0&0&1&1&1&1&1&1&1&1\\
+\end{array}
+\]
+For $n=8$ ($d=3$) the bit-reversal sequence is $[0,4,2,6,1,5,3,7]$ with analogous bit rows:
+$b_2:01010101$, $b_1:00110011$, $b_0:00001111$ (truncated to $8$ entries).
+
+\paragraph{The problem}
+Your task is to prove that any algorithm in our model that sorts this bit-reversal sequence requires $\Omega(\log^2 n)$ steps. Alternatively, if there is an algorithm that requires only $o(\log^2 n)$ steps, prove that. 
+
+\section{Baseline results}
+
+\paragraph{Counting lower bound: $\Omega(\log n)$ steps.}
+There are $n!$ possible inputs, requiring $\log_2(n!)=n\log_2 n - \Theta(n)$ bits to distinguish.
+One step is determined by a partition plus a choice of which adjacent interval-pairs to swap, all describable with $O(n)$ bits, i.e.\ at most $2^{O(n)}$ possibilities per step.
+Hence each step injects only $O(n)$ bits of ``entropy'', and sorting from scratch needs $\Theta(n\log n)$ bits, implying $\Omega(\log n)$ steps lower bound for any general sorting algorithm. 
+
+\paragraph{Upper bounds: $O(\log^2 n)$ steps.}
+Two standard paradigms adapt to this model.
+
+\medskip\noindent
+\textbf{(A) Merge-sort style.}
+Sort blocks of size $2$, then $4$, then $8$, etc., doubling each stage. The key primitive is \emph{merging} two sorted sequences.
+Merging can be done in $O(\log n)$ steps by recursive median partitioning:
+pick the median $m$ of the union, partition both sequences into $<m$ and $\ge m$, use $O(1)$ flips to place all $<m$ before all $\ge m$, and recurse on the two halves in parallel.
+Depth $O(\log n)$; each merge takes $O(\log n)$ steps $\Rightarrow O(\log^2 n)$ total.
+
+\medskip\noindent
+\textbf{(B) Quicksort style.}
+Given pivot $p$, color items red if $<p$ and blue otherwise. View the array as maximal monochromatic blocks.
+One step can reduce the number of red/blue blocks by a constant factor (by flipping adjacent red/blue block pairs to coalesce like colors).
+Thus partitioning by $p$ takes $O(\log n)$ steps; recurse on the two sides $\Rightarrow O(\log^2 n)$ overall.
+
+\subsection{Two specialized $O(\log^2 n)$ strategies.}
+
+\medskip\noindent
+\textbf{MSB-first (quicksort-like).}
+The MSB row is $0101\ldots$. Using the red/blue block-reduction, in $O(\log n)$ steps group all MSB$=0$ items left and MSB$=1$ right.
+For $n=16$ this yields:
+\[
+\text{left: }[0,4,2,6,1,5,3,7]\qquad
+\text{right: }[8,12,10,14,9,13,11,15].
+\]
+Each side is the bit-reversal sequence on $n/2$ elements (one fewer bit). Recurse for depth $\log n$; each level costs $O(\log n)$ steps $\Rightarrow O(\log^2 n)$.
+
+\medskip\noindent
+\textbf{LSB-first (interlacing).}
+Initially LSB has eight $0$'s then eight $1$'s, so the sequence splits into quarters
+\[
+[0,8,4,12]\;|\;[2,10,6,14]\;|\;[1,9,5,13]\;|\;[3,11,7,15].
+\]
+Flip the second and third quarters to interlace:
+\[
+[0,8,4,12]\;|\;[1,9,5,13]\;|\;[2,10,6,14]\;|\;[3,11,7,15].
+\]
+Continue interlacing for $O(\log n)$ rounds to obtain
+\[
+[0,1,\;8,9,\;4,5,\;12,13,\;2,3,\;10,11,\;6,7,\;14,15],
+\]
+which forms sorted pairs $(0,1),(8,9),\dots$. Treat pairs as super-items and repeat to form sorted $4$-tuples, then $8$-tuples, etc.
+$\log n$ macro-levels, each $O(\log n)$ steps $\Rightarrow O(\log^2 n)$.
+
+\subsection{Structural $\Omega(\log n)$ lower bounds beyond counting}
+The counting lower bound ($\Omega(\log n)$) is too weak for $\Omega(\log^2 n)$. Two task-specific $\Omega(\log n)$ lower bounds are relevant.
+
+\paragraph{Merging requires $\Omega(\log n)$ steps.}
+Consider
+\[
+[0,2,4,6,8,10,12,14 \;\mid\; 1,3,5,7,9,11,13,15].
+\]
+Color evens red and odds blue. Start: two monochromatic blocks (R$|$B).
+Target: fully interlaced (R,B,R,B,$\dots$), i.e.\ $\Theta(n)$ blocks.
+\emph{Observation:} In one step, only boundaries where a red block meets a blue block can create more alternations; each matched adjacent-pair affects only $O(1)$ such boundaries.
+Thus the number of monochromatic blocks can grow by at most a constant factor per step.
+Going from $2$ to $\Theta(n)$ blocks needs $\Omega(\log n)$ steps.
+
+\paragraph{Pivoting (coarsening) requires $\Omega(\log n)$ steps.}
+Color items $<n/2$ red and $\ge n/2$ blue. For $n=16$ in bit-reversal order the pattern is R,B,R,B,\dots (many small blocks).
+Goal: all reds then all blues (two blocks).
+By the same boundary-locality, a step can reduce the number of blocks by only a constant factor, so $\Omega(\log n)$ steps are necessary.
+
+\paragraph{Significance.}
+If merging or pivoting were doable in $O(1)$ steps, the corresponding $O(\log^2 n)$ algorithm would become $O(\log n)$.
+Hence any $\Omega(\log^2 n)$ lower bound must \emph{internally} show that both primitives inherently cost $\Omega(\log n)$ in this model.
+
+\section{Ideas for how a proof might look like}
+
+\paragraph{Important note}
+You don't have to follow these ideas, take them only as a very speculative guess for how a solution might look like. 
+
+Write $n=2^d$.
+For an arrangement $A$ and bit level $j\in\{0,\dots,d-1\}$ (LSB $j=0$), let $B_j(A)$ be the number of monochromatic runs when items are colored by their $j$-th bit.
+
+\paragraph{Values for bit-reversal vs.\ sorted.}
+For the bit-reversal input $A_0$:
+\[
+B_j(A_0)=2^{j+1}\quad (j=0,1,\dots,d-1).
+\]
+For the sorted order $A_\star$:
+\[
+B_j(A_\star)=\frac{n}{2^j}=2^{d-j}\quad (j=0,1,\dots,d-1).
+\]
+Define the per-level log-gap
+\[
+D_j(A):=\big|\log_2 B_j(A)-\log_2 B_j(A_\star)\big|.
+\]
+Then
+\[
+D_j(A_0)=\big|(j+1)-(d-j)\big|=\big|2j+1-d\big|,\qquad
+\sum_{j=0}^{d-1} D_j(A_0)=\Theta(d^2)=\Theta(\log^2 n).
+\]
+
+\paragraph{Goal.}
+Prove a per-step progress cap showing that the potential
+\[
+\Phi(A)\;:=\;\sum_{j=0}^{d-1} D_j(A)
+\]
+drops by at most $O(1)$ per step. Since $\Phi(A_0)=\Theta(\log^2 n)$ and $\Phi(A_\star)=0$, this would yield an $\Omega(\log^2 n)$ lower bound.
+
+\subsection*{Two lemmas that could be helpful if true (informal)}
+
+\paragraph{Lemma 1 (per-level constant-factor cap, informal).}
+For any fixed level $j$, one step can change $B_j$ by at most a constant multiplicative factor.
+\emph{Rationale:} Only boundaries between opposite colors (at level $j$) can modify $B_j$, and each matched adjacent-interval flip perturbs $B_j$ by $O(1)$.
+
+\paragraph{Lemma 2 (cross-level scarcity, informal).}
+A matched boundary (between two swapped intervals) is only ``useful'' for $O(1)$ nearby bit levels, determined by the scale of the intervals. Consequently, in one step, only $O(1)$ levels can experience a constant-factor change in $B_j$.
+\emph{Rationale:} Progress at level $j$ needs boundaries aligned at the dyadic scale $2^j$; a boundary created at a given geometric scale cannot simultaneously serve many levels.
+
+\paragraph{Consequence.}
+Combining Lemmas~1 and~2, $\Phi$ decreases by at most $O(1)$ per step, forcing $\Omega(\log^2 n)$ steps to sort the bit-reversal input.
+
+\paragraph{Important note}
+We retiterate that this section is just a speculative attempt not know to lead to a solution. 
+
+=== progress.md ===
+## Round 0001 — 2025-08-27T15:28:55.343980Z
+
+Ideas and setup
+- Model recap. One step picks a partition of the array into consecutive intervals and swaps some disjoint adjacent interval-pairs in parallel. This exactly matches one-step permutations in the class PBT (parallel block transpositions) as in Jelínek–Opler–Pekárek (JOP): partition into B1 B2 … B2k (allowing empty blocks formally, but we never need them) and swap each (B2i−1,B2i).
+- Significance. JOP show wstp(PBT;n) = O(log^2 n) but only Ω(log n) lower bounds are known. Proving Ω(log^2 n) for bit-reversal in our model would imply Θ(log^2 n) worst-case in PBT and address an open direction (their Problem 8.1 for L and PBT).
+- Strategy. Track, for each bit level j, the number B_j(A) of monochromatic runs when elements are colored by bit j. For bit-reversal input A0 (n=2^d): B_j(A0)=2^{j+1}. For the sorted order A⋆: B_j(A⋆)=n/2^j=2^{d−j}. The potential Φ(A)=∑_{j=0}^{d−1} D_j(A) with D_j(A)=|log_2 B_j(A)−log_2 B_j(A⋆)| satisfies Φ(A0)=Θ(d^2) and Φ(A⋆)=0. Goal: per-step drop of Φ is O(1) to force Ω(d^2) steps.
+
+Claim 1 (per-level constant-factor cap)
+- Statement. Fix j. In any single step A→A′, the run-count B_j can change by at most a constant multiplicative factor: there exists an absolute c such that B_j(A′) ∈ [B_j(A)/c, c·B_j(A)]. In particular, we can take c=7.
+- Why useful here. It prevents a step from massively improving a single level j.
+- Proof sketch (rigorous local counting). Let R_j(A) be the set of j-run boundaries (edges between adjacent items where bit j flips), so B_j(A)=|R_j(A)|+1. In a step, only adjacencies at three kinds of edges per swapped pair can change: the left outer boundary, the inner boundary between the two swapped intervals, and the right outer boundary. Hence if m pairs are swapped, at most 3m adjacency edges can change in total. However, only pairs that actually intersect the j-run boundary set can affect B_j: if a pair lies entirely within a single j-monochromatic run, all three affected adjacencies are between same colors, so B_j is unchanged. Let Q_j be the set of swapped pairs whose union intersects R_j(A). By disjointness, each boundary in R_j(A) lies in the union of at most one swapped pair, so |Q_j| ≤ |R_j(A)| = B_j(A)−1. For each such pair, at most O(1) of the three changed adjacencies can flip the “is boundary” status. Therefore |B_j(A′)−B_j(A)| ≤ C·|Q_j| ≤ C(B_j(A)−1) for some absolute C (one can take C=6 by a brute-force case check along the three edges). This implies B_j(A′) ≤ (1+C) B_j(A) and symmetrically B_j(A) ≤ (1+C) B_j(A′), hence the factor cap with c=1+C ≤ 7.
+- Sanity check on toy cases. For j=0 with initial 00…011…1, only the unique 0|1 boundary can be in Q_j, hence B_0 can increase or decrease by O(1) in one step, matching the known “merging needs Ω(log n)” folklore.
+
+Edge-to-level charging (a quantitative cross-level accounting tool)
+- Setup. Let S be the set of adjacency edges whose status (same-color vs different-color at level j) changes in a step. For a fixed j, the change Δ_j := |B_j(A′)−B_j(A)| is O(|S ∩ E_j|), where E_j is the set of j-run boundary gridlines (the edges periodically spaced by L_j=2^{d−1−j}).
+- Observation (valuation count). For an edge position e∈{1,…,n−1}, define ν_2(e) as the exponent of the highest power of 2 dividing e. The edge e belongs to E_j if and only if L_j divides e, i.e., j ≤ d−1−ν_2(e). Thus the number of levels j at which e is a j-grid boundary equals ν_2(e)+1. The harmonic identity ∑_{e=1}^{n−1} (ν_2(e)+1) = Θ(n) implies that “on average” an edge participates in O(1) levels.
+- Consequence (weighted bound). For any nonnegative weights w_j, we have ∑_j w_j·Δ_j ≤ C·∑_{e∈S} ∑_{j: e∈E_j} w_j. Choosing w_j = 2^{−(j+1)} gives ∑_j 2^{−(j+1)}·Δ_j ≤ C′·|S| because ∑_{j: e∈E_j} 2^{−(j+1)} ≤ 1 for every e. More generally, for w_j = 2^{−(j+1)}/(j+1) we get ∑_j w_j·Δ_j ≤ C′′·|S| (up to an extra O(log log n) factor if one tightens constants). These bounds are robust and will be useful for potentials that weight levels by 2^{−j} (or slightly heavier penalties near extremes).
+- Why useful here. This provides a cross-level scarcity principle: many changed adjacencies cannot produce “large” relative progress on many levels simultaneously, once progress is normalized appropriately by the density of j-boundaries.
+
+Scale-sensitive refinement via pair sizes
+- Additional structure. Let each swapped pair p consist of two adjacent intervals of total length s(p). At level j, every j-run has length L_j=2^{d−1−j}. One pair p can affect at most O(min{1, s(p)/L_j}) distinct j-boundaries: the three adjacency changes are confined to O(1) blocks of length s(p), which intersect O(s(p)/L_j) of the L_j-spaced grid edges.
+- Lemma (deterministic). For all j, Δ_j ≤ C·∑_{p} min{1, s(p)/L_j}. Consequently, using B_j(A0)=2^{j+1} and L_j=2^{d−1−j}, we get for the bit-reversal input A0: Δ_j / B_j(A0) ≤ (C/n)·∑_{p} min{s(p), L_j}.
+- Summing in j and swapping sums yields: ∑_j Δ_j / B_j(A0) ≤ (C/n)·∑_{p} ∑_{t=0}^{d−1} min{s(p), 2^t} = (C/n)·∑_{p} O(s(p)·log(1+s(p))). Since ∑_{p} s(p) ≤ n in every step, the RHS is O(log n) per step. This recovers an Ω(log n) lower bound by a “fractional progress” argument and quantifies that a step cannot make constant-fraction progress on many levels at once unless it spends large total size in pairs.
+- Why useful here. This pins down quantitatively how pair sizes limit multi-level progress. It suggests going beyond additive counting toward scale-weighted potentials.
+
+Toward an Ω(log^2 n) (or near) bound: a proposed program
+- Lemma 1 is now clean and rigorous. The remaining challenge is a cross-level bound strong enough to cap the drop of Φ(A)=∑_j |log B_j(A)−log B_j(A⋆)| by O(1) per step. The above tools give only O(log n) so far, recovering Ω(log n).
+- Heuristic strengthening. To achieve a constant-factor change in B_j, one needs Θ(B_j) changed adjacencies at level j (since each changes B_j by O(1)). By the “size lemma” above, generating Θ(B_j) changes at level j requires ∑_{p} min{1, s(p)/L_j} = Ω(1), i.e., the total s(p) across pairs must be Ω(L_j). Doing this for T different levels j in one step requires Ω(∑_{t=1}^T L_{j_t}) total size budget, but ∑_{p} s(p) ≤ n. For the dyadic sequence L_j=2^{d−1−j}, the sum over a set of T distinct levels is at least ≈ 2^{d−T} if clustered, but if spread out evenly across O(d) levels, ∑ L_j ≈ Θ(n). This suggests that making constant-factor progress on ω(1) distinct levels at once quickly exhausts the size budget, hinting that only O(1) levels can enjoy a constant-factor change per step (a formal version of speculative Lemma 2).
+- Formal target (to prove next). There exists an absolute c>0 such that in any step, the set J of levels j for which B_j changes by a factor ≥2 satisfies |J| ≤ c. Outline approach: assign to each pair p a unique “home level” h(p) so that (i) p can contribute at most O(1) to constant-factor progress for levels ̸= h(p), and (ii) the sum of s(p)/L_{h(p)} over all p is O(1). A natural home level is the unique j with L_j ∈ [s(p)/2, 2 s(p)]. Packing disjoint pairs implies ∑ s(p) ≤ n, hence ∑ s(p)/L_{h(p)} ≤ O(1). Use the size lemma to argue that constant-factor progress at level j requires total contribution Ω(1) from pairs with h(p)=j. Thus at most O(1) such levels exist per step.
+- If established, combining with the per-level factor cap (Lemma 1) implies that Φ can decrease by at most O(1) per step: each of the O(1) “active” levels can shrink |log B_j − log B_j⋆| by O(1), all other levels shrink by at most a constant fraction of a fraction, summing to O(1) overall. This would yield the desired Ω(log^2 n) lower bound.
+
+Toy special case (to aim for as an intermediate milestone)
+- Restricted steps: equal-scale partitions. Suppose every step uses a partition into intervals whose lengths are within a factor 2 of a common L (and swaps a matching on these). Then: a pair has size s≈L. The size lemma gives Δ_j ≤ C·m·min{1, L/L_j}. Since m≤n/L, we have Δ_j ≤ C·(n/L)·min{1, L/L_j} ≤ C·min{n/L, n/L_j}. For j with L_j ≪ L, Δ_j ≤ C·(n/L_j), a tiny fraction of B_j(A0)=2^{j+1} unless L≈L_j. For j with L_j≈L, Δ_j ≤ C·(n/L) gives at best constant-fraction progress. Only O(1) neighboring j have L_j within factor 2 of L. Hence per step, only O(1) levels can change by a constant factor. This toy case supports Lemma 2 in a simplified setting and could be made rigorous.
+
+Small examples and checks
+- n=8 (d=3), A0=[0,4,2,6,1,5,3,7]. Compute B_j(A0)=(2,4,8) for j=0,1,2; B_j(A⋆)=(8,4,2). Any step alters at most three adjacencies per pair; a pair not intersecting the unique B_0 boundary is irrelevant to B_0; at most one pair is relevant, so B_0 changes by O(1) factor. For B_1, the four boundaries are at positions multiples of 2; disjointness similarly limits pairs that can affect many of them at once unless s(p)≈2. This matches the scale-sensitive picture.
+
+Connections to literature (JOP and gaps)
+- Our model coincides (one-step-wise) with PBT. JOP prove O(log^2 n) upper bounds (also for L), and Ω(log n) lower bounds in general via counting. They leave open closing the gap to Ω(log^2 n). Our Lemma 1 aligns with their “boundary locality” arguments; the key remaining step is Lemma 2 (cross-level scarcity). The size-based accounting we developed above is a promising path; formalizing the “home level” charging to show only O(1) levels can change by factor ≥2 per step would settle the lower bound.
+
+Next steps (concrete, testable)
+1) Formalize and prove the size lemma: Δ_j ≤ C·∑_p min{1, s(p)/L_j}, including an exact constant C and a careful accounting of the three changed adjacencies per pair. This is local and checkable.
+2) Prove Lemma 1 rigorously with an explicit constant c (I gave c=7 via a union bound; tightening to c=3 or c=5 is likely with a refined boundary case analysis). Write the proof cleanly so the verifier can include it in output.md.
+3) Prove the toy special-case Lemma 2 for equal-scale partitions, giving an Ω(log^2 n) lower bound for that restricted algorithm class. This creates a baseline “special case” lower bound.
+4) Develop the “home level” charging in full generality: for each pair p, define h(p) with L_{h(p)}≈s(p). Show that to achieve a factor-2 change at level j, the sum over p with h(p)=j of min{1, s(p)/L_j} must be Ω(1). Since ∑_p s(p)/L_{h(p)} ≤ O(1), only O(1) levels can have such progress.
+5) If step 4 succeeds, deduce per-step Φ drop ≤ O(1) (each active level reduces D_j by O(1); inactive ones by at most a small fraction), hence Ω(log^2 n).
+6) Computational aid on small n (n=16,32): enumerate random partitions and measure how many levels j see a ≥2× change in B_j in a single step; record empirical maximum; this can guide constants and refine the “active level” definition.
+
+Gaps or issues in current outputs
+- There is no output.md provided; hence no prior rigorous lemmas to cross-check. The present round delivers Lemma 1 in a form ready to be curated and a precise statement of the “size lemma” with a clear proof plan. The main open gap remains the core cross-level scarcity (Lemma 2), for which I outlined two routes: the equal-scale special case (feasible) and the general “home level” charging (harder but promising).
+
+## Round 0001 — 2025-08-27T16:02:38.824470Z
+
+Headlines
+- Model identification: each step is a parallel adjacent block transposition, i.e., the class PBT in Jelínek–Opler–Pekárek (arXiv:2311.08727). So we study the PBT-sorting time of the specific input π = bit-reversal on n = 2^d.
+- Known bounds from 2311.08727: wstp(PBT; n) = O(log^2 n); lower bound Ω(log n) for any proper class. The tight bound for PBT (and layered L) is explicitly left open; proving Ω(log^2 n) for the bit-reversal input would improve the general lower bound for PBT.
+- Proposed potential Φ(A) = Σ_j D_j(A), with D_j(A) := |log_2 B_j(A) − (d − j)|, where B_j(A) is the number of monochromatic runs under coloring by bit j. For the bit-reversal input A_0, Σ_j D_j(A_0) = Θ(d^2) = Θ(log^2 n). Goal: per step drop ΔΦ = O(1).
+
+New rigor (small lemmas), why useful, and proofs/sketches
+1) Equivalence to PBT (why useful: aligns our model with the literature and its O(log^2 n) upper bound, and frames the task as a special-case lower bound within their class hierarchy).
+- In one step we partition into consecutive intervals and swap disjoint adjacent pairs of intervals in parallel. This is precisely a composition with an element of the class PBT (parallel block transpositions), namely a permutation obtained as a sum of rotations on the interval decomposition. Therefore “our model” = sorting by PBT.
+
+2) Exact values B_j at the endpoints (why useful: calibrates the potential function).
+- For n=2^d and the bit-reversal input A_0, B_j(A_0) = 2^{j+1} (j=0,…,d−1). For the fully sorted order A_⋆, B_j(A_⋆) = 2^{d−j}. Thus D_j(A_0) = |(j+1) − (d−j)| = |2j+1−d| and
+  Σ_{j=0}^{d−1} D_j(A_0) = Θ(d^2) = Θ(log^2 n).
+
+3) Per-level “additive” change bound via local boundary accounting (why useful: bounds how much B_j can move in one step in terms of which array boundaries are affected).
+- Fix j. Let T_j(A) ⊆ {1,…,n−1} be the set of indices i where the j-color changes between positions i and i+1; so |T_j(A)| = B_j(A) − 1.
+- One step picks disjoint adjacent interval pairs (L_k, R_k). For each matched pair there are exactly three index positions whose adjacent pair changes: the boundary before L_k, the boundary between L_k and R_k, and the boundary after R_k. All other internal adjacencies remain unchanged.
+- Hence the symmetric difference T_j(A) Δ T_j(A′) is contained in the set S_step of indices altered by this step, with |S_step| ≤ 3·(# matched pairs). Consequently, for every j we have |B_j(A′) − B_j(A)| ≤ |T_j(A′) Δ T_j(A)| ≤ 3·(# pairs).
+- Remark: this by itself is too coarse for our Ω(log^2 n) goal, because the number of pairs can be Θ(n) in a step. It does, however, isolate that only the 3-per-pair boundary changes can affect B_j.
+
+4) Per-level “useful boundary” refinement (why useful: ties the change in B_j to current j-run structure, not to the raw number of pairs).
+Claim 4.1. For fixed j, a matched pair can change B_j only if at least one of its three altered indices is either (i) itself in T_j(A), or (ii) adjacent to a run boundary in the following sense: the altered index shares one of its incident positions with a j-run boundary in A.
+- Rationale. If both positions adjacent to an altered index belong to the same j-run and neither end of the index abuts a j-run boundary in A, then the two items at that index (pre- and post-step) both come from the same j-run; in particular they have the same j-color both before and after, so the indicator “i ∈ T_j(·)” cannot flip at that index.
+- Consequence. Let U_j(A) be the set of indices that are in T_j(A) or adjacent to an element of T_j(A). Then |U_j(A)| ≤ 3·|T_j(A)| = 3(B_j(A) − 1). The number of indices at which T_j-membership can possibly change in one step is ≤ |U_j(A)|. Therefore
+  |B_j(A′) − B_j(A)| ≤ |T_j(A′) Δ T_j(A)| ≤ |U_j(A)| ≤ 3(B_j(A) − 1).
+- Corollary 4.2 (per-level constant-factor cap). For any A→A′ in one step and any j,
+  B_j(A′) ≤ 4·B_j(A) and B_j(A) ≤ 4·B_j(A′). Equivalently, |log_2 B_j| changes by at most 2 per step.
+Proof. From the inequality above, B_j(A′) ≤ B_j(A) + 3(B_j(A) − 1) ≤ 4B_j(A). Apply the same inequality to the inverse step (also a PBT step) to get the reverse inequality.
+- Comment. The factor 4 is certainly improvable; I suspect factor 2 holds, but a clean proof that avoids overcounting “double-adjacent” alterations requires a tight charging scheme. Even factor 4 already implies |Δ log_2 B_j| ≤ 2.
+
+5) Alignment scarcity of cut positions across bit-levels (why useful: a quantitative cross-level restriction for the bit-reversal input A_0).
+Lemma 5.1 (dyadic alignment bound). For the bit-reversal input A_0, let G_j ⊆ {1,…,n−1} denote the set of j-run boundary indices (so |G_j| = B_j(A_0) − 1 = 2^{j+1} − 1). For any set S of partition cut positions (i.e., indices where we place interval boundaries in a step),
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1 + v_2(i)) ≤ |S|(1 + ⌊log_2(n−1)⌋).
+- Proof. In A_0 the j-run boundaries are the indices i divisible by 2^{d−j−1}. Equivalently, i ∈ G_j iff d−j−1 ≤ v_2(i), where v_2(i) is the 2-adic valuation. Thus for a fixed i, the set {j: i ∈ G_j} has size 1+v_2(i). Summing over S and using v_2(i) ≤ ⌊log_2 i⌋ ≤ ⌊log_2(n−1)⌋ gives the bound.
+- Intuition: a single cut index can be simultaneously “useful” for only O(log n) bit-levels; hence even very fine partitions cannot align with all bit-level boundaries at once at linear density.
+
+Small examples and sanity checks
+- n=8, A_0 = [0,4,2,6,1,5,3,7]. B_0=2, B_1=4, B_2=8. If we partition into singletons and match (1,2), (3,4), (5,6), (7,8), the three indices that change per matched pair are exactly the three boundaries around each pair; but for j=0 only the central boundary near the 0/1 split can be “useful”. Empirically B_0 cannot jump from 2 to Θ(n) in one step; more generally, the useful-boundary lemma predicts |ΔB_0| ≤ 3(B_0−1) = 3.
+- For j = d−1 (MSB) at A_0, B_{d−1} = 2^d = n. Then |ΔB_{d−1}| ≤ 3(n−1) is trivially true; the interesting regime is small j where B_j is small. There, Lemma 4.1 caps the number of useful indices by O(B_j), consistent with the block-coalescence intuition.
+
+Why these are not yet enough for Ω(log^2 n)
+- The “per-level constant factor cap” (even with factor 2) alone only yields that each D_j can decrease by O(1) per step; summing over all levels gives ΔΦ = O(d) per step, implying only Ω(d) steps. To reach Ω(d^2) we need to argue that only O(1) levels can enjoy constant-factor progress in the same step (a cross-level scarcity lemma).
+- A naive “capacity” counting using Σ_j B_j(A_0) = Θ(n) and the observation that a matched pair of size L influences ≈ L/ℓ_j boundaries at level j (where ℓ_j = 2^{d−j−1} is the j-run length in A_0) suggests that simultaneously reducing B_j by a constant factor across many j is not obviously impossible: Σ_j (L/ℓ_j) = O(L), and Σ_j B_j(A_0) = Θ(n). So simple one-dimensional capacity arguments do not create a missing log factor.
+- The alignment lemma (Lemma 5.1) shows a single cut index hits O(log n) levels, but a partition has |S| ≈ n cuts in the extreme, and |S|·log n is still big enough to interact with all levels in principle. So we need a stronger statement than mere counting of aligned cuts; we must quantify how many aligned cuts are actually needed to produce constant-factor changes in B_j and show that a single partition cannot simultaneously supply that demand for many j.
+
+Obstacles and gaps (explicit)
+- The factor-2 per-level cap is plausible but not yet proved cleanly; I gave a rigorous factor-4 cap (Corollary 4.2). Improving this constant strengthens the per-level bound but does not yet give Ω(log^2 n).
+- The key missing piece is a robust cross-level scarcity theorem. The naive union bound over cuts (Lemma 5.1) is insufficient—the capacity vs. demand calculation doesn’t produce an extra log. We need a structural reason why the same set of disjoint adjacent block swaps cannot simultaneously realize the “good pairings” of runs required for constant-factor reduction at many distinct bit-levels.
+- There is no output.md provided; thus far there is no curated, rigorously proved result beyond the baseline Ω(log n). Our Lemma 3–5 fill some pieces but do not yet imply Ω(log^2 n).
+
+Ideas for next steps (testable subgoals)
+- Strengthen the per-level cap: Aim to prove B_j(A′) ≤ 2·B_j(A) and B_j(A) ≤ 2·B_j(A′) in one step for every j. Strategy: refine the “useful boundary” charging so that every index whose membership toggles is charged to a unique j-run boundary in A or in A′, and each boundary receives O(1) charge. This would give |Δ log_2 B_j| ≤ 1 per step.
+- Quantify “demand” to get constant-factor progress at a fixed j: Formalize that reducing B_j by a factor of 1−ε requires selecting cuts that microscopically pair (most of) adjacent j-runs in an alternating fashion. Prove that such a pairing demands Ω(B_j) central cuts specifically at the j-run boundaries (not just adjacency to them) and also constraints on which of those cuts are matched. This could lift the per-level demand from mere Θ(B_j) “touched indices” to Θ(B_j) “central matched boundaries,” which then interacts more tightly across levels via disjointness of pairs.
+- Cross-level conflict via disjointness: For A_0 the sets of j-run boundaries form a family of dyadic arithmetic progressions. Try to show that if you match central boundaries to reduce B_j substantially, those same matched pairs necessarily misalign with the central boundaries needed to reduce B_k for |k−j| large; i.e., central boundaries for different j’s largely do not coincide and cannot all be matched at once due to disjointness of pairs. Precise goal: For any partition+matching M, let C_j(M) be the number of matched central boundaries that lie in G_j. Prove Σ_j C_j(M)/B_j ≤ O(1) (or at least O(log n)). This would imply that only O(1) (or O(log n)) levels can see constant-factor progress in a single step.
+- Computational probe (n=16,32): Enumerate partitions+matchings from A_0 (up to symmetries), compute all B_j before/after, and record which levels see ≥2× change. This can guide a conjecture on an absolute bound for the number of such levels per step.
+- Alternative potentials: Explore weighted potentials that penalize “simultaneous progress across many j” more severely, e.g., Φ_α(A) = Σ_j α^{|2j+1−d|}·|log_2 B_j(A) − (d−j)| for α>1, and try to prove a per-step drop independent of d. This would hinge on relating the weights to the dyadic structure of G_j.
+- Connection to known open problem: If we can show the desired cross-level scarcity for the specific A_0, it already yields Ω(log^2 n) for bit-reversal under PBT and strictly improves the general lower bound for the class. Even a weaker statement like “in any step, at most O(1) levels with |2j+1−d| ≥ c·d see constant-factor progress” would imply a near-Ω(log^2 n) bound.
+
+Summary
+- Formalized that our model is exactly PBT.
+- Established a clean per-step per-level bound: |ΔB_j| ≤ 3(B_j−1) ⇒ a constant-factor cap B_j′/B_j ≤ 4 (factor likely improvable to 2). This justifies that |Δ log B_j| is O(1) per level per step.
+- Proved an “alignment scarcity” lemma (Lemma 5.1) for A_0: a cut position can be aligned with at most O(log n) levels j. This is a building block towards a cross-level scarcity theorem, but by itself not sufficient.
+- Identified the main obstacle: converting alignment scarcity and disjointness of matched pairs into a sharp bound on how many levels can make constant-factor progress in the same step.
+- Outlined concrete next steps: (i) tighten the per-level cap to factor 2; (ii) quantify per-level demand in terms of central matched boundaries; (iii) prove a cross-level trade-off Σ_j C_j(M)/B_j ≤ O(1); (iv) run small-n experiments to test these phenomena.
+
+## Round 0002 — 2025-08-27T18:54:41.682080Z
+
+Headlines
+- Fix a gap in output.md: the phrase “all other internal adjacencies remain unchanged” is false as stated; what is true (and sufficient) is that the number of j-boundaries internal to each block is preserved by a block swap, hence the net change in B_j is fully determined by the three interface indices per swapped pair.
+- New per-pair inequality: for any fixed bit-level j and any single matched pair (L,R), the contribution to ΔB_j from that pair is in [−2,2]. Summing over pairs that are non-monochromatic at level j yields |ΔB_j| ≤ 2·(# such pairs).
+- Consequence: a per-level factor-3 cap per step: B_j(A′) ≤ 3 B_j(A) and B_j(A) ≤ 3 B_j(A′). This improves Theorem 3’s factor-4 to factor-3.
+- Equal-scale first-step scarcity (from A_0): if all matched pairs have total size s in [L,2L], then only levels j with run-length L_j ≤ s can be affected (and |ΔB_j| ≤ 2·(n/s)), hence only O(1) adjacent levels around the “home scale” L_j≈L can undergo constant-factor changes in that first step.
+
+Corrections to output.md (local, not changing statements)
+- The proof of Theorem 3 currently says “all other internal adjacencies remain unchanged”. This is false literalistically—after swapping L and R the identities of the adjacent pairs across internal indices do change. What holds (and is enough) is:
+  • For any fixed j, the number of j-boundaries internal to L (and to R) is preserved by the swap, because the internal order within L and within R does not change.
+  • Therefore the net change in the total number of j-boundaries across the union U = L∪R equals the change across the three interface indices: (left outer, inner, right outer). Summing over disjoint pairs yields that ΔB_j equals the sum of changes at 3·(#pairs) interface indices. This validates the “three indices per pair” counting for the change in the number (though not for the set) of boundaries.
+
+New technical lemmas and proofs
+- Lemma A (binary 4-cycle inequality). For any bits p,q,r,s ∈ {0,1}, one has [p≠q]+[q≠r]+[r≠s]−[s≠p] ≤ 2 and also ≥ −2.
+  Proof. Consider the 4-cycle p−q−r−s−p. The sum S := [p≠q]+[q≠r]+[r≠s]+[s≠p] is even and at most 4. Then [p≠q]+[q≠r]+[r≠s]−[s≠p] = S − 2·[s≠p] ∈ {−2,0,2}.
+
+- Lemma B (per-pair ±2 contribution). Fix level j. Let a_L be the j-color of the outside neighbor left of L; a_R the j-color of the outside neighbor right of R; and let L_1,L_k (first/last j-colors of L), R_1,R_m (first/last j-colors of R). For the matched pair (L,R), let Δ_pair denote its contribution to ΔB_j (i.e., the change in the number of j-boundaries inside U=L∪R, which equals the change across the three interfaces as noted above). Then |Δ_pair| ≤ 2.
+  Proof. Using the notation x_a=[a_L≠L_1], y_a=[a_L≠R_1], x_b=[L_k≠R_1], y_b=[R_m≠L_1], x_c=[R_m≠a_R], y_c=[L_k≠a_R], one has Δ_pair = (x_a+x_b+x_c)−(y_a+y_b+y_c). By triangle inequalities [q≠x]−[q≠y] ≤ [x≠y], we get x_a−y_a ≤ [L_1≠R_1] and x_c−y_c ≤ [R_m≠L_k]. Hence
+    Δ_pair ≤ [L_1≠R_1] + [R_m≠L_k] + (x_b−y_b)
+            = [L_1≠R_1] + [R_m≠L_k] + ([L_k≠R_1] − [R_m≠L_1]).
+  Applying Lemma A with (p,q,r,s)=(L_1,R_1,L_k,R_m) gives Δ_pair ≤ 2. The lower bound Δ_pair ≥ −2 follows symmetrically (or by applying the same argument to the inverse swap).∎
+
+- Lemma C (counting pairs that can matter at level j). If the union U=L∪R is j-monochromatic in A (equivalently in A′), then Δ_pair=0. Therefore, letting M_j(A) be the set of matched pairs whose union is not j-monochromatic in A, we have |ΔB_j| ≤ 2·|M_j(A)|.
+  Proof. If U is j-monochromatic, then L_1=L_k=R_1=R_m, hence all three interface indicators are unchanged and Δ_pair=0. Summing Lemma B over pairs in M_j(A) yields the claim.∎
+
+- Theorem 3′ (per-level factor-3 cap). For any A→A′ in one step and any j,
+  B_j(A′) ≤ 3·B_j(A) and B_j(A) ≤ 3·B_j(A′).
+  Proof. As in output.md, every pair whose union is j-monochromatic gives Δ_pair=0; the remaining pairs are at most |T_j(A)|=B_j(A)−1 by disjointness (charge each such pair to, say, its leftmost internal j-boundary). Then
+    |B_j(A′) − B_j(A)| ≤ ∑_{pairs} |Δ_pair| ≤ 2·|M_j(A)| ≤ 2(B_j(A)−1),
+  which implies B_j(A′) ≤ B_j(A) + 2(B_j(A)−1) ≤ 3B_j(A). Apply the bound to the inverse step for the reverse inequality.∎
+  Remark. This improves the factor-4 cap to factor 3 and implies |Δ log_2 B_j| ≤ log_2 3 per step.
+
+First-step equal-scale scarcity from A_0
+- Setup. Let A=A_0 be the bit-reversal input. Fix a step whose matched pairs all have total size s in [L,2L]. Recall L_j=2^{d−1−j} is the j-run length in A_0, and B_j(A_0)=2^{j+1}.
+- Observation. If L_j > s then every union U=L∪R is j-monochromatic in A_0, hence by Lemma C the step has ΔB_j=0. Therefore only levels j with L_j ≤ s can be affected at all. Equivalently, j ≥ d−1−⌊log_2 s⌋.
+- Bound on magnitude. The number of matched pairs m satisfies m·s ≤ n, hence m ≤ n/s. By Lemma B, |ΔB_j| ≤ 2m ≤ 2n/s for every j. Thus for any j with L_j ≪ s the relative change is tiny at A_0: |ΔB_j|/B_j(A_0) ≤ (2n/s)/2^{j+1} = 2·(2^{d−j−1}/s) = 2·(L_j/s).
+- Consequence (first-step “active levels”). For a constant-factor change (say a ≥ 2× drop) at level j we need |ΔB_j| ≥ B_j(A_0)/2 = 2^{j}/2. The bound above forces L_j ≳ s (indeed L_j ≥ s/4 suffices to violate). Hence, in such an equal-scale step from A_0, only those j with L_j within a constant factor of s can undergo a constant-factor change. There are O(1) such adjacent levels.
+- Why useful. This is a clean, checkable special case of the sought cross-level scarcity: in an equal-scale step, only O(1) levels can progress by a constant factor from A_0. It suggests the “home level” approach: pairs of size s are only capable of large impact around the dyadic scale L_j≈s.
+
+Examples and sanity checks (n=16)
+- Take A_0=[0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]. For j=0, B_0=2; j=1, B_1=4; j=2, B_2=8; j=3, B_3=16.
+- Pair singletons (s=2). Then m≤n/s=8 and per-level |ΔB_j|≤2m≤16. From A_0: only levels with L_j≤s=2 can be affected, i.e., L_3=1, L_2=2; j∈{2,3}. Indeed, j=0,1 are untouched (monochromatic unions). This matches the observation.
+- Pair 4-blocks (s=8). Only levels with L_j≤8, i.e., j∈{1,2,3}, can be affected in the first step.
+
+Obstacles and gaps
+- The per-level factor-3 cap (Theorem 3′) still allows ΔΦ(A)=∑_j |Δ log_2 B_j| to drop by O(d) per step in principle—hence only Ω(log n) steps from this argument alone. We still need a cross-level scarcity result to show that only O(1) levels can experience constant-factor progress per step globally (not just in the equal-scale-first-step special case).
+- The equal-scale scarcity proved here relies on A_0’s rigid dyadic runs. After the first step, run lengths cease to be uniform, so the argument does not extend immediately.
+- The “size lemma” Δ_j ≤ C·∑_p min{1, s(p)/L_j} is false in general (as noted in notes.md) and should not be used. Our per-pair ±2 bound is robust and correct, but too weak alone to prove Ω(log^2 n).
+
+Next steps (concrete, testable)
+1) Curate Theorem 3′ (factor-3 cap) into output.md, with the corrected proof of the “three indices per pair” mechanism and the per-pair ±2 bound (Lemmas A–C). This is a clean improvement and fully rigorous.
+2) Strengthen equal-scale scarcity beyond the first step. Target: If all pairs in a step have sizes within a factor-2 range [L,2L], then for any input A, only O(1) levels j can have |ΔB_j| ≥ θ·B_j(A) for a fixed θ∈(0,1). Approach: combine (i) the per-pair ±2 bound (so |ΔB_j| ≤ 2m ≤ 2n/L), with (ii) lower bounds B_j(A) ≳ n/L_j valid under mild structural hypotheses on A (to be identified), and (iii) an invariant controlling how small B_j(A) can be across many j simultaneously.
+3) Home-level charging: Assign to each pair p its home index h(p) with L_{h(p)}≈|p|. Prove a “demand lemma”: constant-factor progress at level j requires Ω(B_j(A)) pairs with h(p)=j (not just any pairs). This would imply that only O(1) levels can see constant-factor progress in a step since ∑_p 1_{h(p)=j} ≤ n/L_j and ∑_j n/L_j=O(n).
+4) Small-n brute force (n=16,32): For random partitions/matchings from A_0, measure the number of levels with ≥2× drop in B_j; check whether it is bounded by a small constant; log the configurations saturating Theorem 3′ (per pair Δ_pair=±2) to guide structural characterizations.
+
+Why these steps matter
+- Theorem 3′ improves a central per-level cap and repairs the proof. The equal-scale first-step scarcity is a concrete, verifiable instance of the cross-level bottleneck and a useful base case for induction-type arguments.
+- The home-level charging is the most promising path to an Ω(log^2 n) lower bound: combined with Theorem 3′, it would bound per-step reduction in Φ(A)=∑_j |log_2 B_j(A)−(d−j)| by an absolute constant, as only O(1) levels can reduce by Θ(1) and the rest by o(1).
+
+## Round 0002 — 2025-08-27T19:00:19.998765Z
+
+Headlines
+- New rigorous, step-local identities for how B_j changes: an exact toggle-count formula restricted to the set S of the at-most-3-per-pair indices whose adjacency actually changes. Two immediate corollaries quantify how much B_j can decrease (or increase) in terms of how many of these changed indices hit current j-boundaries. These identities are clean, model-agnostic, and ready to be curated.
+- Clarification: The “useful boundary adjacency” heuristic is invalid in general (as already noted in notes.md). The correct locality is at the changed indices S only; nothing else can contribute in a step.
+- Programmatic next step: Use the toggle-count identity plus the dyadic alignment structure of A_0 to lower bound the necessary “central hits” at many levels at once. I outline a restricted (equal-scale, grid-aligned) special case that can likely be proved fully and would yield an Ω(log^2 n) bound for that restricted class.
+
+Formal statements and proofs (new, ready to curate)
+1) Lemma (toggle-locality identity and signed change at level j).
+- Setup. Let A→A′ be any single PBT step, and S⊆{1,…,n−1} be the set of indices whose adjacency changes in this step (i.e., the three indices around each matched pair: left outer, inner, right outer). For j∈{0,…,d−1}, let T_j(A) be the set of j-run boundary indices of A.
+- Claim. For every j,
+  B_j(A′) − B_j(A) = |T_j(A′) ∩ S| − |T_j(A) ∩ S|.
+- Proof. By definition, all adjacencies outside S are identical in A and A′, hence their membership in T_j(·) is unchanged. Thus T_j(A′) Δ T_j(A)⊆S, and
+  |T_j(A′)| − |T_j(A)| = |T_j(A′)∩S| − |T_j(A)∩S|.
+Since B_j(·)=|T_j(·)|+1, the identity follows. ∎
+
+Corollary 1.1 (one-sided bounds per level).
+- For every j,
+  Decrease_j := max{0, B_j(A) − B_j(A′)} ≤ |T_j(A) ∩ S|,
+  Increase_j := max{0, B_j(A′) − B_j(A)} ≤ |S\T_j(A)|.
+- Proof. From the identity, B_j(A) − B_j(A′) = |T_j(A)∩S| − |T_j(A′)∩S| ≤ |T_j(A)∩S|, and similarly for increases. ∎
+
+Remarks on usefulness.
+- This exposes the exact “demand”: shrinking B_j by Δ forces at least Δ of the changed indices to land on T_j(A). For A=A_0 (bit-reversal), T_j(A)=G_j are dyadic arithmetic progressions, so we can quantify how often a single changed index can service many levels via v_2(i).
+- It also yields the previously curated factor-4 cap as a very special (and weaker) consequence when combined with the disjointness-of-unions argument (only O(B_j) pairs can intersect T_j(A)). More importantly, it is sharp enough to support cross-level trade-off inequalities.
+
+2) Lemma (alignment counting at A_0, restated with weights).
+Let A=A_0 and G_j be the j-boundary set at A_0. For any set of changed indices S (from an arbitrary step):
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1+v_2(i)).
+In particular, for any weights a_j≥0,
+  Σ_j a_j·|S∩G_j| = Σ_{i∈S} Σ_{j: 2^{d−1−j}|i} a_j.
+- Proof. As in Theorem 4 of output.md; I include the flexible weighted form since we will need to choose tailored a_j.
+
+Immediate consequences and their limits
+- Using Cor. 1.1 with A=A_0 gives Σ_j Decrease_j ≤ Σ_j |S∩G_j| = Σ_{i∈S}(1+v_2(i)). This shows that the total number of j-boundaries removed in a single step is at most the “alignment budget” Σ_i(1+v_2(i)). Since 1+v_2(i) ≤ 1+⌊log_2(n−1)⌋, we get the coarse bound Σ_j Decrease_j ≤ |S|·O(log n).
+- This is not yet strong enough to force an O(1) drop of the log-gap potential per step (the step may create increases elsewhere, and |S| can be Θ(n)), but it is the right necessary-condition inequality to drive sharper cross-level trade-offs (see Next steps).
+
+Restricted special case towards cross-level scarcity (equal-scale, grid-aligned)
+- Definition (equal-scale, grid-aligned step). Fix L a power of two. A step is L-aligned if (i) every matched pair consists of two adjacent intervals each of length in [L,2L), and (ii) all inner boundaries of matched pairs occur at indices divisible by L (i.e., central cuts lie on the L-grid). This is a strong but natural restriction; many plausible blockwise algorithms satisfy it in phases.
+- Claim (to be proved next; sketch here). In an L-aligned step from A_0, at most O(1) bit-levels j with 2^{d−1−j}∈[L/2,2L] can shrink B_j by a constant factor; all other levels change by at most o(B_j). Outline:
+  • By Cor. 1.1, to reduce B_j by θ·B_j we need |S∩G_j| ≥ θ·B_j − |S\G_j|. Since all inner boundaries lie on the L-grid and all outer boundaries are spaced by at least L (due to equal-scale blocks), |S∩G_j| is Θ(#pairs) if and only if the two grids (L and 2^{d−1−j}) are commensurate: specifically, if 2^{d−1−j}∈[L/2,2L]. Otherwise |S∩G_j|/B_j=O(2^{d−1−j}/L) or O(L/2^{d−1−j}), which is o(1), precluding constant-factor change by Lemma 1.
+  • Moreover, only O(1) consecutive j satisfy 2^{d−1−j}∈[L/2,2L]. Thus per step only O(1) “active levels” can reduce by a constant factor. Combining with the per-level factor cap (Theorem 3) bounds the per-step drop of Σ_j |log_2 B_j − (d−j)| by O(1) in this restricted regime.
+- Status: The combinatorics of outer-boundary contributions needs a careful bound to ensure |S\G_j| does not swamp the inequality; but because outer boundaries per pair are only 2 and lie on the same L-grid offsets, the o(B_j) estimate for off-scale j is achievable. I will write this rigorously next.
+
+Why the “useful-boundary” heuristic fails and how the new lemma fixes the issue
+- Earlier “U_j” (indices adjacent to boundaries) is not a certificate. A changed index far from T_j(A) can certainly toggle membership at j depending on the imported endpoints. The correct locality is: only the indices whose adjacencies change (S) can flip membership; among them, a decrease of B_j can only occur on those that were in T_j(A) (Cor. 1.1). This is the precise and minimal condition we need.
+
+A small but precise trade-off for A_0 (weighted decreases)
+- For A=A_0 and any step, Cor. 1.1 plus weighted alignment gives
+  Σ_{j=0}^{d−1} 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} Σ_{j: i∈G_j} 2^{−(j+1)}.
+For i with v_2(i)=t, the inner sum equals Σ_{j≥d−1−t} 2^{−(j+1)} = 2^{−(d−t)}(1−2^{−(t+1)}) ≤ 2^{−d+t}.
+Therefore Σ_j 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} 2^{−d+v_2(i)}.
+- Crude bound: since v_2(i) ≤ ⌊log_2 i⌋ ≤ d−1, the RHS ≤ |S|/2. This is not strong enough by itself, but it is an exact accounting that we can pair, in the equal-scale regime, with commensurability to limit |S∩G_j| where it matters.
+
+Checks on small n
+- For n=8 (A_0=[0,4,2,6,1,5,3,7]), Cor. 1.1 predicts that B_0 can decrease only if S contains the unique G_0 index (the middle cut); indeed, experiments confirm B_0 changes by at most O(1) per step. For B_1, G_1 are indices 2,4,6; placing inner boundaries on these is necessary for noticeable decrease; changing other indices primarily increases B_1.
+
+Gaps in output.md
+- The current output.md includes Theorem 3 (factor-4 cap) proved by bounding |ΔB_j| via the number of pairs that intersect T_j(A). This is correct as written. However, for subsequent stronger trade-offs we need the toggle-locality identity (new Lemma 1) and its corollary as they cleanly separate (i) where decreases can happen (only at S∩T_j(A)) from (ii) where increases can happen (only at S\T_j(A)). I recommend curating Lemma 1 and Cor. 1.1 next.
+
+Obstacles and what failed (crisp)
+- A previously sketched “size lemma” Δ_j ≤ C·Σ_p min{1, s(p)/L_j} is false; changed adjacencies are only three per pair and independent of s(p).
+- Cross-level scarcity in full generality cannot rely purely on counting |S|, because each changed index can be “relevant” to O(log n) levels at A_0 (via v_2(i)), and |S| can be Θ(n).
+- Weighting arguments that sum ΔB_j/B_j(A_0) over j yield bounds of order |S| (too large) unless we impose structural constraints (equal-scale, grid alignment) to force commensurability conflicts.
+
+Next steps (concrete, testable)
+1) Curate Lemma 1 (toggle-locality identity) and Cor. 1.1. These are simple, exact, and will be repeatedly used.
+2) Prove the equal-scale, grid-aligned cross-level scarcity claimed above. The key is to bound |S∩G_j|/B_j for off-scale j by o(1) using simple arithmetic progression intersection counts and the fact that inner cuts lie on the L-grid, while outer cuts contribute only O(#pairs) uniformly spread on that grid.
+3) Generalize from exact alignment to “near alignment”: pairs with lengths in [L,2L) but inner boundaries allowed to drift; show via a pigeonhole/averaging over residues modulo L that one residue class captures a constant fraction, hence we can apply the aligned argument to that fraction, obtaining the same O(1) active-level cap (up to constants).
+4) Experiments for n=64,128: enumerate random equal-scale partitions for several L and measure, per step, the number of j with B_j reduced by ≥1/2. We expect this number to be O(1) near levels with 2^{d−1−j}≈L and near zero for others. Record distributions to calibrate constants.
+5) With the scarcity lemma in hand for each equal-scale phase, layer phases across L=1,2,4,… to argue that Σ_j |log_2 B_j − (d−j)| drops by at most O(1) per phase. This would yield Ω(log^2 n) steps for any algorithm restricted to equal-scale phases. Later, try to remove the restriction by decomposing an arbitrary step into O(1) “scale bins” (pigeonhole) and charging the potential drop to those bins.
+
+Why this is promising
+- The toggle-locality identity provides the right “demand certificate” per level j in terms of S∩T_j(A). In the A_0 regime, T_j(A) are dyadic grids, and equal-scale steps naturally constrain S to near-periodic grids; this sets up an arithmetic progressions intersection framework that is well suited to proving the desired O(1) active-level cap per step.
+
+
+
+=== summary.md ===
+
+## round-0001 — model summary — 2025-08-27T07:25:30.062332Z
+Summarizer JSON fallback
+
+## round-0001 — model summary — 2025-08-27T07:29:07.486957Z
+In this round, the prover focused on establishing a lower bound of Omega(log^2 n) for sorting bit-reversal sequences through the formulation of two key lemmas. Lemma 1 addresses the constant-factor cap on changes to $B_j$ per step, while Lemma 2 limits the number of levels affected by a swap. Both lemmas require rigorous justification to ensure their validity. Empirical testing on small cases (n=2^k for k=1,2,3) was proposed to gather evidence, but it should be complemented with theoretical analysis. Additionally, the relationship between the counting lower bound and the potential function $Φ(A)$ needs further exploration.
+
+## round-0001 — model summary — 2025-08-27T07:32:00.888558Z
+Summarizer JSON fallback
+
+## round-0001 — model summary — 2025-08-27T07:35:40.499980Z
+In this round, two significant lemmas were proposed: Lemma 1 establishes a constant-factor cap on changes in monochromatic runs at a fixed bit level, while Lemma 2 asserts that a matched boundary only affects a constant number of nearby bit levels. Both lemmas are crucial for proving the overall lower bound but require rigorous justification. Initial test attempts with small cases (n=8 and n=16) were conducted to analyze the effects of swaps, and the potential function Φ(A) was explored to track changes. The relationship between counting arguments and the potential function was also examined, highlighting the need for coherence in the proof. Overall, the direction of the research is promising, but further rigor is essential for advancement.
+
+## round-0001 — model summary — 2025-08-27T18:49:08.193845Z
+This round formalized that our single-step model = PBT (parallel adjacent block transpositions, JOP arXiv:2311.08727) and set a concrete potential Φ(A)=∑_j D_j(A) with D_j(A)=|log2 B_j(A)−(d−j)|; for bit-reversal A0 this Φ(A0)=Θ(d^2). Two complementary threads produced rigorous local bounds: a per-level constant-factor cap on B_j change in one step (prover-01 gave a factor-4 bound; prover-02 refined the argument to c=7 via careful edge counting), and a size-sensitive bound Δ_j ≤ C·∑_p min{1, s(p)/L_j} tying level-j progress to swapped-pair sizes. A dyadic alignment lemma shows any cut index is “useful” for only O(log n) levels. These tools recover the known Ω(log n) lower bound but do not yet yield Ω(d^2)=Ω(log^2 n): the missing ingredient is a robust cross-level scarcity (only O(1) levels can get constant-factor progress in one step). Next steps target a “home-level” charging argument and small-n enumeration to validate constants. Citations: prover-01.out.json, prover-02.out.json; Jelínek–Opler–Pekárek (arXiv:2311.08727).
+
+## round-0002 — model summary — 2025-08-27T19:46:36.085312Z
+This round produced two complementary technical advances and a clear programmatic path. Prover-01 introduced the toggle-locality identity: for any single PBT step with changed-adjacency set S, B_j(A')−B_j(A)=|T_j(A')∩S|−|T_j(A)∩S|, and the immediate one-sided corollary Decrease_j ≤ |T_j(A)∩S| (and symmetrically for increases). It also restated the A_0 alignment count Σ_j |S∩G_j| = Σ_{i∈S}(1+v_2(i)) (weighted form included). Prover-02 fixed a proof gap and proved a tight per-pair ±2 contribution bound, yielding a per-level factor-3 cap B_j(A') ≤ 3 B_j(A). Both files give a clean equal-scale first-step scarcity claim from A_0: when all pairs have size ≈L, only O(1) adjacent dyadic levels near L can undergo constant-factor change. Remaining gaps: extending equal-scale scarcity beyond the first step and proving a robust home-level charging lemma. Files relied on: prover-01.out.json, prover-02.out.json.
+
+
+
+=== notes.md ===
+Setting and notation
+- Input size n=2^d. The specific permutation A_0 is bit-reversal order of [0,…,n−1]. For j∈{0,…,d−1} we color elements by their j-th bit and denote by B_j(A) the number of monochromatic runs (contiguous blocks of equal j-bit) in the array A. Let T_j(A)⊆{1,…,n−1} be the set of j-run boundary indices (|T_j(A)|=B_j(A)−1). We consider one-step operations that swap a family of disjoint adjacent interval pairs in parallel.
+- Our model of one step coincides with PBT (parallel adjacent block transpositions). One step chooses disjoint pairs (L_k,R_k) of adjacent contiguous intervals and swaps every chosen pair simultaneously.
+
+Endpoint calibration (bit-reversal vs sorted)
+- For A_0 (bit-reversal), B_j(A_0)=2^{j+1}. For the fully sorted order A_* = [0,1,…,n−1], B_j(A_*)=2^{d−j}. Consequently, the potential Φ(A):=Σ_{j=0}^{d−1} |log_2 B_j(A) − (d−j)| satisfies Φ(A_0)=Θ(d^2) and Φ(A_*)=0.
+
+Locality of changes per pair and a safe per-level cap
+- A single swapped pair (L,R) can alter adjacency only at three indices: the left outer boundary before L, the inner boundary between L and R, and the right outer boundary after R. For a fixed level j, if the union L∪R contains no j-boundary of the current array A, then all three affected adjacencies are between same colors both before and after; hence this pair produces no change in B_j.
+- Therefore only pairs whose union contains at least one element of T_j(A) can affect B_j. Because the pair unions are disjoint, the number of such pairs is at most |T_j(A)|=B_j(A)−1. Each such pair contributes at most 3 to |B_j(A′)−B_j(A)|. Hence for every j and every PBT step A→A′,
+  |B_j(A′) − B_j(A)| ≤ 3(B_j(A) − 1),
+  which implies the multiplicative cap B_j(A′) ≤ 4·B_j(A) and B_j(A) ≤ 4·B_j(A′). In particular, |Δ log_2 B_j| ≤ 2 per step.
+
+Dyadic alignment for A_0
+- Let G_j denote the j-run boundary set in A_0. Then G_j = { i∈{1,…,n−1} : 2^{d−1−j} divides i }. For any set S of cut indices used in a step, one has
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1 + v_2(i)) ≤ |S| (1 + ⌊log_2(n−1)⌋),
+  since the number of j for which i∈G_j equals 1+v_2(i).
+
+Caveats and corrections to earlier sketches
+- The previously proposed “useful boundary” set U_j (indices in or adjacent to T_j(A)) is not a valid certificate for where toggles can occur: the post-step adjacency at a changed index depends on elements imported from potentially far away; mere distance-1 proximity to T_j(A) is insufficient to characterize where toggles can or cannot happen. We avoid using U_j.
+- A claimed “size lemma” of the form Δ_j ≤ C·Σ_p min{1, s(p)/L_j} is false deterministically. Short pairs can be aligned to j-gridlines so that Δ_j ≍ n/L_j while the RHS is ≍ n/L_j^2. Any valid size-sensitive bound must use a different aggregation (see Next steps).
+- Edge-to-level weighting that relies on fixed dyadic gridlines E_j holds at A_0 but not after the array evolves; after one step the j-boundaries are no longer constrained to those gridlines.
+
+Next steps (program)
+1) Try to sharpen the per-level cap to factor 2: Show |B_j(A′)−B_j(A)| ≤ c·|T_j(A)∪T_j(A′)| with small c (ideally c=1 or 2) by charging every toggling edge to a unique j-boundary contained in the union of the pair in either A or A′.
+2) Demand for central matches: Prove that achieving a constant-factor decrease of B_j in one step requires Θ(B_j) central-boundary alignments (inner boundaries of swapped pairs) with j-run boundaries of A; outer-boundary hits alone cannot effect global coalescence. Make this precise and robust to local cancellations.
+3) Cross-level scarcity via “home levels”: For each pair p of total size s(p), assign h(p) with L_{h(p)}≈s(p). Prove that constant-factor progress at level j needs Σ_{p: h(p)=j} Ω(1) contribution. Since Σ_p s(p) ≤ n and the sets {p: h(p)=j} are disjoint across j, only O(1) levels can make factor-≥2 progress in the same step. First prove the equal-scale special case (all pairs have sizes within ×2 of some L), which should already yield an Ω(log^2 n) lower bound for that restricted class.
+4) Use the dyadic structure of G_j at A_0 to formalize a “central-boundary alignment trade-off” across levels: matched central boundaries that effect progress for one j are largely incompatible with those needed for many other j due to disjointness and dyadic spacing.
+5) Perform small-n experiments (n=16,32) to estimate the maximal number of levels that can experience ≥2× change in B_j in one step and to guide constants.
+New: toggle-locality identity and consequences
+- Let A→A′ be one PBT step and let S⊆{1,…,n−1} be the set of indices whose adjacency changes in this step (exactly three per matched pair: left outer, inner, right outer; omit outer ones at array ends if absent). For each j, let T_j(A) be the set of j-run boundary indices (|T_j(A)|=B_j(A)−1).
+- Identity (toggle-locality). For every j,
+  B_j(A′) − B_j(A) = |T_j(A′) ∩ S| − |T_j(A) ∩ S|.
+  Reason: outside S, adjacencies (and hence boundary membership) are identical in A and A′, so T_j(A′) Δ T_j(A) ⊆ S, which implies the stated cardinality identity.
+- Corollary (one-sided bounds). For every j,
+  Decrease_j := max{0, B_j(A) − B_j(A′)} ≤ |T_j(A) ∩ S|,
+  Increase_j := max{0, B_j(A′) − B_j(A)} ≤ |S \ T_j(A)|.
+  Interpretation: shrinking B_j by Δ forces at least Δ of the changed indices to land on current j-boundaries.
+
+Improved per-level cap via per-pair ±2
+- Per pair (L,R) and fixed j, define Δ_pair as the change in the number of j-boundaries attributable to that pair; then |Δ_pair| ≤ 2 (prove by the binary 4-cycle inequality on the three interfaces). In addition, only pairs whose union is non-monochromatic at level j can contribute, and such pairs are at most |T_j(A)| by disjointness (charge to an internal j-boundary index).
+- Summing gives |B_j(A′)−B_j(A)| ≤ 2·|T_j(A)| = 2(B_j(A)−1). Applying the bound to the inverse step yields the multiplicative cap B_j(A′) ≤ 3B_j(A) and B_j(A) ≤ 3B_j(A′). Thus |Δ log_2 B_j| ≤ log_2 3 per step.
+
+Weighted dyadic alignment at A_0 and a corrected weighted bound
+- For A_0, G_j = T_j(A_0) is the dyadic grid {i: 2^{d−1−j} | i}. For any set S of changed indices, Σ_j |S∩G_j| = Σ_{i∈S} (1+v_2(i)). More generally, for nonnegative weights a_j, Σ_j a_j·|S∩G_j| = Σ_{i∈S} Σ_{j: i∈G_j} a_j.
+- Combining with toggle-locality yields the exact inequality Σ_j a_j·Decrease_j ≤ Σ_{i∈S} Σ_{j: i∈G_j} a_j. For the specific weights a_j=2^{−(j+1)}, if v_2(i)=t then Σ_{j: i∈G_j} 2^{−(j+1)} = 2^{−(d−t−1)}(1−2^{−(t+1)}) ≤ 2^{−d+t+1}. Thus Σ_j 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} 2^{−d+v_2(i)+1}. (This corrects a factor-2 slip in an earlier draft.)
+
+Caution on “equal-scale first-step scarcity from A_0”
+- The claim “if L_j > s then every union U=L∪R is j-monochromatic in A_0” is false. Counterexample (n=8, j=0): L_j=4; a union U of size s=2 that straddles the unique G_0 index at 4 is not monochromatic.
+- What does hold: the per-pair ±2 bound implies |ΔB_j| ≤ 2m ≤ 2n/s for any j. From A_0 this yields that if L_j ≪ s then |ΔB_j|/B_j(A_0) ≤ O(L_j/s)=o(1), so constant-factor decreases at such j are impossible in that step. This does not preclude large changes when L_j ≫ s; additional structure (e.g., grid-aligned inner boundaries) seems necessary to prove an O(1) cap on the number of “active levels”.
+
+Planned direction: equal-scale, grid-aligned scarcity
+- Assume an L-aligned step: pair sizes in [L,2L) and all inner boundaries on the L-grid. For A starting at A_0, use arithmetic progression intersections to show that for off-scale j (2^{d−1−j} far from L) the proportion |S∩G_j|/B_j is o(1); combine with toggle-locality to rule out constant-factor decreases at those j. Only O(1) consecutive j with 2^{d−1−j}∈[L/2,2L] can be “active”. Control outer-boundary contributions by noting they contribute only O(#pairs) points, spread over a constant number of L-residue classes.
+
+Next steps (actionable)
+1) Write the full aligned-scarcity proof, including the precise bounds on |S∩G_j| and |S\G_j| for off-scale j.
+2) Extend to near-alignment by averaging over residues modulo L to extract a constant-aligned subfamily.
+3) Develop a central-vs-outer charging lemma: quantify the fraction of Decrease_j that must be paid by inner boundaries hitting T_j(A), uniformly over steps. This will dovetail with a home-level charging scheme for pairs.
+4) Continue small-n experiments (n=32,64,128) to probe the number of levels with ≥ constant-factor decreases under equal-scale steps.
+
+
+=== output.md ===
+Statements and proofs curated so far
+
+Setup and notation
+- Let n=2^d. An array A is a permutation of [0,…,n−1]. For j∈{0,…,d−1}, color each entry of A by the j-th bit of its value and let B_j(A) be the number of monochromatic runs in this 2-coloring. Let T_j(A)⊆{1,…,n−1} be the set of indices i where the j-color flips between positions i and i+1 (so |T_j(A)|=B_j(A)−1). A single step A→A′ is a parallel block transposition (PBT): a product of disjoint swaps of adjacent contiguous interval pairs (L,R). Such a step changes adjacencies only at the three interface indices of each pair (left outer, inner, right outer; omitting outer ones at the array ends).
+
+Theorem 1 (Model equivalence to PBT). A single step of the model (swapping a family of disjoint adjacent interval pairs in parallel) is exactly a parallel block transposition (PBT) step.
+Proof. A step chooses disjoint adjacent pairs (L_k,R_k) of intervals and swaps each pair simultaneously, leaving all other positions untouched. This is precisely a product of disjoint adjacent block transpositions. Conversely, any product of disjoint adjacent block transpositions can be realized by choosing those pairs. ∎
+
+Theorem 2 (Endpoint run-counts). Let n=2^d and A_0 be the bit-reversal permutation of [0,…,n−1]. For j∈{0,…,d−1}:
+- B_j(A_0)=2^{j+1}.
+- For the fully sorted order A_*=[0,1,…,n−1], B_j(A_*)=2^{d−j}.
+Consequently, with D_j(A):=|log_2 B_j(A) − (d−j)|, one has Σ_{j=0}^{d−1} D_j(A_0)=Θ(d^2) and Σ_{j=0}^{d−1} D_j(A_*)=0.
+Proof. In A_0, the j-bit of the value at position i equals the (d−1−j)-th bit of i; thus along positions 0,…,n−1 this bit is constant on runs of length 2^{d−1−j} and alternates every such block, giving exactly 2^{j+1} runs. In A_*, the j-bit is constant on blocks of length 2^j and alternates every 2^j positions, yielding 2^{d−j} runs. The Θ(d^2) sum follows from Σ_{j=0}^{d−1} |2j+1−d| = Θ(d^2) by symmetry around (d−1)/2. ∎
+
+Lemma 3 (Toggle-locality identity). Let A→A′ be one PBT step and let S be the set of indices whose adjacency changes in this step (the three interfaces per pair). Then for every j,
+  B_j(A′) − B_j(A) = |T_j(A′) ∩ S| − |T_j(A) ∩ S|.
+In particular, Decrease_j := max{0, B_j(A) − B_j(A′)} ≤ |T_j(A) ∩ S| and Increase_j := max{0, B_j(A′) − B_j(A)} ≤ |S \ T_j(A)|.
+Proof. If i∉S then the adjacent entries across i are the same in A and A′, hence i∈T_j(A) iff i∈T_j(A′). Thus T_j(A′) Δ T_j(A) ⊆ S and
+|T_j(A′)|−|T_j(A)| = |T_j(A′)∩S| − |T_j(A)∩S|.
+Since B_j(·)=|T_j(·)|+1, the displayed identity follows; the one-sided bounds are immediate. ∎
+
+Lemma 4 (Per-pair ±2 bound at a fixed level). Fix j and a single swapped pair (L,R). Let Δ_pair be its contribution to ΔB_j. Then |Δ_pair| ≤ 2. Moreover, if the union U=L∪R is j-monochromatic (equivalently, contains no index of T_j(A)), then Δ_pair=0.
+Proof. Only the three interface indices can change their boundary status. Let a_L be the j-color of the neighbor immediately left of L, a_R the j-color of the neighbor immediately right of R; let L_1,L_k be the first/last j-colors in L and R_1,R_m the first/last j-colors in R. Writing [·] for the indicator of inequality, the total contribution before the swap equals
+  X := [a_L≠L_1] + [L_k≠R_1] + [R_m≠a_R],
+and after the swap equals
+  Y := [a_L≠R_1] + [R_m≠L_1] + [L_k≠a_R].
+Thus Δ_pair = X − Y. Using the inequality [q≠x] − [q≠y] ≤ [x≠y] twice gives
+  Δ_pair ≤ [L_1≠R_1] + [R_m≠L_k] + ([L_k≠R_1] − [R_m≠L_1]).
+The binary 4-cycle inequality [p≠q]+[q≠r]+[r≠s]−[s≠p] ≤ 2, applied to (p,q,r,s)=(L_1,R_1,L_k,R_m), yields Δ_pair ≤ 2. The lower bound follows symmetrically (or by applying the argument to the inverse swap). If U is j-monochromatic then L_1=L_k=R_1=R_m and all three interface indicators are unchanged, so Δ_pair=0. ∎
+
+Theorem 5 (Per-level factor-3 cap per step). For any array A, any j, and any single PBT step A→A′,
+  B_j(A′) ≤ 3·B_j(A) and B_j(A) ≤ 3·B_j(A′).
+Equivalently, |log_2 B_j| changes by at most log_2 3 in one step.
+Proof. Let M_j(A) be the set of swapped pairs whose union U is not j-monochromatic in A. By disjointness of the unions, each U∈M_j(A) contains at least one index of T_j(A), and distinct U’s receive distinct such indices; hence |M_j(A)| ≤ |T_j(A)| = B_j(A)−1. Summing Lemma 4 over pairs gives
+  |B_j(A′) − B_j(A)| ≤ Σ_{pairs} |Δ_pair| ≤ 2·|M_j(A)| ≤ 2(B_j(A)−1).
+Therefore B_j(A′) ≤ B_j(A) + 2(B_j(A)−1) ≤ 3B_j(A). Applying the same bound to the inverse step A′→A yields B_j(A) ≤ 3B_j(A′). ∎
+
+Theorem 6 (Dyadic alignment for A_0; weighted form). Let G_j⊆{1,…,n−1} be the set of j-run boundary indices in A_0. Then G_j = { i : 2^{d−1−j} divides i }. For any set S⊆{1,…,n−1},
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1 + v_2(i)).
+More generally, for any weights a_j≥0,
+  Σ_{j=0}^{d−1} a_j·|S ∩ G_j| = Σ_{i∈S} Σ_{j: 2^{d−1−j} | i} a_j.
+Proof. In A_0 the j-bit is periodic with period 2^{d−j}, so boundaries occur exactly at indices i that are multiples of 2^{d−1−j}. For fixed i, the set of j with i∈G_j has size 1+v_2(i); the weighted identity is immediate by exchanging sums. ∎
+
+Corollary 6.1 (Weighted decrease bound from A_0). In one step A_0→A′ with changed-index set S, and any weights a_j≥0,
+  Σ_{j} a_j·Decrease_j ≤ Σ_{i∈S} Σ_{j: i∈G_j} a_j.
+In particular, with a_j=2^{−(j+1)} and v_2(i)=t,
+  Σ_{j} 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} 2^{−(d−t−1)}(1−2^{−(t+1)}) ≤ Σ_{i∈S} 2^{−d+t+1}.
+Proof. Combine Lemma 3 with Theorem 6 and use nonnegativity of the weights; the explicit sum for a_j=2^{−(j+1)} is a direct geometric series. ∎
+
+
+=== 2311.08727v1.pdf ===
+
+--- Page 1 ---
+The Hierarchy of Hereditary Sorting Operators
+Vít Jelínek∗1, Michal Opler†2, and Jakub Pekárek1
+1Charles University, Czechia
+2Czech Technical University in Prague, Czechia
+Abstract
+We consider the following general model of a sorting procedure: we fix a
+hereditary permutation class C, which corresponds to the operations that the
+procedure is allowed to perform in a single step. The input of sorting is a
+permutation π of the set rns “ t1, 2, . . . , nu, i.e., a sequence where each element
+of rns appears once. In every step, the sorting procedure picks a permutation
+σ of length n from C, and rearranges the current permutation of numbers by
+composing it with σ. The goal is to transform the input π into the sorted
+sequence 1, 2, . . . , n in as few steps as possible.
+Formally, for a hereditary permutation class C and a permutation π of rns,
+we say that C can sort π in k steps, if the inverse of π can be obtained by
+composing k (not necessarily distinct) permutations from C. The C-sorting time
+of π, denoted stpC; πq, is the smallest k such that C can sort π in k steps; if no
+such k exists, we put stpC; πq “ `8. For an integer n, the worst-case C-sorting
+time, denoted wstpC; nq, is the maximum of stpC; πq over all permutations π of
+rns.
+This model of sorting captures not only classical sorting algorithms, like
+insertion sort or bubble sort, but also sorting by series of devices, like stacks or
+parallel queues, as well as sorting by block operations commonly considered,
+e.g., in the context of genome rearrangement.
+Our goal is to describe the possible asymptotic behavior of the function
+wstpC; nq, and relate it to structural properties of C. As the main result, we
+show that any hereditary permutation class C falls into one of the following
+five categories:
+• wstpC; nq “ `8 for n large enough,
+• wstpC; nq “ Θpn2q,
+• Ωp?nq ď wstpC; nq ď Opnq,
+• Ωplog nq ď wstpC; nq ď Oplog2 nq, or
+• wstpC; nq “ 1 for all n ě 2.
+In addition, we characterize the permutation classes in each of the five
+categories.
+∗Supported by the Czech Science Foundation under the grant agreement no. 23-04949X.
+†Supported by the Czech Science Foundation Grant no. 22-19557S.
+1
+arXiv:2311.08727v1  [math.CO]  15 Nov 2023
+
+--- Page 2 ---
+1
+Introduction
+Sorting is, needless to stress, a central concept in computer science. The aim of
+this paper is to study a general way to formalize the notion of sorting, based upon
+the concept of hereditary permutation classes. In this approach, we fix a hereditary
+class C of permutations, which corresponds to the operations that we are allowed to
+perform in a single step of sorting. Given an input sequence of n distinct values, itself
+viewed as a permutation, we aim to sort it into an increasing sequence by a sequence
+of steps, where in each step we compose the current sequence with an element of C.
+The goal is to minimize the number of steps for a given input, and to determine the
+worst-case number of steps C needs on inputs of size n. This last quantity, which we
+call the worst-case sorting time of the class C, is the main focus of this paper.
+Our formalism is general enough to encompass standard sorting procedures, like
+sorting by adjacent transpositions (“bubble-sort”) or sorting by insertions (“insertion
+sort”), as well as parallel procedures like Habermann’s “parallel neighbor sort” [21]
+(a.k.a. “odd-even sort”), which allows performing any number of adjacent swaps in a
+single step.
+Our formalism also models sorting procedures which are described via operations
+not on single elements, but on blocks of consecutive elements, e.g. block reversals
+or block transpositions. Such block-based sorting occurs, e.g., in the well-known
+toy problem known as “pancake sorting” [11, 19], where the goal is to sort the input
+by a sequence of prefix reversals. Block operations are also the backbone of the
+sorting procedures studied in the context of genome rearrangement research (see,
+e.g., [7, 14, 22, 24], or the surveys in [9, 18]).
+Finally, we point out that our sorting formalism is closely related to the concept
+of sorting networks, an approach which dates back to the works of Knuth [25] and
+Tarjan [27] in late 1960s and early 1970s, respectively. A sorting network is an
+acyclic directed graph whose every vertex represents a “sorting device” (e.g., a stack,
+a queue, a double-ended queue, or a more general “C-container” considered by Albert
+et al. [3]). An input sequence enters into the network from a designated source, its
+elements can move along the edges and be rearranged by the devices at the vertices,
+with the goal that the elements reach a designated sink in ascending order. Since
+the action of most sorting devices considered in the literature can be modelled by a
+hereditary permutation classes, our sorting formalism can be seen as a serial sorting
+network (i.e., the network is a path) in which all the devices are of the same type.
+The topic of sorting networks continues to be a major focus of research [10, 12, 13,
+17], but we note that most of its previous results address the question of how many
+permutations can be sorted by a given fixed network and what these permutations
+look like, while our own focus is on finding the shortest serial network that sorts
+every permutation of a given length. Additionally, some authors consider sorting
+networks where the operation of the devices is restricted by the properties of the
+input sequence, e.g., by assuming that a stack may only hold a monotone sequence
+of values. These restricted devices no longer fit into our own formalism.
+The aim of our paper is neither to improve the analysis of any specific sorting
+algorithm, nor to propose a new specific algorithm; instead, our goal is to answer the
+general question of which functions can occur as worst-case sorting times of hereditary
+2
+
+--- Page 3 ---
+permutation classes. Accordingly, we disregard constant multiplicative factors and
+focus on asymptotic behavior. Our results show that at this level of detail, the
+possible sorting times can be classified into a hierarchy with gaps between individual
+levels. Disregarding trivial extreme cases, a worst-case sorting time of a hereditary
+class is either Θpn2q, or a function between Opnq and Ωp?nq, or Oplog2 nq, and for
+each of these cases we can provide a structural characterization of the corresponding
+hereditary classes.
+We remark that the assumption of heredity is substantial in our setting. If
+we were to consider sorting with an arbitrary set of generators, the sorting-time
+problem would be essentially reduced to the problem of determining the diameter of
+a Cayley graph in the symmetric group. This is a well-known group-theoretic open
+problem, with a conjecture of Babai and Seress [6] stating that the diameter is at
+most polynomial.
+Let us now introduce the necessary definitions to state our results properly.
+Notation, terminology, and the main result
+A permutation of size n is a sequence π “ pπp1q, πp2q, . . . , πpnqq in which each
+number from the set rns “ t1, 2, . . . , nu appears exactly once. We let Sn be the set
+of permutations of size n, Sďn the set of permutations of size at most n, and S the
+set Ť
+ně1 Sn. We say that a permutation π P Sn contains a permutation σ P Sk if π
+contains a subsequence of length k whose elements are in the same relative order as
+the elements of σ, or more formally, if there are indices 1 ď i1 ă i2 ă ¨ ¨ ¨ ă ik ď n
+such that πpiaq ă πpibq ðñ σpaq ă σpbq for every a, b P rks. If π does not contain
+σ, we say it avoids σ.
+A hereditary permutation class (or henceforth just class) is a set C Ď S such that
+for every π P C and every σ contained in π, σ is also in C. For a permutation class C,
+we let Cn denote the set C X Sn.
+For a pair of permutations σ, π P Sn, their composition σ ˝ π is the permutation
+pσpπp1qq, σpπp2qq, . . . , σpπpnqqq. For a pair of permutation classes A and B, we write
+A ˝ B for tα ˝ β; α P A, β P Bu, A˝k for the k-fold composition A ˝ A ˝ ¨ ¨ ¨ ˝ A, and
+A˚ for Ť
+kě1 A˝k. Note that A ˝ B, A˝k and A˚ are again permutation classes.
+The inverse of a permutation π P Sn is the permutation π´1 P Sn such that
+π´1 ˝ π is the identity permutation p1, 2, . . . , nq.
+Recall that the C-sorting time of π, denoted stpC; πq, is the smallest k such that
+π´1 is in C˝k, or `8 if no such k exists. For an integer n, the worst-case C-sorting
+time, denoted wstpC; nq, is the maximum of stpC; πq over all permutations π of rns.
+We are now ready to recall the main result of this paper.
+Theorem 1.1. Every permutation class C falls into one of the following five cate-
+gories:
+• wstpC; nq “ `8 for n large enough,
+• wstpC; nq “ Θpn2q,
+• Ωp?nq ď wstpC; nq ď Opnq,
+3
+
+--- Page 4 ---
+• Ωplog nq ď wstpC; nq ď Oplog2 nq, or
+• wstpC; nq “ 1 for all n ě 2.
+The rest of this paper is devoted to the proof of this theorem. After we introduce
+some more terminology and review some relevant facts about permutation classes
+(Section 2), we will proceed by characterizing the classes with infinite sorting time in
+Section 3. This is easily done, as it more or less directly follows from previous results
+on composition-closed permutation classes. We then show, in Section 4, that if the
+sorting time is finite, it is at most Opn2q. Next, in Section 5, we establish the gap
+between quadratic and linear sorting times. Our main device is a numerical parameter
+called reduced inversion number rinpπq, which we introduce. We show that a class
+C has wstpC; nq “ Ωpn2q whenever rinp¨q is bounded on C, and wstpC; nq “ Opnq
+otherwise.
+The most difficult part of the proof appears in Section 6, where we show that
+there are twelve (or four, after we account for symmetries) minimal classes with
+sorting time Oplog2 nq, while any class that does not contain one of these twelve as
+a subclass has sorting time Ωp?nq. The proof of this lower bound combines a new
+structural result on classes avoiding the twelve ‘polylog’ subclasses, an argument
+showing that sorting with such a class can be encoded into a specific graph which
+has a drawing on a surface of not-too-large genus with not-too-many crossings, and a
+bound on the tree-width of a graph that can be drawn on a surface of a given genus
+with a given number of crossings.
+The short Section 7 contains the proof that any class not containing all permuta-
+tions has sorting time Ωplog nq. This is a straightforward counting argument using
+the Marcus–Tardos theorem. We conclude in Section 8 with open problems, chief
+of which is to close the gaps between Ωp?nq and Opnq, and between Ωplog nq and
+Oplog2 nq implied by Theorem 1.1. In fact, for all the classes whose sorting time
+we can establish asymptotically tightly, the sorting time is either `8, Θpn2q, Θpnq,
+Θplog nq or 1.
+2
+Permutation classes
+We let Avpπ1, π2, . . . , πmq denote the class of permutations that avoid all the per-
+mutations π1, . . . , πm. We also use the special notation
+for the class Avp21q of
+all the increasing permutations, and
+for the class Avp12q of all the decreasing
+permutations. Let ιk denote the identity permutation p1, 2, . . . , kq, and let δk be the
+decreasing permutation pk, k ´ 1, . . . , 1q.
+It is often convenient to represent a permutation π P Sn by its diagram, which is
+the point set Dpπq “ tpi, πpiq; i P rnsu.
+Apart from the inverse π´1 introduced before, we will need several other operations
+on a permutation π “ pπp1q, . . . , πpnqq. Its reverse, denoted πr, is the permutation
+pπpnq, πpn´1q, . . . , πp1qq, its complement πc is the permutation pn`1´πp1q, n`1´
+πp2q, . . . , n`1´πpnqq. Finally, the flip of π, denoted πf, is defined as πf “ ppπrq´1qr.
+In terms of permutation diagrams, the reverse corresponds to reflection over a
+vertical line, the complement corresponds to reflection over a horizontal line, the
+4
+
+--- Page 5 ---
+inverse corresponds to reflection over the diagonal line y “ x, and flip corresponds
+to reflection over the line y “ n ` 1 ´ x.
+For a set of permutations C, we write Cr “ tπr; π P Cu, Cc “ tπc; π P Cu,
+C´1 “ tπ´1; π P Cu and Cf “ tπf; π P Cu. Note that if C is a class, then so are Cr,
+Cc, C´1 and Cf.
+For a pair of permutations α P Sk and β P Sℓ, their direct sum α ‘ β is the
+permutation pαp1q, αp2q, . . . , αpkq, k ` βp1q, k ` βp2q, . . . , k ` βpℓqq, and their skew
+sum α a β is the permutation pℓ` αp1q, ℓ` αp2q, . . . , ℓ` αpkq, βp1q, βp2q, . . . , βpℓqq.
+We let Àm α denote the direct sum α ‘ α ‘ ¨ ¨ ¨ ‘ α with m summands, and Ám α
+is defined similarly. For a set of permutations C, its sum-closure À C is the set of all
+the permutations that can be obtained as a direct sum of a finite number of (not
+necessarily distinct) elements of C. Similarly, we define the skew-closure Á C. If C is
+a class, then so are À C and Á C.
+Before we proceed, let us collect several simple observations related to sorting
+times of various classes.
+Observation 2.1. For any two permutations σ and π of size n, we have pσ ˝ πq´1 “
+π´1 ˝ σ´1 and pσ ˝ πqf “ πf ˝ σf.
+Consequently, for any permutation class C
+and any permutation τ, stpC; τq “ stpC´1; τ ´1q “ stpCf; τ fq, and in particular,
+wstpC; nq “ wstpC´1; nq “ wstpCf; nq.
+Observation 2.2. If A and B are permutation classes such that A Ď B˝k and π is
+any permutation, then stpB; πq ď k ¨ stpA; πq, and hence wstpB; nq ď k ¨ wstpA; nq.
+Observation 2.3. Let C be a class containing
+as a subclass. Then Cr “ C˝
+Ď C˝2,
+and in particular, by Observation 2.2, wstpC; nq ď 2wstpCr; nq. Similarly, wstpC; nq ď
+2wstpCc; nq.
+Griddings and grid classes
+We say that a set P of points in the plane is in general position if no two points of P
+are on the same horizontal or vertical line. We say that two finite point sets P and
+Q in general position are order-isomorphic, if there is a bijection from P to Q which
+preserves both the left-to-right and the bottom-to-top order of the points. Note that
+any finite set P of points in general position is order-isomorphic to a permutation
+diagram of a unique permutation α; we than say that P induces a copy of α.
+Let π P Sn be a permutation with a permutation diagram Dpπq. A k ˆ ℓgridding
+of π is a set of k ` 1 vertical lines v0, v1, . . . , vk numbered left to right and ℓ` 1
+horizontal lines h0, h1, . . . , hℓnumbered bottom to top, such that Dpπq is inside the
+rectangle bounded by v0, vk, h0 and hℓ, and no point of Dpπq lies on any of the
+k ` ℓlines of the gridding. For i P rks and j P rℓs, the cell pi, jq of the gridding,
+denoted is the rectangle bounded by the lines vi´1, vi, hj´1 and hj. A permutation
+together with its gridding is referred to as a gridded permutation. If π is a gridded
+permutation and X a cell of its gridding, we let πrXs denote the set Dpπq X X, and
+the permutation induced by this set is simply referred to as the subpermutation of π
+induced by X.
+A gridding matrix is a matrix M whose every entry is a permutation class; see
+Figure 1 for an example. For consistency with the Cartesian coordinates we use for
+5
+
+--- Page 6 ---
+Figure 1: Left: a 4 ˆ 3 gridding matrix M; by convention, we assume that the empty
+cells represent the permutation class that only contains the empty permutation.
+Right: an example of an M-gridded permutation, represented by its diagram.
+permutation diagrams, we will assume that rows in a matrix are numbered bottom
+to top, and we let Mi,j denote the entry in column i and row j of the matrix M.
+Suppose M is a gridding matrix with k columns and ℓrows. An M-gridding of a
+permutation π is a k ˆ ℓgridding with the property that for every pi, jq P rks ˆ rℓs,
+the cell pi, jq of the gridding induces in π a permutation belonging to the class Mi,j.
+The grid class determined by M, denoted GridpMq, is the set of those permutations
+π that admit an M-gridding.
+An important special case of grid classes are the so-called monotone juxtapositions,
+whose gridding matrices have shape 2 ˆ 1 or 1 ˆ 2, and each of their two entries is
+or
+. In particular, there are eight monotone juxtapositions.
+2.1
+Some notable classes
+We will now introduce several permutation classes that will play an important role
+in our results. See Figure 2 for some examples and Table 1 for a complete list.
+The class of layered permutations, denoted L, is the sum-closure of the class
+.
+Equivalently, it can be defined as Avp231, 312q. We remark that sorting by layered
+permutations is equivalent by sorting with a series of so-called pop-stacks.
+The Fibonacci class, denoted F, is the sum-closure of the set t1, 21u, or equiva-
+lently the class of 321-avoiding layered permutations. Its name refers to the fact that
+|Fn| is the n-th Fibonacci number. Sorting with the Fibonacci class F corresponds to
+sorting where in each step we perform parallel transpositions of disjoint adjacent pairs
+of elements. This includes, as a special case, an algorithm known as odd-even sort
+(also known as parallel neighbor-sort), introduced and analyzed by Habermann [21],
+who showed that the algorithm requires n rounds in the worst case. This implies
+that wstpF; nq “ Opnq. This is asymptotically tight since, e.g., any permutation π
+with πpnq “ 1 requires at least n ´ 1 F-steps to be sorted. Thus, wstpF; nq “ Θpnq.
+The rotation class is the class R :“ tιa a ιb; a, b P N0u. Note that for ρ P Rn and
+π P Sn, π ˝ ρ is a cyclic rotation of the sequence π. We will also consider the class
+RR :“ R Y Rr, corresponding to rotations and their reversals. Both these classes
+are composition closed, and in particular have infinite sorting time, as they cannot
+sort any permutation that does not belong to the class.
+The parallel block transposition class, denoted PBT , is the sum-closure of R. To
+our knowledge, this class has not been considered before, but it emerges naturally in
+6
+
+--- Page 7 ---
+Figure 2: From left to right: diagram of a layered permutation, diagram of a
+permutation from the Fibonacci class F, and a diagram of a permutation from the
+class PBT .
+our results as one of the twelve minimal classes with polylogarithmic sorting time.
+The class CBub :“ tιa ‘ 21 ‘ ιb; a, b P N0u Y
+corresponds to sorting by adjacent
+transpositions. This includes, e.g., the classical bubble sort algorithm. It can be
+easily seen that wstpCBub; nq “
+`n
+2
+˘
+. A slight modification yields the class T :“
+tιa ‘ 21 ‘ ιb; a, b P N0u Y t1 a ιc a 1; c P N0u Y
+, which corresponds to cyclic
+adjacent transpositions, where positions 1 and n are treated as adjacent.
+The class k-Fringe :“ tπ‘ιa‘σ; a P N0, |σ| ď k, |π| ď ku contains permutations
+in which only the prefix of length k and the suffix of length k can be permuted. We
+also define k-RFringe :“ k-Fringe Y pk-Fringeqr.
+The grid class CPan “ Grid
+´
+¯
+corresponds to sorting where in each step, we
+reverse the prefix of the permutation being sorted. This is known in the literature as
+pancake sorting. It is well known that wstpCPan; nq “ Θpnq. It is easy to see that the
+same asymptotic estimate also applies to Cr
+Pan, Cc
+Pan and Cf
+Pan.
+The grid class
+CIns “ Grid
+¨
+˝‚
+˛
+‚
+corresponds to sorting where in each step, we take the first element of the input and
+insert it to an arbitrary position i, while moving the elements in positions 2, 3, . . . , i
+one step to the left. This corresponds to the classical insertion sort algorithm. The
+standard application of the algorithm can sort any input in n´1 steps, by maintaining
+the invariant that after k steps, the final k `1 elements are in increasing order; hence,
+wstpCIns; nq ď n ´ 1. This bound is tight, since any permutation π with πpnq “ 1
+requires n ´ 1 steps to be sorted.
+3
+Classes that cannot sort
+Let us say that a class C cannot sort, if wstpC; nq “ `8 for some n. Note that this
+is equivalent to C˚
+n ‰ Sn. Moreover, if C˚
+n is different from Sn for some n, then for
+any m ě n, C˚
+m is different from Sm, since C˚ is a permutation class.
+7
+
+--- Page 8 ---
+Notation
+Description
+L
+À
+F
+Àt1, 12u “ L X Avp321q
+R
+Grid
+ˆ
+˙
+RR
+R Y Rr
+PBT
+À R
+CBub
+Grid
+¨
+˚
+˚
+˝
+‚
+‚
+˛
+‹‹‚
+Notation
+Description
+T
+CBub Y Grid
+¨
+˝
+‚
+‚
+˛
+‚
+k-Fringe
+Grid
+¨
+˝
+Sďk
+Sďk
+˛
+‚
+k-RFringe
+k-Fringe Y k-Fringer
+CPan
+Grid
+ˆ
+˙
+CIns
+Grid
+¨
+˝‚
+˛
+‚
+Table 1: A summary of relevant permutation classes
+When seeking to characterize the maximal classes that cannot sort, we may
+restrict our attention to the classes C that are composition closed, that is, those that
+satisfy C “ C˚. Composition closed permutation classes have been characterized by
+Atkinson and Beals [4]. Translating their results into our terminology, we obtain the
+following proposition.
+Proposition 3.1. A permutation class C cannot sort if and only if it satisfies, for
+some k P N, one of the following two conditions:
+1. C is a subclass of RR Y Sďk, or
+2. C is a subclass of k-RFringe.
+4
+From infinity to Opn2q
+Let us now focus on showing that any class that can sort has at most quadratic
+sorting time. Our key concept will be the notion of peg class, which is a grid class
+with a gridding matrix whose every row and column has exactly one nonempty cell,
+and each nonempty cell is either the singleton class t1u or one of the two monotone
+classes
+and
+.
+Peg classes have been previously studied mostly in the context of enumeration [2,
+23, 22]. Indeed, it is known that a permutation class has polynomial growth rate
+if and only if it is a finite union of peg classes. For our purposes, we will use the
+following result.
+Fact 4.1 (Homberger–Vatter [22, Theorem 3.1]). If a permutation class C does not
+contain as a subclass any monotone juxtaposition, nor F nor Fr, then C is a finite
+union of peg classes.
+8
+
+--- Page 9 ---
+Ca “ Grid
+¨
+˝
+‚
+‚
+˛
+‚, Cb “ Grid
+¨
+˝
+‚
+‚
+˛
+‚, Cc “ Grid
+¨
+˝
+‚
+‚
+˛
+‚,
+Cd “ Grid
+¨
+˚
+˚
+˝
+‚
+‚
+˛
+‹‹‚, Ce “ Grid
+¨
+˚
+˚
+˝
+‚
+‚
+‚
+˛
+‹‹‚.
+Figure 3: Five peg classes that can sort in quadratic time.
+It is not hard to see that any monotone juxtaposition has worst-case sorting time
+of order Oplog nq; we later prove this in Proposition 6.11. Also for the Fibonacci
+class F, we have already pointed out that wstpF; nq “ Θpnq, and we may easily
+observe that wstpFr; nq “ Opnq.
+Thus, if a class C has at least quadratic wstpC; nq, it cannot contain any monotone
+juxtaposition and any symmetry of F as a subclass. Thus, by Fact 4.1, such a class
+C can be written as a finite union of peg classes.
+Lemma 4.2. Let C be a peg class. If C can sort, then wstpC; nq “ Opn2q.
+Proof. If the gridding matrix of C contains a cell equal to
+as well as a cell equal to
+, then C contains CPan “
+‘
+or one of its symmetries as a subclass, and with the
+help of Observation 2.3 we easily conclude that wstpC; nq “ Opnq.
+Suppose then that at most one of the two classes
+and
+occurs in the gridding
+of C. If
+occurs, then by Observation 2.3, wstpC; nq ď 2wstpCr; nq, and Cr is a peg
+class whose gridding matrix contains
+. It is therefore enough to deal with peg
+classes whose gridding matrix contains
+but not
+. We assume from now on that C
+is such a peg class.
+Let M be the gridding matrix of the class C, and assume that M has been chosen
+to have the smallest possible number of rows and columns. In particular, this means
+that if Mi,j “
+for some i and j, then either the cell Mi,j is in the last column or
+last row of M, or the cell Mi`1,j`1 is empty. If not, then we could delete column
+i ` 1 and row j ` 1 from M to obtain a smaller gridding matrix representing the
+same class C. By the same reasoning, if Mi,j “
+for some i ą 1 and j ą 1, then
+Mi´1,j´1 is empty.
+Consider now the five peg classes from Figure 3. We claim that all these classes,
+and therefore also their inverses and flips, have at most quadratic sorting time.
+Consider the class Ca, which corresponds to sorting where in every step we either
+move the first element of the input to the last position, shifting the remaining
+elements one step forward, or we move the first two elements to the end, while
+simultaneously changing their relative position. We may easily see that by a sequence
+of at most n steps of Ca, we may simulate a single step of the class F of parallel
+adjacent transpositions on an input of size n. As we pointed out in Section 2,
+wstpF; nq “ Opnq. It follows that wstpCa; nq “ wstpC´1
+a ; nq “ wstpCf
+a; nq “ Opn2q.
+The same argument also applies to the remaining classes Cb, Cc, Cd and Ce.
+9
+
+--- Page 10 ---
+Consider again the peg class C from our lemma, with its gridding matrix M. We
+will show that C either contains, as a subclass, one of the classes Ca, . . . , Ce from
+Figure 3 or its inverse or flip. We know that M contains at least one entry equal to
+,
+so let us fix one such entry Mi,j. We now let MTL, MTR, MBL and MBR denote the
+submatrices of M formed be the cells strictly to the top-left, top-right, bottom-left
+and bottom-right of the cell Mi,j, respectively; for instance MBL is formed by the
+intersection of the leftmost i ´ 1 columns and bottommost j ´ 1 rows of M.
+If both MTL and MBR contain a non-empty cell, then C contains Cb as a subclass,
+so suppose this is not the case, and assume, without loss of generality, that MBR
+only contains empty cells. If the grid class of MTL contains 21, then C contains Ca
+and we are done, so we assume from now on that MTL generates a (possibly empty)
+subclass of
+. It follows that at least one of MBL and MTR must contain a nonempty
+cell, otherwise C would be a subclass of R and it could not sort.
+Suppose without loss of generality that MTR contains at least as many
+-cells as
+MBL, and in case neither MTR nor MBL contains any
+-cell, suppose that MTR has
+at least one nonempty cell. Let Mi`1,k be a nonempty cell in the column of M right
+next to Mi,j. Note that k is at least j ` 2, since MBR only has empty cells and if
+the cell Mi`1,j`1 were nonempty, we could combine it with Mi,j contradicting the
+minimality of M.
+Let Mℓ,j`1 be a nonempty cell of M in the row above Mi,j. If Mℓ,j`1 is inside
+MTL, then C contains Cc as a subclass, so suppose that Mℓ,j`1 is inside MTR. If at
+least one of the two cells Mi`1,k and Mℓ,j`1 is equal to
+, then C contains either Cf
+c
+or pCf
+c q´1 as a subclass and we are done. Suppose that this is not the case. Since C
+is not a subclass of k-Fringe for any fixed k, there must be either a nonempty cell
+in MTL or a cell equal to
+in MTR. In the former case, C contains as a subclass
+either Cc or Cf
+e . In the latter case, it contains either Cd or a class symmetric to Cc as
+a subclass.
+In all the cases considered, we found that C contains a class symmetric to one of
+Ca, . . . , Ce as a subclass, proving that wstpC; nq “ Opn2q as claimed.
+Lemma 4.2 shows that a peg class that can sort has at most quadratic sorting
+time. We now turn our attention to classes that can be expressed as unions of two or
+more peg classes. The goal is to show that even if the individual peg classes cannot
+sort, as long as their union can sort, it has at most quadratic sorting time.
+Lemma 4.3. Assume that a class C is a subclass of RRYSďk for some k, but is not
+a subclass of k-RFringe for any k, and that a class D is a subclass of k-RFringe
+for some k, but not a subclass of RR Y Sďk for any k. Then wstpC Y D; nq “ Opn2q.
+Proof. By assumption, C contains infinitely many permutations that belong to RR
+but not to 0-RFringe “ Avp21q Y Avp12q. Any such permutation has the form
+ιa a ιb or δa ‘ δb for some a, b ą 0. It follows that C contains as a subclass the peg
+class Grid
+` ‚
+˘
+or one of its symmetries.
+Similarly, the class D contains, for some k, infinitely many permutations belonging
+to k-RFringe but not to RR. From this, we easily deduce that D contains as a
+subclass the peg class Grid
+´
+‚
+‚
+¯
+or one of its symmetries.
+10
+
+--- Page 11 ---
+We may then easily check that any permutation from the class Fn can be obtained
+by composing Opnq permutations from C Y D, implying that wstpC Y D; nq “
+Opn2q.
+Combining the previous arguments, we reach the main result of this section.
+Proposition 4.4. A class C that can sort satisfies wstpC; nq “ Opn2q.
+Proof. Suppose that C can sort. If C contains a monotone juxtaposition or any
+symmetry of the class F as a subclass, then its worst-case sorting time is Opnq.
+Otherwise, C can be written as a union of finitely many peg classes C1, . . . , Ct, as
+shown by Albert et al. and Homberger–Vatter [2, 22]. If any of the peg classes Ci can
+sort, then wstpC; nq ď wstpCi; nq “ Opn2q by Lemma 4.2. Suppose then that none of
+the peg classes C1, . . . , Ct can sort, and in particular, by Proposition 3.1, each Ci is
+either a subclass of RR Y Sďk or a subclass of k-RFringe for some k.
+If all of C1, . . . , Ct are subclasses of k-RFringe, or all of them are subclasses of
+RR Y Sďk, then C cannot sort by Proposition 3.1. Otherwise there is a Ci which is
+not a subclass of RR Y Sďk for any k, and a Cj which is not a subclass of k-RFringe
+for any k, and by Lemma 4.3, wstpC; nq ď wstpCi Y Cj; nq “ Opn2q.
+5
+From quadratic to linear
+Recall that T denotes the class of cyclic adjacent transpositions. To show there is a
+gap between quadratic and linear worst-case sorting times, and to describe the classes
+with quadratic time, we need to introduce another concept: the reduced inversion
+number of a permutation π, denoted rinpπq, is the smallest integer k P N0 such that
+π belongs to T ˝k ˝ RR.
+The reduced inversion number rinpπq is inspired by the (better-known) inversion
+number of a permutation π, which can be defined as the smallest k such that π
+belongs to C˝k
+Bub. Observe that the inversion number is an upper bound for the reduced
+inversion number.
+Lemma 5.1. For any α, β P RRn and any π P Sn, rinpα ˝ π ˝ βq “ rinpπq.
+Proof. First, notice that RR ˝ T “ T ˝ RR; in other words, a permutation obtained
+by composing a rotation (with optional reversal) with a cyclic transposition can also
+be obtained by performing a cyclic transposition first followed by a rotation (with
+optional reversal), and vice versa. It is also easy to see that RR ˝ RR “ RR, that
+is, the class RR is closed under compositions.
+Suppose now that we are given α, β and π as above, and let k :“ rinpπq. Let σ
+be the permutation α ˝ π ˝ β. Then π belongs to T ˝k ˝ RR, and hence σ belongs to
+RR ˝ T ˝k ˝ RR˝2 “ T ˝k ˝ RR. This shows that rinpσq ď rinpπq. Conversely, π is
+equal to α´1 ˝ σ ˝ β´1, and since α´1 and β´1 both belong to RR, we may repeat
+the above argument to show that rinpπq ď rinpσq. We conclude that rinpπq “ rinpσq,
+as claimed.
+Lemma 5.2. For any σ, π P Sn,
+rinpπ ˝ σq ď rinpπq ` rinpσq.
+11
+
+--- Page 12 ---
+Proof. Let k :“ rinpσq and ℓ:“ rinpπq. Then σ ˝ π belongs to the class T ˝k ˝ RR ˝
+T ˝ℓ˝ RR “ T ˝pk`ℓq ˝ RR, hence rinpσ ˝ πq ď k ` ℓ.
+For a class C and n P N, let us define rinpC; nq :“ maxtrinpσq; σ P Cnu. As
+a direct consequence of Lemma 5.2, we obtain the following relationship between
+sorting time and reduced inversion number.
+Corollary 5.3. For any class C and any π P Sn,
+stpC; πq ě
+rinpπq
+rinpC; nq.
+To make use of this corollary, we need to show that there are permutations π P Sn
+of large rinpπq.
+Lemma 5.4. We have rinpS; nq “ Θpn2q.
+Proof. A permutation π of length n has inversion number at most
+`n
+2
+˘
+, and hence
+rinpS; nq ď
+`n
+2
+˘
+. For a lower bound, we first introduce some auxiliary notions. For
+two numbers i, j P rns, we define their cyclic distance cdpi, jq by
+cdpi, jq “ mint|i ´ j|, n ´ |i ´ j|u,
+and for a permutation π P Sn, define its total cyclic distance tcdpπq by
+tcdpπq “ cd
+`
+πp1q, πpnq
+˘
+`
+n´1
+ÿ
+i“1
+cd
+`
+πpiq, πpi ` 1q
+˘
+.
+Observe that for any ρ P RR and π P Sn, both tcdpπ ˝ ρq and tcdpρ ˝ πq are equal
+to tcdpπq. Observe also that for any σ P T , we have tcdpσ ˝ πq ď tcdpπq ` 4.
+Consequently, given that the identity permutation ιn satisfies tcdpιnq “ n, we see
+that for any π P T ˝k we have tcdpπq ď n ` 4k. Combining these observations, we
+see that any π P Sn satisfies tcdpπq ď n ` 4 rinpπq.
+To prove the desired lower bound rinpS, nq “ Ωpn2q, it is enough to find a
+permutation π P Sn with tcdpπq “ Ωpn2q. An example can be the permutation
+π “ p1, rn{2s ` 1, 2, rn{2s ` 2, 3, rn{2s ` 3, . . . q obtained by interleaving the two
+sequences p1, 2, 3, . . . , rn{2sq and prn{2s ` 1, rn{2s ` 2, . . . , nq.
+Combining Corollary 5.3 and Lemma 5.4, we obtain the following bound.
+Corollary 5.5. For any class C,
+wstpC; nq ě Ω
+ˆ
+n2
+rinpC; nq
+˙
+.
+For a gridding matrix M with m rows and n columns, the reversal of M, denoted
+M r, is the gridding matrix obtained by replacing each individual entry C “ Mi,j
+with its reversal Cr, and then reversing the order of columns of the whole matrix M;
+formally, if Mi,j “ C, then M r
+n´i`1,j “ Cr. Note that the permutations in the class
+GridpM rq are precisely the reverses of those in GridpMq.
+12
+
+--- Page 13 ---
+CIns “ Grid
+¨
+˝‚
+˛
+‚,
+C1 “ Grid
+¨
+˝
+‚
+˛
+‚,
+C2 “ Grid
+¨
+˝
+‚
+˛
+‚
+Figure 4: Three classes with congruent gridding matrices, all with linear sorting time
+Let M be a gridding matrix. The column rotation of M is the operation that
+transforms M into the matrix M 1 of the same size, where the first column of M is
+equal to the last column of M 1, and for each i ą 1 the i-th column of M is equal to the
+pi´1q-th column of M 1. The row rotation of M is defined analogously. We say that a
+gridding matrix M is congruent to a matrix M 1, if M can be transformed into M 1 by
+a sequence of column rotations, row rotations and reversals. Note that if M and M 1
+are congruent, then for any π P GridpMq there are permutations ρ, ρ1 P RR such that
+ρ ˝ π ˝ ρ1 belongs to GridpM 1q. In particular, rinpGridpMq; nq “ rinpGridpM 1q; nq.
+Lemma 5.6. For any peg class C, either rinpC; nq is bounded, or wstpC; nq “ Opnq.
+Proof. Let C be a peg class with a gridding matrix M, and suppose that rinpC; nq is
+unbounded. In particular, M contains at least one entry equal to
+or to
+. Let M 1
+be a gridding matrix congruent to M whose top-right entry is equal to
+.
+Suppose that M 1 contains an entry equal to
+. Then GridpM 1q contains, as a
+subclass, the peg class CPan “ Grid
+´
+¯
+, and C contains one of the symmetries of
+this class. Since all the symmetries of CPan have linear worst-case sorting time, we
+conclude that wstpC; nq “ Opnq.
+Suppose then that M 1 does not contain
+. Let M 1
+i,j be an entry of M 1 equal to
+.
+If M 1 contains a nonempty entry strictly to the left and above M 1
+i,j, then GridpM 1q
+contains CIns as a subclass. It follows that C contains as a subclass one of the three
+classes from Figure 4 or one its symmetries. Noting that CIns Ď C˝2
+1 and CIns Ď C˝2
+2 ,
+and applying Observation 2.3 if needed, we easily conclude that wstpC; nq “ Opnq.
+An analogous argument applies when M 1 has a nonzero entry to the right and
+below M 1
+i,j.
+Finally, suppose that no entry of M 1 equal to
+has any nonzero entry to the left
+and above, or to the right and below of itself. It follows that all the entries of M 1
+equal to
+appear on the main diagonal, and M 1 is a block-diagonal matrix whose
+every block consists either of a single entry
+, or a submatrix that has no entry
+equal to
+. It then easily follows that rinpGridpM 1q; nq is bounded, and rinpC; nq is
+bounded as well.
+Proposition 5.7. For a class C, the following are equivalent:
+1. wstpC; nq “ opn2q,
+2. wstpC; nq “ Opnq, and
+3. rinpC; nq is unbounded as n Ñ 8.
+13
+
+--- Page 14 ---
+Proof. By Corollary 5.5, if rinpC; nq is bounded then wstpC; nq “ Ωpn2q. This shows
+the implication 1 ùñ 3.
+To prove 3 ùñ 2, suppose now that rinpC; nq is unbounded for a class C. If
+C contains as a subclass a monotone juxtaposition or its inverse or if it contains
+the Fibonacci class F or its reverse, then clearly wstpC; nq “ Opnq. On the other
+hand, if C contains no such subclass, then it can be expressed as a union of finitely
+many peg classes C1, . . . , Ck. Since rinpC; nq is unbounded, there must be an i P rks
+such that rinpCi; nq is unbounded. By Lemma 5.6, wstpCi; nq “ Opnq, and therefore
+wstpC; nq “ Opnq. This proves the implication 3 ùñ 2.
+The implication 2 ùñ 1 is trivial.
+6
+From Ωp?nq to polylog
+The most difficult part of our argument deals with the gap between sorting times
+Oplog2 nq and Ωp?nq. The criterion distinguishing the two types of classes is rather
+simple to state, though. For ease of notation, let X be the set of permutation classes
+that contains the eight monotone juxtapositions and the four classes L, Lr, PBT
+and PBT r. We say that a permutation class C is X-avoiding if it does not contain
+any class from X as a subclass, otherwise we say that it is X-containing.
+Theorem 6.1. Any X-avoiding class C satisfies wstpC; nq “ Ωp?nq, while any
+X-containing class C satisfies wstpC; nq “ Oplog2 nq.
+The rest of this section is devoted to a detailed proof of Theorem 6.1. We first
+focus on showing that every X-avoiding class C satisfies wstpC; nq “ Ωp?nq.
+An inversion in a permutation π is a decreasing subsequence of length 2, i.e., a
+pair pπpiq, πpjqq such that i ă j and πpiq ą πpjq. The first ingredient in the proof of
+Theorem 6.1 is a structural result characterizing permutation classes admitting a
+linear bound on the number of inversions.
+Proposition 6.2. For a permutation class C, the following statements are equivalent:
+1. Neither R nor
+is a subclass of C.
+2. There is a k P N such that every permutation in C avoids both δk and ιk a ιk.
+3. There is a Q P N such that every permutation π P C of size n has at most Qn
+inversions.
+Proof. The implication 3 ñ 1 is clear, since both
+and R contain permutations of
+size n with Ωpn2q inversions, namely δn and ιtn{2u a ιrn{2s. Likewise, the implication
+1 ñ 2 follows directly from the fact that any permutation in R is a subpermutation
+of ιk a ιk for some k.
+It remains to prove 2 ñ 3. Fix k such that every permutation of C avoids both
+δk and ιk a ιk, and let π be a permutation of size n in C. Since π avoids δk, it can be
+partitioned into k ´ 1 increasing subsequences I1, . . . , Ik´1. We will show that π has
+at most pk ´ 1q3n inversions.
+Suppose that pπpiq, πpjqq is an inversion, that is, i ă j and πpiq ą πpjq. We say
+that the inversion has type pa, bq if πpiq belongs to Ia and πpjq belongs to Ib. Note
+14
+
+--- Page 15 ---
+that this implies a ‰ b. We will show that for any pa, bq P rk ´ 1s ˆ rk ´ 1s there are
+at most pk ´ 1qn inversions of type pa, bq. To this end, we define a graph Ga,b on
+the vertex set Ia Y Ib whose edges are the pairs of vertices that form an inversion of
+type pa, bq. We claim that the graph Ga,b is pk ´ 1q-degenerate, that is, each of its
+nonempty subgraphs has a vertex of degree at most k ´ 1.
+Suppose for contradiction that Ga,b has a nonempty subgraph G1 whose every
+vertex has degree at least k. The vertex set of G1 has the form I1
+a Y I1
+b for some
+I1
+a Ď Ia and I1
+b Ď Ib. Let x1 be the rightmost vertex in I1
+a, and let Npx1q be the
+vertices of I1
+b adjacent to x1. By assumption, |Npx1q| ě k. Let y1 be the rightmost
+(and therefore also topmost) vertex in Npx1q, and let Npy1q Ď I1
+a be its neighbors.
+Since any vertex in Npx1q is to the right of x1, it follows that any vertex in Npx1q is
+to the right of all the vertices in Npy1q (recall that x1 is the rightmost vertex of I1
+a).
+Moreover, since y1 is topmost in Npx1q, all the vertices of Npx1q are below all the
+vertices in Npy1q. It follows that the set Npx1q Y Npy1q induces in π a permutation
+containing ιk a ιk, which is a contradiction.
+We conclude that the graph Ga,b is pk´1q-degenerate for any pa, bq P rk´1sˆrk´1s,
+and therefore has at most pk ´ 1qp|Ia| ` |Ib|q ď pk ´ 1qn edges. Summing over all
+values of a and b, we conclude that π has at most pk ´ 1q3n inversions.
+The key part in the proof of Theorem 6.1 is a structural characterization of
+X-avoiding classes. To state it, we need to introduce some terminology.
+An integer interval (or just interval, if there is no risk of confusion) is a finite
+set of consecutive positive integers, i.e., a set of the form ti P N; a ď i ď bu for some
+a, b P N. For a finite set X Ď N, its intervalicity, denoted IntpXq, is the smallest
+k P N0 such that X can be expressed as a union of k integer intervals. For a finite
+point set P Ď N ˆ N, we let P|x and P|y denote its projections to the x-axis and to
+the y-axis, respectively. The intervalicity of the point set P, denoted again IntpPq,
+is the maximum of IntpP|xq and IntpP|yq.
+Proposition 6.3. For every X-avoiding class C there is a constant K ” KpCq, such
+that every π P C admits a gridding with at most K rows and K columns such that
+for every cell X of the gridding, the following holds:
+1. the point set πrXs has intervalicity at most K,
+2. the permutation induced by πrXs avoids at least one of ιK and δK,
+3. the permutation induced by πrXs avoids both ιK a ιK and δK ‘ δK, and
+4. if nX is the number of elements in πrXs, then either πrXs or its reverse has
+at most K ¨ nX inversions.
+Before we prove the proposition, let us collect several known facts about permu-
+tation classes.
+Fact 6.4 (Vatter [29, Corollary 5]). For every permutation class C that does not con-
+tain L or Lr as a subclass, there is a constant K “ K6.4 such that every permutation
+π P C is a union of at most K monotone subsequences.
+15
+
+--- Page 16 ---
+Fact 6.5 (Vatter [28, Theorem 3.1]). Let C be a permutation class, and let α be a
+permutation. The following two statements are equivalent:
+• There is a constant K “ K6.5 such that every permutation in C has a gridding
+of size K ˆ K in which every cell induces a permutation that avoids α.
+• There is a constant Q such that neither ÀQ α nor ÁQ α belongs to C.
+A horizontal alternation is a permutation in which all the odd values appear to
+the left of all the even values or vice versa. A vertical alternation is an inverse of a
+horizontal alternation. An alternation is a horizontal or vertical alternation.
+Fact 6.6 (Huczynska–Vatter [23, Proposition 3.2]). For a permutation class C
+that does not contain any monotone juxtaposition as a subclass there is a constant
+K “ K6.6 such that C does not contain any alternation of size K.
+Proof of Proposition 6.3. Let C be an X-avoiding class, and fix π P C.
+By Fact 6.6, there is a constant K6.6 such that C does not contain any alternation
+of size K6.6 or more. We claim that this implies that in any gridding of π, every cell
+has intervalicity less than K6.6. To see this, suppose for contradiction that there
+is a cell X such that the projection of πrXs on the horizontal or vertical axis has
+intervalicity at least K6.6. Without loss of generality, suppose that the projection
+is onto the horizontal axis, let ℓě K6.6 be its intervalicity, and let P1, P2, . . . , Pℓbe
+the intervals, numbered left to right, whose union is the projection of πrXs. For any
+i P rℓ´ 1s, fix an integer ji such that max Pi ă ji ă min Pi`1. Since πpjiq is not in
+πrXs, it is either smaller than all the values in πrXs or larger than all the values
+in πrXs. Without loss of generality, there are at least pℓ´ 1q{2 values of i P rℓ´ 1s
+for which πpjiq is larger than all the values in πrXs. We can then choose at least
+pℓ` 1q{2 values in πrXs which form a vertical alternation with these pℓ´ 1q{2 ‘large’
+values πpjiq, showing that π has an alternation of size ℓě K6.6, which is impossible.
+Thus, in any gridding of π, every cell has intervalicity less than K6.6.
+By Fact 6.4, there is a constant K6.4 such that every permutation of C is a union
+of at most K6.4 monotone sequences. Let us therefore fix such a partition of π into
+monotone sequences, and suppose that the partition contains p increasing sequences
+I1, . . . , Ip and q decreasing sequences D1, . . . , Dq, for some p ` q ď K6.4. Define
+IY “ Ťp
+i“1 Ii and DY “ Ťq
+i“1 Di. Notice that IY avoids δp`1 and DY avoids ιq`1.
+We will now show that π has a gridding with bounded number of cells in which
+each cell is either disjoint from IY or disjoint from DY. For any choice of i P rps
+and j P rqs, we can easily construct a 2 ˆ 2 gridding of π such that the increasing
+subsequence Ii intersects neither the top-left nor the bottom-right cell, while Dj
+intersects neither the bottom-left nor the top-right cells. Combining such griddings for
+all the choices of pi, jq P rpsˆrqs, we obtain a single gridding of size ppq`1qˆppq`1q
+in which every cell avoids either IY or DY, and in particular, every cell avoids ιq`1
+or δp`1.
+For the next step, we note that there are constants A, B such that neither
+ÀApιB a ιBq nor ÁApιB a ιBq belongs to C. Indeed, if C contained ÀApιB a ιBq
+for each A and B, then C would contain PBT as a subclass, and if C contained
+ÁApιB aιBq for all A, B, then C would contain Lr as a subclass. By Fact 6.5 applied
+16
+
+--- Page 17 ---
+to α “ ιB a ιB, we can refine the gridding of π obtained in the previous step by
+adding at most K6.5 rows and columns to obtain a gridding in which no cell contains
+ιB a ιB. By a symmetric argument, another round of refinement ensures that no cell
+of the gridding contains δB ‘ δB for a constant B.
+Invoking Proposition 6.2 (or its symmetric version) to each cell of the resulting
+gridding, and choosing K large enough in terms of the constants appearing in the
+previous arguments, we conclude that the gridding obtained by this procedure has
+all the properties from the statement of the proposition.
+For a permutation π, the adjacency graph Gpπq is a graph whose vertices are
+the elements of π, and two vertices are connected by an edge if and only if the
+corresponding two elements have adjacent positions or adjacent values. In particular,
+the adjacency graph is a union of two paths, one visiting the vertices in left-to-right
+order, and the other in bottom-to-top order.
+The tree-width of the permutation π, denoted twpπq, is then defined as the
+tree-width of Gpπq. Note that there are permutations of size n with tree-width
+Ωpnq [1].
+Now, we introduce the concept of sorting diagram, which will offer a convenient
+way to represent a sequence of steps performed during the sorting of a sequence. Let
+t and n be positive integers, and let ⃗σ “ pσ1, σ2, . . . , σtq be a t-tuple of permutations
+of rns. Define the permutation π “ σt ˝ σt´1 ˝ ¨ ¨ ¨ ˝ σ2 ˝ σ1. In particular, by applying
+the steps σ1, . . . , σt in this order, we would sort the sequence π´1 into an increasing
+sequence.
+Let P be the set rpt ` 1qns ˆ rpt ` 1qns, viewed as an integer grid in the plane.
+We partition P into blocks of size n ˆ n as follows: for a, b P rt ` 1s, let Pa,b be the
+set tpi, jq P P; pa ´ 1qn ă i ď an ^ pb ´ 1qn ă j ď bnu. For a permutation σ P Sn,
+let Pa,brσs denote the set of n points forming a translated copy of the diagram of σ
+inside the block Pa,b; formally,
+Pa,brσs “
+␣`
+pa ´ 1qn ` i, pb ´ 1qn ` σpiq
+˘
+; i P rns
+(
+.
+We are now ready to describe the sorting diagram of the t-tuple of permutations
+⃗σ “ pσ1, σ2, . . . , σtq; refer to Figure 5. Recall that ιn is the increasing permutation
+p1, 2, . . . , nq. The sorting diagram of the t-tuple ⃗σ “ pσ1, . . . , σtq, denoted SD ”
+SDp⃗σq, is the graph whose vertex set is the point set
+V pSDq “
+t`1
+ď
+i“1
+Pt`2´i,irιns Y
+tď
+i“1
+Pt`2´i,i`1rσis.
+In particular, the vertex set consists of t ` 1 copies of the diagram of ιn inside the
+blocks forming the decreasing diagonal of P, together with the copies of the diagrams
+of σ1, . . . , σt, appearing right-to-left inside the blocks just above the decreasing
+diagonal. We refer to the n vertices inside the bottom-right block Pt`1,1 as starting
+vertices, and we label them s1, . . . , sn in left-to-right order. Similarly, the vertices
+inside the top-left block P1,t`1 are the terminal vertices, and are labelled t1, . . . , tn in
+left-to-right order. The edge set of SD is determined as follows:
+17
+
+--- Page 18 ---
+Figure 5: The sorting diagram of the triple of permutations σ1 “ 2413, σ2 “
+3214, σ3 “ 3412.
+• Any two vertices of V pSDq that lie on the same horizontal line are connected
+by an edge. We call these edges horizontal edges. Note that every vertex is
+incident to a unique horizontal edge, except for the n starting vertices.
+• Any two vertices of V pSDq that lie on the same vertical line are connected by
+an edge. We call these edges vertical edges. Note that every vertex is incident
+to a unique vertical edge, except for the n terminal vertices. Note also that
+the horizontal and vertical edges together form n vertex-disjoint paths, each
+connecting a starting vertex to a distinct terminal vertex, with the vertex si
+being connected to tπpiq, where π “ σt ˝ ¨ ¨ ¨ ˝ σ1.
+• Finally, for any i P rn ´ 1s, the vertex si is connected to si`1 and ti to ti`1. We
+call these edges as the diagonal edges.
+This completes the description of the graph SD.
+Lemma 6.7. For a t-tuple of permutations ⃗σ “ pσ1, . . . , σtq and their composition
+π “ σt˝¨ ¨ ¨˝σ1, the tree-width of the graph SDp⃗σq is at least as large as the tree-width
+of the incidence graph Gpπq of π.
+Proof. The graph Gpπq is a minor of SDp⃗σq, since by contracting all the horizontal
+and vertical edges in SDp⃗σq, we obtain precisely the graph Gpπq. The lemma follows,
+since tree-width is minor-monotone.
+Proposition 6.8. Let C be an X-avoiding class. There are constants Q and R, such
+that for any t P N, any n P N, and any t-tuple ⃗σ “ pσ1, . . . , σtq of permutations from
+Cn, the sorting diagram SDp⃗σq can be drawn on a surface of genus at most Q ¨ t with
+at most R ¨ t ¨ n edge-crossings.
+18
+
+--- Page 19 ---
+Di
+Di+1
+Si
+Figure 6: A fragment of a sorting diagram, induced by three consecutive blocks Di,
+Si and Di`1. The light gray rectangle is a cell of the gridding of σi. The four dark
+gray rectangles represent the two horizontal and two vertical handles attached to
+this cell.
+Proof. The definition of the graph SD “ SDp⃗σq already implies a drawing in the
+plane, where vertices are points and edges are straight-line segments. Unfortunately,
+such a drawing may have too many edge-crossings. Our strategy is to insert handles
+and cross-caps into this drawing, so that we eliminate enough of the crossings, without
+increasing the genus of the surface too much.
+Recall from the definition of sorting diagram that the vertices of SD are organized
+into 2t ` 1 square blocks, which include t ` 1 diagonal blocks Pt`1,1, Pt,2, . . . , P1,t`1,
+as well as t blocks right above the diagonal, namely Pt`1,2, Pt,3, . . . , P2,t`1. For ease
+of notation, for i P rt ` 1s let Di refer to the diagonal block Pt`2´i,i, and for i P rts
+let Si refer to the block right above Di, i.e., Pt`2´i,i`1. The vertices of SD induce a
+copy of ιn inside every Di, and a copy of σi inside Si.
+In the straight-line drawing of SD, the only edge-crossings that occur are inside
+the blocks Si, between a vertical edge connecting a vertex x from Di to a vertex
+y in Si, and a horizontal edge connecting a vertex x1 in Si to a vertex y1 in Di`1.
+Notice that such a pair of edges has a crossing if and only if py, x1q corresponds to a
+decreasing subsequence of σi. We will now modify the drawing of edges (and the
+surface they are drawn upon) inside each block Si for i P rts, while the parts of the
+drawing inside the Di’s are unaffected.
+Fix i P rts. Let K “ KpCq be the constant from Proposition 6.3. As the first
+step, apply to the copy of σi inside Si the gridding described by Proposition 6.3. We
+will now add handles to our surface, and route the edges along these handles, to
+ensure that no two edges cross, unless they have endpoint inside the same cell of the
+gridding. Refer to Figure 6.
+Let X be a cell of the gridding of σi. By Proposition 6.3, σirXs has intervalicity
+at most K. In particular, there are K disjoint intervals I1, . . . , IK (some possibly
+empty) such that a vertical edge from Di to Si has an endpoint in X if and only
+if its projection to the x-axis is a point from I1 Y I2 Y ¨ ¨ ¨ Y IK. For each j P rKs
+such that Ij ‰ H, we attach a new handle H|
+j to our surface, oriented vertically,
+whose bottom end is near the bottom edge of Si, the top end is near the bottom
+edge of X, and its horizontal position corresponds to the interval Ij (in case X is in
+the bottom row of the gridding, we omit these handles and leave the vertical edges
+19
+
+--- Page 20 ---
+p1
+p2
+p3
+e1
+e2
+e3
+p1
+p2
+p3
+e1
+e2
+e3
+Figure 7: A modification of horizontal edges inside a cell X of the gridding of σi.
+The gray rectangles represent the handles adjacent to X, and the circle near the top
+boundary of the modified drawing represents a cross-cap.
+into X unchanged). All the vertical edges whose projection on the x-axis lies in Ij
+are then routed through H|
+j, from the point when they cross the boundary from Di
+to Si, till the point when they reach the bottom of edge of the cell X. This way,
+we remove any crossing between a vertical edge incident with a point in X and a
+horizontal edge incident with a cell X1 in the gridding which lies below X.
+We perform an analogous operation with the horizontal edges. Again, for a cell
+X, the projection of σirXs on the y-axis forms K intervals J1, . . . , JK, and for each
+such nonempty interval Jℓwe attach a horizontal handle H´
+ℓ, whose left endpoint is
+near the boundary between Si and Di`1 and its right endpoint is near the left edge
+of X; if X is in the leftmost column of the gridding, these handles are omitted. The
+horizontal edges projecting into Jℓare then routed through the handle H´
+ℓ.
+For each i P rts, this operation adds at most K vertical and K horizontal handles
+incident to any given cell X of the gridding of σi, so at most 2K3t handles overall.
+After these handles are added, a vertical edge from Di to Si may cross a horizontal
+edge from Si to Di`1 only if their endpoints inside Si belong to the same cell of the
+gridding of σi. Unfortunately, there may still be too many such edge-crossings, and
+so we may need to perform additional modifications inside a cell X to reduce the
+number of crossings. The goal is for the number of crossings inside X to be linear in
+the size of σirXs.
+Consider again a cell X of the gridding of σi, and let nX be the size of σirXs.
+Observe that at this point, the number of edge-crossings inside X is equal to the
+number of decreasing subsequences of length 2 in σirXs. By Proposition 6.3, σirXs
+contains either at most K ¨nX decreasing subsequences of length 2, or at most K ¨nX
+increasing subsequences of length 2. In the former case, we do not need to modify
+the drawing of the edges incident to X any further. Consider now that the second
+situation occurs; refer to Figure 7.
+Let p1, . . . , pnX be the points of σirXs, numbered bottom to top, and let ej be
+the horizontal edge incident to pj. We will modify the drawings of all the horizontal
+edges inside X as follows: the edge ej, instead of heading straight to the left from
+pj towards the horizontal handle leading to Di`1, will instead head straight to the
+right from pj, until it reaches close to the right edge of X, then it will turn upwards,
+follow the right edge towards the top-right corner of X, then turn left and follow
+the top edge of X. All the horizontal edges will perform this ‘U-turn’, keeping their
+20
+
+--- Page 21 ---
+mutual positions so that they do not introduce any mutual crossings. In particular,
+as the edges reach the top edge of X and head to the left, the edge e1 will be the
+topmost, followed by e2, e3 etc. However, we need the edges to reach the handles in
+the opposite bottom-to-top order. To fix this, we attach a cross-cap near the top
+edge of X and let all the edges ei pass through it. This reverses their bottom-to-top
+order, and it is easy to then extend the edges along the top and left edge of X
+towards their designated handles, without introducing any new crossings. After this
+modification, an edge ej crosses a vertical edge incident to a vertex pk if and only if
+ppj, pkq form an increasing subsequence of length 2 in σirXs. In particular, there are
+now at most K ¨ nX crossings inside X.
+In the end, we obtain a drawing of SDp⃗σq on a surface with at most 2K3t handles
+and at most K2t cross-caps, and in particular, the genus of the surface is at most
+p4K3 ` K2qt. Each block Si contains at most Kn edge-crossings, so there are at
+most Knt edge-crossings overall.
+Our next tool is an inequality that relates the genus, the crossing number and
+the tree-width of a graph. Its proof is based an idea of Dujmović, Eppstein and
+Wood [15].
+Proposition 6.9. Every graph on n vertices that can be drawn on a surface of genus
+g with at most x edge-crossings has treewidth O
+´a
+pg ` 1qpn ` xq
+¯
+.
+Proof. Suppose a graph G on n vertices has been drawn on a surface of genus g with
+x edge-crossings. Let us orient the edges of G arbitrarily, so that each edge e has
+a designated tail te and head he. Next, let us replace each edge-crossing by a new
+vertex, thereby obtaining a crossing-free drawing of a new graph H with nH “ n ` x
+vertices. Since H can be drawn on a surface of genus g, it has treewidth at most
+Op?g ¨ nHq “ Op
+a
+gpn ` xqq [16, 20]. Let us fix an optimal tree decomposition
+pTH, βHq of the graph H, where TH is the corresponding decomposition tree, and
+βH : V pTHq Ñ 2V pHq is the function that assigns to each node q of TH a bag βpqq of
+vertices of H of size at most Op
+a
+gpn ` xqq.
+We now modify this decomposition to a tree decomposition of G, as follows. Let
+w be any vertex of H that is not a vertex of G. This means that in the original
+drawing of G, w corresponded to a crossing of a pair of edges e and f. Let te and tf
+be the tails of the two edges. We modify the decomposition pTH, βq by replacing any
+occurrence of the vertex w in any of the bags by the two vertices te and tf. After we
+perform these replacements for every vertex w P V pHqzV pGq, we may easily check
+that we obtain a tree decomposition of G of width at most twice as large as the
+width of pTH, βq (see Dujmović et al. [15] for details).
+We now have all the ingredients to prove the harder part of Theorem 6.1.
+Proposition 6.10. Any X-avoiding class C has wstpC; nq “ Ωp?nq.
+Proof. Let π P Sn be a permutation of tree-width Ωpnq (such permutations exist by
+a result of Ahal and Rabinovich [1, Theorem 3.4 and Proposition 3.6]). Let us put
+t :“ stpC; πq, and let ⃗σ “ pσ1, . . . , σtq be a t-tuple of permutations from C such that
+π “ σt ˝ σt´1 ˝ ¨ ¨ ¨ ˝ σ1.
+21
+
+--- Page 22 ---
+Consider the sorting diagram SD “ SDp⃗σq. By Lemma 6.7, twpSDq ě twpπq “
+Ωpnq. On the other hand, SD has p2t ` 1qn vertices, and by Proposition 6.8, it
+can be drawn on a surface of genus Optq with Optnq edge-crossings. Therefore, by
+Proposition 6.9, SD has tree-width Opt?nq. Combining these bounds, we conclude
+that
+wstpC; nq ě stpC; πq “ t “ Ωp?nq,
+proving the proposition.
+To complete the proof of Theorem 6.1, we now turn to upper bounds.
+Proposition 6.11. Any X-containing class C has wstpC; nq “ Oplog2 nq.
+Proof. It is clearly enough to prove the proposition for a class C that belongs to X.
+Let us first consider the monotone juxtapositions, starting with C1 “ Grid
+´
+¯
+. We
+may easily observe that wstpC1; nq “ Oplog nq, e.g., by considering the elements of
+rns as binary strings of length Oplog nq and sort them using radix-sort, which can be
+performed by Oplog nq operations of C1.
+With the help of Observation 2.3, we conclude that also the classes Cr
+1, C´1
+1 , and
+pCr
+1q´1 have worst-case sorting time Oplog nq.
+Consider now the class C2 “ Grid
+´
+¯
+. Notice that C1 Ď C˝2
+2 , which implies
+wstpC2; nq “ Oplog nq via Observation 2.2. Again, the same bound applies to all
+the four symmetries of C2, showing that all the eight monotone juxtapositions have
+worst-case sorting time Oplog nq.
+We now deal with the four classes L, Lr, PBT and PBT r. Noting that PBT Ď
+L˝2, it is enough to prove that wstpPBT ; nq “ Oplog2 nq, and invoke Observations 2.2
+and 2.3 to see that the same upper bound applies to the other three classes as well.
+Composing a sequence π with a permutation σ P PBT corresponds to parti-
+tioning π into an even number of blocks B1B2B3B4 ¨ ¨ ¨ B2k´1B2k, each block being
+a (possibly empty) subsequence of consecutive entries of π, and then exchanging
+the position of B2j´1 and B2j for each j P rks.
+For instance, the permutation
+π “ p3, 8, 1, 6, 2, 5, 9, 4, 7q P S9 can be partitioned as B1 “ p3, 8q, B2 “ p1q, B3 “ H,
+B4 “ p6, 2q, B5 “ p5, 9, 4q and B6 “ p7q, which after exchanging adjacent odd and
+even blocks yields the permutation B2B1B4B3B6B5 “ p1, 3, 8, 6, 2, 7, 5, 9, 4q, which
+is equal to σ ˝ π for σ “ p3, 1, 2, 4, 5, 9, 6, 7, 8q P PBT 9.
+We now describe a strategy to sort an arbitrary π P Sn by Oplog2 nq steps of the
+form described above. We say that an entry πpiq is small if πpiq ď n{2, otherwise it
+is large. We will use a divide-and-conquer approach, where in the initial phase, which
+will take Oplog nq steps, we move all the small entries to the left of all the large ones,
+and then proceed recursively to separately and concurrently sort the small entries
+and the large ones.
+In the initial phase, in every step we first partition the current input sequence
+π1 into small runs and large runs, where a small run is a maximal sequence of
+consecutive small values, and a large run is defined similarly. Suppose π1 starts
+with a small element, the other case being analogous. It is then partitioned as
+S1L1S2L2 ¨ ¨ ¨ SkLk, where each Sj is a small run and Lj a large run, with Lk possibly
+empty. Then in a single sorting step, for every even j P rks we exchange the positions
+22
+
+--- Page 23 ---
+of the Lj´1 and Sj, leaving all the other runs unaffected. In this manner, Sj becomes
+adjacent to Sj´1 and Lj (if it exists) to Lj´1. Thus, every small and large run will
+merge with another run of the same type, except perhaps the rightmost small run
+and the rightmost large run. In Oplog nq steps, we reach a permutation with only a
+single small run and a single large run, which can be swapped to ensure that the
+small run is to the left of the large one.
+We then recursively apply the same strategy to concurrently sort the tn{2u
+small elements and the rn{2s large ones. In Oplog2 nq steps, the entire sequence is
+sorted.
+Propositions 6.10 and 6.11 together prove Theorem 6.1.
+We remark that sorting by layered permutations corresponds to sorting by a
+sequence of pop-stacks in “genuine series”, which has been considered (for two
+pop-stacks) by Atkinson and Stitt [5].
+We also note that sorting by layered permutations is related to the setting of
+sorting by length-weighted reversals with linear weights, considered by Bender et
+al. [8]. More precisely, a single step of sorting by layered permutations can be
+simulated by a sequence of length-weighted reversals of total cost Opnq in the linear-
+weight setting of [8], and in particular, an improvement to the Oplog2 nq upper bound
+for wstpL; nq would also improve the bounds in [8].
+7
+From Ωplog nq to 1
+A simple counting argument, combined with the famous Marcus–Tardos theorem [26]
+shows that any proper permutation class C, i.e., a class C not containing all permu-
+tations, has at least logarithmic worst-case sorting time.
+Proposition 7.1. If C is a permutation class that does not contain all permutations,
+then wstpC; nq “ Ωplog nq.
+Proof. By the Marcus–Tardos theorem, there is a constant c ą 0 such that |Cn| ď cn
+for all n. Consequently, |C˝k
+n | ď ckn for any k ě 1. Taking k :“ wstpC; nq yields
+n! “ |Sn| “
+ˇˇˇˇˇ
+kď
+m“1
+C˝m
+n
+ˇˇˇˇˇ ď
+kÿ
+m“1
+|C˝m
+n | ď kckn,
+which implies k “ Ωplog nq.
+Obviously, if C is the class of all permutations, then wstpC; nq “ 1 for all n ě 2.
+This completes the proof of Theorem 1.1.
+8
+Conclusion and open problems
+The two main open problems concern the two levels of our hierarchy where we do
+not have matching upper and lower bounds. Recall that the set X contains the eight
+monotone juxtapositions, the class L of layered permutations, its reverse Lr, the
+class PBT of parallel block transpositions, and its reversal PBT r. We know that
+23
+
+--- Page 24 ---
+for any monotone juxtaposition, the worst-case sorting time is Θplog nq, but for L,
+PBT and their symmetries, we only have a lower bound of order Ωplog nq and an
+upper bound of order Oplog2 nq.
+Note that Observations 2.2 and 2.3 imply that wstpL; nq “ ΘpwstpLr; nqq,
+wstpPBT ; nq “ ΘpwstpPBT r; nqq, and wstpL; nq “ OpwstpPBT ; nqq. We can there-
+fore restrict our attention to L and PBT .
+Problem 8.1. What is the worst-case sorting time of the class L of layered permu-
+tations, and of the class PBT of parallel block transpositions?
+Another gap in our bounds concerns the broad family of X-avoiding classes.
+We proved that any X-avoiding class has worst-case sorting time of order Ωp?nq.
+However, every example of such a class that we know of has worst-case sorting time
+of order Ωpnq, suggesting that the lower bound can be further improved.
+Problem 8.2. Is there an X-avoiding class C with wstpC; nq “ opnq?
+References
+[1] S. Ahal and Y. Rabinovich.
+On complexity of the subpattern problem.
+SIAM Journal on Discrete Mathematics, 22(2):629–649, 2008. doi:10.1137/
+S0895480104444776.
+[2] M. H. Albert, M. D. Atkinson, M. Bouvel, N. Ruškuc, and V. Vatter. Geometric
+grid classes of permutations. Trans. Amer. Math. Soc., 365(11):5859–5881, 2013.
+doi:10.1090/S0002-9947-2013-05804-7.
+[3] M. H. Albert, C. Homberger, J. Pantone, N. Shar, and V. Vatter. Generating
+permutations with restricted containers. Journal of Combinatorial Theory,
+Series A, 157:205–232, 2018. doi:10.1016/j.jcta.2018.02.006.
+[4] M. D. Atkinson and R. Beals. Permutation involvement and groups. Q. J.
+Math., 52(4):415–421, 2001. doi:10.1093/qjmath/52.4.415.
+[5] M. D. Atkinson and T. Stitt. Restricted permutations and the wreath product.
+Discrete Math., 259(1-3):19–36, 2002. doi:10.1016/S0012-365X(02)00443-0.
+[6] L. Babai and Ákos Seress. On the diameter of Cayley graphs of the symmetric
+group. Journal of Combinatorial Theory, Series A, 49(1):175–179, 1988. doi:
+10.1016/0097-3165(88)90033-7.
+[7] V. Bafna and P. A. Pevzner. Genome rearrangements and sorting by reversals.
+In 34th Annual Symposium on Foundations of Computer Science (Palo Alto,
+CA, 1993), pages 148–157. IEEE Comput. Soc. Press, Los Alamitos, CA, 1993.
+doi:10.1109/SFCS.1993.366872.
+[8] M. A. Bender, D. Ge, S. He, H. Hu, R. Y. Pinter, S. Skiena, and F. Swidan.
+Improved bounds on sorting by length-weighted reversals. J. Comput. System
+Sci., 74(5):744–774, 2008. doi:10.1016/j.jcss.2007.08.008.
+24
+
+--- Page 25 ---
+[9] S. Bhatia, P. Feijão, and A. R. Francis. Position and content paradigms in
+genome rearrangements: the wild and crazy world of permutations in genomics.
+Bull. Math. Biol., 80(12):3227–3246, 2018. doi:10.1007/s11538-018-0514-3.
+[10] M. Bóna. A survey of stack-sorting disciplines. Electron. J. Combin., 9(2):Article
+1, 16, 2002/03. Permutation patterns (Otago, 2003). doi:10.37236/1693.
+[11] L. Bulteau, G. Fertin, and I. Rusu. Pancake flipping is hard. J. Comput. System
+Sci., 81(8):1556–1574, 2015. doi:10.1016/j.jcss.2015.02.003.
+[12] G. Cerbai, A. Claesson, and L. Ferrari. Stack sorting with restricted stacks.
+J. Combin. Theory Ser. A, 173:105230, 19, 2020. doi:10.1016/j.jcta.2020.
+105230.
+[13] G. Cerbai, A. Claesson, L. Ferrari, and E. Steingrímsson. Sorting with pattern-
+avoiding stacks: the 132-machine. Electron. J. Combin., 27(3):Paper No. 3.32,
+27, 2020. doi:10.37236/9642.
+[14] G. Cerbai and L. Ferrari.
+Permutation patterns in genome rearrangement
+problems: The reversal model. Discrete Applied Mathematics, 279:34–48, 2020.
+doi:10.1016/j.dam.2019.10.012.
+[15] V. Dujmović, D. Eppstein, and D. R. Wood. Structure of graphs with locally
+restricted crossings. SIAM J. Discrete Math., 31(2):805–824, 2017. doi:10.
+1137/16M1062879.
+[16] Z. Dvořák and S. Norin. Treewidth of graphs with balanced separations. Journal
+of Combinatorial Theory, Series B, 137:137–144, 2019. doi:10.1016/j.jctb.
+2018.12.007.
+[17] A. Elvey Price and A. J. Guttmann. Permutations sortable by two stacks in
+series. Advances in Applied Mathematics, 83:81–96, 2017. doi:10.1016/j.aam.
+2016.09.003.
+[18] G. Fertin, A. Labarre, I. Rusu, E. Tannier, and S. Vialette. Combinatorics
+of genome rearrangements.
+Computational Molecular Biology. MIT Press,
+Cambridge, MA, 2009. doi:10.7551/mitpress/9780262062824.001.0001.
+[19] W. H. Gates and C. H. Papadimitriou. Bounds for sorting by prefix reversal.
+Discrete Math., 27(1):47–57, 1979. doi:10.1016/0012-365X(79)90068-2.
+[20] J. R. Gilbert, J. P. Hutchinson, and R. E. Tarjan. A separator theorem for
+graphs of bounded genus. Journal of Algorithms, 5(3):391–407, 1984. doi:
+10.1016/0196-6774(84)90019-1.
+[21] N. Habermann. Parallel neighbor-sort (or the glory of the induction principle).
+Technical Report, 1972.
+[22] C. Homberger and V. Vatter. On the effective and automatic enumeration of
+polynomial permutation classes. J. Symbolic Comput., 76:84–96, 2016. doi:
+10.1016/j.jsc.2015.11.019.
+25
+
+--- Page 26 ---
+[23] S. Huczynska and V. Vatter. Grid classes and the Fibonacci dichotomy for
+restricted permutations. Electron. J. Combin., 13(1):Research Paper 54, 14,
+2006. doi:10.37236/1080.
+[24] J. Kececioglu and D. Sankoff. Exact and approximation algorithms for sorting
+by reversals, with application to genome rearrangement. Algorithmica, 13(1-
+2):180–210, 1995. doi:10.1007/BF01188586.
+[25] D. E. Knuth. The Art of Computer Programming, Volume I: Fundamental
+Algorithms. Addison-Wesley, 1968.
+[26] A. Marcus and G. Tardos. Excluded permutation matrices and the Stanley-Wilf
+conjecture. J. Combin. Theory Ser. A, 107(1):153–160, 2004. doi:10.1016/j.
+jcta.2004.04.002.
+[27] R. Tarjan. Sorting using networks of queues and stacks. J. Assoc. Comput.
+Mach., 19:341–346, 1972. doi:10.1145/321694.321704.
+[28] V. Vatter. Small permutation classes. Proc. Lond. Math. Soc. (3), 103(5):879–
+921, 2011. doi:10.1112/plms/pdr017.
+[29] V. Vatter. An Erdős-Hajnal analogue for permutation classes. Discrete Math.
+Theor. Comput. Sci., 18(2):Paper No. 4, 5, 2016. doi:10.46298/dmtcs.1328.
+26
+
+
+=== round-0002/verifier.feedback.md ===
+Summary and triage
+- Prover 01 contributes a clean and correct “toggle-locality” identity: only indices whose adjacency actually changes (three per matched pair) can alter membership in T_j, and the net change in B_j is exactly the signed count of boundary-membership flips inside that set S. The corollary splitting decreases and increases (Decrease_j ≤ |T_j(A) ∩ S| and Increase_j ≤ |S \ T_j(A)|) is immediate and powerful. Their weighted counting over A_0 (dyadic alignment) is a flexible restatement of Theorem 4 and will be repeatedly useful. One arithmetic slip occurs in the concrete instantiation with weights w_j=2^{-(j+1)}: the inner sum is 2^{-(d−t−1)}(1−2^{−(t+1)}) ≤ 2^{−d+t+1}, not ≤ 2^{−d+t}. This does not affect the qualitative conclusions but should be corrected. Their “equal-scale, grid-aligned” scarcity plan looks promising and is well-motivated by arithmetic progression intersections; it still needs a careful treatment of outer-boundary contributions.
+
+- Prover 02 supplies a robust per-pair bound |Δ_pair| ≤ 2 (via a simple 4-cycle inequality) and upgrades the per-level cap from factor 4 to factor 3. The argument is crisp: only pairs whose union is non-monochromatic at level j can contribute, there are at most |T_j(A)| such pairs by disjointness, and each contributes at most 2. This should replace the current Theorem 3 in output.md. Their clarification about “three indices per pair” being the only places that can change the boundary count is consistent with Prover 01’s toggle-locality identity and helps repair wording.
+
+- A serious issue in Prover 02: the “Observation” that if L_j > s then every union U is j-monochromatic in A_0 is false. Counterexample: for n=8, j=0 has L_j=4; a union U of length s=2 that straddles the unique G_0 index at 4 is not monochromatic. Consequently, the claim that only levels with L_j ≤ s can be affected in the first step is invalid. The subsequent bound |ΔB_j| ≤ 2n/s is correct, and it does imply that for L_j ≪ s constant-factor decreases are impossible from A_0, but it does not rule out large effects when L_j ≫ s (indeed, for small j, B_j is small and large absolute changes are possible).
+
+What to curate now
+- Add to output.md: (i) the toggle-locality identity and its decrease/increase corollary; (ii) the per-pair ±2 lemma and the resulting per-level factor-3 cap with a corrected proof; (iii) retain Theorem 4 and add the weighted form as a corollary, and (iv) optionally add a corrected weighted-decrease bound from A_0 using (i)+(iv).
+- Update notes.md: emphasize the toggle-locality viewpoint as the correct locality, record the factor-3 improvement, and clearly flag the invalid “Observation” in Prover 02.
+
+Concrete next steps for provers
+1) Equal-scale, grid-aligned scarcity (from Prover 01). Formalize: with inner boundaries on the L-grid and pair sizes in [L,2L), show that for off-scale j the ratio |S ∩ G_j|/B_j is o(1). Key ingredients: arithmetic progression intersection counts; outer-boundary indices contribute O(#pairs) points on at most a constant number of residues mod L; control |S \ G_j| via toggle-locality to prevent spurious decreases. Target statement: only O(1) consecutive j with 2^{d−1−j} ∈ [L/2, 2L] can achieve Θ(1) relative decrease.
+2) Near-alignment. If inner boundaries are not exactly on the L-grid, pigeonhole residues modulo L to extract a constant fraction aligned to some residue and run the aligned argument on that fraction; quantify the loss in constants.
+3) Home-level charging. For a pair p with total length s(p), define h(p) with L_{h(p)}≈s(p). Aim to prove: to reduce B_j by θ B_j, one needs Ω(B_j) pairs with h(p)=j to hit T_j(A) at their central boundaries. Use toggle-locality to separate demands on S∩T_j(A) by boundary type (central vs outer) and to prevent outer boundaries from faking decreases at scale j.
+4) Small-n brute force to calibrate constants and to test the O(1) active-level hypothesis in equal-scale steps; log structures that saturate the ±2 per-pair bound.
+
+
+=== notes.md ===
+Setting and notation
+- Input size n=2^d. The specific permutation A_0 is bit-reversal order of [0,…,n−1]. For j∈{0,…,d−1} we color elements by their j-th bit and denote by B_j(A) the number of monochromatic runs (contiguous blocks of equal j-bit) in the array A. Let T_j(A)⊆{1,…,n−1} be the set of j-run boundary indices (|T_j(A)|=B_j(A)−1). We consider one-step operations that swap a family of disjoint adjacent interval pairs in parallel.
+- Our model of one step coincides with PBT (parallel adjacent block transpositions). One step chooses disjoint pairs (L_k,R_k) of adjacent contiguous intervals and swaps every chosen pair simultaneously.
+
+Endpoint calibration (bit-reversal vs sorted)
+- For A_0 (bit-reversal), B_j(A_0)=2^{j+1}. For the fully sorted order A_* = [0,1,…,n−1], B_j(A_*)=2^{d−j}. Consequently, the potential Φ(A):=Σ_{j=0}^{d−1} |log_2 B_j(A) − (d−j)| satisfies Φ(A_0)=Θ(d^2) and Φ(A_*)=0.
+
+Locality of changes per pair and a safe per-level cap
+- A single swapped pair (L,R) can alter adjacency only at three indices: the left outer boundary before L, the inner boundary between L and R, and the right outer boundary after R. For a fixed level j, if the union L∪R contains no j-boundary of the current array A, then all three affected adjacencies are between same colors both before and after; hence this pair produces no change in B_j.
+- Therefore only pairs whose union contains at least one element of T_j(A) can affect B_j. Because the pair unions are disjoint, the number of such pairs is at most |T_j(A)|=B_j(A)−1. Each such pair contributes at most 3 to |B_j(A′)−B_j(A)|. Hence for every j and every PBT step A→A′,
+  |B_j(A′) − B_j(A)| ≤ 3(B_j(A) − 1),
+  which implies the multiplicative cap B_j(A′) ≤ 4·B_j(A) and B_j(A) ≤ 4·B_j(A′). In particular, |Δ log_2 B_j| ≤ 2 per step.
+
+Dyadic alignment for A_0
+- Let G_j denote the j-run boundary set in A_0. Then G_j = { i∈{1,…,n−1} : 2^{d−1−j} divides i }. For any set S of cut indices used in a step, one has
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1 + v_2(i)) ≤ |S| (1 + ⌊log_2(n−1)⌋),
+  since the number of j for which i∈G_j equals 1+v_2(i).
+
+Caveats and corrections to earlier sketches
+- The previously proposed “useful boundary” set U_j (indices in or adjacent to T_j(A)) is not a valid certificate for where toggles can occur: the post-step adjacency at a changed index depends on elements imported from potentially far away; mere distance-1 proximity to T_j(A) is insufficient to characterize where toggles can or cannot happen. We avoid using U_j.
+- A claimed “size lemma” of the form Δ_j ≤ C·Σ_p min{1, s(p)/L_j} is false deterministically. Short pairs can be aligned to j-gridlines so that Δ_j ≍ n/L_j while the RHS is ≍ n/L_j^2. Any valid size-sensitive bound must use a different aggregation (see Next steps).
+- Edge-to-level weighting that relies on fixed dyadic gridlines E_j holds at A_0 but not after the array evolves; after one step the j-boundaries are no longer constrained to those gridlines.
+
+Next steps (program)
+1) Try to sharpen the per-level cap to factor 2: Show |B_j(A′)−B_j(A)| ≤ c·|T_j(A)∪T_j(A′)| with small c (ideally c=1 or 2) by charging every toggling edge to a unique j-boundary contained in the union of the pair in either A or A′.
+2) Demand for central matches: Prove that achieving a constant-factor decrease of B_j in one step requires Θ(B_j) central-boundary alignments (inner boundaries of swapped pairs) with j-run boundaries of A; outer-boundary hits alone cannot effect global coalescence. Make this precise and robust to local cancellations.
+3) Cross-level scarcity via “home levels”: For each pair p of total size s(p), assign h(p) with L_{h(p)}≈s(p). Prove that constant-factor progress at level j needs Σ_{p: h(p)=j} Ω(1) contribution. Since Σ_p s(p) ≤ n and the sets {p: h(p)=j} are disjoint across j, only O(1) levels can make factor-≥2 progress in the same step. First prove the equal-scale special case (all pairs have sizes within ×2 of some L), which should already yield an Ω(log^2 n) lower bound for that restricted class.
+4) Use the dyadic structure of G_j at A_0 to formalize a “central-boundary alignment trade-off” across levels: matched central boundaries that effect progress for one j are largely incompatible with those needed for many other j due to disjointness and dyadic spacing.
+5) Perform small-n experiments (n=16,32) to estimate the maximal number of levels that can experience ≥2× change in B_j in one step and to guide constants.
+New: toggle-locality identity and consequences
+- Let A→A′ be one PBT step and let S⊆{1,…,n−1} be the set of indices whose adjacency changes in this step (exactly three per matched pair: left outer, inner, right outer; omit outer ones at array ends if absent). For each j, let T_j(A) be the set of j-run boundary indices (|T_j(A)|=B_j(A)−1).
+- Identity (toggle-locality). For every j,
+  B_j(A′) − B_j(A) = |T_j(A′) ∩ S| − |T_j(A) ∩ S|.
+  Reason: outside S, adjacencies (and hence boundary membership) are identical in A and A′, so T_j(A′) Δ T_j(A) ⊆ S, which implies the stated cardinality identity.
+- Corollary (one-sided bounds). For every j,
+  Decrease_j := max{0, B_j(A) − B_j(A′)} ≤ |T_j(A) ∩ S|,
+  Increase_j := max{0, B_j(A′) − B_j(A)} ≤ |S \ T_j(A)|.
+  Interpretation: shrinking B_j by Δ forces at least Δ of the changed indices to land on current j-boundaries.
+
+Improved per-level cap via per-pair ±2
+- Per pair (L,R) and fixed j, define Δ_pair as the change in the number of j-boundaries attributable to that pair; then |Δ_pair| ≤ 2 (prove by the binary 4-cycle inequality on the three interfaces). In addition, only pairs whose union is non-monochromatic at level j can contribute, and such pairs are at most |T_j(A)| by disjointness (charge to an internal j-boundary index).
+- Summing gives |B_j(A′)−B_j(A)| ≤ 2·|T_j(A)| = 2(B_j(A)−1). Applying the bound to the inverse step yields the multiplicative cap B_j(A′) ≤ 3B_j(A) and B_j(A) ≤ 3B_j(A′). Thus |Δ log_2 B_j| ≤ log_2 3 per step.
+
+Weighted dyadic alignment at A_0 and a corrected weighted bound
+- For A_0, G_j = T_j(A_0) is the dyadic grid {i: 2^{d−1−j} | i}. For any set S of changed indices, Σ_j |S∩G_j| = Σ_{i∈S} (1+v_2(i)). More generally, for nonnegative weights a_j, Σ_j a_j·|S∩G_j| = Σ_{i∈S} Σ_{j: i∈G_j} a_j.
+- Combining with toggle-locality yields the exact inequality Σ_j a_j·Decrease_j ≤ Σ_{i∈S} Σ_{j: i∈G_j} a_j. For the specific weights a_j=2^{−(j+1)}, if v_2(i)=t then Σ_{j: i∈G_j} 2^{−(j+1)} = 2^{−(d−t−1)}(1−2^{−(t+1)}) ≤ 2^{−d+t+1}. Thus Σ_j 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} 2^{−d+v_2(i)+1}. (This corrects a factor-2 slip in an earlier draft.)
+
+Caution on “equal-scale first-step scarcity from A_0”
+- The claim “if L_j > s then every union U=L∪R is j-monochromatic in A_0” is false. Counterexample (n=8, j=0): L_j=4; a union U of size s=2 that straddles the unique G_0 index at 4 is not monochromatic.
+- What does hold: the per-pair ±2 bound implies |ΔB_j| ≤ 2m ≤ 2n/s for any j. From A_0 this yields that if L_j ≪ s then |ΔB_j|/B_j(A_0) ≤ O(L_j/s)=o(1), so constant-factor decreases at such j are impossible in that step. This does not preclude large changes when L_j ≫ s; additional structure (e.g., grid-aligned inner boundaries) seems necessary to prove an O(1) cap on the number of “active levels”.
+
+Planned direction: equal-scale, grid-aligned scarcity
+- Assume an L-aligned step: pair sizes in [L,2L) and all inner boundaries on the L-grid. For A starting at A_0, use arithmetic progression intersections to show that for off-scale j (2^{d−1−j} far from L) the proportion |S∩G_j|/B_j is o(1); combine with toggle-locality to rule out constant-factor decreases at those j. Only O(1) consecutive j with 2^{d−1−j}∈[L/2,2L] can be “active”. Control outer-boundary contributions by noting they contribute only O(#pairs) points, spread over a constant number of L-residue classes.
+
+Next steps (actionable)
+1) Write the full aligned-scarcity proof, including the precise bounds on |S∩G_j| and |S\G_j| for off-scale j.
+2) Extend to near-alignment by averaging over residues modulo L to extract a constant-aligned subfamily.
+3) Develop a central-vs-outer charging lemma: quantify the fraction of Decrease_j that must be paid by inner boundaries hitting T_j(A), uniformly over steps. This will dovetail with a home-level charging scheme for pairs.
+4) Continue small-n experiments (n=32,64,128) to probe the number of levels with ≥ constant-factor decreases under equal-scale steps.
+
+
+=== output.md ===
+Statements and proofs curated so far
+
+Setup and notation
+- Let n=2^d. An array A is a permutation of [0,…,n−1]. For j∈{0,…,d−1}, color each entry of A by the j-th bit of its value and let B_j(A) be the number of monochromatic runs in this 2-coloring. Let T_j(A)⊆{1,…,n−1} be the set of indices i where the j-color flips between positions i and i+1 (so |T_j(A)|=B_j(A)−1). A single step A→A′ is a parallel block transposition (PBT): a product of disjoint swaps of adjacent contiguous interval pairs (L,R). Such a step changes adjacencies only at the three interface indices of each pair (left outer, inner, right outer; omitting outer ones at the array ends).
+
+Theorem 1 (Model equivalence to PBT). A single step of the model (swapping a family of disjoint adjacent interval pairs in parallel) is exactly a parallel block transposition (PBT) step.
+Proof. A step chooses disjoint adjacent pairs (L_k,R_k) of intervals and swaps each pair simultaneously, leaving all other positions untouched. This is precisely a product of disjoint adjacent block transpositions. Conversely, any product of disjoint adjacent block transpositions can be realized by choosing those pairs. ∎
+
+Theorem 2 (Endpoint run-counts). Let n=2^d and A_0 be the bit-reversal permutation of [0,…,n−1]. For j∈{0,…,d−1}:
+- B_j(A_0)=2^{j+1}.
+- For the fully sorted order A_*=[0,1,…,n−1], B_j(A_*)=2^{d−j}.
+Consequently, with D_j(A):=|log_2 B_j(A) − (d−j)|, one has Σ_{j=0}^{d−1} D_j(A_0)=Θ(d^2) and Σ_{j=0}^{d−1} D_j(A_*)=0.
+Proof. In A_0, the j-bit of the value at position i equals the (d−1−j)-th bit of i; thus along positions 0,…,n−1 this bit is constant on runs of length 2^{d−1−j} and alternates every such block, giving exactly 2^{j+1} runs. In A_*, the j-bit is constant on blocks of length 2^j and alternates every 2^j positions, yielding 2^{d−j} runs. The Θ(d^2) sum follows from Σ_{j=0}^{d−1} |2j+1−d| = Θ(d^2) by symmetry around (d−1)/2. ∎
+
+Lemma 3 (Toggle-locality identity). Let A→A′ be one PBT step and let S be the set of indices whose adjacency changes in this step (the three interfaces per pair). Then for every j,
+  B_j(A′) − B_j(A) = |T_j(A′) ∩ S| − |T_j(A) ∩ S|.
+In particular, Decrease_j := max{0, B_j(A) − B_j(A′)} ≤ |T_j(A) ∩ S| and Increase_j := max{0, B_j(A′) − B_j(A)} ≤ |S \ T_j(A)|.
+Proof. If i∉S then the adjacent entries across i are the same in A and A′, hence i∈T_j(A) iff i∈T_j(A′). Thus T_j(A′) Δ T_j(A) ⊆ S and
+|T_j(A′)|−|T_j(A)| = |T_j(A′)∩S| − |T_j(A)∩S|.
+Since B_j(·)=|T_j(·)|+1, the displayed identity follows; the one-sided bounds are immediate. ∎
+
+Lemma 4 (Per-pair ±2 bound at a fixed level). Fix j and a single swapped pair (L,R). Let Δ_pair be its contribution to ΔB_j. Then |Δ_pair| ≤ 2. Moreover, if the union U=L∪R is j-monochromatic (equivalently, contains no index of T_j(A)), then Δ_pair=0.
+Proof. Only the three interface indices can change their boundary status. Let a_L be the j-color of the neighbor immediately left of L, a_R the j-color of the neighbor immediately right of R; let L_1,L_k be the first/last j-colors in L and R_1,R_m the first/last j-colors in R. Writing [·] for the indicator of inequality, the total contribution before the swap equals
+  X := [a_L≠L_1] + [L_k≠R_1] + [R_m≠a_R],
+and after the swap equals
+  Y := [a_L≠R_1] + [R_m≠L_1] + [L_k≠a_R].
+Thus Δ_pair = X − Y. Using the inequality [q≠x] − [q≠y] ≤ [x≠y] twice gives
+  Δ_pair ≤ [L_1≠R_1] + [R_m≠L_k] + ([L_k≠R_1] − [R_m≠L_1]).
+The binary 4-cycle inequality [p≠q]+[q≠r]+[r≠s]−[s≠p] ≤ 2, applied to (p,q,r,s)=(L_1,R_1,L_k,R_m), yields Δ_pair ≤ 2. The lower bound follows symmetrically (or by applying the argument to the inverse swap). If U is j-monochromatic then L_1=L_k=R_1=R_m and all three interface indicators are unchanged, so Δ_pair=0. ∎
+
+Theorem 5 (Per-level factor-3 cap per step). For any array A, any j, and any single PBT step A→A′,
+  B_j(A′) ≤ 3·B_j(A) and B_j(A) ≤ 3·B_j(A′).
+Equivalently, |log_2 B_j| changes by at most log_2 3 in one step.
+Proof. Let M_j(A) be the set of swapped pairs whose union U is not j-monochromatic in A. By disjointness of the unions, each U∈M_j(A) contains at least one index of T_j(A), and distinct U’s receive distinct such indices; hence |M_j(A)| ≤ |T_j(A)| = B_j(A)−1. Summing Lemma 4 over pairs gives
+  |B_j(A′) − B_j(A)| ≤ Σ_{pairs} |Δ_pair| ≤ 2·|M_j(A)| ≤ 2(B_j(A)−1).
+Therefore B_j(A′) ≤ B_j(A) + 2(B_j(A)−1) ≤ 3B_j(A). Applying the same bound to the inverse step A′→A yields B_j(A) ≤ 3B_j(A′). ∎
+
+Theorem 6 (Dyadic alignment for A_0; weighted form). Let G_j⊆{1,…,n−1} be the set of j-run boundary indices in A_0. Then G_j = { i : 2^{d−1−j} divides i }. For any set S⊆{1,…,n−1},
+  Σ_{j=0}^{d−1} |S ∩ G_j| = Σ_{i∈S} (1 + v_2(i)).
+More generally, for any weights a_j≥0,
+  Σ_{j=0}^{d−1} a_j·|S ∩ G_j| = Σ_{i∈S} Σ_{j: 2^{d−1−j} | i} a_j.
+Proof. In A_0 the j-bit is periodic with period 2^{d−j}, so boundaries occur exactly at indices i that are multiples of 2^{d−1−j}. For fixed i, the set of j with i∈G_j has size 1+v_2(i); the weighted identity is immediate by exchanging sums. ∎
+
+Corollary 6.1 (Weighted decrease bound from A_0). In one step A_0→A′ with changed-index set S, and any weights a_j≥0,
+  Σ_{j} a_j·Decrease_j ≤ Σ_{i∈S} Σ_{j: i∈G_j} a_j.
+In particular, with a_j=2^{−(j+1)} and v_2(i)=t,
+  Σ_{j} 2^{−(j+1)}·Decrease_j ≤ Σ_{i∈S} 2^{−(d−t−1)}(1−2^{−(t+1)}) ≤ Σ_{i∈S} 2^{−d+t+1}.
+Proof. Combine Lemma 3 with Theorem 6 and use nonnegativity of the weights; the explicit sum for a_j=2^{−(j+1)} is a direct geometric series. ∎
+
+
+
+Current round tag: Round 0003 — 2025-08-27T19:46:36.124491Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

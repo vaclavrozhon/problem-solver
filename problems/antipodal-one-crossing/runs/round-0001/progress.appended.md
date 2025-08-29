@@ -1,31 +1,57 @@
-## Round 0001 — 2025-08-26T15:35:35.735033Z
-- Explore the expander vs. sparse-cut dichotomy at block scale.
-  - **Claim**: If a color occupies at least an $ho$-fraction of each $rac{1}{	heta}$ of the blocks, then that color has conductance $	ext{Ω}(ho)$ in the whole cube.
-  - **Why useful**: This lemma can help in establishing lower bounds on the number of switches in biased blocks.
-  - **How it can fail**: If the blocks are too small, the conductance may not hold.
-  - **Counterexample attempt**: Consider a coloring where each block is monochromatic but the overall cube has a balanced coloring.
+## Round 0001 — 2025-08-27T15:24:16.452965Z
 
-- Investigate the $Q_3$ density improvement over $1/2$.
-  - **Claim**: The fraction of good $Q_3$’s exceeds $1/2+eta$ for some absolute $eta>0$.
-  - **Why useful**: This would improve the expected savings, pushing the constant below $3/8$.
-  - **How it can fail**: If the coloring allows for many bad $Q_3$ configurations that dominate.
-  - **Counterexample attempt**: Construct a coloring that maximizes bad $Q_3$ configurations while keeping the overall density at $1/2$.
+Status and reading
+- I did not receive output.md or notes.md in this round; I cannot audit curated results. I focus on the task.tex and Dvořák’s paper (EJC 2020) to make incremental, checkable progress.
 
-- Analyze local surgery with better defect-to-switch conversion.
-  - **Claim**: The number of switches is $	ext{≤} (2+o(1))ho n$.
-  - **Why useful**: This provides a direct method to reduce switches in nearly monochromatic segments.
-  - **How it can fail**: If defect clusters overlap significantly, leading to higher switch counts.
-  - **Counterexample attempt**: Create a segment with a high density of defects that do not cluster disjointly.
+Recap of Dvořák’s parameterization
+- The modified-geodesic scheme partitions a random antipodal geodesic into Q3-blocks and uses a local map f to rewire inside each block. The expected number of switches becomes
+  E[switches] ≤ (1/3 + b/12 + o(1)) n,
+  where b is the probability that two uniformly random neighboring Q3’s (sharing exactly one vertex) are of mixed type (one good, one bad). Dvořák proved b ≤ 1/2 + o(1), giving (3/8 + o(1))n. Any constant improvement must force b ≤ 1/2 − γ for some absolute γ > 0 (unless one redesigns the scheme at a larger scale).
 
-- Explore Fourier/junta stability for sparse colored boundaries.
-  - **Claim**: Most boundary measure concentrates on a small set of coordinates, leading to a long single-color burst.
-  - **Why useful**: This can yield a reduction in switches due to concentration effects.
-  - **How it can fail**: If the boundary does not concentrate effectively, leading to a high switch count.
-  - **Counterexample attempt**: Construct a scenario where the boundary is evenly distributed across many coordinates.
+Gap in brainstorming item 1 (block-expander dichotomy)
+- Claim in task.tex: “If a color occupies at least an ε-fraction of each δS_J for (1−θ) of the blocks, then that color has conductance Ω(ε).” This is false in general.
+- Counterexample (fully explicit; checkable): Fix n and ε ∈ (0,1/2). For each direction i ∈ [n], choose a pairwise-disjoint set A_i ⊂ {0,1}^{n−1} of size ε·2^{n−1}. Color an edge (x, x ⊕ e_i) blue iff the projection of x onto coordinates [n]\{i} lies in A_i; otherwise color it red. Then for every block J, the blue fraction across δS_J (the union of directions i ∈ J) is exactly ε, so the premise holds with θ = 0. However, the blue subgraph is a disjoint union of matchings (every vertex is incident to at most one blue edge because the A_i are disjoint), hence it has zero conductance. Therefore the “deliverable sublemma” is invalid without additional pseudorandomness or degree-spread assumptions.
+- Consequence: The “Case A” estimate “O(ε|J|) off-color edges per biased block” also lacks justification. Even if β_J = 1/2 + ε at the block scale, one can realize this with each direction i having exactly 1/2 + ε fraction blue; then any geodesic that flips each i once sees ≈ (1/2 − ε)m minority edges on average, not O(εm). Without extra structure (e.g., many near-monochromatic directions within the block), the proposed O(εm) bound is not achievable.
 
-- Consider refined random-geodesic coupling.
-  - **Claim**: Bias the distribution toward orders that maximize overlap with biased blocks.
-  - **Why useful**: This can increase expected savings per step, leading to a reduction in total switches.
-  - **How it can fail**: If the bias does not significantly impact the overall structure of the path.
-  - **Counterexample attempt**: Analyze a case where uniform distribution yields better results than biased orders.
+Corrected formulation (what would be sufficient)
+- A plausible, fixable version would require both:
+  (i) per-direction bias within “good” blocks: for at least (1−θ) blocks J, each direction i ∈ J has blue fraction in [1/2 + ε, 1] or [0, 1/2 − ε]; and
+  (ii) vertex-level spread: every vertex is incident to at least ρm blue edges from these directions for some fixed ρ > 0 (ruling out disjoint concentration as in the counterexample).
+- Under (i)+(ii), a matrix-Chernoff/random-walk argument on the sum of many (partially) present matchings could give a conductance lower bound Φ = Ω(ερ), yielding a long monochromatic burst and fewer switches. This is a new sublemma to be proven; current task: formalize an expander bound from degree and per-matching density lower bounds under adversarial placement (nontrivial because independence is absent). One candidate route: canonical paths that use, for each coordinate, the present-blue matching with probability ≥ ε and exploit that each vertex has ≥ ρm available blue directions.
+
+Towards reducing b below 1/2
+- Dvořák’s bound b ≤ 1/2 + o(1) was obtained by, for each vertex v, letting s(v) be the number of good Q3’s containing v and observing that the fraction of good–bad v-neighbor pairs is at most s(v)(k−s(v)) with k = C(n,3), maximized at s(v)=k/2. To beat 1/2 one needs extra constraints coupling the types of different triples through shared edges/4-cycles.
+- Key observation: The dependence of type(T) on the coloring enforces monotone constraints beyond “monochromatic star ⇒ good.” For a fixed v, the type function T_v on 3-subsets of [n] is not arbitrary; it must satisfy many local consistency relations (e.g., coming from the bad-Q3 structure Lemma 9 and from overlaps with other vertices of the same Q3). Exploiting these should lower the extremal good–bad mixing below the naive s(k−s) bound.
+
+Auditable plan: a local LP/SDP bound for b
+- Variables: For a fixed vertex v, let p_{abc} be the frequency over 3-sets I ⊂ [n] of the color-pattern at v on the three incident edges in directions I, where a,b,c ∈ {R,B} in some canonical order. Enforce the exact marginals determined by the degree at v: P(3R)=C(r_v,3)/C(n,3), P(3B)=C(n−r_v,3)/C(n,3), and the sums over 2R1B, 1R2B follow combinatorially.
+- Enrich with 4-cycle constraints: For any pair of directions i≠j, and a third k, the joint distributions across the two Q3’s with triples {i,j,k} and {i,j,k′} must be compatible with the coloring on the 4-cycle generated by i and j. This couples p-distributions for different k,k′.
+- Add “badness filters” from Lemma 9: for a bad Q3, from each vertex v there must exist exactly-one-change antipodal geodesics with prescribed colors at v and v′. Encode this as linear constraints on the frequencies with which a 3-set is classified as bad given its edge-colors at all 8 vertices (the latter determined by the global edge-coloring restricted to the Q3).
+- Objective: Maximize the expected proportion of good–bad neighbor pairs b_v at v over all feasible distributions; then average v. Any universal upper bound strictly below 1/2 gives the desired γ. This is implementable as a relaxation (LP or small SDP) on the local configuration space (dimension controlled by the number of edge-color patterns on Q3 up to symmetry). Deliverable: set up the constraint system and solve numerically to detect a gap γ > 0, then try to certify analytically a positive margin.
+
+Small, checkable computations that feed the LP
+- Per-vertex lower bound on good Q3’s: For r_v red degree at v, the fraction of 3-sets yielding a monochromatic star is
+  τ_v = [C(r_v,3)+C(n−r_v,3)] / C(n,3) = x^3+(1−x)^3 + O(1/n), with x=r_v/n.
+  Minimizing in x gives τ_v ≥ 1/4 − 3/(4n) + O(1/n^2). This refines Dvořák’s “≥ 1/4 − o(1)” and quantifies the o(1) term; it feeds into the good–good boundary switch bound but, by itself, cannot beat 1/2.
+
+Conditional improvement via vertex-bias (a structural lemma)
+- Define, for a good Q3 containing v, the “suggested color at v,” σ ∈ {R,B}, as the color of the first edge in (v, f(v,w)). For v with red-degree fraction x, the bias among the good triples that are monochromatic at v is proportional to x^3−(1−x)^3 = (2x−1)(1/2−x(1−x)). Thus, if a positive fraction of vertices have |2x−1| ≥ η, then among good–good neighbor pairs at those v the disagreement probability drops below 1/2 by a quantity Ω(η), improving the boundary contribution. This yields a conditional bound of the form
+  E[switches] ≤ (3/8 − c·E_v[|2r_v/n − 1|]) n + o(n).
+  This is checkable once one quantifies how often f(v,w) is driven by the monochromatic-star mechanism among good Q3’s. The obstruction: there exist colorings with r_v≡n/2 (balanced at every vertex), so unconditional gains cannot rely on vertex-star bias alone.
+
+Toy counterexamples and sanity tests
+- The “disjoint A_i” construction shows block-level density guarantees do not imply expansion or easy phase clustering. It also shows that any argument requiring O(εm) minority edges per block must use stronger per-direction or per-vertex assumptions.
+- Balanced-at-every-vertex constructions (deg_R(v) ≡ n/2) plausibly exist; in such colorings, per-vertex label biases vanish, so good–good boundary disagreement can be ≈ 1/2. Any unconditional improvement must therefore act through inter-triple consistency constraints (the proposed LP/SDP plan).
+
+Next steps (actionable)
+1) Formalize and solve the local LP: enumerate Q3 edge-colorings up to isomorphism; identify “good” vs “bad” as in Dvořák; introduce variables for frequencies of these patterns across the hypercube under the restriction that pairs sharing a vertex are coupled by 4-cycles. Compute the maximal b over feasible distributions. Even a numerical γ ≈ 10^{-3} would guide the analytic step.
+2) Prove a strengthened “no-tiling-by-bads” lemma: show that for any fixed vertex v, among the 3-sets I disjoint from a fixed 3-set J, the indicator that Q3(v,I) is bad cannot be independent of Q3(v,J) being bad; quantify a negative correlation. This would directly lower b.
+3) Explore Q4-block variant: Define “good Q4” and a corresponding f with improved boundary synchronization, aiming to replace the b/12 term by (b′/12) with b′ < b. Start with computational exploration on Q4 patterns.
+4) Salvage block-phase under strengthened hypotheses: formulate and prove a lemma that if in at least (1−θ) blocks each direction has per-direction bias ≥ ε and each vertex sees ≥ ρm majority-color edges within those blocks, then one phase yields O((1/m)+θ+(1−θ)(1−ερ)) n switches. This will be a stand-alone result useful in a hybrid approach.
+
+Summary of progress this round
+- Identified and rigorously refuted a key sublemma in the brainstorm (expansion from block-thick density), with an explicit counterexample that also invalidates the O(εm) minority-edge claim.
+- Clarified that improving the (3/8) constant within Dvořák’s framework hinges on proving b ≤ 1/2 − γ and proposed a concrete, auditable LP/SDP program to capture necessary local constraints beyond the vertex-star bound.
+- Provided refined per-vertex counting bounds and a conditional structural lemma showing how vertex bias would reduce boundary disagreement (useful in structural case analyses).
+- Outlined concrete next steps (computational and analytic) to move toward a constant γ > 0.
 

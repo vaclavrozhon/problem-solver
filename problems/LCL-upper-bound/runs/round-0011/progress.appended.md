@@ -1,0 +1,80 @@
+## Round 0011 — 2025-08-27T19:56:28.669557Z
+
+Round 0011 — Completing Stage‑2 (O(1) vs Θ(log* n)) on oriented paths in NEXPTIME, with an oriented‑path partition lemma and a per‑type boundary certificate; small audits and unit‑testable lemmas
+
+Summary of new ideas
+- Stage‑2 certificate finalized for globally oriented paths via per‑type interfaces Q_τ (one quadruple per long type), augmented with an explicit one‑sided endpoint bridging clause. This keeps verification single‑exponential in β and avoids enumerating all short words w (which would blow up to doubly‑exponential in β).
+- Oriented‑path partition lemma (constant rounds) specialized from the paper’s cycle partition: in O(1) rounds, partition any oriented path into short segments (length ≤ 2ℓ_width) and long periodic segments with primitive period length ≤ ℓ_pattern repeated ≥ ℓ_count times, with each node knowing its role. This provides the scaffolding for the O(1) construction.
+- Auditable fillings: long periodic segments are tiled by Q_τ using the wrap constraint E(R1_τ,L1_τ); short separators between long segments are filled by the universal bridging condition using Ext_{τ_S}; endpoint separators are filled by one‑sided bridging (new clause) that only needs a seam to the adjacent long block.
+
+Gaps identified in output.md
+- Stage‑2 theorem for oriented paths is not yet stated. The Stage‑2 plan has been outlined in earlier notes; below I give a concrete, NEXPTIME‑verifiable certificate and an O(1) construction.
+- Optional: add a “tiny‑path completion” lemma formalizing the small‑n fallback already invoked in S1‑path.
+
+Stage‑2 certificate and theorem to add (path version)
+Definitions (recalled)
+- T is the set of reachable types (Lemma 8, Prop. 9). T_long := {τ ∈ T : k_flag(τ) ≥ 4}. ℓ_pump := |T|.
+- Ext concatenation and associativity as in Lemma 11 and Prop. 12.
+Certificate per long type τ ∈ T_long
+- Q_τ = (L1_τ, L2_τ, R2_τ, R1_τ) ∈ Ext_τ.
+Checks (three families)
+1) Local tiling and wrap (within τ): E(L1_τ,L2_τ), E(R2_τ,R1_τ), and E(R1_τ,L1_τ).
+2) Two‑sided universal bridging (across any middle type): For all τ_left, τ_S, τ_right ∈ T (τ_left, τ_right ∈ T_long; τ_S arbitrary, including short), we require ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_{τ_left}, o1) and E(o4, L1_{τ_right}). (For τ_S empty, the condition reduces to E(R1_{τ_left}, L1_{τ_right}).)
+3) One‑sided endpoint bridging (new, for paths): For all τ ∈ T_long and all τ_S ∈ T, require both
+   • ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(o4, L1_τ) (fill a left‑endpoint short segment abutting a long τ on the right), and
+   • ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_τ, o1) (fill a right‑endpoint short segment abutting a long τ on the left).
+Why (3) is needed and sufficient. In the O(1) construction, any endpoint segment S has only one adjacent long block; filling S requires only a seam into that long block. The existence of a quadruple in Ext_{τ_S} with the single seam satisfied guarantees a legal local labeling of S; the “unused” seam (toward the path boundary) imposes no constraint (there is no edge beyond the endpoint).
+Theorem S2‑path (oriented paths; O(1) vs Θ(log* n))
+- Statement. A β‑normalized radius‑1 LCL on globally oriented paths has deterministic complexity O(1) iff there exist {Q_τ}_{τ∈T_long} satisfying (1)–(3). Otherwise, if S1‑path holds but no {Q_τ} satisfies (1)–(3), the deterministic complexity is Θ(log* n).
+- NEXPTIME verification. Enumerate T (Prop. 9) and Ext_τ for τ ∈ T, plus Ext_{τ_S} for all τ_S. Check (1) directly. For (2), iterate all triples (τ_left, τ_S, τ_right) and test existence of (o1,o2,o3,o4)∈Ext_{τ_S} with the two seam E‑constraints (this reduces to β^2 bit‑matrix membership with precomputed slices). For (3), for each (τ, τ_S) test existence of a right boundary color o4 or left boundary color o1 in Ext_{τ_S} adjacent to L1_τ or from R1_τ, respectively. Total work is |T_long|·β^O(1) for (1), |T_long|^2·|T|·β^O(1) for (2), and |T_long|·|T|·β^O(1) for (3), hence single‑exponential in β.
+- O(1) construction. In O(1) rounds, compute an (ℓ_width, ℓ_count, ℓ_pattern)‑partition with ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump + 2 (lemma below). This yields a decomposition of the oriented path into:
+  • Plong: maximally long periodic subpaths with primitive period w of length ≤ ℓ_pattern, repeated ≥ ℓ_count; each node knows w.
+  • Pshort: short/irregular subpaths, each of length ≤ 2ℓ_width; endpoint segments belong to Pshort or (degenerate case) are absorbed by a long periodic P ∈ Plong.
+  Labeling algorithm:
+  1) For each P ∈ Plong, let τ be its long type (well defined by periodic pumping). Tile P by repeating the boundary interface Q_τ; interior legality holds because Q_τ ∈ Ext_τ and E(R1_τ,L1_τ) (wrap) closes each tile.
+  2) For each short interior S ∈ Pshort between two long neighbors P_L and P_R with types τ_L, τ_R, fill S via (2): pick (o1,o2,o3,o4) ∈ Ext_{Type(S)} that matches E(R1_{τ_L},o1) and E(o4,L1_{τ_R}); interior is legal by Ext membership.
+  3) For each endpoint short S ∈ Pshort adjacent to a single long neighbor of type τ, fill S via (3): pick a quadruple from Ext_{Type(S)} with o4 adjacent to L1_τ (left endpoint) or with o1 adjacent from R1_τ (right endpoint).
+  Every step is constant‑radius and local.
+- Proof sketches. (⇒) If an O(1) algorithm exists, define Q_τ by simulating it on a canonical long representative of τ (periodic pumping identifies τ in O(1)); the checks follow by restricting a legal labeling and concatenation (Lemma 11). (⇐) The algorithm above is constant‑round as all decisions depend on O(ℓ_pump)‑radius information and precomputed tables.
+
+Oriented‑path partition lemma (to add)
+Lemma P‑Partition (O(1) rounds on globally oriented paths). For constants ℓ_width, ℓ_pattern, ℓ_count with ℓ_pattern ≥ ℓ_width, there is a deterministic LOCAL algorithm that in O(1) rounds partitions any globally oriented path into directed subpaths P such that: (i) each P has |P| ≥ ℓ_width; (ii) Pshort := {P : |P| ≤ 2ℓ_width} are short, with each node knowing its rank in P; (iii) Plong := {P : |P| > 2ℓ_width} are periodic, each P is equal to wk for some primitive w with |w| ≤ ℓ_pattern and k ≥ ℓ_count, and each node knows w.
+Proof idea. This is the path‑specialization of [paper, Lemmas 20–22]. Orientation is given, so no initial orientation step is needed. First, for each primitive w (|w| ≤ ℓ_pattern), nodes can detect in O(1) whether they belong to a maximal subpath whose input is wx with x ≥ ℓ_count + 2ℓ_width. Trim ℓ_width·|w| nodes from each end to form Plong. The remaining nodes form Pirreg; by the “no long periodic fragment” property, one can compute an (ℓ_pattern, 2ℓ_pattern)‑independent set in O(1) (as in Lemma 20 in the paper) using distinct colors defined by length‑ℓ windows along the orientation, and then cut Pirreg into subpaths of lengths in [ℓ_pattern, 2ℓ_pattern] (hence ≥ ℓ_width) with rank labels. Setting ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump+2 fits the Stage‑2 construction.
+
+Why the one‑sided endpoint clause (3) is natural and minimal
+- Necessity: Without (3), an endpoint short segment S adjacent to a long τ could fail: Ext_{Type(S)} might have no boundary y with E(y, L1_τ), preventing a legal seam into τ even though two‑sided bridging holds elsewhere.
+- Sufficiency: The seam toward the missing side is not constrained, so any quadruple (o1,o2,o3,o4) with E(o4, L1_τ) (or E(R1_τ, o1) on the other side) yields a legal interior labeling by Ext and satisfies all node/edge constraints in S.
+
+Tiny‑path completion lemma (optional addition)
+Lemma Tiny. For K := ℓ_pump+4, any oriented path of length < K can be decided (solved or declared unsolvable) in constant rounds by exhaustive lookup: enumerate all Ext for its Type and pick any legal completion (or reject). This justifies the small‑n fallbacks used in S1‑path and S2‑path.
+
+Complexity and implementation notes (verifier)
+- Precompute Ext_τ for τ ∈ T (Prop. 9, Prop. 19); Ext_{τ_S} for all τ_S; 3D slices for fast checks (Prop. 5). Build auxiliary endpoint‑allow bitsets per τ_S: RightAllow(τ_S) := {o4 : ∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}}, LeftAllow(τ_S) := {o1 : ∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}; used in (3) via E adjacency.
+- Certificate size is O(|T_long|) quadruples. Verification is dominated by (2), which is O(|T_long|^2·|T|·β^2) boolean checks with precomputed slices.
+
+Sanity checks
+- Equality LCL (E={(c,c)}, A_0=A_1={c}). Choose Q_τ=(c,c,c,c) for all τ∈T_long; (1)–(3) trivially hold; classify O(1).
+- Proper 2‑coloring. No Q_τ can satisfy E(R1_τ,L1_τ) wrap across period‑1, hence (1) fails; S1‑path accepts (feasible f_mid exists); classification Θ(log* n).
+- Endpoint stress: Pick an instance where some τ_S has RightAllow(τ_S) disjoint from N_E(L1_τ) for a candidate τ; then (3) fails and the certificate is correctly rejected.
+
+Relation to f0‑based Stage‑2 (notes)
+- The f0 certificate for cycles (Gw,z, Gw1,w2,S) is elegant but naive verification over all w with |w| ≤ ℓ_pump is doubly exponential in β. The per‑type Q_τ approach keeps checks to a singly‑exponential scale using |T| ≤ 4·2^{β^4}.
+
+Concrete next steps for output.md
+1) Add Theorem S2‑path with the statement above, the certificate Q_τ and checks (1)–(3), proofs of (⇒) and (⇐), and the NEXPTIME verification argument.
+2) Add Lemma P‑Partition (or cite/adapt paper’s Lemmas 20–22) specialized to oriented paths, with parameters ℓ_width=ℓ_pattern=ℓ_pump, ℓ_count=2ℓ_pump+2.
+3) Optionally add Lemma Tiny to justify small‑n fallback.
+4) Add a short “Endpoint one‑sided bridging” remark explaining why no extra endpoint tables (like V_left/V_right) are needed in Stage‑2 beyond (3).
+
+Obstacles and resolutions
+- Endpoint handling in Stage‑2: resolved by the explicit one‑sided bridging clause (3), which is verifiable from Ext tables and does not enlarge asymptotics.
+- Avoiding double‑exponential blow‑up: resolved by using per‑type Q_τ and the partition lemma instead of an f0 on all words of length ≤ ℓ_pump.
+
+Unit‑test ideas for the verifier
+- Verify (1): for random τ∈T_long, check E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+- Verify (2): build bit‑matrices M_{τ_S}[α_L][α_R] := ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1) and E(o4,α_R). Then assert for all τ_left,τ_S,τ_right that M_{τ_S}[R1_{τ_left}][L1_{τ_right}] is true.
+- Verify (3): precompute RightAllow(τ_S), LeftAllow(τ_S); assert ∀τ,τ_S that N_E(RightAllow(τ_S)) contains L1_τ and N_E^{-1}(LeftAllow(τ_S)) contains R1_τ.
+
+Minor audit
+- S1‑path now includes Lemma M1; Prop. 9 states O(β^4) long append and references Prop. 19; endpoint extraction in S1 (⇒) uses P_end (short allowed) with one‑sided padding — good. I found no remaining contradictions in output.md.
+

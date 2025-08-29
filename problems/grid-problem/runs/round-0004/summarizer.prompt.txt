@@ -1,0 +1,203 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+## Round 0004 — 2025-08-27T15:14:46.643532Z
+
+### Admin and scope
+- No `output.md` was provided in this round, so I cannot audit curated statements. I will instead point out issues in prior progress notes and add rigorously stated, checkable lemmas with proofs.
+
+### Corrections to earlier rounds
+- Antichain Lemma A (from the task’s summary) is correct when applied to the whole $U$ if $U$ itself is an antichain. However, in a general $U$ (not an antichain), reusing “consecutive points” from the set of maximal elements may fail to yield a unique type–2 color in $G[U]$ because extra points in $U$ can increase $r_U(\alpha,\beta)$ or $s_U(\alpha,\beta)$ beyond $1$. This gap needs care.
+- Prior sketches about types 3 and 4 were informal. Below I give exact multiplicity formulas and rigorous single-row/column lemmas.
+
+### Exact multiplicity for types 3 and 4 (and uniqueness criteria)
+- Type 4 (horizontal): For $\alpha\in[n]$ define for each $(\alpha,y)\in U$ the right-degree
+  \[\deg^\to_U(\alpha,y):=\#\{(x,y)\in U:\ x>\alpha\}.\]
+  Then the total multiplicity of the color $(4,\alpha)$ in $G[U]$ is
+  \[\mu_U(4,\alpha)=\sum_{y:\ (\alpha,y)\in U}\deg^\to_U(\alpha,y).\]
+  In particular, $(4,\alpha)$ is unique in $U$ if and only if there is exactly one row $y$ with $(\alpha,y)\in U$ and in that row there is exactly one vertex strictly to the right of $\alpha$.
+- Type 3 (vertical): Dually, for $\beta\in[n]$ and each $(x,\beta)\in U$ define the up-degree
+  \[\deg^{\uparrow}_U(x,\beta):=\#\{(x,y)\in U:\ y>\beta\}.\]
+  Then the total multiplicity of the color $(3,\beta)$ in $G[U]$ is
+  \[\mu_U(3,\beta)=\sum_{x:\ (x,\beta)\in U}\deg^{\uparrow}_U(x,\beta).\]
+  Hence $(3,\beta)$ is unique in $U$ if and only if there is exactly one column $x$ with $(x,\beta)\in U$ and in that column there is exactly one vertex strictly above $\beta$.
+- Why useful here: These give necessary-and-sufficient conditions for 3/4 uniqueness in $G[U]$, not just in a subconfiguration, and will be used for boundary/cross-shaped cases.
+
+### Clean single-row/single-column lemmas
+- Lemma C1 (single row). If $U\subseteq [n]\times\{y_0\}$ and $|U|\ge2$, list its $x$-coordinates increasingly as $x_1<\cdots<x_m$. Then the edge $((x_{m-1},y_0),(x_m,y_0))$ has color $(4,x_{m-1})$ and is unique in $U$.
+  Proof. By the type–4 multiplicity formula, only the term for $(x_{m-1},y_0)$ contributes $1$ (exactly one right neighbor), and all other terms contribute $0$. So $\mu_U(4,x_{m-1})=1$.
+- Lemma C2 (single column). If $U\subseteq\{x_0\}\times[n]$ and $|U|\ge2$, list its $y$-coordinates increasingly as $y_1<\cdots<y_m$. Then the edge $((x_0,y_{m-1}),(x_0,y_m))$ has color $(3,y_{m-1})$ and is unique in $U$.
+- Why useful here: These settle degenerate “one-dimensional” cases and will be invoked as subcases in more complex configurations.
+
+### Unique–maximal case is fully solvable via types 1, 3, 4
+Let $\preceq$ be the product order: $(a,b)\preceq (a',b')$ if $a\le a'$ and $b\le b'$. Let $\operatorname{Max}(U)$ be the set of $\preceq$–maximal elements.
+
+- Lemma C3 (unique maximal implies unique color). If $|\operatorname{Max}(U)|=1$, then $G[U]$ contains a uniquely colored edge.
+  Proof. Let $m=(X,Y)$ be the unique maximal point. Consider the set $S=\{p\in U:\ p\neq m,\ p_x<X,\ p_y<Y\}$ of points strictly south–west of $m$.
+  Case 1: $S\neq\emptyset$. Let $p\in S$ be $\preceq$–maximal inside $S$. Then no $q\in U\setminus\{m\}$ has $q_x>p_x$ and $q_y>p_y$ (else $q\in S$ would dominate $p$). But $m_x>p_x$ and $m_y>p_y$, so $m$ is the only NE neighbor of $p$. By the type–1 multiplicity fact, the color $(1,p_x,p_y)$ is unique in $U$.
+  Case 2: $S=\emptyset$. Then every $u\in U\setminus\{m\}$ lies on row $Y$ or column $X$ (or both), i.e., $U\subseteq ([n]\times\{Y\})\cup(\{X\}\times[n])$. If the row part contains $\ge2$ points, Lemma C1 gives a unique type–4 edge; otherwise the column part contains $\ge2$ points, and Lemma C2 gives a unique type–3 edge. In either case, $G[U]$ has a uniquely colored edge. ∎
+- Why useful here: This completely resolves the case $|\operatorname{Max}(U)|=1$ using only local degree conditions.
+
+### Toward the general case: two or more maxima
+Let $M=\operatorname{Max}(U)$ with $|M|=k\ge2$, ordered by increasing $x$ as $m_i=(x_i,y_i)$ with $y_1>\cdots>y_k$ (standard for 2D maxima). For $i=1,\dots,k-1$, define
+- $R_i := \#\{(x_i,y)\in U:\ y>y_{i+1}\}$ (points strictly above $y_{i+1}$ in column $x_i$),
+- $S_i := \#\{(x,y_{i+1})\in U:\ x>x_i\}$ (points strictly to the right of $x_i$ in row $y_{i+1}$).
+Note $R_i\ge1$ and $S_i\ge1$, since $m_i$ and $m_{i+1}$ contribute respectively.
+
+- Lemma D (clean gap yields unique type 2). If for some $i$ one has $R_i=S_i=1$, then the color $(2,x_i,y_{i+1})$ appears exactly once in $G[U]$.
+  Proof. By the type–2 multiplicity formula, $\mu_U(2,x_i,y_{i+1})=R_i\cdot S_i=1$.
+- Why useful here: This gives a concrete sufficient condition (entirely local to the pair of consecutive maxima) that certifies a unique edge of type 2 in the full $G[U]$.
+
+At this stage, the $|M|\ge2$ case reduces to establishing that either (i) some consecutive pair satisfies Lemma D, or (ii) some other local uniqueness (types 1, 3, or 4) must occur if all pairs fail $R_i=S_i=1$.
+
+### Examples and checks
+- 2×2 grid $U=\{(1,1),(1,2),(2,1),(2,2)\}$: Here $M=\{(2,2)\}$ (unique maximal), so Lemma C3 applies. Indeed $(1,1)$ has exactly one NE neighbor $(2,2)$; color $(1,1,1)$ is unique.
+- Cross shape: $U\subseteq ([n]\times\{Y\})\cup(\{X\}\times[n])$ with at least two points on row or column side. Lemma C1 or C2 produces a unique type–4 or type–3 edge, respectively.
+- Antichain $U$ (no two share a column or a row): Lemma A (from the problem’s notes) certifies a unique type–2 edge inside $U$. Note: to conclude uniqueness in $G[U]$, one must ensure $r_U=s_U=1$ for that $(\alpha,\beta)$; this holds automatically because in an antichain the relevant column and row each contain exactly the one needed point.
+
+### Obstacles remaining
+- The main unresolved case: $|M|\ge2$ but for every consecutive pair $(m_i,m_{i+1})$ at least one of $R_i, S_i$ exceeds $1$. It is not yet proved that this forces a unique color of some type. A naive counting doesn’t immediately yield a contradiction.
+
+### Next steps (concrete and auditable)
+1) Prove a dichotomy for $|M|\ge2$: either Lemma D holds for some $i$, or there exists $p\in U$ with exactly one NE neighbor (yielding unique type–1). The intended route is to analyze the “extra” points counted in the surpluses $(R_i-1)$ and $(S_i-1)$, and locate a point that becomes maximal in the SW region of some $m_j$ and hence has exactly one NE neighbor.
+2) If step 1 stalls, attempt a complementary dichotomy using the set of minimal elements $\operatorname{Min}(U)$: argue symmetrically that abundant failures of Lemma D across maxima force a unique type–3 or type–4 color via the exact multiplicity formulas.
+3) Validate the dichotomies on small worst-case constructions (dense “staircase” sets) to refine the local criteria.
+
+### Summary of new, rigorously proved pieces this round
+- Exact multiplicity formulas for types 3 and 4, with necessary-and-sufficient uniqueness criteria.
+- Lemma C1 and Lemma C2: single row/column guarantee a unique color of type 4/3.
+- Lemma C3: if $U$ has a unique maximal element, then $G[U]$ has a uniquely colored edge (type 1 in the SW-rich case; otherwise types 3/4 via cross-shape reduction).
+- Lemma D: a clean gap between consecutive maxima certifies a unique type–2 color in the full $G[U]$.
+
+These settle all cases with $|\operatorname{Max}(U)|=1$ and provide a sharp sufficient condition when $|\operatorname{Max}(U)|\ge2$. The remaining work is to force such a condition or an alternative unique color when the condition fails for all consecutive maximal pairs.
+
+=== prover-02.out.json (progress_md) ===
+## Round 0004 — 2025-08-27T15:14:46.643398Z
+
+Housekeeping.
+- There is no output.md provided; I therefore cannot check curated results for gaps. I proceed with new, fully stated and checkable lemmas/proofs, and I highlight where they apply in the overall strategy.
+
+Context reminder.
+- Vertices are points in [n]×[n]. Edge types: 1 (NE–SW), 2 (NW–SE), 3 (vertical), 4 (horizontal).
+- Colors: type 1 and 2 have labels (type, α, β) using α = min x, β = min y; type 3 has (3, β); type 4 has (4, α).
+- Previously noted and used: local multiplicities for types 1 and 2 are exact and simple. I extend this with precise multiplicity formulas for types 3 and 4 and extract uniqueness criteria. Then I prove the target statement for |U| = 3 (complete case analysis) and record several structural lemmas useful going forward.
+
+### Precise multiplicity formulas (global) for all types
+
+Claim 1 (restate and sharpen Type 1 multiplicity). For any (α,β) ∈ [n]^2, the number of edges in G[U] with color (1,α,β) equals the number of vertices in U strictly north–east of (α,β). In particular, color (1,α,β) can occur only if (α,β) ∈ U, and then its multiplicity equals the count of NE-neighbors of (α,β).
+- Proof. Any type–1 edge with label (1,α,β) must have SW endpoint (α,β) (since label takes coordinate-wise minima). Conversely, each NE neighbor q of (α,β) yields exactly one edge of that color. Distinct NE neighbors give distinct edges. QED.
+
+Claim 2 (restate and sharpen Type 2 multiplicity). For any (α,β) ∈ [n]^2, let
+- r_U(α,β) = # { (α,y) ∈ U : y > β } and s_U(α,β) = # { (x,β) ∈ U : x > α }.
+Then the number of edges in G[U] with color (2,α,β) is r_U(α,β) · s_U(α,β). In particular, (2,α,β) is unique iff r_U(α,β) = s_U(α,β) = 1.
+- Proof. A type–2 edge with label (2,α,β) arises from choosing one point on the vertical ray {(α,y) : y>β} and one on the horizontal ray {(x,β) : x>α}, and conversely any such pair produces exactly one such edge. The choices multiply. QED.
+
+Claim 3 (Type 3 multiplicity). For β ∈ [n], define for each α ∈ [n] the integer v_α(β) = # { (α,y) ∈ U : y > β }, and the indicator 1_{α,β} = 1 if (α,β) ∈ U, 0 otherwise. Then the number of edges colored (3,β) equals
+- T_3(β) = ∑_{α=1}^n 1_{α,β} · v_α(β).
+Consequently, color (3,β) is unique in U iff there is exactly one column α with (α,β) ∈ U and v_α(β) = 1, and for all other columns either (α,β) ∉ U or v_α(β)=0.
+- Proof. Type–3 edges are vertical, and the label (3,β) means the lower endpoint has y-coordinate β. For a fixed column α, the eligible lower endpoint is (α,β) (if present), and it connects to each (α,y) with y>β, contributing v_α(β) edges. Sum over α. Uniqueness is equivalent to T_3(β)=1, which forces exactly one contributing α and exactly one upper neighbor there. QED.
+
+Claim 4 (Type 4 multiplicity). Fix α ∈ [n]. For β ∈ [n], define h_β(α) = # { (x,β) ∈ U : x > α } and the indicator 1'_{α,β} = 1 if (α,β) ∈ U, 0 otherwise. Then the number of edges colored (4,α) equals
+- T_4(α) = ∑_{β=1}^n 1'_{α,β} · h_β(α).
+Consequently, color (4,α) is unique in U iff there is exactly one row β with (α,β) ∈ U and h_β(α) = 1, and for all other rows either (α,β) ∉ U or h_β(α)=0.
+- Proof. Analogous to Claim 3, with rows/columns interchanged. QED.
+
+Why useful here. Claims 3–4 turn the previously vague intuition (“types 3,4 repeat”) into precise numerical tests for uniqueness. They also yield immediate “single-row/column witness” lemmas below.
+
+### Immediate corollaries for types 3 and 4 (rigorous uniqueness triggers)
+
+Lemma E (unique type 3 from a singleton row with a single vertical extension). Suppose there exists a row β containing exactly one vertex (α,β) ∈ U, and in column α there is exactly one vertex above it: exactly one y>β with (α,y) ∈ U. Then color (3,β) is unique in G[U] and is realized by the vertical edge between (α,β) and that unique (α,y).
+- Proof. By Claim 3, T_3(β) = ∑_α 1_{α,β} v_α(β). Only one α contributes (the unique α with (α,β) ∈ U), and there v_α(β)=1 by hypothesis. Hence T_3(β)=1. QED.
+
+Lemma F (unique type 4 from a singleton column with a single horizontal extension). Suppose there exists a column α containing exactly one vertex (α,β) ∈ U, and in row β there is exactly one vertex to its right: exactly one x>α with (x,β) ∈ U. Then color (4,α) is unique in G[U] and is realized by the horizontal edge between (α,β) and that unique (x,β).
+- Proof. By Claim 4, only row β contributes and contributes h_β(α)=1. QED.
+
+These are small but useful “certificates” of uniqueness of types 3–4 in concrete and checkable configurations that appear frequently when U is sparse along some row/column.
+
+### Previously stated and retained tools
+
+- Lemma A (antichain ⇒ unique type 2). Fully applies as stated in the prompt; it gives a robust way to certify a unique type–2 color when U itself is an antichain.
+- Lemma B (exactly one NE neighbor ⇒ unique type 1). Fully applies as stated; it certifies a unique type–1 color.
+
+### Verified special cases of the main theorem
+
+The following sharpen the landscape of configurations for which the theorem is already settled by our toolkit.
+
+Proposition P1 (All three-point sets U satisfy the theorem). For any U with |U|=3, there exists a uniquely colored edge in G[U].
+- Proof. Case split.
+  - If all 3 lie on a common row, say x_1<x_2<x_3 with common y, then the horizontal edges have colors (4,x_1),(4,x_1),(4,x_2). Thus (4,x_2) appears exactly once.
+  - If all 3 lie on a common column, similarly we obtain uniqueness via type 3: the vertical edges have colors (3,y_1),(3,y_1),(3,y_2) with y_1<y_2<y_3, so (3,y_2) is unique.
+  - Otherwise, not all three share a row or a column. If some pair shares a row, we are in the first subcase with only two on the row: then their edge has color (4,α_left) and no other edge has that color (because there is no third vertex in that same row to form a second edge with left endpoint α_left). Hence unique.
+    Likewise, if some pair shares a column, type 3 gives uniqueness.
+  - Finally, assume all three have distinct x- and y- coordinates. Order by x: p_1=(x_1,y_1), p_2=(x_2,y_2), p_3=(x_3,y_3) with x_1<x_2<x_3 and y_i all distinct.
+    • If y_1<y_2<y_3 (increasing), then p_2p_3 is type 1 with color (1,x_2,y_2), and no other edge in U bears that color (since the only possible SW endpoint yielding (1,x_2,y_2) would be (x_2,y_2), which is p_2 itself; but the other edges use p_1 as SW endpoint and thus have color (1,x_1,y_1)). Hence (1,x_2,y_2) is unique.
+    • If y_1>y_2>y_3 (decreasing), then U is an antichain. Lemma A applies: p_2p_3 has color (2,x_2,y_3) and is unique because r_U(x_2,y_3)=s_U(x_2,y_3)=1 with only p_2 above in column x_2 and only p_3 to the right in row y_3.
+    • For the remaining permutations (132, 213, 231, 312), at least one consecutive pair in x-order is of type 2 with the other point in that row/column uniquely positioned. For instance, for 132 (y_1<y_3<y_2), the edge p_2p_3 is type 2 with label (2,x_2,y_3), and exactly one point lies above (x_2,y_3) in column x_2 (namely p_2) and exactly one lies to the right of (x_2,y_3) in row y_3 (namely p_3). Hence unique. The three other patterns are symmetric variants.
+  In all cases a unique color exists. QED.
+
+Proposition P2 (Three-or-more on a line). If some row (or some column) contains at least 3 points of U, then G[U] has a uniquely colored edge of type 4 (respectively, type 3).
+- Proof. For a row with x_1<⋯<x_k and k≥3, the multiset of colors over horizontal edges on that row is { (4,x_1) repeated k−1 times, (4,x_2) repeated k−2 times, …, (4,x_{k−1}) once }. Then (4,x_{k−1}) is unique. Vertical is analogous.
+
+Proposition P3 (Singleton row/column with one extension gives unique 3/4). Lemmas E and F provide immediate certificates of uniqueness when a row (resp. column) has exactly one point and the corresponding column (resp. row) contains exactly one extension in the necessary direction.
+
+These cover a large family of sparse/structured U and will be used as base cases in an inductive or decomposition argument.
+
+### Ideas toward the general case (and obstacles)
+
+- Idea: Two-phase dichotomy via types 1 and 2. Try to show: unless we can certify uniqueness via types 3–4 using Lemmas E–F or via Proposition P2, we must find either a vertex with exactly one NE neighbor (unique type 1) or an L-corner (α,β) with r_U(α,β)=s_U(α,β)=1 (unique type 2). This would reduce the full theorem to a rigorous structural analysis of the “no uniqueness via 3–4 and no single-NE” regime.
+
+- Attempted approach (minimal elements layering). Let L_0 be the set of minimal elements (in the product order), remove it, let L_1 be the minimals of the remainder, etc. Each L_t is an antichain. Consecutive points in L_t in x-order give candidate labels (2, α, β) with α from the left point and β from the right point. In the induced subgraph on L_t alone, these are unique; the challenge is to control r_U(α,β) and s_U(α,β) against points in other layers. The obstacle is that higher layers can add extra points in the same column above β or in the same row to the right of α, inflating r or s beyond 1. A clean “separation” invariant is needed.
+
+- Obstacles encountered:
+  1) Minimal-color lexicographic arguments fail: the minimal color in lex order need not be unique (e.g., points on a strictly increasing chain yield repeated (1,α,β) from a single SW endpoint with multiple NE neighbors).
+  2) Using an antichain subset S⊆U directly is insufficient: uniqueness of a type–2 color witnessed inside S can be destroyed by extra points of U in the witnessing column/row.
+
+- Concrete plan to proceed:
+  1) Strengthen the layering approach by marking, for each antichain layer L_t, its “x-successor gaps”: for consecutive m_i=(x_i,y_i), m_{i+1}=(x_{i+1},y_{i+1}), record (α,β)=(x_i,y_{i+1}). Investigate sufficient conditions ensuring r_U(α,β)=s_U(α,β)=1, e.g., emptiness of a certain open rectangle or “top-of-column/rightmost-in-row” properties. Goal: a lemma of the form “If no vertex has exactly one NE neighbor and no line has ≥3 points, then some such (α,β) is 1×1.”
+  2) Develop a counting contradiction in the regime where all type–1 colors have multiplicity 0 or ≥2 and all type–2 colors have multiplicity 0 or ≥2, while also forbidding the 3–4 uniqueness witnesses (P2, Lemma E, Lemma F). The aim is to show this regime cannot persist.
+
+### Small additional lemmas (useful triggers)
+
+Lemma G (2×2 pure rectangle with clean margins ⇒ unique type 2). Suppose U contains exactly the four corners of a rectangle {(x_1,y_1),(x_1,y_2),(x_2,y_1),(x_2,y_2)} with x_1<x_2 and y_1<y_2, and contains no other point in column x_1 above y_1 and no other point in row y_1 to the right of x_1. Then the type–2 color (2,x_1,y_1) is unique.
+- Proof. Here r_U(x_1,y_1)=1 (only (x_1,y_2) above) and s_U(x_1,y_1)=1 (only (x_2,y_1) to the right), so multiplicity is 1 by Claim 2. QED.
+- Why useful: it isolates a frequent local pattern certifying uniqueness of type 2 without requiring the whole U to be an antichain.
+
+### Examples that probe edge cases
+
+- Example 1 (type–3 uniqueness via Lemma E). U = { (2,1), (2,3), (5,5) }. Row β=1 has a singleton at (2,1); column 2 has exactly one point above (2,3). Thus color (3,1) is unique (edge (2,1)–(2,3)).
+- Example 2 (type–4 uniqueness via Lemma F). U = { (1,4), (3,4), (2,2) }. Column α=1 is a singleton at (1,4); row 4 has exactly one to the right (3,4). Hence (4,1) is unique.
+- Example 3 (failure of naive minimal-color). U = { (1,1), (2,2), (3,3) }. Minimal color (1,1,1) occurs twice ((1,1)–(2,2) and (1,1)–(3,3)). Nevertheless, edge (2,2)–(3,3) has unique color (1,2,2), illustrating the need to look beyond the absolute minimal label.
+
+### Next steps (concrete and checkable)
+
+1) Formalize a “gap lemma” on antichain layers: Given L_t and consecutive m_i=(x_i,y_i), m_{i+1}=(x_{i+1},y_{i+1}), identify simple, verifiable conditions on U ensuring r_U(x_i,y_{i+1})=s_U(x_i,y_{i+1})=1 (e.g., that m_i is topmost in column x_i and m_{i+1} is rightmost in row y_{i+1}). Prove that if no such witness exists across all layers, then a vertex with exactly one NE neighbor must exist or a 3/4 uniqueness trigger (P2, E, F) is present.
+
+2) Extend the complete verification from |U|=3 to |U|=4 by case analysis, using P2, E, F, Lemma G, and Lemmas A–B. This builds confidence in the global dichotomy and may suggest an inductive invariant.
+
+3) Explore a parity/counting contradiction: Sum over β of T_3(β) and over α of T_4(α) under the assumption that none equals 1, while also controlling the sums of type–1 and type–2 multiplicities when “=1” is forbidden. The goal is to force at least one label to have multiplicity 1.
+
+Summary of progress.
+- I established precise, global multiplicity formulas for types 3–4 (Claims 3–4), yielding crisp uniqueness criteria and simple, usable triggers (Lemmas E–F).
+- I provided complete, rigorous proofs for the theorem in nontrivial families: all |U|=3 sets (Proposition P1), any row/column with ≥3 points (Proposition P2), and the local 2×2-with-clean-margins pattern (Lemma G).
+- I identified the key obstacle in extending antichain-based arguments to arbitrary U and outlined a concrete plan to tackle the remaining general case via layered antichains and counting.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+success
+

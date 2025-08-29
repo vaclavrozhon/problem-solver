@@ -1,6 +1,93 @@
-## Round 0001 — 2025-08-25T14:28:23.690066Z
+## Round 0001 — 2025-08-27T15:50:00.790299Z
 
-## Round 0002 — 2025-08-25T14:29:18.248373Z
+Ideas and target constant
+- Let S = ∑ a_i, T = ∑ a_i^2, and define Q := S^2/T. For x > 0, let f(x) := |{i : a_i ∈ [x, 2x]}| and let M := sup_x f(x). Any A' of the desired form can be taken as A' = {i : a_i ∈ [x, 2x]} for some x, so |A'| = f(x) ≤ M.
+- Goal: Prove a universal inequality of the form S^2 ≤ K · T · M with the smallest possible K. This gives a guaranteed subset of size at least (1/K) · Q, so C ≥ 1/K. A matching construction will give an upper bound on C.
 
-## Round 0003 — 2025-08-25T14:30:12.008922Z
+Main lower bound: C ≥ 1/3
+Claim. For every finite set A of positive reals, with M := sup_x |A ∩ [x,2x]|, we have
+S^2 ≤ 3 · T · M.
+Proof (pairwise decomposition):
+- Partition ordered pairs (i,j) by the ratio r_ij := a_j/a_i into dyadic bands:
+  • Near band C_0: 1 ≤ r_ij < 2 (this includes the diagonal i=j).
+  • Far bands C_k^+: 2^k ≤ r_ij < 2^{k+1} for k ≥ 1 (j much larger), and C_k^-: 2^{-k-1} ≤ r_ij < 2^{-k} for k ≥ 0 (j smaller).
+- Near band bound: Using 2ab ≤ a^2 + b^2,
+  ∑_{(i,j)∈C_0} a_i a_j ≤ 1/2 ∑_i a_i^2 · #{j: a_j ∈ [a_i,2a_i)} + 1/2 ∑_j a_j^2 · #{i: a_i ∈ [a_j/2,a_j)} ≤ M · T.
+  Here we used #{·} ≤ M by definition of M.
+- Far bands bound: For k ≥ 1,
+  ∑_{(i,j)∈C_k^+} a_i a_j ≤ 2^{-k} ∑_{(i,j)∈C_k^+} a_j^2 = 2^{-k} ∑_j a_j^2 · #{i: a_i ∈ [a_j/2^{k+1}, a_j/2^k)} ≤ (M/2^k) T.
+  Similarly, ∑_{(i,j)∈C_k^-} a_i a_j ≤ (M/2^k) T.
+  Summing over k ≥ 1 gives total far contribution ≤ M · T since ∑_{k≥1} (1/2^k + 1/2^k) = 2.
+- Combine: S^2 = ∑_{all ordered pairs} a_i a_j ≤ M T (near) + M T (far) + M T (far) = 3 M T.
+Hence M ≥ S^2/(3T). Choosing x that attains M gives a subset A' ⊆ A with max/min ≤ 2 and |A'| = M ≥ (1/3) Q. Therefore C ≥ 1/3.
+
+Upper bound: C ≤ 1/3 (tightness)
+- Construction: Take a geometric progression A = {r^0, r^1, …, r^{m-1}} with r > 2. Then any [x,2x] contains at most one element of A, so M = 1 and the largest admissible subset has size 1.
+- Compute Q as m → ∞: S = (r^m − 1)/(r − 1), T = (r^{2m} − 1)/(r^2 − 1), so
+  Q = S^2/T → (r+1)/(r−1) as m → ∞.
+  Let r ↓ 2; then Q → 3, while the maximum admissible |A'| stays 1. Thus 1 ≥ C · 3 forces C ≤ 1/3.
+- Therefore the best possible universal constant is exactly C = 1/3.
+
+Examples/sanity checks
+- All-equal case: a_i = 1, i = 1..n. Then Q = n, and we can take A' = A (|A'| = n). Our bound gives |A'| ≥ (1/3) n, which holds (not sharp here, as expected).
+- Dyadic powers: a_i = 2^i, i=0..m−1. Then any [x,2x] contains at most 2 elements, and Q → 3 as m grows. Our theorem guarantees ≥ 1 element (since (1/3)·Q → 1), and indeed sometimes we can get 2; the upper-bound construction with r>2 shows we cannot guarantee ≥2 in general.
+
+Why the bound is useful here
+- The quantity Q = S^2/T is the effective support size; the lemma above shows a factor-2 window containing at least a constant fraction (namely 1/3) of this effective size, and that 1/3 is best possible.
+
+Obstacles resolved and key insight
+- Initial attempts via coarse dyadic bucketing led to bounds with extra factors (e.g., number of bins). The decisive step was a pairwise decomposition by multiplicative ratio, bounding contributions in each band using both the count cap M on any [x,2x] and the inequality 2ab ≤ a^2 + b^2. Summing geometric tails across far bands yields the exact constant 3.
+
+Next steps (optional extensions)
+- Generalize to windows [x, λx] with λ > 1. The same argument suggests the sharp constant is C(λ) = (λ−1)/(λ+1). Indeed, an r>λ geometric progression gives Q → (r+1)/(r−1) and M = 1, forcing C(λ) ≤ (λ−1)/(λ+1); and the band-sum proof with base λ should give S^2 ≤ ((λ+1)/(λ−1)) M T. Formalizing this would be a natural extension.
+
+Notes on output.md
+- No output.md was provided in this round. I propose recording as a main theorem: The optimal constant is C = 1/3, with the proof sketched above (cleanly structured), and the tightness example via r>2 geometric progressions.
+
+## Round 0001 — 2025-08-27T16:01:51.486874Z
+
+Ideas and notation
+- Problem restated. For a finite multiset A of positive reals, define the participation ratio P(A) := (∑_{a∈A} a)^2 / (∑_{a∈A} a^2). We want a universal constant C such that for every A there exists A' ⊆ A with max(A') ≤ 2 min(A') and |A'| ≥ C P(A). Let M(A) be the largest number of points from A in any multiplicative interval [t, 2t] (equivalently, the maximum over choices of min of a valid A'). Then the target inequality is |A'| ≥ C P(A), and it suffices to prove P(A) ≤ K M(A) for some absolute K, because this implies |A'| ≥ (1/K) P(A).
+- Dyadic “bin” viewpoint. For any shift α ∈ [0, 1) (log base 2), let I_k(α) := [2^{k+α}, 2^{k+α+1}) be half-open bins of multiplicative length 2. For a fixed α, let B_k := A ∩ I_k(α) with cardinality m_k := |B_k|, sum s_k := ∑_{a∈B_k} a, and square-sum q_k := ∑_{a∈B_k} a^2. Write S := ∑ a = ∑_k s_k and Q := ∑ a^2 = ∑_k q_k. For any α, m* := max_k m_k ≤ M(A) because any single bin is a valid [t,2t] window (taking t = left endpoint of the bin; then 2·min(B_k) ≥ 2·2^{k+α} ≥ 2^{k+α+1} > every element of B_k).
+
+Upper bounds on the best possible C (via constructions)
+- Warm-up: geometric progression with ratio 2. Let A = {1, 2, 4, …, 2^{n-1}}. Any [t, 2t] contains at most 2 elements, so M(A) ≤ 2. Compute S = 2^n − 1, Q = (4^n − 1)/3, hence P(A) = S^2/Q → 3 as n→∞. Thus for this family, |A'|/P(A) ≤ 2/3. Hence C ≤ 2/3.
+- Sharp obstruction giving C ≤ 1/3. Fix integers L ≥ 1 and M ≥ 1 and pick r > 2 (take r = 2 + ε with small ε). Let values be v_j = r^j (j = 0,…,L−1), and include exactly M copies of each v_j. Then any [t, 2t] can capture elements from at most one “scale,” since v_{j+1} = r v_j > 2 v_j. Hence M(A) = M. Direct computation: S = M ∑_{j=0}^{L−1} r^j, Q = M ∑_{j=0}^{L−1} r^{2j}, so P(A) = S^2/Q = M · ( (∑ r^j)^2 / ∑ r^{2j} ). As L → ∞, (∑ r^j)^2 / ∑ r^{2j} → (r+1)/(r−1). Taking r ↓ 2 gives P(A) ≥ (3 − o(1)) M. Thus |A'|/P(A) ≤ 1/(3 − o(1)), so any universal C cannot exceed 1/3. Therefore C ≤ 1/3 is a sharp upper bound candidate.
+
+A rigorous lower bound C ≥ 3/14
+We prove a universal inequality P(A) ≤ (14/3) M(A), i.e., S^2 ≤ (14/3) M(A) Q. This yields |A'| ≥ (3/14) P(A) for some A' with max ≤ 2 min.
+- Fix an arbitrary shift α ∈ [0,1) and bins I_k(α). With notation above, m* := max_k m_k ≤ M(A). We will show S^2 ≤ (14/3) m* Q. Since this holds for every α, it also holds with m* replaced by M(A).
+- Key ratio bound between bins. For k < ℓ and any a ∈ B_k, b ∈ B_ℓ we have a ≤ 2^{k+α+1} and b ≥ 2^{ℓ+α}, hence b/a ≥ 2^{ℓ−k−1}. Therefore, for d := ℓ−k ≥ 2 we have 2ab ≤ 2 · b^2 / 2^{d−1} = 2^{2−d} b^2.
+- Split indices into two parity classes: even and odd. Write S_even = ∑_{k even} s_k and S_odd analogously. Then S = S_even + S_odd and S^2 ≤ 2(S_even^2 + S_odd^2) by Cauchy-Schwarz.
+- Bound within one parity class (say even). First, same-bin terms: ∑_{k even} s_k^2 ≤ ∑_{k even} m_k q_k ≤ m* ∑_{k even} q_k.
+  Next, cross-bin terms: For fixed ℓ even, by the ratio bound and summing over even k ≤ ℓ−2,
+  2 ∑_{k even, k≤ℓ−2} s_k s_ℓ ≤ q_ℓ · ∑_{m≥1} 2^{2−2m} m_{ℓ−2m} ≤ (4/3) m* q_ℓ,
+  since ∑_{m≥1} 2^{2−2m} = 4 × ∑_{m≥1} 4^{−m} = 4 × (1/3) = 4/3. Summing over ℓ even gives
+  2 ∑_{k<ℓ, both even} s_k s_ℓ ≤ (4/3) m* ∑_{ℓ even} q_ℓ.
+  Therefore S_even^2 ≤ (1 + 4/3) m* ∑_{k even} q_k = (7/3) m* ∑_{k even} q_k.
+- The same estimate holds for odd indices. Summing and using S^2 ≤ 2(S_even^2+S_odd^2) yields
+  S^2 ≤ 2 · (7/3) m* (∑_{k even} q_k + ∑_{k odd} q_k) = (14/3) m* Q.
+- Since m* ≤ M(A), it follows that P(A) = S^2/Q ≤ (14/3) M(A). Taking A' as a bin achieving M(A) gives |A'| ≥ (3/14) P(A). This proves a universal lower bound C ≥ 3/14 ≈ 0.214286.
+
+Examples and sanity checks
+- Equal numbers: A = {1,1,…,1} (n times). Then M(A) = n, P(A) = n; any [t,2t] capturing all n works. Our bound |A'| ≥ (3/14) P gives |A'| ≥ (3/14) n, which is true but far from sharp.
+- Powers of 2: A = {1,2,4,8}. S=15, Q=85, P≈2.647. The guarantee |A'| ≥ (3/14)P ≈ 0.567 ensures at least 1 element; the true optimum is 2.
+- Two-per-scale, r slightly bigger than 2: M(A)=2, while P can be made arbitrarily close to 6; our general bound guarantees |A'| ≥ (3/14)P ≈ 1.285, i.e., at least 2 elements, which matches the true maximum 2. The obstruction shows we cannot hope for C>1/3 globally.
+
+Why the 1/3 lower bound looks plausible (but currently unproven here)
+- Heuristic: For sets composed of M-per-scale blocks separated by r>2, P equals M times (r+1)/(r−1) in the large-scale limit and is maximized near r↓2, giving P ≈ 3M. This suggests the sharp inequality P ≤ 3 M(A) might hold in full generality. Our proof above yields P ≤ (14/3) M(A); improving the constants in the cross-bin estimates (or using a different structural argument) could potentially push the factor down to 3.
+- Potential analytic angle: recast A as atoms on log-scale and use a Carleson embedding–type inequality for the operator f ↦ averages over multiplicative intervals of length log 2; the “Carleson constant” of the family is controlled by M(A). This perspective might be able to deliver the optimal constant 3.
+
+Obstacles in tightening 14/3 → 3
+- Our proof uses a parity split and crude geometric-decay bounds 2ab ≤ 2^{2−d} b^2. These bounds are loose near d=1 (adjacent bins), so we avoided adjacent interactions by the parity split, but the decay sum over d even (≥2) still totals 4/3. Using 3-way splits gives decay sum 4/7 per class but requires a factor 3 outside, leading to a slightly worse net constant (33/7 ≈ 4.714). The 2-way split currently gives the best constant from this scheme (14/3 ≈ 4.667).
+- Any method summing cross-bin terms asymmetrically (to avoid double counting) still pays the decay series ∑ 2^{2−2m} = 4/3 in the parity split. Reducing this effectively seems to require a different decomposition or a more refined inequality exploiting the actual distribution of masses s_k and q_k.
+
+Next steps
+- Targeted improvement: Seek an inequality of the form (∑ s_k)^2 ≤ 3 M ∑ q_k by (i) a refined binning with nonuniform coloring/weights minimizing the effective decay sum, or (ii) an embedding estimate that bounds ∑_k s_k^2 plus carefully weighted neighbor interactions by M ∑ q_k with the sharp constant.
+- Explore Carleson embedding on the multiplicative line. The intervals [t,2t] form a 1-parameter family; the measure generated by A induces a Carleson measure with Carleson constant comparable to M(A). Prove a sharp L^1–L^2 embedding from this.
+- Try a probabilistic shift argument with weighted bins: choose α uniformly, set m*(α) = max_k m_k(α). Show E[m*(α)] ≥ c P for c close to 1/3, then deduce existence of a good α. The technical heart is to lower bound E[∑ s_k(α)^2] in terms of S^2 with a universal constant; earlier counterexamples show this cannot hold in full generality unweighted, but a conditional lower bound after trimming large scales may still work.
+- Attempt tightness: Prove that for any A, P ≤ 3 M(A). If true, this establishes optimal C=1/3. If false, produce a counterexample where P/M(A) > 3.
+
+Notes about output.md
+- No output.md was provided in this round. I cannot audit prior proofs for gaps. The results above (upper bound C ≤ 1/3 via explicit construction; lower bound C ≥ 3/14 via bin-parity argument) are self-contained and rigorously justified within these notes.
 

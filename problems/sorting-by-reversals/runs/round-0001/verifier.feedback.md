@@ -1,0 +1,27 @@
+High-level assessment and triage
+- Both reports correctly identify the model as PBT (parallel adjacent block transpositions). That alignment with Jelínek–Opler–Pekárek (JOP) is valuable and gives context (O(log^2 n) upper bound, only Ω(log n) general LB known).
+- The end-point calibration is solid: for n=2^d and bit-reversal A0, B_j(A0)=2^{j+1} and for sorted A*, B_j(A*)=2^{d−j}. The potential Φ(A)=Σ_j |log_2 B_j(A)−(d−j)| is Θ(d^2) at A0.
+- The most useful rigor you can bank now is a clean, general per-level multiplicative cap: in any single PBT step, B_j can change by only a constant factor. We can prove B_j(A′)≤4 B_j(A) and B_j(A)≤4 B_j(A′) for every j. This is stronger (and cleaner) than the c=7 claim in Report 02 and does not rely on the flawed “useful boundary” refinement in Report 01.
+
+What is correct and kept
+1) Model ↔ PBT: correct. No need to invoke empty blocks; define a PBT step as swapping disjoint adjacent block pairs.
+2) Endpoints: B_j(A0)=2^{j+1}, B_j(A*)=2^{d−j}. Hence Φ(A0)=Θ(d^2).
+3) Per-level cap (correct proof): If a swapped pair’s union contains no j-boundary in the current array A, then all three affected indices (left outer, inner, right outer) remain non-toggling at level j. Therefore only pairs whose union contains at least one j-boundary in A can affect B_j. Because the unions of swapped pairs are disjoint, the number of such pairs is at most |T_j(A)|=B_j(A)−1. Each such pair contributes at most 3 to |ΔB_j|. Hence |ΔB_j|≤3(B_j−1), implying B_j(A′)≤4B_j(A) and, symmetrically, B_j(A)≤4B_j(A′).
+4) Dyadic alignment for A0: For a set S of cut indices and G_j the j-boundary set in A0, Σ_j |S∩G_j| = Σ_{i∈S}(1+v_2(i)) ≤ |S|(1+⌊log_2(n−1)⌋). This is a clean combinatorial fact that will be useful for any argument tied to the specific input A0.
+
+Issues, corrections, and nonrigorous parts
+- Report 01 Claim 4.1 (“useful boundaries” U_j): Not correct as stated. The post-step j-color at a changed index depends on elements imported from potentially far positions; local adjacency to T_j(A) is insufficient to preclude toggling. Do not use this claim. Fortunately, the multiplicative cap is salvageable via the disjointness-of-unions argument above, yielding a sharper c=4 instead of c=7.
+- Report 02 “c=7” proof: The injection |Q_j|≤B_j−1 was stated with Q_j defined unclearly. The correct notion is: Q_j = {pairs whose union contains at least one j-boundary in the current array A}. Then |Q_j|≤B_j−1 holds. With at most 3 toggles per such pair, c=4 follows; c=7 is unnecessarily weak.
+- Report 02 “size lemma” Δ_j ≤ C Σ_p min{1, s(p)/L_j} is false deterministically. You can choose many short pairs whose central boundaries land on j-gridlines, yielding Δ_j ≃ (n/L_j) while RHS ≃ (n/L_j^2). Replace this with a scale-aware charging (see Next steps below).
+- Report 02 “edge-to-level charging” using E_j as fixed L_j-gridlines is only valid at the initial array A0. After the first step, j-boundaries are not constrained to those gridlines. Use it only to analyze the first step from A0, or rephrase it in terms of T_j(A) of the current array (which is dynamic and harder to control combinatorially).
+
+Guidance and next steps (concrete targets)
+1) Tighten the per-level cap to factor 2 if possible. Suggested route: For each pair that intersects T_j(A), charge each toggling edge to a unique j-boundary lying inside the pair’s union (in A or A′) in such a way that each boundary is charged O(1) times. This would give |ΔB_j| ≤ c′·|T_j(A)∪T_j(A′)| and plausibly c′=1 or 2, hence a factor-2 change cap for B_j. Even c′=2 is a big improvement.
+2) Necessity of many central matches: Formalize that to reduce B_j by a constant factor from A with B_j runs, one must match Θ(B_j) pairs whose inner boundary coincides with (or is extremely near and structured relative to) j-run boundaries in A; outer-boundary hits are not enough. This “demand” lemma should explicitly count required central-boundary matches and be insensitive to local cancellations.
+3) Cross-level scarcity via home levels: Partition swapped pairs by total size s(p) and define a home level h(p) with L_{h(p)}≈s(p). Prove that constant-factor progress at level j requires Σ_{p: h(p)=j} contribution Ω(1). Because Σ_p s(p)≤n, deduce that only O(1) distinct levels can get factor-≥2 progress in the same step. Start with the restricted equal-scale case (all blocks within ×2 of a common L), which should be tractable and already yields an Ω(log^2 n) lower bound for that restricted class.
+4) Use the A0 structure aggressively: The dyadic characterization of G_j enables precise statements about central-boundary alignment. Try to prove that the set of central boundaries used by a step cannot align with G_j for many j simultaneously, once you require Θ(B_j) distinct central hits for each such j.
+5) Computational probe (n=16,32): Exhaustively/randomly sample partitions and count, per step, how many levels achieve a factor-≥2 change in B_j. This can sharpen constants and suggest the true per-step active-level cap.
+
+What is curated now
+- We include in output.md: (i) model↔PBT equivalence; (ii) endpoint B_j counts and Φ(A0)=Θ(d^2); (iii) per-level factor-4 cap with a clean proof; (iv) the dyadic alignment lemma for A0.
+- We explicitly exclude Claim 4.1 (“useful boundaries”) and the min{1, s/L_j} size lemma; both need repair before inclusion.

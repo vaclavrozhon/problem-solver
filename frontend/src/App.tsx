@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import OverviewPage from './pages/OverviewPage'
 import SolvingPage from './pages/SolvingPage'
 import WritingPage from './pages/WritingPage'
+import TaskCreationPage from './pages/TaskCreationPage'
 
 export default function App() {
   return (
@@ -23,6 +24,9 @@ export default function App() {
             <NavLink to="/write" className={({ isActive }) => isActive ? 'active' : ''}>
               Paper Writing
             </NavLink>
+            <NavLink to="/create" className={({ isActive }) => isActive ? 'active' : ''}>
+              Create Task
+            </NavLink>
           </nav>
         </header>
         
@@ -30,6 +34,7 @@ export default function App() {
           <Route path="/" element={<OverviewPage />} />
           <Route path="/solve" element={<SolvingPage />} />
           <Route path="/write" element={<WritingPage />} />
+          <Route path="/create" element={<TaskCreationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 

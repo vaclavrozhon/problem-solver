@@ -31,12 +31,16 @@ MODEL_PRESETS = {
         "prover": "gpt-5",
         "verifier": "gpt-5", 
         "summarizer": "gpt-5-mini",
+        "paper_suggester": "gpt-5",
+        "paper_fixer": "gpt-5",
     },
     "fast": {
         "label": "fast (test)",
         "prover": "gpt-4o-mini",
         "verifier": "gpt-4o-mini",
         "summarizer": "gpt-4o-mini",
+        "paper_suggester": "gpt-4o-mini",
+        "paper_fixer": "gpt-4o-mini",
     },
 }
 
@@ -128,6 +132,8 @@ class ProblemRunner:
     error_message: str = ""
     log_path: Optional[str] = None
     total_rounds_requested: int = 0
+    queued_rounds: int = 0  # Additional rounds queued while running
+    explicitly_stopped: bool = False  # Track if we explicitly stopped this
     
     def get_id(self) -> str:
         """Generate unique ID for this problem."""
@@ -167,14 +173,9 @@ class ProblemManager:
         if self.problems_dir.exists():
             for item in sorted(self.problems_dir.iterdir()):
                 if item.is_dir():
-                    # Check if it has a task file
-                    has_task = any([
-                        (item / "task.tex").exists(),
-                        (item / "task.txt").exists(),
-                        (item / "task.md").exists()
-                    ])
-                    if has_task:
-                        problems.append(item)
+                    # Show all directories, even without a task file,
+                    # so Writing workflow can be used for empty/new problems
+                    problems.append(item)
         return problems
     
     def get_or_create_runner(self, problem_path: Path) -> ProblemRunner:
@@ -184,15 +185,25 @@ class ProblemManager:
             self.runners[problem_id] = ProblemRunner(problem_path)
         return self.runners[problem_id]
     
-    def start_problem(self, problem_path: Path, rounds: int = 1, preset: str = "gpt5") -> bool:
-        """Start running a problem."""
+    def start_problem(self, problem_path: Path, rounds: int = 1, preset: str = "gpt5", mode: str = "research") -> bool:
+        """Start running a problem in selected mode ('research' or 'paper')."""
         runner = self.get_or_create_runner(problem_path)
         
         if runner.process and runner.process.poll() is None:
             return False  # Already running
         
-        # Store total rounds requested for this run
+        # Store total rounds requested for this run and clear any queued rounds
         runner.total_rounds_requested = rounds
+        runner.queued_rounds = 0
+        runner.explicitly_stopped = False  # Reset the stop flag when starting
+        
+        # Clear any existing queue file
+        try:
+            queue_file = problem_path / "runs" / "queued_rounds.json"
+            if queue_file.exists():
+                queue_file.unlink()
+        except Exception:
+            pass
         
         # Also persist to file so it survives restarts
         try:
@@ -217,7 +228,8 @@ class ProblemManager:
                 sys.executable, "orchestrator.py",
                 str(problem_path),
                 "--rounds", str(rounds),
-                "--start-round", str(start_round)
+                "--start-round", str(start_round),
+                "--mode", mode,
             ]
             
             # Set model environment variables from preset
@@ -226,6 +238,8 @@ class ProblemManager:
             env["OPENAI_MODEL_PROVER"] = preset_cfg["prover"]
             env["OPENAI_MODEL_VERIFIER"] = preset_cfg["verifier"]
             env["OPENAI_MODEL_SUMMARIZER"] = preset_cfg["summarizer"]
+            env["OPENAI_MODEL_PAPER_SUGGESTER"] = preset_cfg.get("paper_suggester", preset_cfg["verifier"])  # default to verifier
+            env["OPENAI_MODEL_PAPER_FIXER"] = preset_cfg.get("paper_fixer", preset_cfg["verifier"])  # default to verifier
             
             # Ensure runs directory exists for logs
             runs_dir = problem_path / "runs"
@@ -247,6 +261,9 @@ class ProblemManager:
             runner.log_path = str(log_path)
             runner.status = "running"
             runner.current_round = start_round
+            
+            # Log the start
+            self.log_activity(f"Started {rounds} rounds", problem_path.name)
             runner.last_update = datetime.now()
             runner.error_message = ""
             
@@ -260,18 +277,231 @@ class ProblemManager:
     def stop_problem(self, problem_path: Path) -> bool:
         """Stop running a problem."""
         runner = self.get_or_create_runner(problem_path)
+        stopped = False
         
+        # First try to stop via our process handle if we have one
         if runner.process and runner.process.poll() is None:
-            runner.process.terminate()
-            time.sleep(0.5)
-            if runner.process.poll() is None:
-                runner.process.kill()
-            
-            runner.status = "stopped"
-            runner.process = None
-            return True
+            try:
+                # First try graceful termination
+                runner.process.terminate()
+                time.sleep(0.5)
+                
+                # Check if it terminated gracefully
+                if runner.process.poll() is None:
+                    # Force kill if still running
+                    runner.process.kill()
+                    time.sleep(0.2)
+                
+                stopped = True
+                
+            except Exception as e:
+                print(f"Error stopping process: {e}")
         
+        # If no process handle but status shows running, try to find and kill externally running orchestrator
+        if not stopped and runner.status == "running":
+            try:
+                # Try using ps and kill commands (more universal than psutil)
+                problem_name = problem_path.name
+                result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
+                for line in result.stdout.splitlines():
+                    if 'python' in line and 'orchestrator.py' in line and problem_name in line:
+                        # Extract PID (second column)
+                        parts = line.split()
+                        if len(parts) > 1:
+                            pid = parts[1]
+                            print(f"Found external orchestrator process {pid} for {problem_name}")
+                            subprocess.run(['kill', '-TERM', pid])
+                            time.sleep(0.5)
+                            # Check if still running and force kill if needed
+                            subprocess.run(['kill', '-9', pid], capture_output=True)
+                            stopped = True
+                            self.log_activity(f"Stopped external orchestrator process", problem_name)
+                            break
+            except Exception as e:
+                print(f"Error finding/stopping external process: {e}")
+        
+        # Update runner state
+        runner.status = "stopped"
+        runner.process = None
+        runner.explicitly_stopped = True
+        runner.queued_rounds = 0
+        
+        # Update live_status.json to reflect stopped state
+        try:
+            status_file = problem_path / "runs" / "live_status.json"
+            if status_file.exists():
+                status_data = json.loads(status_file.read_text(encoding="utf-8"))
+                status_data["phase"] = "idle"
+                status_data["ts"] = time.time()
+                status_file.write_text(json.dumps(status_data), encoding="utf-8")
+        except:
+            pass
+        
+        # Clear queue file
+        try:
+            queue_file = problem_path / "runs" / "queued_rounds.json"
+            if queue_file.exists():
+                queue_file.unlink()
+        except Exception:
+            pass
+        
+        if stopped:
+            self.log_activity("Process stopped", problem_path.name)
+        
+        return stopped
+    
+    def queue_rounds(self, problem_path: Path, additional_rounds: int) -> bool:
+        """Queue additional rounds for a running problem."""
+        runner = self.get_or_create_runner(problem_path)
+        if runner.status == "running":
+            runner.queued_rounds += additional_rounds
+            self.log_activity(f"Queued {additional_rounds} additional rounds", problem_path.name)
+            
+            # Save queued rounds to a file the orchestrator can read
+            try:
+                runs_dir = problem_path / "runs"
+                runs_dir.mkdir(parents=True, exist_ok=True)
+                queue_file = runs_dir / "queued_rounds.json"
+                queue_data = {"queued_rounds": runner.queued_rounds}
+                queue_file.write_text(json.dumps(queue_data), encoding="utf-8")
+            except Exception:
+                pass  # Don't fail if we can't write queue file
+            
+            return True
         return False
+    
+    def stop_all_problems(self) -> int:
+        """Stop all running problems and return count of stopped processes."""
+        stopped_count = 0
+        for runner in self.runners.values():
+            if runner.status == "running":
+                # Use the stop_problem method which handles both internal and external processes
+                if self.stop_problem(runner.problem_path):
+                    stopped_count += 1
+        
+        return stopped_count
+    
+    def log_activity(self, message: str, problem_name: Optional[str] = None):
+        """Log activity to global activity log."""
+        try:
+            log_path = Path("activity.log")
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            problem_prefix = f"[{problem_name}] " if problem_name else ""
+            log_entry = f"{timestamp} {problem_prefix}{message}\n"
+            
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(log_entry)
+        except Exception:
+            pass  # Don't fail if logging fails
+    
+    def get_recent_activity(self, max_lines: int = 50) -> list:
+        """Get recent activity log entries."""
+        try:
+            log_path = Path("activity.log")
+            if not log_path.exists():
+                return []
+            
+            with open(log_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            
+            # Return last max_lines entries, reversed to show most recent first
+            return [line.strip() for line in lines[-max_lines:]][::-1]
+        except Exception:
+            return []
+    
+    def clear_activity_log(self):
+        """Clear the activity log."""
+        try:
+            log_path = Path("activity.log")
+            if log_path.exists():
+                log_path.unlink()
+        except Exception:
+            pass
+    
+    def check_for_completions(self):
+        """Check for newly completed activities and log them."""
+        if not hasattr(self, '_last_completion_check'):
+            self._last_completion_check = {}
+        
+        for runner in self.runners.values():
+            if runner.status != "running":
+                continue
+                
+            problem_name = runner.problem_path.name
+            runs_dir = runner.problem_path / "runs"
+            
+            if not runs_dir.exists():
+                continue
+                
+            # Check for new completions since last check
+            current_time = time.time()
+            
+            # Initialize last_check to current time if this is the first check
+            # This prevents reporting old completions as new when the app starts
+            if problem_name not in self._last_completion_check:
+                self._last_completion_check[problem_name] = current_time
+                continue  # Skip checking on first initialization
+            
+            last_check = self._last_completion_check[problem_name]
+            
+            # Look for recently modified files
+            for round_dir in runs_dir.glob("round-*"):
+                if not round_dir.is_dir():
+                    continue
+                    
+                # Check for completed activities
+                for activity_type in ["prover", "verifier", "summarizer"]:
+                    pattern = f"{activity_type}*.out.json"
+                    for activity_file in round_dir.glob(pattern):
+                        if activity_file.stat().st_mtime > last_check:
+                            round_name = round_dir.name
+                            if activity_type == "prover" and "-" in activity_file.stem:
+                                # Extract prover number
+                                prover_num = activity_file.stem.split("-")[1].split(".")[0]
+                                self.log_activity(f"{round_name} - Prover {prover_num} completed", problem_name)
+                            else:
+                                self.log_activity(f"{round_name} - {activity_type.title()} completed", problem_name)
+            
+            self._last_completion_check[problem_name] = current_time
+    
+    def check_for_api_issues(self):
+        """Check for API rate limits and other issues in log files."""
+        if not hasattr(self, '_last_api_check'):
+            self._last_api_check = {}
+        
+        for runner in self.runners.values():
+            if runner.status != "running" or not runner.log_path:
+                continue
+                
+            problem_name = runner.problem_path.name
+            try:
+                log_path = Path(runner.log_path)
+                if not log_path.exists():
+                    continue
+                    
+                # Check modification time
+                last_check = self._last_api_check.get(problem_name, 0)
+                if log_path.stat().st_mtime <= last_check:
+                    continue
+                
+                # Read recent log entries
+                with open(log_path, 'r', encoding='utf-8') as f:
+                    # Read last few KB to avoid loading huge files
+                    f.seek(max(0, log_path.stat().st_size - 4096))
+                    recent_content = f.read()
+                
+                # Look for API issues
+                if "rate limit" in recent_content.lower():
+                    self.log_activity("API rate limit encountered, waiting...", problem_name)
+                elif "quota" in recent_content.lower() and ("exceeded" in recent_content.lower() or "limit" in recent_content.lower()):
+                    self.log_activity("API quota limit reached", problem_name)
+                elif "error" in recent_content.lower() and "openai" in recent_content.lower():
+                    self.log_activity("OpenAI API error occurred", problem_name)
+                
+                self._last_api_check[problem_name] = log_path.stat().st_mtime
+                
+            except Exception:
+                pass  # Ignore errors in log checking
     
     def clear_problem(self, problem_path: Path) -> bool:
         """Stop & delete all runs, progress, notes, and outputs for this problem."""
@@ -300,24 +530,7 @@ class ProblemManager:
         """Check the status of a problem."""
         runner = self.get_or_create_runner(problem_path)
         
-        # Check live_status.json for actual running state
-        status_file = problem_path / "runs" / "live_status.json"
-        if status_file.exists():
-            try:
-                live = json.loads(status_file.read_text(encoding="utf-8"))
-                phase = live.get("phase", "idle")
-                ts = live.get("ts")
-                # If we have a recent timestamp and phase is not idle, consider it running
-                if phase != "idle" and ts:
-                    # Check if timestamp is recent (within last 10 minutes)
-                    if isinstance(ts, (int, float)):
-                        elapsed = time.time() - ts
-                        if elapsed < 600:  # 10 minutes
-                            runner.status = "running"
-            except:
-                pass
-        
-        # Update status if process exists
+        # First check if we have a process and update status based on it
         if runner.process:
             poll = runner.process.poll()
             if poll is not None:
@@ -327,6 +540,49 @@ class ProblemManager:
                     stderr = runner.process.stderr.read() if runner.process.stderr else ""
                     runner.error_message = stderr[-500:] if stderr else "Process exited with error"
                 runner.process = None
+        
+        # Always check live_status.json to detect externally running processes
+        # (e.g., orchestrator.py run from command line)
+        status_file = problem_path / "runs" / "live_status.json"
+        if status_file.exists():
+            try:
+                live = json.loads(status_file.read_text(encoding="utf-8"))
+                phase = live.get("phase", "idle")
+                ts = live.get("ts")
+                
+                # If we have a recent timestamp and phase is not idle, it's running
+                if phase != "idle" and ts:
+                    # Check if timestamp is recent (10 minutes for long-running operations)
+                    if isinstance(ts, (int, float)):
+                        elapsed = time.time() - ts
+                        if elapsed < 600:  # 10 minutes - allows for long-running provers/verifiers
+                            runner.status = "running"
+                            # Clear the explicitly_stopped flag since something is actually running
+                            runner.explicitly_stopped = False
+                        else:
+                            # Stale status file (>10 min old), check if process is actually running
+                            if not runner.process:
+                                # Try to detect if orchestrator is actually running
+                                try:
+                                    problem_name = problem_path.name
+                                    result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=1)
+                                    orchestrator_running = any(
+                                        'python' in line and 'orchestrator.py' in line and problem_name in line
+                                        for line in result.stdout.splitlines()
+                                    )
+                                    if orchestrator_running:
+                                        runner.status = "running"
+                                        runner.explicitly_stopped = False
+                                    else:
+                                        runner.status = "stopped"
+                                except:
+                                    # If we can't check, assume stopped for stale status
+                                    runner.status = "stopped"
+                elif phase == "idle" and not runner.process:
+                    # Only mark as stopped if we don't have an active process handle
+                    runner.status = "stopped"
+            except:
+                pass
         
         # Get latest round info
         runs_dir = problem_path / "runs"
@@ -338,15 +594,23 @@ class ProblemManager:
             rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
             if rounds:
                 latest_round = len(rounds)
-                latest_round_dir = rounds[-1]
                 
-                # Get verifier output
-                verifier_json = latest_round_dir / "verifier.out.json"
-                if verifier_json.exists():
-                    with open(verifier_json) as f:
-                        data = json.load(f)
-                        latest_verdict = data.get("verdict")
-                        latest_summary = data.get("summary_md")
+                # Find the latest round with a verifier output (completed round)
+                latest_verdict = None
+                latest_summary = None
+                for round_dir in reversed(rounds):
+                    verifier_json = round_dir / "verifier.out.json"
+                    if verifier_json.exists():
+                        try:
+                            with open(verifier_json, encoding="utf-8") as f:
+                                data = json.load(f)
+                                latest_verdict = data.get("verdict")
+                                latest_summary = data.get("summary_md")
+                                break  # Found the most recent completed round
+                        except Exception as e:
+                            # Handle JSON parsing errors gracefully, continue to next round
+                            print(f"Warning: Could not parse verifier output for {round_dir}: {e}")
+                            continue
         
         return {
             "status": runner.status,
@@ -506,6 +770,10 @@ else:
     
     st.markdown("---")
     
+    # Check for new completions and API issues, update activity log
+    st.session_state.manager.check_for_completions()
+    st.session_state.manager.check_for_api_issues()
+    
     # Show content based on active tab
     # Debug: show current tab
     # st.write(f"DEBUG: active_tab = {st.session_state.active_tab}")
@@ -531,6 +799,33 @@ else:
                 1 for p in problems if get_problem_stats(p)["has_progress"]
             )
             st.metric("With Progress", problems_with_progress)
+        
+        # Control buttons
+        control_col1, control_col2, control_col3 = st.columns([1, 1, 2])
+        with control_col1:
+            if st.button("⏹ Stop All", help="Stop all running problems"):
+                stopped_count = st.session_state.manager.stop_all_problems()
+                if stopped_count > 0:
+                    st.success(f"Stopped {stopped_count} running problem{'s' if stopped_count != 1 else ''}")
+                    st.session_state.manager.log_activity(f"Stopped all problems ({stopped_count} processes)")
+                else:
+                    st.info("No running problems to stop")
+                st.rerun()
+        
+        with control_col2:
+            if st.button("🗑️ Clear Log", help="Clear activity log"):
+                st.session_state.manager.clear_activity_log()
+                st.success("Activity log cleared")
+                st.rerun()
+        
+        # Activity log
+        st.subheader("Recent Activity")
+        activity_log = st.session_state.manager.get_recent_activity(20)
+        if activity_log:
+            log_text = "\n".join(activity_log)
+            st.text_area("Activity Log", value=log_text, height=150, disabled=True, key="activity_log", label_visibility="collapsed")
+        else:
+            st.info("No recent activity")
         
         # Problem status grid
         st.subheader("Problem Status")
@@ -579,6 +874,7 @@ else:
                 if status["latest_verdict"]:
                     verdict_emoji = {
                         "promising": "✅", 
+                        "partial success": "🔶", 
                         "uncertain": "⚠️", 
                         "unlikely": "❌",
                         "success": "🎉",
@@ -611,26 +907,50 @@ else:
             default_idx = preset_keys.index("gpt5")
             chosen_preset = c2.selectbox("Model preset", preset_keys, index=default_idx, format_func=lambda k: preset_labels[k])
             
-            if c3.button("▶ Run more rounds"):
-                # Test connectivity before starting
-                ping = ping_model(MODEL_PRESETS[chosen_preset]["prover"])
-                if ping["ok"]:
-                    c3.markdown("🔄 Working...")
-                    # Pass provers via environment var understood by orchestrator CLI
-                    os.environ["AR_NUM_PROVERS"] = str(int(provers))
-                    os.environ["AR_PROVER_TEMPERATURE"] = str(float(temp))
-                    st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset)
-                    st.rerun()
-                else:
-                    # Show error and don't start
-                    c3.markdown(f"❌ Connect error")
-                    c3.error(f"Model connectivity failed: {ping.get('error', 'Unknown error')}")
-                    # Don't append anything to conversation or start process
-            
+            # Workflow selector: Proving vs Writing (isolated)
+            workflow = c2.selectbox("Workflow", ["Proving", "Writing"], index=0)
+            mode = "paper" if workflow == "Writing" else "research"
+
+            # Check status before deciding what the button does
             status = st.session_state.manager.check_status(problem)
+            runner = st.session_state.manager.get_or_create_runner(problem)
+            
+            if status["status"] == "running":
+                # When running, allow queueing more rounds
+                if c3.button("➕ Queue rounds"):
+                    success = st.session_state.manager.queue_rounds(problem, int(more))
+                    if success:
+                        st.success(f"Queued {more} additional rounds")
+                    else:
+                        st.error("Failed to queue rounds")
+                    st.rerun()
+            else:
+                # When not running, start new process
+                if c3.button("▶ Run more rounds"):
+                    # Test connectivity before starting
+                    # For paper mode, test paper_suggester model; else test prover
+                    test_model = MODEL_PRESETS[chosen_preset]["paper_suggester"] if mode == "paper" else MODEL_PRESETS[chosen_preset]["prover"]
+                    ping = ping_model(test_model)
+                    if ping["ok"]:
+                        c3.markdown("🔄 Working...")
+                        # Pass provers via environment var understood by orchestrator CLI
+                        os.environ["AR_NUM_PROVERS"] = str(int(provers))
+                        os.environ["AR_PROVER_TEMPERATURE"] = str(float(temp))
+                        st.session_state.manager.start_problem(problem, rounds=int(more), preset=chosen_preset, mode=mode)
+                        st.rerun()
+                    else:
+                        # Show error and don't start
+                        c3.markdown(f"❌ Connect error")
+                        c3.error(f"Model connectivity failed: {ping.get('error', 'Unknown error')}")
+                        # Don't append anything to conversation or start process
+            
             if status["status"] == "running":
                 if c4.button("⏹ Stop"):
-                    st.session_state.manager.stop_problem(problem)
+                    success = st.session_state.manager.stop_problem(problem)
+                    if success:
+                        st.success("Process stopped successfully")
+                    else:
+                        st.error("Failed to stop process")
                     st.rerun()
             else:
                 # Clear all button with confirmation
@@ -703,6 +1023,12 @@ else:
                     current_agent = f"Verifier {models.get('verifier', '?')}"
                 elif phase == "summarizer":
                     current_agent = f"Summarizer {models.get('summarizer', '?')}"
+                elif phase == "paper_suggester":
+                    current_agent = f"Paper Suggester {models.get('paper_suggester', '?')}"
+                elif phase == "paper_fixer":
+                    current_agent = f"Paper Fixer {models.get('paper_fixer', '?')}"
+                elif phase == "paper_compile":
+                    current_agent = "LaTeX Compiler"
                 elif phase == "idle":
                     current_agent = "System idle"
                 
@@ -754,15 +1080,33 @@ else:
                     # Show unknown when we can't determine total rounds
                     remaining_info = " (unknown rounds remaining)"
                 
-                # Display enhanced status
+                # Display enhanced status with queued rounds
+                runner = st.session_state.manager.get_or_create_runner(problem)
+                
+                # Read queued rounds from file (more accurate than memory)
+                queued_rounds = 0
+                try:
+                    queue_file = problem / "runs" / "queued_rounds.json"
+                    if queue_file.exists():
+                        queue_data = json.loads(queue_file.read_text(encoding="utf-8"))
+                        queued_rounds = queue_data.get("queued_rounds", 0)
+                        runner.queued_rounds = queued_rounds  # sync memory
+                except Exception:
+                    queued_rounds = runner.queued_rounds  # fallback to memory
+                
+                queue_info = f" • {queued_rounds} queued" if queued_rounds > 0 else ""
+                
                 if phase != "idle":
-                    st.info(f"🧠 **Round {current_round}** • **{current_agent}**{elapsed}{remaining_info}")
+                    st.info(f"🧠 **Round {current_round}** • **{current_agent}**{elapsed}{remaining_info}{queue_info}")
                 else:
-                    st.info(f"🧠 **{phase.title()}** • {completed_rounds} rounds completed{elapsed}{remaining_info}")
+                    st.info(f"🧠 **{phase.title()}** • {completed_rounds} rounds completed{elapsed}{remaining_info}{queue_info}")
             
             # Notes.md and output.md viewers
             notes_path = problem / "notes.md"
             output_path = problem / "output.md"
+            final_tex_path = problem / "final_output.tex"
+            final_pdf_path = problem / "final_output.pdf"
+            paper_feedback_path = problem / "paper_feedback.md"
             
             col1, col2 = st.columns(2)
             
@@ -791,6 +1135,66 @@ else:
                 else:
                     with st.expander("📋 output.md"):
                         st.caption("Currently empty")
+
+            # User guidance for paper-writing
+            with st.expander("📝 paper_feedback.md (guidance for Writing)"):
+                existing_fb = paper_feedback_path.read_text(encoding="utf-8") if paper_feedback_path.exists() else ""
+                fb_text = st.text_area("Guidance shown to Suggester/Fixer each round", value=existing_fb, height=160)
+                if st.button("Save paper_feedback.md"):
+                    try:
+                        paper_feedback_path.write_text(fb_text.strip() + ("\n" if fb_text and not fb_text.endswith("\n") else ""), encoding="utf-8")
+                        st.success("Saved")
+                    except Exception as e:
+                        st.error(f"Failed to save: {e}")
+
+            # Writing artifacts (seed/upload/download) — only in Writing workflow
+            if workflow == "Writing":
+                with st.expander("📄 Writing (seed/upload/download)"):
+                    cpa, cpb = st.columns(2)
+                    # Seed from output.md -> final_output.tex
+                    if output_path.exists():
+                        if cpa.button("🌱 Seed final_output.tex from output.md (simple latexify)"):
+                            try:
+                                md = output_path.read_text(encoding="utf-8")
+                                tex = """\\documentclass{article}
+\\usepackage{amsmath,amsthm,amssymb,mathtools,hyperref,cleveref,geometry,microtype}
+\\begin{document}
+\\section*{Draft}
+""" + md.replace("%", "\\%") + "\n\\end{document}\n"
+                                (problem / "final_output.tex").write_text(tex, encoding="utf-8")
+                                st.success("Seeded final_output.tex from output.md")
+                            except Exception as e:
+                                st.error(f"Failed to seed: {e}")
+                    else:
+                        cpa.caption("output.md not found to seed from")
+
+                    # Upload a draft file (.tex)
+                    uploaded = cpb.file_uploader("Upload draft (.tex)", type=["tex"], accept_multiple_files=False)
+                    if uploaded is not None:
+                        try:
+                            target = problem / "final_output.tex"
+                            target.write_bytes(uploaded.getbuffer())
+                            st.success(f"Uploaded to {target}")
+                        except Exception as e:
+                            st.error(f"Upload failed: {e}")
+
+                    st.markdown("---")
+                    st.markdown("**Downloads**")
+                    cpa, cpb = st.columns(2)
+                    if final_pdf_path.exists():
+                        try:
+                            with open(final_pdf_path, "rb") as f:
+                                cpa.download_button("⬇️ Download final_output.pdf", f.read(), file_name="final_output.pdf")
+                        except Exception:
+                            cpa.caption("final_output.pdf not readable")
+                    else:
+                        cpa.caption("final_output.pdf not found")
+                    if final_tex_path.exists():
+                        try:
+                            tex_content = final_tex_path.read_text(encoding="utf-8")
+                            cpb.download_button("⬇️ Download final_output.tex", tex_content, file_name="final_output.tex")
+                        except Exception:
+                            cpb.caption("final_output.tex not readable")
             
             # Files sent to Prover (for latest round)
             runs_dir = problem / "runs"
@@ -826,6 +1230,7 @@ else:
                         with colh2:
                             emoji = {
                                 "promising": "✅",
+                                "partial success": "🔶",
                                 "uncertain": "⚠️", 
                                 "unlikely": "❌",
                                 "success": "🎉",
@@ -848,6 +1253,10 @@ else:
                     vf = rd / "verifier.feedback.md"
                     sm = rd / "summarizer.summary.md"
                     vs = rd / "verifier.summary.md"
+                    ps = rd / "paper_suggester.advice.md"
+                    pfo = rd / "paper_fixer.summary.md"
+                    pfu = rd / "paper_fixer.unfixable.md"
+                    pcl = rd / "final_output.compile.log"
             
                     # Build prover pane content
                     prover_markdown = ""
@@ -878,6 +1287,24 @@ else:
                     with col3:
                         st.markdown("**Summary**")
                         st.markdown(f"<div class='pane'>{_html.escape(stxt).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+
+                    # Writing round artifacts for this round (only when Writing workflow)
+                    if workflow == "Writing":
+                        with st.expander("🖨️ Writing (Suggester/Fixer/Compile)"):
+                            if ps.exists():
+                                st.markdown("**Suggester Advice**")
+                                st.markdown(f"<div class='pane'>{_html.escape(ps.read_text(encoding='utf-8')).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                            else:
+                                st.caption("No suggester advice recorded for this round")
+                            if pfo.exists():
+                                st.markdown("**Fixer Changes Summary**")
+                                st.markdown(f"<div class='pane'>{_html.escape(pfo.read_text(encoding='utf-8')).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                            if pfu.exists():
+                                st.markdown("**Unfixable Issues**")
+                                st.markdown(f"<div class='pane'>{_html.escape(pfu.read_text(encoding='utf-8')).replace('\\n','<br>')}</div>", unsafe_allow_html=True)
+                            if pcl.exists():
+                                st.markdown("**Compile Log (final_output.compile.log)**")
+                                st.code(pcl.read_text(encoding='utf-8')[-4000:], language="")
 
                     # --- Add feedback (human-in-the-loop) ---
                     st.markdown("#### ✍️ Add feedback")

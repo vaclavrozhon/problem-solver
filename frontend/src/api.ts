@@ -41,7 +41,8 @@ export async function setKey(openaiKey: string) {
 }
 
 export async function listProblems() {
-  const r = await req(`/problems`);
+  // For now, prefer public listing without auth
+  const r = await fetch(`${BASE}/problems_public`);
   return r.json();
 }
 
@@ -60,6 +61,13 @@ export async function runRound(name: string, rounds: number, provers: number, te
 
 export async function getStatus(name: string) {
   const r = await req(`/problems/${encodeURIComponent(name)}/status`);
+  return r.json();
+}
+
+export async function stopProblem(name: string) {
+  const r = await req(`/problems/${encodeURIComponent(name)}/stop`, {
+    method: "POST"
+  });
   return r.json();
 }
 

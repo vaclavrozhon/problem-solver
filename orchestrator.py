@@ -5,6 +5,7 @@ No complex file search or assistants - just works.
 """
 
 import os
+import difflib
 import random
 import json
 import re
@@ -36,6 +37,10 @@ client = OpenAI()
 MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-4o-mini")
 MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-4o-mini")
 MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-4o-mini")
+
+# Paper-writing agents
+MODEL_PAPER_SUGGESTER = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", MODEL_VERIFIER)
+MODEL_PAPER_FIXER = os.environ.get("OPENAI_MODEL_PAPER_FIXER", MODEL_VERIFIER)
 
 # Prover temperature (overridable via AR_PROVER_TEMPERATURE)
 try:
@@ -270,16 +275,30 @@ class SummarizerOutput(BaseModel):
     highlights: List[str] = Field(default_factory=list)
     next_questions: List[str] = Field(default_factory=list)
 
+class PaperSuggesterOutput(BaseModel):
+    advice_md: str
+    priority_items: List[str]
+    risk_notes: str
+
+class PaperFixerOutput(BaseModel):
+    status: str
+    new_tex: str
+    changes_summary_md: str
+    unfixable_issues_md: str
+    compiler_expectations_md: str
+
 def _write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | None = None):
     """Write live status so the UI can show current phase + since when."""
     status = {
-        "phase": phase,                 # "prover" | "verifier" | "summarizer" | "idle"
+        "phase": phase,                 # "prover" | "verifier" | "summarizer" | "paper_suggester" | "paper_fixer" | "paper_compile" | "idle"
         "round": round_idx,
         "ts": int(time.time()),         # Unix timestamp for timezone-proof elapsed time
         "models": {
             "prover": MODEL_PROVER,
             "verifier": MODEL_VERIFIER,
             "summarizer": MODEL_SUMMARIZER,
+            "paper_suggester": MODEL_PAPER_SUGGESTER,
+            "paper_fixer": MODEL_PAPER_FIXER,
         }
     }
     if extra: status.update(extra)
@@ -291,12 +310,26 @@ def _write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | N
 def _gather_context_files(problem_dir: Path, round_idx: int) -> list[str]:
     """List the files we send to Prover this round (approximate, matches read_problem_context)."""
     files: list[str] = []
-    # task
+    
+    # Task file (or paper.* in papers/ as fallback)
+    task_found = False
     for task_file in ["task.tex", "task.txt", "task.md"]:
         p = problem_dir / task_file
         if p.exists():
             files.append(task_file)
+            task_found = True
             break
+    
+    # If no task file, check for paper.* in papers/ directory as the main task
+    if not task_found:
+        papers_dir = problem_dir / "papers"
+        if papers_dir.exists():
+            for ext in ['.pdf', '.html', '.htm', '.txt', '.md']:
+                paper_path = papers_dir / f"paper{ext}"
+                if paper_path.exists():
+                    files.append(f"task.md (generated from papers/paper{ext})")
+                    task_found = True
+                    break
     # progress (tail)
     if (problem_dir / "progress.md").exists():
         files.append("progress.md (tail)")
@@ -318,14 +351,33 @@ def _gather_context_files(problem_dir: Path, round_idx: int) -> list[str]:
             if q.suffix.lower() in {".md", ".txt"}:
                 files.append(q.name)
     
-    # Ensure PDFs are parsed and show them as parsed files
-    _ensure_pdfs_parsed(problem_dir)
+    # Ensure papers (PDFs and HTMLs) are parsed and show them as parsed files
+    _ensure_papers_parsed(problem_dir)
     papers_parsed_dir = problem_dir / "papers_parsed"
     if papers_parsed_dir.exists():
         for parsed_file in sorted(papers_parsed_dir.glob("*.txt")):
-            # Show as "paper.pdf (parsed)" to indicate it's the PDF content
-            pdf_name = parsed_file.stem + ".pdf"
-            files.append(f"{pdf_name} (parsed)")
+            # Determine original file extension
+            stem = parsed_file.stem
+            original_name = None
+            
+            # Check for corresponding PDF or HTML file
+            for ext in ['.pdf', '.html', '.htm']:
+                # Check in papers/ directory
+                papers_dir = problem_dir / "papers"
+                if papers_dir.exists():
+                    if (papers_dir / (stem + ext)).exists():
+                        original_name = stem + ext
+                        break
+                # Check in root directory
+                if (problem_dir / (stem + ext)).exists():
+                    original_name = stem + ext
+                    break
+            
+            # If we couldn't find the original, default to .pdf for backward compatibility
+            if not original_name:
+                original_name = stem + ".pdf"
+            
+            files.append(f"{original_name} (parsed)")
     
     # last 2 rounds of verifier feedback (these are added in read_problem_context)
     runs_dir = problem_dir / "runs"
@@ -407,46 +459,83 @@ def _extract_pdf_text(pdf_path: Path) -> str:
     except Exception as e:
         return f"[PDF extraction failed: {e}]"
 
-def _ensure_pdfs_parsed(problem_dir: Path) -> None:
-    """Ensure all PDFs in problem directory are parsed and cached in papers_parsed/."""
+def _extract_html_text(html_path: Path) -> str:
+    """Extract text from HTML file."""
+    try:
+        from bs4 import BeautifulSoup
+        html_content = html_path.read_text(encoding="utf-8")
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+        
+        # Get text and preserve some structure
+        text = soup.get_text(separator='\n', strip=True)
+        return text
+    except ImportError:
+        # Fall back to raw HTML if BeautifulSoup not available
+        import re
+        html_content = html_path.read_text(encoding="utf-8")
+        # Simple HTML tag removal
+        text = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL)
+        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    except Exception as e:
+        return f"[HTML extraction failed: {e}]"
+
+def _ensure_papers_parsed(problem_dir: Path) -> None:
+    """Ensure all PDFs and HTMLs in problem directory are parsed and cached in papers_parsed/."""
     papers_parsed_dir = problem_dir / "papers_parsed"
     papers_parsed_dir.mkdir(exist_ok=True)
     
-    # Find all PDFs in both papers/ and root directory
-    pdf_paths = []
+    # Find all PDFs and HTMLs in both papers/ and root directory
+    document_paths = []
     
-    # PDFs in papers/ directory
+    # Documents in papers/ directory
     papers_dir = problem_dir / "papers"
     if papers_dir.exists():
-        pdf_paths.extend(papers_dir.rglob("*.pdf"))
+        document_paths.extend(papers_dir.rglob("*.pdf"))
+        document_paths.extend(papers_dir.rglob("*.html"))
+        document_paths.extend(papers_dir.rglob("*.htm"))
     
-    # PDFs in root directory (next to task files)
-    for pdf_file in problem_dir.glob("*.pdf"):
-        pdf_paths.append(pdf_file)
+    # Documents in root directory (next to task files)
+    for pattern in ["*.pdf", "*.html", "*.htm"]:
+        for doc_file in problem_dir.glob(pattern):
+            document_paths.append(doc_file)
     
-    for pdf_path in pdf_paths:
-        # Create parsed filename: paper.pdf -> paper.txt
-        parsed_filename = pdf_path.stem + ".txt"
+    for doc_path in document_paths:
+        # Create parsed filename: paper.pdf/paper.html -> paper.txt
+        parsed_filename = doc_path.stem + ".txt"
         parsed_path = papers_parsed_dir / parsed_filename
         
-        # Check if we need to parse (file doesn't exist or PDF is newer)
+        # Check if we need to parse (file doesn't exist or source is newer)
         should_parse = False
         if not parsed_path.exists():
             should_parse = True
         else:
-            pdf_mtime = pdf_path.stat().st_mtime
+            doc_mtime = doc_path.stat().st_mtime
             parsed_mtime = parsed_path.stat().st_mtime
-            if pdf_mtime > parsed_mtime:
+            if doc_mtime > parsed_mtime:
                 should_parse = True
         
         if should_parse:
-            console.print(f"[cyan]Parsing PDF: {pdf_path.name}[/cyan]")
-            extracted_text = _extract_pdf_text(pdf_path)
+            if doc_path.suffix.lower() == '.pdf':
+                console.print(f"[cyan]Parsing PDF: {doc_path.name}[/cyan]")
+                extracted_text = _extract_pdf_text(doc_path)
+            elif doc_path.suffix.lower() in ['.html', '.htm']:
+                console.print(f"[cyan]Parsing HTML: {doc_path.name}[/cyan]")
+                extracted_text = _extract_html_text(doc_path)
+            else:
+                continue
+            
             parsed_path.write_text(extracted_text, encoding="utf-8")
         # else: already parsed and up to date
 
-def _get_parsed_pdf_content(problem_dir: Path) -> str:
-    """Get all parsed PDF content from papers_parsed/ directory."""
+def _get_parsed_papers_content(problem_dir: Path) -> str:
+    """Get all parsed paper content (PDFs and HTMLs) from papers_parsed/ directory."""
     papers_parsed_dir = problem_dir / "papers_parsed"
     if not papers_parsed_dir.exists():
         return ""
@@ -455,9 +544,28 @@ def _get_parsed_pdf_content(problem_dir: Path) -> str:
     for parsed_file in sorted(papers_parsed_dir.glob("*.txt")):
         try:
             content = parsed_file.read_text(encoding="utf-8")
-            # Use original PDF name for context headers
-            pdf_name = parsed_file.stem + ".pdf"
-            content_parts.append(f"=== {pdf_name} ===\n{content}\n")
+            # Determine original file extension by checking what exists
+            stem = parsed_file.stem
+            original_name = None
+            
+            # Check for corresponding PDF or HTML file
+            for ext in ['.pdf', '.html', '.htm']:
+                # Check in papers/ directory
+                papers_dir = problem_dir / "papers"
+                if papers_dir.exists():
+                    if (papers_dir / (stem + ext)).exists():
+                        original_name = stem + ext
+                        break
+                # Check in root directory
+                if (problem_dir / (stem + ext)).exists():
+                    original_name = stem + ext
+                    break
+            
+            # If we couldn't find the original, default to .pdf for backward compatibility
+            if not original_name:
+                original_name = stem + ".pdf"
+            
+            content_parts.append(f"=== {original_name} ===\n{content}\n")
         except Exception as e:
             content_parts.append(f"=== {parsed_file.name} ===\n[Error reading parsed content: {e}]\n")
     
@@ -467,12 +575,44 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
     """Read problem files into a context string."""
     context_parts = []
     
-    # Task file
+    # Task file (or paper.* in papers/ as fallback)
+    task_found = False
     for task_file in ["task.tex", "task.txt", "task.md"]:
         task_path = problem_dir / task_file
         if task_path.exists():
             context_parts.append(f"=== {task_file} ===\n{task_path.read_text(encoding='utf-8')}\n")
+            task_found = True
             break
+    
+    # If no task file, check for paper.* in papers/ directory as the main task
+    if not task_found:
+        papers_dir = problem_dir / "papers"
+        if papers_dir.exists():
+            # Look for paper.pdf, paper.html, paper.htm, paper.txt, paper.md
+            for ext in ['.pdf', '.html', '.htm', '.txt', '.md']:
+                paper_path = papers_dir / f"paper{ext}"
+                if paper_path.exists():
+                    task_instructions = """=== task.md ===
+# Task
+
+Improve upon the following paper in any way you see fit. Look for conjectures to prove, results to strengthen, or new connections to discover.
+
+## Paper Content
+
+"""
+                    if ext in ['.pdf', '.html', '.htm']:
+                        # For PDF/HTML, use parsed content
+                        _ensure_papers_parsed(problem_dir)
+                        parsed_path = problem_dir / "papers_parsed" / "paper.txt"
+                        if parsed_path.exists():
+                            content = parsed_path.read_text(encoding='utf-8')
+                            context_parts.append(task_instructions + content + "\n")
+                    else:
+                        # For text/markdown, read directly
+                        content = paper_path.read_text(encoding='utf-8')
+                        context_parts.append(task_instructions + content + "\n")
+                    task_found = True
+                    break
     
     # Progress file
     progress_path = problem_dir / "progress.md"
@@ -512,14 +652,14 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
                 except:
                     pass
     
-    # PDF content (cached, all pages, no size limit)
+    # Paper content (PDFs and HTMLs, cached, all pages, no size limit)
     if include_pdfs:
-        # Ensure all PDFs are parsed and cached
-        _ensure_pdfs_parsed(problem_dir)
-        # Get all parsed PDF content
-        pdf_content = _get_parsed_pdf_content(problem_dir)
-        if pdf_content:
-            context_parts.append(pdf_content)
+        # Ensure all papers are parsed and cached
+        _ensure_papers_parsed(problem_dir)
+        # Get all parsed paper content
+        papers_content = _get_parsed_papers_content(problem_dir)
+        if papers_content:
+            context_parts.append(papers_content)
     
     # Recent verifier feedback (last 2 rounds)
     runs_dir = problem_dir / "runs"
@@ -548,7 +688,7 @@ def _apply_notes_update(problem_dir: Path, update: Optional[NotesUpdate]) -> Non
         notes_path.write_text(existing + sep + update.content_md, encoding="utf-8")
 
 def _compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
-    """(disabled) Previously compiled outputs.tex; writer is removed for now."""
+    """Compile outputs.tex; retained for legacy writer."""
     tex_path = problem_dir / "outputs.tex"
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     log_path = round_dir / "outputs.compile.log"
@@ -581,6 +721,48 @@ def _compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
     except Exception as e:
         log_path.write_text(f"[compile error] {e}", encoding="utf-8")
         return False, str(e)
+
+def _compile_tex_string(problem_dir: Path, round_idx: int, tex_source: str, basename: str = "final_output") -> tuple[bool, str, Path | None]:
+    """Compile a LaTeX source string to PDF in the problem directory.
+    Returns (ok, log, pdf_path_or_none). Writes .tex and .log under problem_dir.
+    """
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    tex_path = problem_dir / f"{basename}.tex"
+    log_path = round_dir / f"{basename}.compile.log"
+    try:
+        tex_path.write_text(tex_source, encoding="utf-8")
+    except Exception as e:
+        log_path.write_text(f"[write error] {e}", encoding="utf-8")
+        return False, str(e), None
+    try:
+        last = None
+        # twice for references
+        for _ in range(2):
+            proc = subprocess.run(
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    "-output-directory",
+                    str(problem_dir),
+                    str(tex_path),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+            last = proc
+        out = last.stdout if last else ""
+        log_path.write_text(out, encoding="utf-8")
+        # Output directory is problem_dir, so PDF will be placed there with the base name only
+        pdf_output_name = Path(basename).name + ".pdf"
+        pdf_path = problem_dir / pdf_output_name
+        return pdf_path.exists(), out, (pdf_path if pdf_path.exists() else None)
+    except Exception as e:
+        log_path.write_text(f"[compile error] {e}", encoding="utf-8")
+        return False, str(e), None
 
 def _read_notes_and_outputs(problem_dir: Path) -> tuple[str, str]:
     notes = (problem_dir / "notes.md").read_text(encoding="utf-8") if (problem_dir / "notes.md").exists() else ""
@@ -921,6 +1103,216 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     data.setdefault("next_questions", [])
     return SummarizerOutput(**data)
 
+def call_paper_suggester(problem_dir: Path, round_idx: int) -> PaperSuggesterOutput:
+    console.print(f"[bold cyan]Calling Paper Suggester (Round {round_idx})...[/bold cyan]")
+    _write_status(problem_dir, phase="paper_suggester", round_idx=round_idx)
+
+    # Build context: task, notes, output, current paper sources, parsed papers/, and last compile log (if any)
+    context = read_problem_context(problem_dir, include_pdfs=True)
+    # Prepare current round dir up-front for diff artifacts
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    notes_md, outputs_md = _read_notes_and_outputs(problem_dir)
+    if notes_md:
+        context += f"\n=== notes.md ===\n{notes_md}\n"
+    if outputs_md:
+        context += f"\n=== output.md ===\n{outputs_md}\n"
+    # Include persistent user feedback for paper-writing (if any)
+    paper_feedback_path = problem_dir / "paper_feedback.md"
+    if paper_feedback_path.exists():
+        try:
+            fb = paper_feedback_path.read_text(encoding="utf-8")
+            context += f"\n=== paper_feedback.md (user guidance) ===\n{fb}\n"
+        except Exception:
+            pass
+    # Include current LaTeX/Markdown drafts
+    # Primary writing target is final_output.tex in problem root
+    final_tex = problem_dir / "final_output.tex"
+    if final_tex.exists():
+        try:
+            context += f"\n=== final_output.tex ===\n" + final_tex.read_text(encoding="utf-8") + "\n"
+        except Exception:
+            pass
+    # Also include any drafts in papers/
+    papers_dir = problem_dir / "papers"
+    if papers_dir.exists():
+        for src in sorted(papers_dir.glob("*")):
+            if src.suffix.lower() in {".tex", ".md"}:
+                try:
+                    context += f"\n=== papers/{src.name} ===\n" + src.read_text(encoding="utf-8") + "\n"
+                except Exception:
+                    pass
+    # Include last compile log if exists
+    runs_dir = problem_dir / "runs"
+    if runs_dir.exists():
+        round_dirs = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
+        if round_dirs:
+            last = round_dirs[-1]
+            for log in ["final_output.compile.log", "final_output.compile2.log", "final_output.compile3.log"]:
+                lp = last / log
+                if lp.exists():
+                    try:
+                        context += f"\n=== {last.name}/{log} ===\n" + lp.read_text(encoding="utf-8") + "\n"
+                    except Exception:
+                        pass
+
+    # Include diff between the latest two round tex files (if available)
+    if round_idx > 1 and runs_dir.exists():
+        try:
+            prev_dir = runs_dir / f"round-{round_idx-1:04d}"
+            prev2_dir = runs_dir / f"round-{round_idx-2:04d}"
+            prev_tex = (prev_dir / "final_output.tex").read_text(encoding="utf-8") if (prev_dir / "final_output.tex").exists() else None
+            prev2_tex = (prev2_dir / "final_output.tex").read_text(encoding="utf-8") if (prev2_dir / "final_output.tex").exists() else None
+            if prev_tex is not None and prev2_tex is not None:
+                diff_lines = difflib.unified_diff(
+                    prev2_tex.splitlines(), prev_tex.splitlines(),
+                    fromfile=f"final_output.tex (round-{round_idx-2:04d})",
+                    tofile=f"final_output.tex (round-{round_idx-1:04d})",
+                    lineterm=""
+                )
+                diff_text = "\n".join(diff_lines)
+                context += f"\n=== diff final_output.tex (round-{round_idx-2:04d} → round-{round_idx-1:04d}) ===\n{diff_text}\n"
+                # Persist diff artifact for this round for UI/debugging
+                (round_dir / "final_output.prev_diff.txt").write_text(diff_text or "(no changes)", encoding="utf-8")
+        except Exception as e:
+            try:
+                (round_dir / "final_output.prev_diff.txt").write_text(f"[diff error] {e}", encoding="utf-8")
+            except Exception:
+                pass
+
+    system_prompt = load_prompt("paper_suggester")
+    user_message = context
+
+    schema = {
+        "name": "PaperSuggesterOutput",
+        "schema": _normalize_schema_strict(PaperSuggesterOutput.model_json_schema()),
+        "strict": True,
+    }
+
+    text, dump = _complete_text(
+        MODEL_PAPER_SUGGESTER, system_prompt, user_message,
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_PAPER_SUGGESTER.startswith("gpt-5") else None,
+    )
+
+    _dump_io(round_dir, "paper_suggester", system_prompt, user_message, dump, text)
+
+    try:
+        data_any = json.loads(text) if not _is_o_model(MODEL_PAPER_SUGGESTER) or MODEL_PAPER_SUGGESTER.startswith("gpt-5") else extract_json_from_response(text)
+    except json.JSONDecodeError:
+        (round_dir / "paper_suggester.nonjson.txt").write_text(text or "", encoding="utf-8")
+        data_any = {"advice_md": (text or "(the model did not return anything)"), "priority_items": [], "risk_notes": ""}
+
+    data = cast(Dict[str, Any], data_any)
+    # Soft defaults
+    data.setdefault("priority_items", [])
+    data.setdefault("risk_notes", "")
+    out = PaperSuggesterOutput(**data)
+    (round_dir / "paper_suggester.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
+    # Also persist advice for human viewing
+    (round_dir / "paper_suggester.advice.md").write_text(out.advice_md, encoding="utf-8")
+    return out
+
+def call_paper_fixer(problem_dir: Path, round_idx: int, suggester: PaperSuggesterOutput | None) -> tuple[PaperFixerOutput, bool, str]:
+    console.print(f"[bold cyan]Calling Paper Fixer (Round {round_idx})...[/bold cyan]")
+    _write_status(problem_dir, phase="paper_fixer", round_idx=round_idx)
+
+    # Context similar to suggester, plus suggester's output and last compile result; include parsed papers/
+    context = read_problem_context(problem_dir, include_pdfs=True)
+    notes_md, outputs_md = _read_notes_and_outputs(problem_dir)
+    if notes_md:
+        context += f"\n=== notes.md ===\n{notes_md}\n"
+    if outputs_md:
+        context += f"\n=== output.md ===\n{outputs_md}\n"
+    # Include persistent user feedback for paper-writing (if any)
+    paper_feedback_path = problem_dir / "paper_feedback.md"
+    if paper_feedback_path.exists():
+        try:
+            fb = paper_feedback_path.read_text(encoding="utf-8")
+            context += f"\n=== paper_feedback.md (user guidance) ===\n{fb}\n"
+        except Exception:
+            pass
+    # Include current LaTeX/Markdown draft (final_output first)
+    final_tex = problem_dir / "final_output.tex"
+    if final_tex.exists():
+        try:
+            context += f"\n=== final_output.tex ===\n" + final_tex.read_text(encoding="utf-8") + "\n"
+        except Exception:
+            pass
+    papers_dir = problem_dir / "papers"
+    if papers_dir.exists():
+        for src in sorted(papers_dir.glob("*")):
+            if src.suffix.lower() in {".tex", ".md"}:
+                try:
+                    context += f"\n=== papers/{src.name} ===\n" + src.read_text(encoding="utf-8") + "\n"
+                except Exception:
+                    pass
+    # Include suggester advice
+    if suggester:
+        context += "\n=== suggester.advice ===\n" + suggester.advice_md + "\n"
+        if suggester.priority_items:
+            context += "\n=== suggester.priority_items ===\n- " + "\n- ".join(suggester.priority_items) + "\n"
+        if suggester.risk_notes:
+            context += "\n=== suggester.risk_notes ===\n" + suggester.risk_notes + "\n"
+
+    system_prompt = load_prompt("paper_fixer")
+    user_message = context
+
+    schema = {
+        "name": "PaperFixerOutput",
+        "schema": _normalize_schema_strict(PaperFixerOutput.model_json_schema()),
+        "strict": True,
+    }
+
+    text, dump = _complete_text(
+        MODEL_PAPER_FIXER, system_prompt, user_message,
+        max_tokens=100000, temperature=0.2,
+        force_json=True,
+        json_schema_obj=schema if MODEL_PAPER_FIXER.startswith("gpt-5") else None,
+    )
+
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    _dump_io(round_dir, "paper_fixer", system_prompt, user_message, dump, text)
+
+    try:
+        data_any = json.loads(text) if not _is_o_model(MODEL_PAPER_FIXER) or MODEL_PAPER_FIXER.startswith("gpt-5") else extract_json_from_response(text)
+    except json.JSONDecodeError:
+        (round_dir / "paper_fixer.nonjson.txt").write_text(text or "", encoding="utf-8")
+        data_any = {
+            "status": "failed",
+            "new_tex": text or "",
+            "changes_summary_md": "Non-JSON response from fixer.",
+            "unfixable_issues_md": "",
+            "compiler_expectations_md": "",
+        }
+
+    data = cast(Dict[str, Any], data_any)
+    # Fill missing fields conservatively
+    data.setdefault("status", "failed")
+    data.setdefault("new_tex", "")
+    data.setdefault("changes_summary_md", "")
+    data.setdefault("unfixable_issues_md", "")
+    data.setdefault("compiler_expectations_md", "")
+    out = PaperFixerOutput(**data)
+    (round_dir / "paper_fixer.out.json").write_text(json.dumps(out.model_dump(), indent=2), encoding="utf-8")
+    (round_dir / "paper_fixer.summary.md").write_text(out.changes_summary_md or "", encoding="utf-8")
+    (round_dir / "paper_fixer.unfixable.md").write_text(out.unfixable_issues_md or "", encoding="utf-8")
+
+    # Persist the LaTeX for this round for diffing in next round
+    try:
+        (round_dir / "final_output.tex").write_text(out.new_tex or "", encoding="utf-8")
+    except Exception:
+        pass
+
+    # Compile the returned LaTeX
+    _write_status(problem_dir, phase="paper_compile", round_idx=round_idx)
+    ok, log, pdf_path = _compile_tex_string(problem_dir, round_idx, out.new_tex, basename="final_output")
+    # Record compile outcome
+    (round_dir / "paper.compile.result.json").write_text(json.dumps({"ok": ok}, indent=2), encoding="utf-8")
+    return out, ok, log
+
 def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
     """Execute one round of the multi-prover → verifier → optional-writer → summarizer loop."""
     console.print(f"\n[bold green]Starting Round {round_idx}[/bold green]")
@@ -1001,11 +1393,47 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1):
     console.print("\n[bold]Summary for Human:[/bold]")
     console.print(v_out.summary_md)
 
+def run_paper_round(problem_dir: Path, round_idx: int):
+    """Execute one paper-writing round: suggester -> fixer -> compile -> artifacts."""
+    console.print(f"\n[bold green]Starting Paper Round {round_idx}[/bold green]")
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+
+    # Record context files for UI
+    ctx_files = _gather_context_files(problem_dir, round_idx)
+    (round_dir / "context.files.json").write_text(json.dumps(ctx_files, indent=2), encoding="utf-8")
+
+    timings: dict[str, Any] = {}
+
+    # Suggester
+    t0 = time.perf_counter()
+    sugg = call_paper_suggester(problem_dir, round_idx)
+    t1 = time.perf_counter()
+    timings["paper_suggester"] = {"model": MODEL_PAPER_SUGGESTER, "duration_s": round(t1 - t0, 3)}
+
+    # Fixer
+    t0 = time.perf_counter()
+    fixer_out, compiled, compile_log = call_paper_fixer(problem_dir, round_idx, sugg)
+    t1 = time.perf_counter()
+    timings["paper_fixer"] = {"model": MODEL_PAPER_FIXER, "duration_s": round(t1 - t0, 3), "compiled": compiled}
+
+    # Persist timings and mark idle
+    (round_dir / "timings.json").write_text(json.dumps(timings, indent=2), encoding="utf-8")
+    _write_status(problem_dir, phase="idle", round_idx=round_idx, extra={"last_round": round_idx, **timings})
+
+    # Console summary
+    console.print(f"\n[bold]Paper Round {round_idx} Complete[/bold]")
+    console.print(f"Status: {fixer_out.status} • Compiled: {'yes' if compiled else 'no'}")
+    if fixer_out.unfixable_issues_md.strip():
+        console.print("[yellow]Unfixable issues reported by fixer:[/yellow]")
+        console.print(fixer_out.unfixable_issues_md)
+
 def main():
-    parser = argparse.ArgumentParser(description="Simple Prover-Verifier Loop")
+    parser = argparse.ArgumentParser(description="Automatic Researcher Orchestrator")
     parser.add_argument("problem_dir", type=str, help="Problem directory")
     parser.add_argument("--rounds", type=int, default=1, help="Number of rounds")
     parser.add_argument("--start-round", type=int, default=1, help="Starting round")
+    parser.add_argument("--mode", type=str, default="research", choices=["research", "paper"], help="Run research loop or paper-writing loop")
     # Allow override via AR_NUM_PROVERS env (used by web_app)
     default_provers = int(os.environ.get("AR_NUM_PROVERS", "2")) if os.environ.get("AR_NUM_PROVERS") else 2
     parser.add_argument("--provers", type=int, default=default_provers, help="Number of parallel provers (1-10)")
@@ -1017,10 +1445,22 @@ def main():
         console.print(f"[red]Error: Directory not found: {problem_dir}[/red]")
         sys.exit(1)
     
-    # Check for task file
+    # Check for task file or paper.* in papers/ directory (required for research mode)
     task_files = ["task.tex", "task.txt", "task.md"]
-    if not any((problem_dir / f).exists() for f in task_files):
-        console.print(f"[red]Error: No task file found[/red]")
+    has_task = any((problem_dir / f).exists() for f in task_files)
+    
+    # If no task file, check for paper.* in papers/
+    if not has_task:
+        papers_dir = problem_dir / "papers"
+        if papers_dir.exists():
+            for ext in ['.pdf', '.html', '.htm', '.txt', '.md']:
+                if (papers_dir / f"paper{ext}").exists():
+                    has_task = True
+                    console.print(f"[yellow]No task file found, using papers/paper{ext} as the task[/yellow]")
+                    break
+    
+    if args.mode != "paper" and not has_task:
+        console.print(f"[red]Error: No task file or papers/paper.* file found[/red]")
         sys.exit(1)
     
     # Check API key
@@ -1028,21 +1468,70 @@ def main():
         console.print("[red]Error: OPENAI_API_KEY not set[/red]")
         sys.exit(1)
     
-    console.print(f"[bold]Simple Prover-Verifier Loop[/bold]")
+    console.print(f"[bold]Automatic Researcher Orchestrator[/bold]")
     console.print(f"Problem: {problem_dir}")
-    console.print(f"Models: {MODEL_PROVER} / {MODEL_VERIFIER}")
+    if args.mode == "paper":
+        console.print(f"Paper models: suggester={MODEL_PAPER_SUGGESTER} fixer={MODEL_PAPER_FIXER}")
+    else:
+        console.print(f"Models: {MODEL_PROVER} / {MODEL_VERIFIER}")
     console.print(f"OpenAI SDK: {_openai.__version__}")
     
     # Run rounds
     provers = max(1, min(10, args.provers))
-    for round_num in range(args.start_round, args.start_round + args.rounds):
+    current_round = args.start_round
+    end_round = args.start_round + args.rounds
+    
+    while current_round < end_round:
         try:
-            run_round(problem_dir, round_num, num_provers=provers)
+            if args.mode == "paper":
+                run_paper_round(problem_dir, current_round)
+            else:
+                run_round(problem_dir, current_round, num_provers=provers)
+            current_round += 1
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted[/yellow]")
             break
         except Exception as e:
-            console.print(f"\n[red]Error in round {round_num}: {e}[/red]")
+            console.print(f"\n[red]Error in round {current_round}: {e}[/red]")
+            break
+    
+    # Check for queued rounds after completing main rounds
+    while True:
+        try:
+            queue_file = problem_dir / "runs" / "queued_rounds.json"
+            if queue_file.exists() and args.mode != "paper":
+                queue_data = json.loads(queue_file.read_text(encoding="utf-8"))
+                queued_rounds = queue_data.get("queued_rounds", 0)
+                
+                if queued_rounds > 0:
+                    console.print(f"[green]Found {queued_rounds} queued rounds, continuing...[/green]")
+                    
+                    # Run the queued rounds
+                    for _ in range(queued_rounds):
+                        try:
+                            run_round(problem_dir, current_round, num_provers=provers)
+                            current_round += 1
+                        except KeyboardInterrupt:
+                            console.print("\n[yellow]Interrupted[/yellow]")
+                            return
+                        except Exception as e:
+                            console.print(f"\n[red]Error in round {current_round}: {e}[/red]")
+                            return
+                    
+                    # Clear the queue file after processing
+                    try:
+                        queue_file.unlink()
+                    except:
+                        pass
+                    
+                    # Continue checking for more queued rounds
+                    continue
+            
+            # No more queued rounds, exit
+            break
+            
+        except Exception as e:
+            console.print(f"[yellow]Warning: Error checking queue: {e}[/yellow]")
             break
 
 if __name__ == "__main__":

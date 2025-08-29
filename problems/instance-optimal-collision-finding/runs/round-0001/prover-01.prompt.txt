@@ -1,0 +1,2010 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.tex ===
+\newcommand{\bits}{\{0,1\}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\polylog}{\operatorname{poly}\log}
+\newcommand{\RAC}{\mathrm{RAC}}
+\newcommand{\Queries}{\mathrm{Queries}}
+\newcommand{\Aall}{A_{\textsf{all-scales}}}
+
+\section{Goal.}
+The goal is to confirm or refute \textbf{Conjecture~1.5} from Ben-Eliezer–Grossman–Naor (2024) in the $O(\sqrt{n / \polylog(n)})$ regime. We will describe the conjecture precisely next. 
+
+\section{Model}
+We work with the directed graph of a function $f:[n]\to[n]$: each vertex has out-degree~1; for simplicity assume \emph{no loops} ($f(v)\ne v$). An algorithm has two query types per step:
+\begin{enumerate}
+  \item \textbf{Start:} sample a uniformly random unseen vertex $u\in[n]$ (\emph{start a new walk}).
+  \item \textbf{Step:} if $u$ was already encountered, query its unique out-neighbor, revealing $f(u)$.
+\end{enumerate}
+The \emph{state} is the set of seen vertices and any exposed edges; equivalently, a disjoint family of directed walks and (possibly) cycles encountered so far. A \emph{collision} is a pair $x\neq y$ with $f(x)=f(y)$; the algorithm succeeds upon exhibiting such a pair.
+
+\paragraph{Unlabeled instance optimality.}
+Let $\RAC(P,f)$ denote the \emph{unlabeled certificate complexity} for property $P$
+(e.g.\ collision) on instance $f$---the expected query complexity of the best algorithm
+\emph{given an unlabeled certificate} (a permutation of $f$), in the Las Vegas sense.\,%
+(See their formal Definitions~2.1--2.3.)
+An algorithm $A$ is \emph{$g(n)$-close to instance optimal} if
+$\Queries_A(f)\le g(n)\cdot \RAC(P,f)$ for all $f$.
+
+\section{The all-scales strategy}
+We consider the natural parallel strategy $\Aall$ (``at scales $2^i$''):
+
+\begin{quote}
+For $i=0,1,\dots,\lfloor \log_2 n\rfloor$, maintain a process $A_i$ that repeatedly:
+\begin{enumerate}
+  \item starts at a fresh uniform random vertex $v$;
+  \item walks forward for up to $2^i$ steps (stopping early if a cycle closes or a collision is found);
+  \item if no collision was found, restart from a new random vertex.
+\end{enumerate}
+Interleave all $A_i$ fairly (e.g.\ round-robin): each round makes $O(\log n)$ forward queries, one for each $i$; stop as soon as any $A_i$ finds a collision (we also look for collisions between vertices found by $A_i$ and some other $A_j$). 
+\end{quote}
+
+This is more-or-less the function analogue of the graph algorithm for claws in \S1.1 and \S6 (there dubbed $\Aall$); the paper conjectures that $\Aall$ is $O(\log n)$-instance-optimal for collisions and claws. (Conjectures~1.5 and~1.6; see also their informal theorem and analysis.) 
+
+\section{A target statement in the low-complexity regime}
+Your task is to prove the following forward-only analogue of their Theorem~1.7.
+
+\begin{theorem}[Forward-only, low complexity --- target]
+\label{thm:forward-low}
+There exist absolute constants $C,\alpha>0$ such that for every $f:[n]\to[n]$ with no loops,
+if $\RAC(\text{collision}, f)\le \sqrt{n} / \log^{\alpha} n$, then
+\[
+  \E[\Queries_{\Aall}(f)] \;\le\; C\,\log n\cdot \RAC(\text{collision}, f).
+\]
+\end{theorem}
+
+\noindent The theorem above mirrors their near-optimality bound for claws (\S6, Theorem~6.1), but specialized to collisions and with \emph{forward-only} walks; the proof needs a substitute for their ``hardness of merging'' lemma in graphs (\S6.2). 
+
+
+
+\section{Guiding intuition for the forward-only model}
+
+\paragraph{Known evidence.}
+They prove an $O(\log n)$ near-optimality theorem for \emph{claw detection} in graphs in a
+``low-complexity'' regime, and explain how the proof extends to \emph{functions} \emph{if}
+backward queries (preimages) are allowed; the obstacle is \emph{merging walks} without finding a claw/collision.\,%
+(See Theorem~1.7 and \S6, and remarks under ``Model robustness''.) 
+
+\paragraph{Obstruction}
+In our forward-only function model, a potential obstruction is a \emph{false merge}:
+while walking from $u$ we discover $f(u)=v$ where $v$ is a vertex we previously sampled as a
+\emph{start}, but which was not reached by some other forward walk. This is \emph{not} a collision.
+Heuristically, with $q\ll \sqrt{n}$ total forward steps, the number of such false merges is
+$\ll 1$ in expectation (birthday-type reasoning), so with good probability \emph{any} merge we see is a true collision. This suggests the graph proof scheme (which conditions on ``no merging'') can be adapted:
+when false merges are negligible, we can couple an arbitrary algorithm to $\Aall$ scale-by-scale.
+
+
+\section{A roadmap for how a proof of Theorem~\ref{thm:forward-low} could look like}
+We sketch a possible approach to prove the theorem. It was generated by an LLM. Take it with a grain of salt; and only as a potentially flawed inspiration. 
+
+\subsection*{(I) Controlling false merges up to $q=O(\sqrt{n/\log n})$ steps}
+Let $S_t$ be the set of start vertices sampled by time $t$ (starts, not discovered via an out-edge),
+and let $X_t$ be the number of \emph{false merges} by time $t$:
+events of the form ``query $f(u)$ and reveal $f(u)=v\in S_{t-1}$'' when $v$ was \emph{not} first reached by another forward walk.
+
+\begin{lemma}[Few false merges]
+\label{lem:false-merge}
+There exist constants $c_0,c_1>0$ such that for any (adaptive) algorithm that makes $q\le c_0\sqrt{n/\log n}$ forward queries,
+\[
+  \E[X_q]\;\le\; c_1\,\frac{q^2}{n}
+  \quad\text{and}\quad
+  \Pr[X_q\ge 1]\;=\;O\!\left(\frac{q^2}{n}\right)\;=\;o(1).
+\]
+\end{lemma}
+
+\emph{Sketch.} Reveal the process step-by-step.
+At step $t$, the probability that $f(u_t)$ hits the (random) set $S_{t-1}$ is at most $|S_{t-1}|/(n-t+1)$.
+Summing and applying a martingale (Freedman/Azuma) bound for sampling without replacement yields the claim.
+Adaptivity only lowers these hit probabilities. \qed
+
+\subsection*{(II) Coupling to $\Aall$ when false merges do not occur}
+Fix any algorithm $A$ that finds a collision in expected $q=\RAC(\text{collision}, f)$ queries when given the unlabeled certificate.
+As in \S6.3 of the paper, expose in advance a random string $r$ listing the ``new'' starting vertices;
+assume the event \textsf{no-skip}: the $j$-th new start $A$ uses is the $j$-th entry of $r$ (standard, with failure prob.\ $O(q^2/n)$).
+Condition also on \textsf{no-false-merge}: $X_{2q}=0$.
+Under these two events,
+the walk-system of $A$ decomposes cleanly by \emph{age}: older walks are always at least as long as newer ones (no merges to entangle them).
+Exactly as in Claim~6.11 of the paper, one couples (scale by scale) the progress of $A$ to that of a single-scale process $A_i$,
+\emph{but now with forward-only walks}:
+if $A$ first hits a collision within distance $[2^i,2^{i+1})$ from its starting point $v_j$,
+then $A_i$ finds the same collision after at most a constant factor more forward steps (here: $\le 4$ times),
+because every older start $v_{j'}$ has already been advanced by at least $2^i$ steps unless it hit a cycle earlier.
+This is the identical amortization used in \S6.3, just without backtracking, which we do not need.
+
+\subsection*{(III) Assembling the bound}
+By Markov, $A$ succeeds within $2q$ queries with probability $\ge 1/2$.
+Intersecting the high-probability events \textsf{no-false-merge} (Lemma~\ref{lem:false-merge}) and \textsf{no-skip} (prob.\ $\ge 1-O(q^2/n)$) gives
+overall success probability $\ge 1/3$ in a single \emph{epoch} of $8q$ rounds of the interleaved $\Aall$ (cost $O(q\log n)$ queries per epoch).
+A standard geometric argument then yields
+$\E[\Queries_{\Aall}(f)] = O(q\log n)$, proving Theorem~\ref{thm:forward-low}.
+
+\paragraph{Where this differs from the paper.}
+Their graph proof needs an explicit lemma that \emph{merging} two undirected walks is hard before $\tilde{\Theta}(\sqrt n)$ queries (\S6.2),
+plus a path-symmetry cleanup (\S6.1).
+In the forward-only function model, we replace both by Lemma~\ref{lem:false-merge}:
+with $q\ll \sqrt n$, every merge is a true collision with high probability, and thus the \S6.3 coupling applies verbatim. 
+
+\paragraph{References.} All references and terminology (unlabeled certificates, $\Aall$, low-complexity regime, coupling) follow Ben-Eliezer–Grossman–Naor, \emph{On the Instance Optimality of Detecting Collisions and Subgraphs} (arXiv:2312.10196, v2, Aug 2024). 
+
+
+
+=== 2312.10196v2.pdf ===
+
+--- Page 1 ---
+On the Instance Optimality of Detecting Collisions and Subgraphs
+Omri Ben-Eliezer∗
+Tomer Grossman†
+Moni Naor‡
+Abstract
+Suppose you are given a function f : [n] →[n] via (black-box) query access to the function.
+You are looking to find something local, like a collision (a pair x ̸= y s.t. f(x) = f(y)). The
+question is whether knowing the ‘shape’ of the function helps you or not (by shape we mean that
+some permutation of the function is known). Formally, we investigate the unlabeled instance op-
+timality of substructure detection problems in graphs and functions. A problem is g(n)-instance
+optimal if it admits an algorithm A satisfying that for any possible input, the (randomized)
+query complexity of A is at most g(n) times larger than the query complexity of any algorithm
+A′ which solves the same problem while holding an unlabeled copy of the input (i.e., any A′ that
+“knows the structure of the input”). Our results point to a trichotomy of unlabeled instance
+optimality among substructure detection problems in graphs and functions:
+• A few very simple properties have an O(1)-instance optimal algorithm.
+• Most properties of graphs and functions, with examples such as containing a fixed point
+or a 3-collision in functions, or a triangle in graphs, are nΩ(1)-far from instance optimality.
+• The problems of collision detection in functions and finding a claw in a graph serve as a
+middle ground between the two regimes. We show that these two properties are Ω(log n)-
+far from instance optimality, and conjecture that this bound is tight. We provide evidence
+towards this conjecture, by proving that finding a claw in a graph is O(log(n))-instance
+optimal among all input graphs for which the query complexity of an algorithm holding
+an unlabeled certificate is O
+q
+n
+log n
+
+.
+1
+Introduction
+Efficient detection of small structures in complex data is a fundamental challenge across computer
+science. In this work, we explore to what extent prior knowledge on the input may help. Consider,
+for instance, the problem of detecting a collision in an unknown function f : [n] →[n] given query
+access to f. (Here, a collision in f is a pair of disjoint elements x ̸= y ∈[n] so that f(x) = f(y).)
+We ask the following question.
+How does an algorithm that knows nothing about f in advance (aside from the domain size n)
+compare to an algorithm that has some prior knowledge an the structure of f?
+∗Simons Institute for the Theory of Computing, University of California, Berkeley, USA. Part of this research was
+conducted while the author was at Weizmann Institute and later at Massachusetts Institute of Technology. Email:
+omrib@mit.edu.
+†Department of Computer Science and Applied Mathematics, Weizmann Institute of Science, Rehovot 76100,
+Israel. Email: tomer.grossman@weizmann.ac.il.
+‡Department of Computer Science and Applied Mathematics, Weizmann Institute of Science, Rehovot 76100,
+Israel. Email: moni.naor@weizmann.ac.il. Supported in part by grant from the Israel Science Foundation (no.
+950/16). Incumbent of the Judith Kleeman Professorial Chair.
+1
+arXiv:2312.10196v2  [cs.DS]  2 Aug 2024
+
+--- Page 2 ---
+The prior knowledge we consider in this work takes the form of an unlabeled copy of f that the
+algorithm receives in advance as in Grossman et al. [GKN20]. That is, the algorithm receives a
+permutation of f – the composed function f ◦π for some unknown permutation π – as an “untrusted
+hint”. We typically call this permutation of f an unlabeled certificate; we require the algorithm to
+be correct with good probability regardless of whether the hint is correct (i.e., even if f is not a
+permutation of the unlabeled certificate). However, the number of queries made by the algorithm
+is only measured if the true input is indeed a permutation of the unlabeled certificate.
+In the worst case, clearly Ω(n) queries are necessary, whether we know anything about the
+structure of f or not. But are there beyond-worst-case instances where holding additional structural
+information on f may accelerate collision detection?
+Definition 1.1 (instance optimality; informal). A randomized Las Vegas1 algorithm A deciding
+if an unknown function f : [n] →[n] satisfies a property P is instance optimal if there exists an
+absolute constant α satisfying the following. For every function f, and any randomized algorithm
+A′ for the same task, the following holds:
+QueriesA(f) ≤α · max
+π
+QueriesA′(f ◦π)
+where the QueriesA(·) operator refers to the expected number of queries that an algorithm A makes
+on a certain input.
+Finally, we say that P is instance optimal if there exists an instance optimal algorithm for it.
+Note the order of the quantifiers in the definition: for every f, the algorithm A has to compete
+with an algorithm A′ that “specializes” to functions of the form f ◦π. In other words, an algorithm
+A is instance optimal if it performs as well as every algorithm A′, that knows the structure of f,
+but not the actual labels. Note that the correctness of algorithm A′ is unconditional – that is A′
+must be correct even if the structure of f doesn’t match the certificate A′ receives.
+An algorithm being unlabeled instance optimal means it always performs as well (up to a
+constant) as the algorithm that knows the structure of the input. If there is no instance optimal
+algorithm, that means there exists some function where knowing the structure of the function is
+helpful. Thus, instance optimality is a strong requirement: If a property P is instance optimal that
+means that knowing the structure of the input function f never helps. When a property is not
+instance optimal, it will sometimes be useful to discuss its “distance” from instance optimality.
+Definition 1.2 (distance from instance optimality; informal). Consider the setting of Definition
+1.1. For a function ω(n) that grows to infinity as n →∞, we say that P is ω-far from instance
+optimality if for every algorithm n ∈N and A there exist a function f and an algorithm A′ satisfying
+QueriesA(f) ≥ω(n) · max
+π
+QueriesA′(f ◦π).
+Similarly, P is ω-close to instance optimality if the above inequality holds with ≤instead of ≥.
+We may now rephrase our initial question about collisions in the language of instance optimality.
+Is collision detection an instance optimal problem? I.e., is the property of containing a collision
+instance optimal? Is it far from instance optimality? Suppose that we have query access to a
+1For simplicity we consider in this paper Las Vegas randomized algorithms, but all of the results apply also to
+Monte Carlo type algorithms (that allow some error in the returned value).
+2
+
+--- Page 3 ---
+function f : [n] →[n] and are interested in finding a collision. There are two fundamental types
+of queries to f that one can make: the first option is to query an element x that we have already
+seen in the past, by which we mean that we have already queried some element y satisfying that
+f(y) = x. This option amounts to extending a “walk” on the (oriented) graph of f. The second
+option is to query a previously unseen element x, which amounts to starting a new walk. The
+question, then, is the following: is there a universal algorithm A (which initially knows nothing
+about f) for choosing when to start new walks, and which walks to extend at any given time, that
+is competitive with algorithms A′ that know the unlabeled structure of f?
+Substructure detection problems.
+There are many other types of natural problems in com-
+puter science that involve small (i.e., constant-sized) substructure detection. A natural generaliza-
+tion of a collision is a k-collision (or multi-collision), where we are interested in finding k different
+elements x1, . . . , xk satisfying f(x1) = · · · = f(xk). Fixed points, i.e., values x for which f(x) = x,
+are important in local search and optimization problems, in particular for the study of local maxima
+or minima in an optimization setting.
+Subgraph detection in graphs is also a fundamental problem in the algorithmic literature. Motifs
+(small subgraphs) in networks play a central role in biology and the social sciences. In particular,
+detecting and counting motifs efficiently is a fundamental challenge in large complex networks, and
+a substantial part of the data mining literature is devoted to obtaining efficient algorithms for these
+tasks. It is thus natural to ask: is it essential to rely on specific properties of these networks in
+order to achieve efficiency? In other words, are subgraph detection and counting instance optimal
+problems?
+Similarly, the problem of finding collisions is a fundamental one in cryptography. Many cryp-
+tographic primitives are built around the assumption that finding a collision for some function, f
+is hard (e.g. efficiently signing large documents, commitments with little communication and of
+course distributed ledgers such as blockchain). If one wants to break such a cryptographic system,
+should one spend resources studying the structure of f? If finding collisions is instance optimal,
+that would mean that any attempt to find collisions by studying the structure of a function is
+destined to be futile.
+In this work we focus on the instance optimality of constant-size substructure detection problems
+in graphs and functions. Before stating our results, let us briefly discuss these data models.
+Models.
+We consider two different types of data access in our work. The first type is that of
+functions. In this case the input is some function f, and the goal is to determine whether f satisfies
+a certain property (e.g., whether it contains a collision or a fixed point). In this case the goal of
+an instance optimal algorithm is to perform as well as an algorithm that receives, as an untrusted
+hint, the unlabeled structure of the algorithm without the actual assignment of labels. Here the
+complexity is measured as the number of queries an algorithm makes, where each query takes an
+input x and returns f(x).
+The second type of data is of graphs. Here the goal is to find a constant-sized subgraph. An
+instance optimal algorithm should perform as well as an algorithm that is given an isomorphism
+of the graph as an “untrusted hint”. For simplicity, we focus on the standard adjacency list model
+(e.g., [GRS11]). Here for each vertex the algorithm knows the vertex set V in advance, and can
+query the identity of the i-th neighbor of a vertex v (for v and i of its choice, and according to some
+arbitrary ordering of the neighbors), or the degree of v. We note that all of the results also hold in
+3
+
+--- Page 4 ---
+other popular graph access models, including the adjacency matrix model and the neighborhood
+query model.
+Interestingly, graphs and functions seem closely related in our context. Specifically, the problem
+of finding a claw in a graph (a star with three edges) is very similar to that of finding a collision in
+a function, and the results we obtain for these problems are for the most part analogous.
+1.1
+Main Results and Discussion
+Our main result in this paper characterizes which substructure detection problems in functions and
+graphs are instance optimal. Let us start with the setting of functions.
+A structure H = ([h], E) is an oriented graph where each vertex has outdegree at most one,
+and we say that f contains H as a substructure if there exist values x1, . . . , xh such that f(xi) = xj
+if and only if the edge i →j exists in H. (For example, a collision corresponds to the structure
+([3], {1 →3, 2 →3}).) Finally, the property PH includes all functions f containing the structure
+H. Our first theorem constitutes a partial characterization for instance optimality in functions.
+Theorem 1.3 (Instance optimality of substructure detection in functions). Let H be a connected,
+constant-sized oriented graph with maximum outdegree 1, and consider the function property PH of
+containing H as a substructure. Then PH is
+1. Instance optimal if H = Pk is a simple oriented path of length k;
+2. nΩ(1)-far from instance optimal for any H that contains a fixed point, two edge-disjoint col-
+lisions, or a 3-collision;
+3. Ω(log n)-far from instance optimal for any H that contains a collision.
+Similarly, in graphs we denote by PH the property of containing H as a (non-induced) subgraph.
+Our next theorem provides a characterization for the instance optimality of subgraph detection.
+Theorem 1.4 (Instance optimality of subgraph detection in graphs). Let H be a connected,
+constant-sized graph with at least one edge. Then PH is:
+1. Instance optimal if H is an edge or a wedge (path of length 2);
+2. nΩ(1)-far from instance optimal if H is any graph other than an edge, a wedge, or a claw (a
+star with 3 edges);
+3. Ω(log n)-far from instance optimal when H is a claw.
+Almost instance optimality of claws and collisions?
+While we provide a full characterization
+of those substructures (or subgraphs) H for which PH is instance optimal, there remains a notable
+open problem: is the problem of containing a collision (in functions) or a claw (in graphs) “almost
+instance optimal”, e.g., is it O(log n)-close to instance optimality?
+The problems of finding a collision in a function and detecting a claw in a graph are closely
+related and seem to be similar in nature (see Section 3). We conjecture that both of these problems
+are close to being instance optimal.
+Conjecture 1.5. There exists an algorithm A for collision detection (in functions f : [n] →[n])
+that is O(log n)-close to instance optimality.
+4
+
+--- Page 5 ---
+Conjecture 1.6. Determining if a graph contains a claw is O(log n)-close to instance optimality.
+While we are not yet able to prove the conjectures in full generality, we provide initial evidence
+toward the correctness, at least in the graph case. Specifically, we prove Conjecture 1.6 for graphs
+in which claw detection is “easy” with a certificate, that is, can be done in up to O
+q
+n
+log n
+
+queries.
+Theorem 1.7 (informal; see Theorem 6.1). The graph property of containing a claw is O(log n)-
+instance optimal when restricted to inputs that require o
+q
+n
+log n
+
+queries in expectation for an
+algorithm with an unlabeled certificate.
+While the result was phrased for undirected graphs, it carries on also for collision detection in
+functions f : [n] →[n], in the case where the algorithm is allowed to go both “forward” (i.e., for an
+x to retrieve f(x)) and “backward” (i.e., for x to retrieve elements of the inverse set f−1(x)). See
+the paragraph below on model robustness for further discussion.
+We conjecture that the same algorithm we use to show near instance optimality in the regime of
+Theorem 1.7 is also near instance optimal in the general regime. The algorithm Aall-scales is roughly
+defined as follows.
+Aall-scales maintains m = O(log n) parallel “walks” W1, . . . , Wm at different
+“scales”, where in each round (consisting of a total of m queries) Aall-scales adds one step to each of
+the walks. We try to extend each Wi until it reaches length 2i or until it has to end (either because
+of finding a collision/claw or due to reaching the end of a path or closing a cycle). In the case that
+Wi reaches length 2i, we “forget” it and restart Wi at a fresh random starting point.
+The challenge of merging walks.
+The only barrier to proving the above two conjectures in
+the general case seems to be our current inability to deal with “merging” walks in the algorithm.
+Any algorithm for collision detection in functions, or claw detection in graphs, can be viewed as
+maintaining a set of walks.
+In each step we either choose to start a new walk by querying a
+previously unseen vertex, or extend an existing walk by querying its endpoint (or one of its two
+endpoints, in the graph case). The event of merging corresponds to the case that two disjoint walks
+W and W ′ meet, resulting in the creation of a longer walk W ∪W ′. Our proof of Theorem 1.7
+shows the instance optimality of claw detection in the regime where merging is unlikely to happen
+during the algorithm’s run.
+Model robustness.
+Throughout the paper we chose to focus on specific models for convenience.
+However, all our results are model robust and apply in many “natural” models. In particular, in
+the case of functions we chose to work on the model where an algorithm can only go forward. That
+is, an algorithm can query f(x) in a black box manner, and doesn’t have the capability to make
+inverse/backward (f−1(x)) queries. Similar characterization results to the graph case also apply if
+an algorithm can walk backwards; in fact, the model where walking backward is allowed seems to
+serve as a middle ground between our models for graphs and functions, in the sense that we deal
+with directed graph properties but are allowed to move in the graph as if it were undirected.
+For convenience we wrote all our results for Las Vegas randomized algorithms. All the results
+in this paper also apply if we require the algorithm to be a Monte Carlo randomized algorithm,
+i.e., one that is allowed to err with constant probability.
+In graphs, we use the popular adjacency list model (which allows sampling random vertices,
+querying a single neighbor, or querying the degree of a vertex) for data access. The same charac-
+5
+
+--- Page 6 ---
+terization results also apply under other types of data access, such as the adjacency matrix model
+or the neighborhood query model (where querying a node retrieves all of its neighbors at once).
+1.2
+Technical Overview: Collisions and Fixed Points
+In this section we give an overview of our main ideas and techniques. Many of the ideas are shared
+between functions and graphs; we chose to present the main ideas for a few canonical problems,
+such as fixed point and collision detection in functions, and claw detection in graphs.
+Showing the polynomial separation for most graph and function properties amounts, roughly
+speaking, to providing constructions where a certain substructure is hidden, but where certain hints
+are planted along the way to help the algorithm holding a certificate to navigate within the graph.
+Given the constructions, which are themselves interesting and non-trivial, it is not hard to prove the
+separation. As an example of a polynomial separation construction and result, we discuss the case
+of a fixed point in functions. For more general statements and proofs regarding these separations,
+please refer to Sections 4 (for functions) and 5 (for graphs).
+The Ω(log n)-separation for claws and collisions is the most technically involved “lower bound”
+type contribution of this paper.
+Unlike the polynomial separation results, where the core idea
+revolves around describing the “right” way to hide information, here the construction is more
+complicated (roughly speaking): the trick of planting hints that allow the algorithm to navigate
+does not work well, and our arguments rely on the observation that it is sometimes essential for an
+algorithm without a certificate to keep track of multiple different scales in which relevant phenomena
+may emerge, compared to an algorithm with a certificate that knows in advance which of the scales
+is relevant. The proof is also more challenging, requiring us to closely track counts of intermediate
+substructures of interest. For the sake of the current discussion, we focus on collision detection,
+but the proof (and construction) for claws is very similar; see Section 3.
+Before diving into the ideas behind fixed point and collision detection, let us briefly mention
+the simplest component in the characterization: an instance optimal algorithm for finding a path of
+length k. The algorithm chooses a random value and evaluates the function k times on successive
+values to see if a path of length k emerges (and not a smaller cycle, or a smaller path ending in a
+fixed point). This is repeated until a path is found or all values have been exhausted. It is instance
+optimal, since knowing the structure of the function does not help; stopping after less than k steps
+is meaningless, since it only saves us a constant fraction of the queries.
+1.2.1
+Fixed point detection: Polynomially far from instance optimality
+We give an overview of the proof that finding a fixed point is polynomially far from instance
+optimality. Small variations of the constructions can be used to show that the same is true for any
+structure containing a fixed point, a 3-collision, or two edge-disjoint collision.
+In order to obtain such a result we provide a distribution of functions that have several fixed
+points with a secret parameter so that an algorithm with a certificate (knowing the parameter in
+this case) can find a fixed point in n
+3
+4 queries while any algorithm that does not know the secret
+parameter (i.e. without a certificate) requires ˜Ω(n) queries to find a fixed point.
+The idea is to construct a function f with ˜θ(n1/4) cycles of size roughly n3/4, where one random
+value x in one of the cycles is turned into a fixed point (which effectively turns the said cycle into
+a path ending at x). It is quite clear that for such a distribution finding the fixed point take time
+6
+
+--- Page 7 ---
+Figure 1: There are n1/4/ log n cycles, where each cycle is of length n3/4. Each path entering a
+cycle is of size n1/4. The distance between every two paths on the i-th cycle is pi.
+˜Ω(n). But we want to add some information or hint that will allow a certificate holder to find out
+which is the “correct” cycle.
+To give such a hint we add to each cycle many paths of length n1/4 entering it. The distance
+between two paths entering the ith cycle is some (unique) prime pi where pi is of size roughly n1/4
+(so roughly n1/2 paths enter the cycle). See Figure 1 for a drawing of this construction.
+The hint is the value pi associated with the unique cycle that ends up with a fixed point. The
+algorithm (with the hint) we propose will check many (about √n) ‘short’ (length n1/4) paths and
+see when they collide with another set of paths that is supposed to be on the cycles (these are n1/4
+‘long’ paths of length √n). Once our algorithm finds three paths entering the same cycle which are
+of distances that are all a multiple of pi, the algorithm will conclude that this is the unique path
+that at its end the fixed point resides and will continue on the path. On the other hand, for any
+algorithm that does not know which of the pj’s is the chosen one and hence the which path ends in
+a fixed point, each x residing in a cycle is equally likely to be a fixed point, and thus the algorithm
+requires ˜Ω(n) queries in expectation.
+1.2.2
+Finding Collisions: Ω(log n) far from instance optimality
+The distribution constructed above will not work for collision detection, since functions generated
+according to this distribution will inherently have many collisions. Below we describe a substantially
+different construction demonstrating that collision detection is (at least) logarithmically far from
+instance optimality. We note that the same proof outline, and same construction idea can also be
+used to show that finding a claw in a graph is not instance optimal.
+In order to obtain such a result we provide a distribution of functions that have several collisions,
+again, with a secret parameter, so that an algorithm with a certificate (knowing the parameter in
+this case) can find a collision in nc queries for some constant c < 1/2, while any algorithm that
+does not know the secret parameter (i.e. without a certificate) requires Ω(nc log n) queries to find
+a collision.
+The hard distribution is as follows: there are log n length scales. For scale i we have n/2.2i
+cycles, each of length 2i (note that the total number of nodes in all cycles is O(n)). For a uniformly
+7
+
+--- Page 8 ---
+randomly chosen scale t we turn n1−c/1.1t of the cycles to be a path ending in a loop of size 2 at
+the end (this is a collision).
+The secret parameter is the value of t. The algorithm with a certificate simply picks a value
+at random and follows the path it defines for 2t steps. The algorithm stops if (i) a collision is
+discovered or (ii) the path has reached length 2t without a collision or (iii) the path created a cycle
+of length 2i < 2t. The probability of picking a node on a good path (one ending in a collision of
+length 2t) is
+n1−c · 2t
+n · 1.1t
+(since there are n1−c/1.1t such cycles, each of size 2t). The cost (in terms of queries) of picking
+a value on the wrong size cycle, say of size 2i, is min(2i, 2t). It is possible to show that the total
+expected work when picking the wrong value is O(2t/1.1t).2 Therefore the expected amount of
+work until a good path is found is
+2t
+1.1t · 1.1t · n
+n1−c · 2t = nc.
+The result is O(nc) queries in expectation.
+We next show that any algorithm that does not know t requires Ω(nc log n) queries, which
+results in a logarithmic separation from the algorithm with a certificate. In essence, this means
+that the algorithm needs to spend a substantial effort at all possible scales (instead of just one
+scale, t) in order to find the collision.
+Consider an algorithm without a certificate, and suppose that we choose the secret parameter
+t in an online manner as follows. Our initial construction starts with n/2.2i cycles of length i. For
+each such i, we pick n1−c/1.1i of the cycles of length 2i, and color one of the nodes in each such
+cycle by red (call these points the “i-red points”. Note that at this time we have no information
+whatsoever on t. Now, each time that a red point on some cycle of length 2i is encountered, we
+flip a coin with an appropriate probability (which initially is of order 1/ log n) to decide whether
+the current value of i is the secret parameter t or not. If it is, then we turn all i-red points (for
+this specific value of i) into collisions as described above, and remove the color from all other red
+points (in paths of all possible lengths). Otherwise, we remove the color from all i-red points (for
+this specific i) and continue.
+It turns out that this construction produces the same distribution as we described before (where
+t was chosen in advance). However, it can also be shown that to find a collision with constant
+probability, Ω(log n) red points need to be encountered along the way. The rest of the analysis
+provides an amortized argument showing that the expected time to find each red vertex by any
+algorithm is Ω(nc). The main idea of the amortized analysis (which we will not describe in depth
+here) is to treat cycles in which we made many queries – at least a constant fraction of the cycle –
+differently from cycles where we made few queries. For cycles of the first type, the probability to
+find a red point (if one exists) is of order 2i/nc, but the amount of queries that we need to spend is
+proportional to 2i. For cycles of the second type, each additional query only has probability O(1/nc)
+to succeed finding a red point, but the query cost is only 1. In both cases, the rate between the
+success probability and the query cost is of order 1/nc.
+2the constant 1.1 is a bit arbitrary, and other constants larger than 1 will also work.
+8
+
+--- Page 9 ---
+1.2.3
+Finding claws: O(log n)-close to instance optimality in merging-free regime
+The proof that collision detection is Ω(log n)-far from instance optimality extends very similarly to
+claw detection in graphs. We next show that this bound is tight in the “low query” regime where
+G admits an algorithm for claw detection (with a certificate) using q ≤α
+q
+n
+log n queries, for a small
+constant α > 0.
+Every claw-free graph is a union of disjoint cycles and paths. Thus, every algorithm for finding
+a claw can be viewed as maintaining a set of walks of several types: Some of the walks may have
+closed a cycle; others may have reached one or two ends of the path P that the walk resides in. All
+other walks simply consist of consecutive vertices in the interior of some path in G.
+Clearly, walks of the first type – those that have closed a simple cycle – cannot be extended
+to find a claw. Our first part of the proof is a reduction eliminating the need to consider walks of
+the second type (i.e., ones that have reached at least one endpoint). Specifically, we show that for
+every graph G on n vertices there is a graph G′ on n + 2 vertices satisfying several properties:
+• In all simple paths in G′, either both endpoints have degree 1 or both are degree 3 or more
+(i.e., are claw centers).
+• The query complexity of detecting a claw in G′ is equal, up to a multiplicative constant, to
+that of G. This is true both with or without an unlabeled certificate.
+• The construction of G′ from G is deterministic. Thus, an unlabeled certificate for G′ can be
+constructed if one has an unlabeled certificate for G.
+The construction is very simple: we add two new vertices and connect them to all degree-1 vertices
+(and to each other, if needed).
+Merging without claws requires Ω
+q
+n
+log n
+
+queries.
+The second part of our argument shows
+that one cannot make two walks merge in the first α
+p
+n/log n queries (with constant probability
+and for some small constant α > 0) without finding a claw beforehand. The proof relies on an
+advanced birthday paradox type analysis that is suitable for adaptive algorithms. For the purpose
+of this part, one may consider G as a union of paths and cycles (without any claws). We bucket
+these paths and cycles into O(log n) groups, where in each group all paths and cycles are of roughly
+the same length – within a multiplicative factor of 1.1 from each other. Suppose that after each
+“new” (previously unseen) vertex is queried, the algorithm immediately knows to which bucket this
+vertex (and the corresponding walk emanating from it) belongs. We show that even in this case
+the lower bound holds.
+Focusing on a specific bucket, let W be the set of all walks in this bucket at some point in the
+algorithm’s run. An assignment of walks to “locations” within the bucket is considered valid if no
+two walks intersect. We argue that the set of locations of walks is uniformly random among all
+sets of valid configurations. Similarly to our analysis of the Ω(log n) separation (see the previous
+subsection), our next step in this part deals separately with “short walks” and “long walks”. Very
+roughly speaking, our proof shows that walks have sufficient “degree of freedom” so that their
+probability to merge will be very small, even if provided that they lie in the same bucket. We omit
+the precise details of the analysis from this overview, and point the reader to Section 6.2.
+9
+
+--- Page 10 ---
+Asymptotic stochastic dominance of Aall-scales
+The third and last part of the argument shows
+that the algorithm Aall-scales mentioned in Section 1.1 stochastically dominates any other algorithm
+(asymptotically) in the following sense. Conditioned on an algorithm A (making q = O
+q
+n
+log n
+
+queries) not encountering any merging walks during its operation, the algorithm Aall-scales is at least
+as likely to find a claw, while using a slightly larger amount of roughly 4q log n queries.
+Recall first how Aall-scales is defined. For 0 ≤i < log n let A(i) be the algorithm which repeatedly
+does the following: pick a random vertex in G; make a bidirectional walk from it for 2i+1 steps, or
+until a claw is found (leading to a “win”) or an endpoint is found (leading to an early termination).
+Aall-scales maintains one copy of each A(i) (for a total of log n copies), and alternates between them:
+each round of Aall-scales makes log n queries, one for each A(i).
+Now let A be any algorithm operating on graphs on n vertices.
+Consider the event Ei =
+Ei(G, q, A) that A finds a claw (for the first time) after at most q queries through the following
+process. A queries a “new” vertex v of distance between 2i and 2i+1 −1 from the claw center w,
+and finds it by completing a walk from v to w. We claim that the event that A finds a claw is equal
+to the union of the events Ei (for 0 ≤i ≤log n).
+The proof goes through a careful coupling argument between A and any fixed A(i) (separately).
+Through the coupling, we may assume that A and A(i) have access to the same source of randomness
+generating “new” vertex queries, that is, the j-th new vertex starting a walk Wj in A is also the
+j-th new vertex in A(j). We may further assume, by symmetry considerations, that A respects an
+“older first” principle: if two walks W and W ′ have exactly the same “shape” (within G) at some
+point, then A will prefer to extend the walk among them that is older. Now, suppose that A finds
+the claw in its walk Wj, of distance between 2i and 2i+1 −1 from vj. By the “older first” principle,
+this implies that for all vertices vj′ with j′ < j that are at least 2i away from an endpoint (call
+these values of j′ good), A must have walked for at least 2i from vj′ so far. For all other values of
+j′ < j (call these bad), A walked a number of steps that is at least the distance from an endpoint.
+In contrast, A(i) makes up to 4 · 2i queries around each good vertex, and up two times as many
+queries as A around each bad one.
+1.3
+Related Work
+The term instance optimality was coined by Fagin, Lotem and Naor [FLN03]. If an algorithm
+always outperforms every other algorithm (up to a constant), particularly the algorithm that is
+aware of the input distribution, it is defined as being instance optimal. This definition is very
+strict, and thus there are numerous situations in which it cannot be meaningfully attained. As
+a result, several works (including ours) address this by necessitating that an instance optimal
+algorithm be competitive against a certain class of algorithms (for example, those that know an
+a permutation of the input, rather than the input itself). This notion of instance optimality is
+sometimes referred to as “unlabeled instance optimality”.
+Unlabeled instance optimality.
+Afshani, Barbay, and Chan [ABC17] considered and presented
+unlabeled instance-optimal algorithms for locating the convex hull and set maxima of a set of points.
+Valiant and Valiant [VV16] developed an unlabeled instance optimal algorithm for approximating
+a distribution using independent samples from it (with the cost function being the number of
+samples). Later [VV17], they provided an algorithm for the identity testing problem. Here the
+problem is
+determining, given an explicit description of a distribution, whether a collection of
+10
+
+--- Page 11 ---
+samples was selected from that distribution or from one that is promised to be far away. More
+recent works on instance optimality in distribution testing include, for example, the work of Hao
+et al. [HOSW18, HO20].
+Grossman, Komargodski, and Naor examined unlabeled instance optimality in the query model
+[GKN20]. Their work relaxes the definition of instance optimality by no longer requiring an optimal
+algorithm to compete against an algorithm that knows the entire input, but rather against an
+algorithm that knows something about the input. Arnon and Grossman [AG21] define the notion
+of min-entropic optimality, where instead of relaxing the ”for-all” quantifier over algorithms, they
+relax “for-all” quantifier over inputs. That is, for an algorithm to be optimal it is still required to
+perform as well any other algorithm; however it is no longer required to be optimal on every input
+distribution, but rather only on a certain class of inputs.
+Instance optimality in graphs.
+Subgraph detection and counting has not been thoroughly
+investigated from the perspective of instance optimality; establishing a unified theory of instance
+optimality in this context remains an intriguing open problem. However, instance optimality has
+been investigated for other graph problems of interest. For example, Haeupler, Wajc and Zuzic
+[HWZ21] investigate instance optimality and a related notion called universal optimality in a family
+of classical and more “global” distributed graph problems such as computing minimum spanning
+trees and approximate shortest paths.
+Strong instance optimality.
+The original, robust definition of instance optimization calls for
+an algorithm to be superior to every other algorithm.
+For getting the top k aggregate score in
+a database with the guarantee that each column is sorted, [FLN03] provided an instance-optimal
+algorithm. Demaine, L´opez-Ortiz, and Munro [DLM00] provided instance-optimal algorithms for
+locating intersections, unions, or differences of a group of sorted sets. Baran and Demaine [BD04]
+showed an instance optimal algorithm for finding the closest and farthest points on a curve. Gross-
+man, Komargodski and Naor [GKN20] and Hsiang and Liu [LM23] studied instance optimality in
+the decision tree model.
+Cryptography and complexity.
+The problems of finding a constant sized structure in f, where
+f is a total function guaranteed to contain the structure at hand has been studied extensively and
+is a fundamental problem in computational complexity and there are complexity classes in TFNP
+defined around it [MP91, Pap94]. We note that we can slightly change the functions in our paper
+to also make them total problems, and all our proofs will still hold.
+As mentioned above, the problem of finding collisions is a fundamental one in cryptography.
+The standard definition is that of a collision resistant hash (CRH), where finding a collision is a
+computationally hard problem. Such functions are very significant for obtaining efficient signature
+schemes and commitment to large piece of data using little communication. But other related
+structures are also considered in the literature: for instance, functions where it is hard to find
+multiple collisions [KNY18].
+1.4
+Organization
+In Section 2 we formally define the computational models we use as well as the notions of an
+unlabeled certificate (i.e., the “untrusted hint”) and instance optimality. In Section 3 we prove that
+11
+
+--- Page 12 ---
+finding a collision in functions, and a claw in a graph is not instance optimal. In Section 4 we prove
+that functions that are not subsets of the collisions of two paths, followed by an additional path is
+polynomial far from being instance optimal. Such properties include many fundamental structures
+such as finding a fixed point, or a multi-collision. This gives us a complete characterization in
+the function model. In Section 5 we complete the full characterization for the model defined on
+graphs. We do this by proving that finding a path of length one or two is instance optimal, and
+that determining if a graph contains a subgraph H is polynomially far from being instance optimal,
+unless H is a path of length 1 or 2, or a claw. Finally, in Section 6 we prove that finding a claw
+in a graph is O(log(n)) close to being instance optimal among graphs for which finding a claw or
+collision can be done in O(√n/ log(n)), by an algorithm with an unlabeled certificate.
+2
+Preliminaries
+2.1
+Functions
+Let n ∈N. A property P of functions is a collection of functions f : [n] →[n] that is closed under
+relabeling. That is, if f ∈P then f ◦π ∈P for any permutation π: [n] →[n]. We sometimes say
+that f satisfies P when f ∈P.
+In this work we will be interested in the property of containing some constant size substructure
+H (e.g., a collision or a fixed point).
+Let H be an oriented graph with h vertices.
+Suppose
+further that the outdegree of each vertex in H is at most 1.3
+The property PH consists of all
+functions f : [n] →[n] satisfying the following. There exist h disjoint elements x1, . . . xh ∈[n] and
+a mapping between V (H) and {x1, . . . , xh}, so that H contains an edge between u and v if and
+only if f(xu) = xv, where xu, xv are the mappings of u and v, respectively.
+A Las Vegas (randomized) algorithm for the property P in the query model is a randomized
+decision tree that determines membership in the property P with probability 1 (i.e., it is always
+correct, and the quantity of interest is the number of queries the algorithm requires). Given a Las
+Vegas randomized algorithm A (which knows n) with random seed r and given f : [n] →[n], denote
+by QueriesP
+A(f, r) the amount of queries that A makes when evaluating if f satisfies a property
+using the random seed r. Usually when the property P is clear from context we omit it from the
+notation.
+We write QueriesP
+A(f) = Er QueriesP
+A(f, r) (or QueriesA(f)) to denote the expected number of
+queries that the algorithm A makes over input f, where the expectation is taken over all possible
+random seeds.
+Definition 2.1 (Unlabeled Certificate Complexity). The Unlabeled Certificate complexity of a
+property P, and function f is:
+RAC(P, f) = min
+A∈AP max
+π
+QueriesA(f ◦π),
+where AP is the set of all Las Vegas algorithms for evaluating if f satisfies property P, and π ranges
+over all permutations of [n].
+So far, we have considered only properties of functions of a given size n. Our definition of
+instance optimality is asymptotic in its nature and so we extend the definition of a property by
+3Note that a function can be viewed as an oriented graph where the outdegree is always equal to one, hence H
+can appear as a substructure in such a function if and only if the outdegrees are at most 1.
+12
+
+--- Page 13 ---
+allowing it to have functions of different sizes. Suppose that P is a property which contains graphs
+of all sizes n ≥N, for some constant N. We can then define a corresponding sequence of algorithms
+{An}n≥N, where An is responsible for graphs of size n.
+Definition 2.2 (instance optimality). A sequence of properties P = {Pn}n∈N invariant under
+a relabeling is instance optimal if there exist an absolute constants c > 0, and a sequence A =
+{An}n∈N, where each An is a Las Vegas algorithm for Pn, such that on every input f : [n] →[n], it
+holds that
+QueriesPn
+An(f) ≤c · RAC(Pn, f)
+Next we present the analogous definition for being far from instance optimality.
+Definition 2.3 (ω-far from instance optimality). Let ω: N →N denote a function that grows to
+infinity as n →∞. We say that a sequence of algorithms {An}n∈N evaluating if a sequence of
+functions {fn}n∈N (where fn : [n] →[n]) satisfies a sequence of properties P = {Pn}n∈N is ω-far
+from instance optimal if there exists a constant N where for all n ≥N it holds that:
+QueriesPn
+An(fn) ≥ω(n) · RAC(Pn, fn).
+We say that the sequence of properties {Pn} is ω-far from instance optimal if any sequence of
+algorithms {An}n∈N evaluating it is ω-far from instance optimal.
+In particular, a property P (or more precisely a sequence {Pn} of properties of functions f : [n] →
+[n], for any n) is polynomially far from instance optimal, if it is ω-far for some ω(n) = nΩ(1)
+polynomial in n.
+2.2
+Graphs
+A graph property P is a collection of graphs that is closed under isomorphism. That is, if G =
+(V, E) ∈P and π: V →V is a permutation, then the graph Gπ = (V, Eπ) where (u, v) ∈E if and
+only if (π(u), π(v)) ∈Eπ satisfies Gπ ∈P.
+Here we consider the adjacency list query model. We assume that the vertex set V is given to
+us in advance. Given a single query, an algorithm can either (i) find the degree dv of v, or (ii) find
+the i-th neighbor of v (in some arbitrary ordering). We note that other variants of the adjacency
+list model in the literature also allow pair queries, that is, given u, v ∈V the algorithm can ask
+whether there is an edge between u and v. Our results hold word for word also in this variant.
+Definitions of instance optimality are analogous to Section 2.1, except here the unlabeled cer-
+tificate is an isomorphism of the graph.
+Definition 2.4 (Unlabeled certificate complexity). The randomized unlabeled certificate com-
+plexity of a graph property P with respect to a graph G is defined as follows.
+RAC(P, G) = min
+A∈AP max
+π∈Γ QueriesP
+A(π(G)),
+where Γ is the set of all permutations of the vertex set, and AP is the set of all Las Vegas randomized
+algorithms that always evaluate membership in P correctly.
+13
+
+--- Page 14 ---
+Definition 2.5 (instance optimality). A sequence of graph properties P = {Pn}n∈N is instance
+optimal if there exist a constant c > 0 and a sequence of Las Vegas randomized algorithms A =
+{An}n∈N for P, such that on every input G on n vertices, it holds that
+QueriesPn
+An(G) ≤c · RAC(Pn, G)
+Definition 2.6 (ω-far from instance optimality). Let ω: N →N denote a function that grows to
+infinity as n →∞. A sequence of algorithms {An}n∈N evaluating if a sequence of graphs {Gn}n∈N
+(where Gn is a graph of order n) satisfies a sequence of properties P = {Pn}n∈N is ω-far from
+instance optimal if there exists a constant N where for all n ≥N it holds that:
+QueriesPn
+An(Gn) ≥ω(n) · RAC(Pn, Gn).
+We say that the sequence of properties {Pn} is ω-far from instance optimal if any sequence of
+algorithms {An}n∈N evaluating it is ω-far from instance optimal.
+We conclude with standard graph theory terminology. A simple path with k ≥2 vertices (in
+an undirected graph) is a collection of disjoint vertices v1, . . . , vk where vi is connected to vi+1 by
+an edge for each i = 1, 2, . . . , k −1. A simple cycle is defined similarly, but with vk also connected
+to v1. Finally, the claw graph plays a central role in this work.
+Definition 2.7 (Claw). The Claw graph, S3, is a 3-star. That is, a four vertex graph consisting
+of a single vertex, of degree three, which is connected to three vertices each with degree one.
+3
+Collisions and Claws: Logarithmic Separation
+In this section we formally present and analyze our construction proving Theorem 1.3 Item 3
+and Theorem 1.4 Item 3: that detecting collisions (in functions f : [n] →[n]) and claws (in graphs)
+is not instance optimal.
+Theorem 3.1 ( Theorem 1.4 Item 3 Reworded). The property PS3 of containing a claw is Ω(log(n))-
+far from instance optimality.
+Theorem 3.2 ( Theorem 1.3 Item 3 Reworded). Fix a, b, c ∈N. Let H = Ha,b,c denote the oriented
+graph containing two paths of length a and b which collide in a vertex, followed by a path of length
+c. The function property PH is Ω(log(n))-far from instance optimal.
+These two cases (i.e., claws in graphs and collisions in functions) are very similar and the proof
+that they are not instance optimal is almost identical. Thus, for the majority of the section we
+focus on the case of claws in graphs. At the end of the section we describe the minor adaptations
+required for the case of collisions in functions.
+We start by presenting the construction for claws. In Section 3.1 we adapt the construction for
+collisions in functions. Here and in the rest of the paper, we do not try to optimize the constant
+terms. In particular, the constant c = 1/10 appearing in the exponent of the query complexity
+is somewhat arbitrary; the same construction essentially works for any c < 1/2 (and with some
+adaptations it can be made to work for larger values of the constant c).
+Construction 3.3. Consider the following process for generating a graph over the vertex set [n],
+which starts with an empty graph and gradually adds edges to it.
+14
+
+--- Page 15 ---
+• For each integer
+1
+1000 log n ≤i ≤
+1
+100 log n, pick ai = n/2.2i uniformly random disjoint simple
+paths of length 2i in the graph.
+• Pick a uniformly random integer
+1
+1000 log n ≤t ≤
+1
+100 log n, which we consider as the “good”
+index. Pick a random collection Pt of bt = n9/10/1.1t of the paths of length 2t. Apply to each
+path P ∈Pt the following transformation: let uP and vP denote the two ends of the path.
+Now connect uP to two isolated vertices, and vP to two other isolated vertices. This turns P
+into a tree of size 2t + 4 built from a long path and two claws, one at each end of the path.
+• All vertices that do not participate in any of the above structures remain isolated.
+We claim that an algorithm holding a certificate requires only O(n1/10) queries to find a claw.
+Since t is known from the certificate, the strategy is simply to only try walks of length 2t.
+Lemma 3.4. EG←∆RAC(P, G) = O(n1/10).
+Proof. We show the following stronger claim: For any G ∈∆, RAC(P, G) ∈O(n1/10).
+The algorithm repeats the following until a claw is found. It picks a point at random, and
+walks at an arbitrary direction for 2t steps or unless the walk cannot continue anymore, i.e., due
+to reaching the end of a path. The correctness of the algorithm is immediate. We show that if the
+true function matches the certificate then the algorithm makes O(n1/10) queries in expectation.
+The probability that a random point will fall on a path of length 2i is ai·2i
+n
+=
+1
+1.1i . The number
+of queries made, if we land on a path of length 2i is bounded by min(2i, 2t).
+Thus the expected number of queries made by our algorithm every time it picks a point and
+walks until the path ends or until the walk reaches a length of 2t is at most
+t
+X
+i=0
+2i ·
+1
+1.1i +
+log n
+X
+i=t
+2t ·
+1
+1.1i = O
+ 2t
+1.1t
+
+(3.1)
+The same asymptotic bound on the expectation holds also if we condition on the event that the
+path on which we fell at a certain round did not contain a claw.
+Let Xj denote the number of steps taken by the algorithm in the j-th attempt, and let Ej
+denote the event that a claw is found in attempt j. The above discussion implies the following:
+Claim 3.5. E [Xj|¬E1 ∧¬E2 ∧. . . ∧¬Ej−1] = O
+
+2t
+1.1t
+
+.
+To complete the proof, it suffices to prove the following claim.
+Claim 3.6. Pr(Ej|¬E1 ∧¬E2 ∧. . . ∧¬Ej−1) = Θ
+
+2t
+1.1t ·
+1
+n1/10
+
+.
+To prove Claim 3.6, observe that Ej holds if and only if the random starting point chosen in
+attempt j belongs to one of the n9/10/1.1t paths of length 2t. There are 2t · n9/10/1.1t such points
+out of a total of n points, and the claim follows by dividing these last two quantities.
+Finally, the proof of the lemma follows from these two claims using linearity of expectation and
+a standard analysis of geometric random variables.
+The main result of this section, given below, is a lower bound showing that algorithms without a
+certificate require a number of queries that is larger by a multiplicative logarithmic factor compared
+to the best algorithm with a certificate.
+15
+
+--- Page 16 ---
+Theorem 3.7. For any algorithm A (without a certificate), EG←∆QueriesA(G) = Ω(n1/10 log(n)).
+To prove Theorem 3.7, we first revisit Construction 3.3, discussing an equivalent way to generate
+the same distribution that is more suitable for our analysis. This alternative construction has some
+offline components, that take place before the algorithm starts to run, and an online component,
+that reveals some of the randomness during the operation of the algorithm.
+For what follows, let B(n) denote the maximum possible number of (initially isolated) vertices
+that are added as neighbors of claws in the second part of Construction 3.3. Note that this number
+is maximized when t takes its minimal possible value, and satisfies B(n) ≤n9/10/1.1log(n)/1000 =
+n9/10−Ω(1).
+Unlike the original construction, here we think of the vertices of the constructed graph as having
+one of three colors: black, red, or blue. These colors shall help us keep track of the analysis. In
+essence (and roughly speaking), blue vertices lead to an immediate victory but they are very rare
+and unlikely to be found in less than n1/10+Ω(1) queries; red vertices are not as rare: finding one of
+these takes roughly n1/10 queries, but Ω(log n) red vertices are required to find a claw with constant
+probability; finally, all other vertices are black, and encountering a black vertex contributes very
+little to the probability of finding a claw.
+Construction 3.8. We start with an empty graph on n vertices colored black, and color B(n) of
+the vertices in blue.
+We then construct, as in the first bullet of Construction 3.3, n/2.2i disjoint paths of length 2i
+out of black vertices only, for every
+1
+1000 log n ≤i ≤
+1
+100 log n.
+Next, for every i we pick a subset of bi = n9/10/1.1i paths out of those of length 2i. We color
+the ends of these paths in red.
+The last part of the construction happens online, while the algorithm runs. In each time step
+where the algorithm visits a black vertex, the construction remains unchanged. If the algorithm
+encounters a red vertex, then we reveal the randomness in the construction in the following way.
+• Let I = {
+1
+1000 log n ≤i ≤
+1
+100 log n : there exists a path of length 2i with a red end}. Note
+that initially, I simply contains all values of i in the relevant range; however in the construc-
+tion I will become smaller with time.
+• Let i ∈I denote the unique integer satisfying that the currently visited red vertex lies on a
+path of length 2i. We flip a coin with probability 1/|I|. If the result is ‘heads’, we consider i
+as the “good” index and do the following: all red ends of paths of length 2i are connected to
+(isolated) blue vertices, all vertices in the graph are recolored by black, and the construction
+of the graph is complete.
+• If the result of the above flip is ‘tails’, we turn all red ends of paths of length 2i to black, and
+remove i from I.
+Finally, if the algorithm encounters a blue vertex, we pick i ∈I uniformly at random to be the
+“good” length, and connect the red ends of paths of length 2i to blue isolated vertices randomly. We
+then recolor all vertices in the graph to black and consider the construction complete.
+It is straightforward to check that Construction 3.8 produces the exact same distribution over
+graphs as Construction 3.3, and furthermore it does not reuse randomness revealed by the algorithm
+in previous parts. Of particular interest is the following observation.
+16
+
+--- Page 17 ---
+Observation 3.9. Consider any point of time during the online phase of Construction 3.8, and let
+I be as the defined in the first bullet. Then for any t ∈I, the probability that t will be the eventual
+“good” index, conditioning on all previous choices made during the construction, is 1/|I|.
+We say that A wins if it either finds a claw or encounters a blue vertex. The following lemma
+is a strengthening of Theorem 3.7, and its proof immediately yields a proof for the theorem.
+Lemma 3.10. There exists C > 0 such that for any n ∈N, any algorithm without a certificate
+requires at least Cn0.1 log n queries to win with success probability 9/10.
+From this lemma, it immediately follows that the expected winning time for the algorithm is
+Ω(n0.1 log n), which in turn implies the theorem (by definition of winning). Indeed, any algorithm
+that finds a claw can immediately find a blue vertex and win, since each claw center has two blue
+neighbors. Thus, we devote the rest of this section to the proof of Lemma 3.10.
+The next (easy) lemma states that encountering a blue vertex is a rare event which will not
+substantially impact our analysis.
+Lemma 3.11. There exists an absolute constant ε > 0 satisfying the following. For any algorithm
+A without a certificate, with high probability A does not query a blue vertex within n
+1
+10 +ε steps.
+Proof. If A has already won (found a claw), then no blue vertices remain and so the probability to
+encounter one is zero.
+Otherwise, the only chance to encounter a blue vertex at time t is by sampling a vertex from
+the set of vertices Vt that we did not see so far (i.e., vertices that were not queried and were not
+revealed to be neighbors of queried vertices). Note that |Vt| = n −O(t) ≥n/2 for t = o(n), and
+the probability that the sampled vertex is blue is bounded by B(t)/|Vt| ≤1/n0.1+Ω(1). The proof
+follows by a union bound.
+The following result shows that finding Ω(log n) red vertices with constant probability requires
+Ω(n0.1 log n) queries. To complete the proof, we shall see later that either finding a blue vertex or
+collecting at least logarithmically many red vertices is essential to win with constant probability.
+Lemma 3.12. There exists a constant c > 0 so that for all n ∈N, any algorithm A which makes
+cn0.1 log n queries will find less than
+1
+1000 log n red vertices in expectation.
+Proof. First, note that we may assume that no blue vertex is ever encountered during the process.
+If such a vertex is visited, then all red vertices are recolored to black immediately, and so the success
+probability is zero in this case.
+We show that the lower bound applies even if we augment the algorithm with the following addi-
+tional information revealing some of the randomness in the construction. Clearly, this immediately
+yields a lower bound for the general case, where the algorithm does not hold such information.
+Assume that the algorithm knows in advance, for each vertex v in the graph, whether it is part
+of a path (i.e., not an initially isolated vertex at the start of the online phase). Further, if v is
+part of path I of length 2i, the algorithm knows I. However, the algorithm does not know initially
+which of the paths have their end vertices colored red.
+We denote by Ii the set of all paths of length 2i, and let Vi = S
+I∈Ii V (I) denote the set of all
+vertices in these paths. Note that Vi ∩Vj = ∅for i ̸= j. Further let Ri ⊆Ii denote the set of all
+paths in Ii whose end vertices are red, and let Bi = Ii \ Ri denote the set of all other paths (i.e.,
+all paths with black ends) in Ii. Note that Ri and Bi are initially unknown to the algorithm.
+The main technical claim of the proof is as follows.
+17
+
+--- Page 18 ---
+Claim 3.13. There exists an absolute constant α > 0 satisfying the following for any fixed κ > 0.
+For all n ∈N, the probability that the algorithm finds a red vertex in Vi within its first κn0.1 queries
+in Vi is bounded by ακ. This is true regardless of which queries were made outside of Vi.
+Proof. Let E denote the event that a red vertex is found within the first κn0.1 queries in Vi. The
+statement of the claim is that Pr(E) = O(κ) where the hidden term in the O(·) expression is an
+absolute constant (independent of n).
+Consider two events, Elong and Eshort, defined as follows.
+Elong is defined like E, with the
+additional requirement that the red vertex is found in a path in which the algorithm made at least
+2i−2 queries (i.e., at least half of the path length). The complementary event Eshort = E \ Elong is
+the event that the red vertex is found in a path to which less than 2i−2 queries were made.
+Note, first, that there are more than n0.9 paths of length 2i, and that we are interested here in
+the domain where at most O(n0.1) queries are being made within Vi. Thus, at any time along the
+process, the probability that a certain path I ∈Ii whose endpoints were not visited yet satisfies
+I ∈Ri (i.e., has red endpoints) is at most (1 + o(1))p, where
+p = n9/10/1.1i
+n/2.2i
+=
+2i
+n0.1
+was the a priori probability (before the process started) that I ∈Ri.
+Since E = Elong ∪Eshort, to prove the claim it suffices to show separately that Pr(Elong) = O(κ)
+and Pr(Eshort) = O(κ).
+We first bound Pr(Elong). Let Li denote the set of paths I ∈Ii satisfying that (i) at least 2i−2
+of the vertices in I were visited during the first κn0.1 queries, and (ii) one of the endpoints of I was
+visited during that time. Note that
+|Li| ≤κn0.1
+2i−2 .
+By the above, for each I ∈Li, the probability that I ∈Ri (even conditioned on all previous
+queries made by the algorithm) is bounded by (1 + o(1))p. Taking a union bound, we have that
+Pr(Elong) ≤
+X
+I∈Li
+Pr(I ∈Ri) ≤|Li| · (1 + o(1))p ≤(1 + o(1)) · κn0.1
+2i−2 · 2i
+n0.1 = O(κ).
+To bound Pr(Eshort), consider any I ∈Ii \ Li where none of the endpoints of I have been revealed
+(if an endpoint was revealed to be black then I /∈Ri and the probability to find a red vertex in
+I is zero). Let Q ⊂I denote the set of already queried vertices in I. Recall that |Q| < 2i−2. We
+claim that conditioned on all the information visible to the algorithm at this point, any vertex in
+I \ Q (including all neighbors of Q) has probability at most
+4
+2i to be an endpoint of I.
+The proof of this claim relies on a symmetry-based perspective. Instead of thinking of I as a
+path on 2i vertices, one can view it as a cycle on 2i nodes where all edges are initially considered
+unseen. When one of the endpoints of an unseen edge e is queried, we flip a coin with probability
+1/r, where r is the number of unseen edges at this point, and if the result is ‘heads’ we break the
+cycle into a path by removing e from the cycle. Now to prove our claim, as long as less than 2i−2
+vertices in I were queried, the number of unseen edges is bigger than 2i−1, and so the probability
+of each specific node to belong to the edge that will break the cycle is less than 2/2i−1 = 4/2i.
+18
+
+--- Page 19 ---
+Thus, the (conditional) probability that any particular query in a path I ∈Ii \ Li will reveal a
+red vertex is at most
+4
+2i · (1 + o(1)) · 2i
+n0.1 = O
+ 1
+n0.1
+
+.
+This is true for any of our κn0.1 queries in Vi. By a union bound, Pr(Eshort) = O(κ).
+The proof of the lemma given Claim 3.13 follows from a simple linearity of expectation argument.
+For each
+1
+1000 log n ≤i ≤
+1
+100 log n, Let Ii denote the indicator random variable of whether a red
+vertex was found in Vi, and let qi denote the number of queries made in Vi in the first cn0.1 log n
+rounds of the process. It follows from the claim that E[Ii] ≤αqi/n0.1, and so
+E[# red vertices encountered] ≤
+X
+1
+1000 log n≤i≤
+1
+100 log n
+α qi
+n0.1 ≤
+α
+n0.1 cn0.1 log n ≤αc log n,
+which completes the proof by taking c small enough as a function of α.
+We now have all the ingredients to complete the proof of Lemma 3.10.
+Proof of Lemma 3.10. The algorithm (without certificate) wins if and only if it either encounters
+a blue vertex, or it encounters a red vertex and the subsequent coin flip results in ‘heads’. By
+Lemmas 3.11 and 3.12 and a union bound, there exists a small enough absolute constant C > 0 so
+that the probability that either of these events happen in the first Cn1/10 log n rounds is bounded
+by 9/10. The proof follows.
+3.1
+From Claws to Collisions
+We now briefly define a similar construction aimed at showing the Θ(log n) separation for collisions
+in functions. The same construction and proof also apply if instead of a collision we consider an
+“extended collision” Ha,b,c as defined in Theorem 3.2.
+Construction 3.14. Consider the following process for generating a function f : [n] →[n]:
+• For each integer
+1
+1000 log n ≤i ≤
+1
+100 log n, add ai = n/2.2i disjoint paths of length 2i in the
+function.
+• Pick a uniformly random integer
+1
+1000 log n ≤t ≤
+1
+100 log n. Pick a collection Pt of bt =
+n9/10/1.1t of the paths of length 2t. For each such path P, let u and v denote the first and last
+element in the path; set f(v) to be an arbitrary value in P \ {u, v}, which creates a collision.
+Close all other paths (of all lengths) into cycles: specifically, using the same notation, set
+f(v) = u.
+• For all values x ∈[n] that do not participate in any of the above paths, set f(x) = x to be a
+fixed point.4
+4We note that the construction can be easily modified to not include fixed points: simply use the remaining values
+to close cycles of length 2 or 3 instead of fixed points, which are essentially cycles of length 1.
+19
+
+--- Page 20 ---
+As is the case with claws in graphs, an algorithm holding a certificate would know the value
+of t, and make walks of length 2t until finding a collision, with a query complexity of O(n1/10).
+Meanwhile, to show the lower bound for an algorithm without a certificate, we use a coloring
+scheme with only two colors – red and black – where elements that are ends of paths which serve
+as “candidates” for a collision are marked red, and all other elements are marked black. Similarly
+to the above, in order to find a collision with constant probability, the algorithm needs to find
+Ω(log n) red elements with constant probability, which requires Ω(n1/10 log n) queries.
+4
+Function Properties Far from Instance Optimal
+In this section we study the instance optimality of properties of functions f : [n] →[n]. As shown in
+the previous section, the property of containing a collision is Θ(log n)-far from instance optimal. We
+show that any pattern with either at least two collisions or at least one fixed point is polynomially
+far from instance optimality. This is summarized in the theorem below.
+Theorem 4.1. Let H be any constant-size oriented graph (possibly with self-edges) where each
+node has out-degree at most one. Suppose further that H either contains (i) a fixed point (i.e., an
+edge from a node to itself) or (ii) at least two nodes with in-degree at least two, or (iii) at least one
+node with in-degree at least three.
+The function property PH of containing H as a substructure is ˜Ω(n1/4)-far from being instance
+optimal.
+The rest of this section is devoted to the proof of the theorem. We start with the construction
+used to prove the theorem.
+Construction 4.2. Let H be an oriented graph satisfying the conditions of Theorem 4.1. Define
+the entry vertices of H to be those vertices with in-degree 0 in H (in the special case where H is
+a single fixed point, define its single vertex as the entry point). Let T be the total number of entry
+vertices in H.
+Define an input distribution ∆as follows: first, pick α
+n
+log n vertices uniformly at random and
+split them into N = αn1/4/ log(n) disjoint cycles of length n3/4, for a small absolute constant α > 0.
+Denote these cycles by C1, ..., CN. For each cycle Ci we associate a unique prime number, pi, where
+all pi’s are in the range (n1/4/4, n1/4/2) for an appropriate value of c. Note that this is possible
+due to well-known results on the density of prime numbers. We say that all points contained in the
+union SN
+i=1 Ci are of type 1.
+For each cycle Ci, we add paths of length αn1/4 entering it, where the distance (in Ci) between
+the entry points of every two adjacent paths entering the cycles is exactly pi. Since each cycle Ci
+has a length of n3/4, it has Θ(√n) paths entering it, each of length n1/4. We say that all points
+participating in these paths are of type 2.
+Lastly, a collection x1, . . . , xT of exactly T points from SN
+i=1 Ci is picked uniformly at random
+conditioned on the event that no two of these points come from the same cycle. Denote the latter
+event by E and note that Pr(E) = 1 −o(1). For each xk, let Cik denote the cycle containing it,
+and turn this cycle into a path ending at xk by removing the outgoing edge from xk. Finally, insert
+a copy of H using all x1, . . . , xT as entry points.
+To complete the function into one that has size n, partition all remaining (unused) points into
+disjoint cycles of length n3/4 each.
+20
+
+--- Page 21 ---
+Crucially, an algorithm with a certificate knows the indices i1, . . . , iT (and the corresponding
+primes pi1, . . . , piT ). Given these primes, it turns out that the algorithm is able to find the relevant
+cycles, walk on them until finding the entry points, and building the full H-copy, all using O(n3/4)
+queries.
+In contrast, for an algorithm without the certificate, the entry points are distributed
+uniformly over the union of all cycles, and thus a lower bound of ˜Ω(n) can be shown.
+Lemma 4.3. Ef←∆RAC(PH, f) = O(n3/4).
+Lemma 4.4. For any algorithm A (without a certificate), Ef←∆QueriesA(f) = Ω(n/ log n).
+Proof Of Lemma 4.3. We show the following stronger claim: For any f ∈∆, RAC(PH, f) =
+O(n3/4). We provide an algorithm to find all T entry points with Ω(1) success probability using
+O(n3/4) queries.
+Once all T entry points are found, completing the copy of H is trivial.
+The
+algorithm does the following for a large enough constant C.
+• Phase 1: sampling short paths. Pick Cn1/2 vertices uniformly at random and follow the
+path stemming from each point for Cn1/4 steps.
+• Phase 2: sampling long paths. Pick Cn1/4 points uniformly at random and follow the
+path stemming from each point for Cn1/2 steps.
+• Phase 3: collection intersections and closing cycles. Consider any walk W generated
+in step 2, for which there are three walks generated in step 1 which intersect W at points
+y1, y2, y3 (for this matter, the intersection point of two walks is defined as the first point in
+which they intersect). If the distance between all of these intersection points is a multiple of
+pik for some k ∈[T], we follow W as long as possible (until the walk closes a cycle or reaches
+a fixed point; the latter means, conditioned on the certificate being correct, that an entry
+point was found).
+First note that Ω(n) of the points are of type 2. Thus in Phase 1, with high probability at
+least √n of the points picked will be of type 2. Since each such point is followed for a length of
+n1/4, the algorithm must query a point that is on the intersection of a path and a cycle. Each of
+the cycles that contain an entry point will with high probability have n1/4 points queried by our
+algorithm on them. Additionally, with constant probability arbitrarily close to one (for C large
+enough), Phase 2 will pick at least one point in each of the cycles Ci1, . . . , CiT containing an entry
+point, and subsequently make a walk of length C√n on each of these cycles.
+We conclude that with probability Ω(1), the following holds for all cycles k ∈[T]: the path
+generated within Cik in Phase 2 will intersect at least two paths generated in Phase 1. Thus, Phase
+3 will ensure that the rest of Cik will be queried, until reaching the entry point. Given all query
+points, H will be queried, as needed. Thus, the success probability of a single iteration of the
+algorithm is Ω(1).
+It remains to bound the expected query complexity of a single iteration of the algorithm. Clearly,
+Phases 1 and 2 always take O(n3/4) queries. Phase 3 takes O(n3/4) queries when restricted to cycles
+that contain an entry point, since there are only O(1) such cycles. What about other cycles?
+With high probability, the following holds for all cycles C′ not containing an entry point: at
+most O(n1/4) of the short paths from Phase 1 and at most O(log1.1 n) of the long paths from Phase
+2 will intersect C′. It follows that for with high probability, simultaneously for all such cycles, the
+number of short-long intersections is O(log2 n). Condition on this high probability event.
+21
+
+--- Page 22 ---
+Let C′ be any cycle not containing an entry point, and let p′ be the unique prime associated
+with this cycle. Also let p ∈{pi1, . . . , pik} be any prime associated with one of the entry point
+cycles, and let y1, . . . , ym denote all intersection points found in C′. Note that all distance between
+yi and yj are divisible by p′, but the probability that each such distance is divisible by p is O(1/p) =
+O(1/n1/4). Thus, the probability that there are three intersection points yi, yj, yl whose distances
+are all divisible by p is O(log4 n/√n). Phase 3 will query the whole cycle C′ only if this event holds.
+Finally, taking a union bound over all values of p ∈{pi1, . . . , pik} and all possible cycles C′, we
+conclude that the expected number of queries made in Phase 3 on incorrect cycles C′ (which do
+not contain entry points) is of order O(n3/4 · log4 n/n1/4) = o(n3/4).
+We have seen that a single iteration of the algorithm above succeeds with Ω(1) probability and
+has expected query complexity O(n3/4). The proof follows by linearity of expectation and standard
+bounds on geometric random variables.
+Proof of Lemma 4.4. Consider the construction right after all type 1 points are determined, and
+suppose that the algorithm is given the following information “for free”: for each cycle Ci, the
+algorithm knows exactly which points belong to Ci as well as their order along the cycle. Note
+that the algorithm does not know a priori the indices i1, ..., iT of the cycles which will be turned
+into a path (which ends in an entry point to the H-copy). It also does not receive any additional
+information about type 2 points, aside from the information detailed above.
+We say that a point in [n] is critical if it participates in the H-copy. Note that an algorithm
+must either query a critical point or make Ω(n) total queries in order to be correct with constant
+probability. Thus we bound the number of queries an algorithm makes until it queries a critical
+point. Once such a point is queried, the algorithm stops running.
+Let C = SN
+i=1 Ci denote the set of all points lying in cycles, and let B = [n] \ C denote the set
+of all other points. With some abuse of notation let H be the (unknown) set of critical points. We
+note that for any x ∈C, the probability that x ∈H is completely independent of the queries that
+the algorithm makes in B. The same is true for x ∈B with respect to queries made in C.
+Consider first queries that the algorithm makes in B. Because of the above independence, the
+probability that after i queries were made in B, the next query will reveal a critical point is bounded
+by |H|/(|B| −i) = Θ(1/n). Thus, any algorithm that makes o(n) queries has o(1) probability to
+query a critical point in B.
+To analyze the situation in C, observe that the event E defined during the construction satisfies
+Pr(E) = 1−1/Θ(n1/4). Thus from elementary probabilistic considerations it will suffice to prove the
+following claim: let x1, . . . , xk be a uniformly random collection of k disjoint points in C without the
+condition that they come from different cycles (i.e., without conditioning on the event E). Then the
+expected number of queries required for any algorithm (without a certificate) to query at least one
+of these points is Ω(n/ log n). However, the proof of this claim is essentially trivial, following from
+standard estimates for sampling without replacement: in our setting, we have |C| = Θ(n/ log n)
+red balls and T green balls in an urn, and the quantity we need to output is the expected amount of
+time until a green ball is sampled (without replacement). This quantity is of order Θ(n/ log n).
+5
+Instance Optimality in Graphs
+We consider whether questions of the type: “Does G contains a subgraph H” are instance optimal.
+We begin by defining a k-star.
+22
+
+--- Page 23 ---
+Definition 5.1 (k-star). The k-star Sk is a graph with k + 1 vertices: k vertices of degree 1, all
+connected to a vertex of degree k.
+For example, a 1-star is a graph consisting of 2 vertices, connected by an edge. A 2-star (or a
+wedge) contains 2 vertices of degree 1 connected to a third vertex of degree 2. A 3-star is a claw.
+In Section 3, we have seen that claws are not instance optimal, by showing a Ω(log n)-separation
+between an algorithm with a certificate and one without a certificate in some case. What about
+other choices of H? It turns out that if H is a 1-star or 2-star then finding H is instance optimal.
+If H is any other graph, then finding H is polynomially far from instance optimal.
+Theorem 5.2 (Theorem 1.4 repeated). Let H be any fixed graph and consider the property PH of
+containing a copy of H as a subgraph. Then PH is:
+• instance optimal if H is an edge or a wedge (path with two edges);
+• nΩ(1)-far from instance optimal if H is any graph other than an edge, a wedge, or a claw; and
+• Ω(log(n))-far from instance optimal when H is a claw.
+The theorem follows from the lemmas below, together with the results of Section 3. Lemma 5.3
+proves the first item of the theorem. Lemma 5.4 proves that for every H that is not a k-star, finding
+H is not instance optimal. Lemma 5.5 proves the separation for k-stars when k ≥4.
+Lemma 5.3. PH is instance optimal when H is a 1-star (edge) or a 2-star (wedge).
+Lemma 5.4. For all graphs H that are not a k-star, there exists a distribution, ∆, such that
+EG←∆QueriesA(G) = Ω(n) for any algorithm A (without a certificate) determining membership in
+PH, whereas RAC(PH, ∆) = O(n1/2 log n).
+Lemma 5.5. Let H = Sk for k ≥4.
+There exists a distribution ∆such that for any algo-
+rithm A (without a certificate) determining membership in PH, EG←∆QueriesA(G) = Ω(n), while
+RAC(PH, ∆) = O(n1/2).
+Proof Of Lemma 5.3. When H is a single edge, it is immediate that the algorithm which repeatedly
+picks a random vertex and checks whether it has neighbors is instance optimal. When H is a wedge,
+consider the following algorithm: pick a random vertex u. If u has two neighbors, then a wedge
+was found. If u has one neighbor, v, then check if v has a neighbor. It is not hard to verify that
+the algorithm is instance optimal.
+Proof of Lemma 5.4. For a given graph H we define an input distribution ∆as follows. Pick √n
+vertices arbitrarily.
+These vertices are the center of disjoint k-stars.
+Each remaining vertex is
+connected to exactly one of the star centers such that each star has a unique degree in [
+√n
+4 , 3√n
+2 ].
+Note that in this construction each vertex is either a star center, or a vertex of degree 1. Next we
+pick |H| degree-1 vertices uniformly at random, such that no two vertices that are chosen belong
+to the same star. These vertices are then connected to form a clique, and thus in particular contain
+H. Denote this set of vertices by S.
+Our result follows from the following two claims:
+Claim 5.6. RAC(PH, ∆) = O(n1/2 log n).
+Claim 5.7. For any algorithm A (without a certificate) for PH, EG←∆QueriesA(G) = Ω(n).
+23
+
+--- Page 24 ---
+Proof Of Claim 5.6. The algorithm starts by finding the center of each star and its degree as follows:
+A ←∅
+for i = 1, ..., Θ(√n log n) do
+Pick an arbitrary vertex v ∈V , and query the degree of v.
+if deg(v) = 1 then
+Let u be the neighbor of v. u is a center of a star. If u /∈A, add u to A.
+end if
+end for
+The probability of any star center to be found in any particular step is Θ(1/√n), so after Θ(√n log n)
+rounds of the above process, A will contain all star centers.
+Next, we query the degrees of all star centers. This takes O(√n) queries.
+Recall that the degree of each star is unique, and thus the algorithm knows from the unlabeled
+certificate the degrees of the star centers that have a neighbor in S; call these star centers “good”.
+Finally, we query all neighbors of all good star centers at a cost of O(√n) queries. This reveals the
+clique containing H.
+Proof of Claim 5.7. The proof is very similar to that of Lemma 4.4 and we sketch it briefly.
+Suppose the algorithm is given for free all the stars, but is not given S. In particular, for every
+star center v, the algorithm knows the set of all neighbors of v. The algorithm is required to query
+at least one node in S.
+Suppose that we pick |H| vertices uniformly at random among all degree-1 vertices. Let E
+denote the event that no two of them belong to the same star.
+Then Pr(E) = 1 −O(1/√n).
+Similarly to Lemma 4.4, it suffices to prove the following: if we choose a set S of |H| points from all
+degree-1 vertices without conditioning on E, then the expected number of queries required to find
+one vertex in S is Ω(n). As in Lemma 4.4, this follows from a standard analysis of a sampling with
+replacement setting where there are O(1) green balls and O(n) red balls, and we are interested in
+the number of balls that one needs to sample in expectation to get one green ball.
+The proof of the lemma follows.
+Proof of Lemma 5.5. We describe the construction for the property of containing a k-star for k ≥4.
+Define an input distribution ∆as follows. Pick √n vertices randomly, and connect them to form
+a path. Next randomly split the remaining vertices into √n disjoint subsets each of size √n −1 or
+√n−2, P1, ..., P√n. Order the vertices in each Pi randomly, and connect them in this order to form
+a path. Lastly, connect a new vertex vi to the first vertex in Pi for each i, and connect another
+vertex v0 to v1. See illustration in Figure 2.
+The last phase of the construction is to pick a random vertex u.
+We then connect u to k
+additional vertices. Denote this set of vertices by S. As we show, the construction establishes the
+following:
+Claim 5.8. RAC(PSk, ∆) = O(n1/2).
+Claim 5.9. For any algorithm A (without a certificate) for PSk, EG←∆QueriesA(G) = Ω(n).
+Proof of Claim 5.8. The algorithm with a certificate knows the index k for which Pk contains the
+star center. It first finds v0, v1, . . . , v√n in the following way. Pick a random starting point v, and
+walk until encountering either a degree-1 vertex or a degree 3 (or more) vertex. In the former case,
+we can walk on the other direction from v until reaching a degree 3 or more vertex. It is easy to
+24
+
+--- Page 25 ---
+v0
+v1
+v2
+v√n
+Path of length √n
+Path of length √n
+Path of length √n
+Figure 2: Construction for Lemma 5.5
+check with O(1) queries if the encountered vertex u is part of a k-star; assume henceforth that this
+is not the case. Thus, u = vi for some 1 ≤i ≤√n −1 (note that v0 and v√n have degree 1 and
+2 respectively, not 3). From here we can locate all vertices vi for 2 ≤i ≤√n −1 (in this order or
+the reverse order) by checking, for each of its neighbors, whether it is degree 3 (or degree 1, which
+marks that we found v0).
+Given v0, . . . , v√n and the value k for which the star center is in Pk, the algorithm simply
+proceeds by querying all vertices in Pk (via a walk from vk), including the star center.
+Proof of Claim 5.9. Suppose the algorithm is given, for free, all the paths, but is not given any
+information about the star center. The proof follows immediately since the star center was chosen
+uniformly at random among all vertices in the graph.
+The proof of the lemma follows from the above two claims.
+6
+Finding Claws Is almost Instance Optimal when the input has
+low Complexity
+In this section we prove Theorem 1.7. That is, we prove Conjecture 1.6, that finding a claw in
+a graph is O(log(n)) close to being instance optimal in the regime where finding a claw can be
+done in O(
+p
+n/ log n) queries by an algorithm with an unlabeled certificate. For what follows, let
+PS3 = PS3(n) denote the property of containing a claw (a 3-star) in n-vertex graphs.
+Theorem 6.1 (Near-instance optimality in the low-complexity regime). There exist universal con-
+stants C, α > 0 and a Las Vegas algorithm Aall-scales satisfying the following. For every graph G on
+25
+
+--- Page 26 ---
+n vertices in which the unlabeled certificate complexity satisfies
+RAC(PS3, G) ≤α
+r
+n
+log n,
+the algorithm Aall-scales detects a claw with expected query complexity at most C log n·RAC(PS3, G).
+The proof consists of three main parts, each contained in a separate subsection. Section 6.1
+modifies the input graph to be more symmetrical to make all further analysis easier. Section 6.2
+shows that it is not possible to find certain type of intersections (merges) between walks in time
+less than
+p
+n/ log(n) unless one finds a claw. Lastly, in Section 6.3 we prove that conditioned on no
+two paths merging, a “memoryless” strategy that follows paths at logarithmically many different
+paths in parallel, where each path i is followed for length 2i, is O(log n)-instance optimal.
+6.1
+Cleaning up the graph
+We start by reducing the problem of finding a claw in an n-vertex graph G with n vertices to a
+closely related problem on a graph G′ on the same vertex set, where G′ additionally satisfies the
+following symmetry property, which will be useful for our analysis.
+Definition 6.2 (path-symmetric graph). A graph G is path-symmetric if for every vertex v of
+degree 1 in G, the other endpoint u of the simple path P containing v in G is also of degree 1.
+The construction.
+Given an undirected graph G = (V, E) with |V | = n, V into disjoint sets
+V0 ∪V1 ∪V2 ∪V3+, where for i = 0, 1, 2, Vi contains all degree-i vertices in the graph, and V3+
+includes all other vertices.
+To each v ∈V1 ∪V2 we can uniquely assign a path P = P(v) that contains v. For any v ∈V1
+(i.e., endpoint of the path P(v)), we say that v is a “yes” endpoint if the other endpoint u of P(v)
+is in V3+ (i.e., u is a claw center); otherwise, v is a “no” endpoint (and in this case, u ∈V1 as well).
+Let V yes
+1
+and V no
+1
+denote the set of “yes” and “no” endpoints, respectively.
+The transformation G 7→G′ is defined as follows. We add two new vertices w, w′ and connect
+them to all vertices in V yes
+1
+within G. If |V yes
+1
+| = 1, we also connect w to w′. Thus, all vertices
+from V yes
+1
+are claw centers in G′. All other vertices in G remain unchanged. The degree of w, w′ in
+G′ depends on nyes = |V yes
+1
+|; it is zero if nyes = 0, two if nyes ∈{1, 2}, and three or more otherwise.
+Note that this transformation is deterministic. Thus, an algorithm holding an unlabeled certificate
+of G can easily construct from it an unlabeled certificate of G′.
+It immediately follows from the construction that G′ is path-symmetric. Our main lemma in
+this subsection states that finding claws in G′ has roughly the same query complexity as in G.
+Lemma 6.3. RAC(PS3, G) = Θ(RAC(PS3, G′)), that is, the expected query complexity of finding
+a S3 in G with an unlabeled instance is equal, up to a multiplicative constant, to the same query
+complexity for G′.
+The same equivalence is true also without access to an unlabeled certificate.
+The importance of Lemma 6.3 is that it allows us to eliminate from a graph all vertices of type
+V yes
+1
+. These vertices are problematic for our analysis; our proof in subsequent subsections relies
+heavily on symmetry arguments that break down when visiting a vertex of this type. The lemma
+26
+
+--- Page 27 ---
+implies that we can consider graphs in which each path P is of one of two types: either both
+endpoints of P are claw centers, or both are degree-1 vertices.
+We note that Lemma 6.3 holds in any regime, not just the “low-complexity” one. In particular,
+the lemma may be useful toward proving Conjecture 1.6 in the general case.
+Proof of Lemma 6.3. The proof relies on coupling arguments. Given an algorithm A for PS3 in G,
+consider the following algorithm A′ for the same task in G′. We simulate the algorithm A with the
+same set of random bits it would have used on G, with the following slight modification. Each time
+that a “new” vertex5 is queried by the simulated copy of A, the modified algorithm A′ checks if A′
+is a claw center, or has a neighbor which is a claw center. If not, A′ continues the simulation of A
+(and otherwise, a claw is found).
+Conditioned on A′ never querying w and w′ as “new vertices”, its query complexity is at most
+a constant times the query complexity of A on the corresponding instance (removing w and w′ and
+all edges connected to them). If A′ queries w or w′ at any point, then it wins within O(1) queries.
+Thus, Queries′
+A(G′) = O(QueriesA(G).
+The other direction is more subtle, and relies in part on symmetry considerations. Let A′ be an
+algorithm for PS3 in graphs on n + 2 vertices, where we may assume that each time that A′ queries
+a new vertex v, it checks whether v is a claw center (and declares a win in this case), and retains
+the list of neighbors of v if not. This assumption only increases the query complexity by a constant
+multiplicative factor. We may also assume that each time A′ picks a new vertex in the graph, this
+vertex is picked uniformly at random among all previously unseen vertices.
+We consider an algorithm A that operates on an n-vertex graph G by simulating A′ with the
+following adaptation. Each time that A′ should query a new (previously unseen) vertex, A flips
+a coin with probability 2/t, where t is the number of unseen vertices at the current point. If the
+coin outputs “heads”, the algorithm discards its entire state and restarts its simulation of A′ from
+scratch (note that previous queries made by A are still counted).
+Let T = QueriesA′(G′) denote the expected number of queries of A′ on the graph G′ created
+from the input G via the transformation. By Markov’s inequality, with probability at least 1/2 the
+number of queries until A′ finds a claw in G′ is at most 2T. We may assume that, say, T ≤n/40,
+otherwise the statement of the lemma is trivial. In what follows, we claim that A finds a claw in
+G within 2T queries with probability at least 1/5. The strategy of iteratively running independent
+copies of A for 2T steps each, until a claw is found, has expected query complexity O(T). This
+follows from standard properties of the geometric distribution.
+It remains to show that a single run of A finds a claw with probability at least 1/5. First, the
+probability that A′ queries w or w′ before finding a claw (within the first 2T steps) is bounded by
+2
+n ·2T ≤1
+10. Thus, A′ wins without querying any of w or w′ with probability p ≥2/5 in 2T queries.
+Condition henceforth on w and w′ not being queried by A′ in a single simulation. Now, fix any
+v ∈V yes
+1
+in G, that was transformed into a claw center in G′. Let v′ be the other endpoint of the
+path P(v) (in G), and recall that v′ ∈V3+. By symmetry, the probability that v is queried by the
+simulated copy of A′ before v′ is at most 1/2. Indeed, there are several cases:
+• Case 1: one of v or v′ is queried as a “new vertex” before being reached by any existing walk
+of the algorithm. Conditioning on this event, by symmetry, the probability that v is queried
+before v′ is exactly 1/2.
+5In what follows, a “new” vertex is one that did not appear in the output of past queries.
+27
+
+--- Page 28 ---
+• Case 2: One of v or v′ is queried as a neighbor of node from within P. Again by symmetry,
+conditioning on this event, the probability of each vertex to be first queried is exactly 1/2.
+• Case 3: One of v or v′ is queried as a neighbor of a vertex outside P. Since v′ has neighbors
+outside P and v does not, conditioning on this event, v′ is the first to be queried with
+probability 1.
+Summing over all vertices v ∈V yes
+1
+, we conclude that the probability that A′ found a claw by
+querying one of the vertices v ∈V yes
+1
+is at most p/2. In this case, A does not find a claw. The
+probability of the complementary event, in which A does find a claw, is at least p/2 ≥1/5. The
+proof follows.
+6.2
+Hardness of merging walks
+In this subsection we prove a hardness result concerning merging walks in graphs. We shall care
+about a property of walks, as oriented subgraphs of the input (undirected) graph. Although the
+main focus of this subsection is on the graph case, the definition below of a walk graph is suitable
+in both graphs and functions.
+Definition 6.4 (Algorithm’s walk graph). The walk graph of a query-based algorithm A in n-
+vertex graphs (in the query model) and functions f : [n] →[n] (treated as out directed graphs with
+out-degree 1) is initialized as an empty graph on [n].
+Each time that an algorithm A queries a vertex v to obtain a neighbor u of it (or an out-neighbor,
+in the functions case), we add the oriented edge v →u to GA.
+A walk is any connected component (in the undirected sense) of the walk graph, preserving the
+orientations of the walk graph. That is, it is an object of the following structure:
+v−k ←v−k+1 ←. . . ←v0 →v1 →. . . →vl,
+where k, l ≥0 (and can equal zero), and v0 is the first vertex to be queried among {vi : −k ≤i ≤l}.
+Note that the walk graph is kept oriented (each edge only has a single orientation); if v →u
+has already been added to GA, then u →v cannot be added to it in the future.
+Definition 6.5 (Merging walks). Consider the walk graph GA for an algorithm A in a graph G.
+We say that two walks
+v−k ←. . . ←v−1 ←v0 →v1 →. . . →vl
+and
+u−k′ ←. . . ←u−1 ←u0 →u1 →. . . →ul′
+in GA with distinct starting points v0 ̸= u0 merge if their endpoints intersect non-trivially:
+{v−k, vl} ∩{u−k′, ul′} ̸= ∅.
+Our main result is a universal (not graph-specific) lower bound on the query complexity of
+finding merging paths, as long as a the walk-graph of the algorithm does not contain a claw center.
+Lemma 6.6 (Hardness of merging for graphs). There exists α > 0 such that the following holds.
+For every n-vertex graph G and algorithm A making up to q = α
+p
+n/ log n queries to G, the
+probability that walks merge in GA at least once during the run of A and that further GA does not
+contain a claw center at the time the merging takes place, is at most 1/5.
+28
+
+--- Page 29 ---
+The constant 1/5 here is arbitrary (and can be replaced with any other small positive constant).
+The above lemma implies that the “strategy” of first finding merging walks and then using them
+to find a claw would require at least Ω(
+p
+n/ log n) queries. In the next subsection, we show the
+complementary result: that in a graph where no merges have been observed, a simple strategy that
+does not require an unlabeled certificate is almost instance-optimal.
+Toward the proof of Lemma 6.6.
+We start by introducing objects and ideas to be used in the
+proof of the lemma. We may assume that the input graph G does not contain claw centers, i.e.,
+has maximum degree at most 2. (Indeed, querying any edge that contains a claw center makes the
+algorithm fail, and it is easy to show that removing all these edges cannot decrease the probability
+to win.) Therefore, the graph G is a disjoint union of simple paths, simple cycles, and isolated
+vertices. For what follows, it will be convenient to measure the length of a path/cycle as the number
+of vertices (not edges) it contains, that is, an isolated vertex is a path of length 1.
+We bucket the paths in G into sets of similarly-sized paths and cycles. Let t = log1.1 n =
+Θ(log n), and for every 0 ≤i < t let Pi denote the collection of all paths and cycles in G containing
+at least 1.1i and less than 1.1i+1 vertices. Further let Ni denote the sum of lengths of paths and
+cycles in Pi. Note that these collections are disjoint and thus Plog n
+i=0 Ni = n. Define
+S =
+
+0 ≤i ≤t : Ni ≥
+√n log n
+t
+
+,
+where we note that P
+i/∈S Ni ≤√n log n. In particular, if an algorithm makes q ≤α
+p
+n/ log n
+queries then with probability 1 −2α none of the vertices in S
+i/∈S Pi will be queried. That is, we
+may assume that the walk-graph of the algorithm does not intersect S
+i/∈S Pi, and contains only
+walks strictly in paths outside this union.
+We prove the statement of Lemma 6.6 under an even stronger algorithmic model. Each time
+that a “new” vertex v is being queried by the algorithm A, we immediately notify the algorithm
+about which bucket Pi the vertex v belongs to. Note that this implies, in particular, that at all
+times during the algorithm’s run, each walk W in the walk-graph of A is contained in a bucket
+known to the algorithm. We show that even under this stronger assumption, it is hard to merge
+walks.
+Our first main claim is a concentration of measure argument regarding the number of walks
+within each bucket. It is used in the proof of Lemma 6.6 to show that walks in the same bucket
+have, very roughly speaking, a high “degree of freedom”, resulting in good bounds on the merging
+probability.
+Claim 6.7 (Properties of walks). There exists a constant α > 0 satisfying the following. Let A be
+a query-based algorithm in G making q ≤α
+p
+n/ log n queries. The following statements hold with
+probability at least 9/10.
+1. For all 0 ≤i < t, the number of walks in GA contained in S
+P∈Pi P is bounded by 10Niqt
+n
+.
+2. For all i ∈S for which 1.1i ≤
+q
+n
+log n, the number of such walks is smaller than 1
+2|Pi|.6
+6Note that the quantity |Pi| counts the number of paths in Pi, not their total length.
+29
+
+--- Page 30 ---
+Proof. For the first bullet, note that the expected number of “new queries” falling in S
+P∈Pi is
+Niq/n. By Markov inequality, the probability that (for a specific i) the number of walks is bigger
+than the expectation by 10t is 1/10t. The proof follows by a union bound since we have t buckets.
+We now turn to the second bullet. The condition 1.1i ≤
+p
+n/ log n implies
+10Niqt
+n
+≤20 · 1.1i|Pi|qt
+n
+< |Pi|
+2 ,
+where the last inequality holds provided that the constant α is small enough. The proof follows.
+Proof of Lemma 6.6. As discussed above, we can assume that G is a collection of disjoint simple
+paths (without any claw center vertices). We can simulate any (up to) q-query algorithm on such
+a graph G with the following algorithm A making up to 2q queries. First A makes q “new vertex”
+queries, by iteratively picking previously unseen nodes in G and querying them. Let Q be the set
+of all such queried nodes. In the second step, A simulates the original algorithm: each time that
+the latter decides to query a new vertex, A picks an unused vertex from Q and provides it to the
+simulated copy. If the algorithm decides to extend an existing walk, A does so as well. It is easy
+to see that the probability of A to encounter merging walks in G is at least as that of the original
+algorithm. The probability of both algorithms to encounter a claw is zero, since G is claw-free.
+Thus, it suffices to prove the lemma for A as above.
+By a standard birthday paradox argument, with high probability no two walks will merge in
+the initial querying step (which results in q oriented edges), so long as q = o(√n). We condition
+on this event for the rest of the proof. We also condition on the statement of Claim 6.7.
+For any 0 ≤i < t, fix a linear ordering of the vertices in Pi, so that each path in Pi consists of
+consecutive vertices in this order. Now, for each walk W in GA ∩Pi, one can uniquely define the
+location of W as the element of W that is smallest in the linear ordering.
+We consider a walk W ∈Pi to be short if |W| ≤1
+3 ·1.1i, and long otherwise. The proof proceeds
+by bounding two types of probabilities: (i) the probability of a short walk W to merge with another
+short walk when an edge is added to W, and (ii) the probability of a long walk W to reside in the
+same path as another walk (short or long).
+Let us start by analyzing the first type of event.
+Claim 6.8. Let W be a short walk in Pi and suppose that we extend W by an edge e. The probability
+that W ∪{e} will merge with one of the other short walks, conditioning on the statement of Claim
+6.7, is bounded by
+q
+log n
+n .
+Proof. We claim that the probability that W will merge with any specific short walk W ′ in a single
+step is bounded by 4/Ni.
+Consider first the case that both W and W ′ do not contain an endpoint of a path from P. Fix
+the location of W and all other walks in Pi, except for W ′. We claim that W and W ′ merge only if
+W ′ is located in one specific location (either one place after the largest element of W, or one place
+before the smallest of W, depending on the direction of the walk). On the other hand, conditioning
+on the event that no merging has happened so far, W ′ is distributed uniformly among all locations
+for which W ′ does not intersect any of the other walks in Pi. We call such locations free.
+If i satisfies 1.1i ≤
+q
+n
+log n, then (by the second part of Claim 6.7) a subset Pfree
+i
+of at least 1
+2|Pi|
+of the paths in Pi do not contain any walk (except for possibly W ′). The number of free locations
+in each P ∈Pfree
+i
+is at least 1.1i/2. Thus, at least Ni/4 of the locations in S
+P∈Pi P are free. If
+30
+
+--- Page 31 ---
+1.1i >
+p
+n/ log n, then since q <
+1
+10
+q
+n
+log n (provided α < 1/10), at most Ni/2 of the locations in
+Pi will be occupied, and more than Ni/4 locations will be free. In both cases, the number of free
+locations for W ′ is at least Ni/4.
+So far we dealt with the case that W and W ′ do not contain an endpoint of a path. In the case
+that both W and W ′ contain an endpoint, their merging probability is zero. It remains to consider
+the case where one of W and W ′ contains an endpoint v in Pi and the other does not. The case
+where v ∈W is identical to the analysis above (when W and W ′ do not contain an endpoint). The
+case where v ∈W ′ is symmetric, where instead of fixing the location of W and randomizing over
+the location of W ′, we fix W ′ and randomize W. The bounds we obtain are identical.
+Thus, the probability for merging of W with W ′ in this case is bounded by 4/Ni. Taking a
+union bound over all possible walks W ′, the total probability for merging (with at least one short
+walk W ′ ̸= W) is bounded by
+4
+Ni
+· 10Niqt
+n
+= 40qt
+n
+≤
+r
+log n
+n
+,
+by the first part of Claim 6.7 and provided that α is small enough.
+The second claim that we need considers the behavior of walks in the first step where they cross
+the threshold for becoming a long walk.
+Claim 6.9. Let W ∈Pi be a walk of length at least 1
+3 · 1.1i residing in a path P. The probability
+that P contains at least one additional short walk is bounded by 1.1i
+q
+log n
+n .
+Proof. Let W ′ ̸= W be a short walk in Pi. Fix the location of all walks in GA except for that
+of W. We start with the case that W ′ does not contain an endpoint. As in the previous claim,
+conditioned on no merging happening so far, the location of W ′ is distributed uniformly at random
+within a set of size at least Ni/4. Among these, less than 1.1i of the possible locations are in P
+(note that |P| < 1.1i+1, and that at least 1
+3 · 1.1i locations in it are occupied by W). By a union
+bound, the probability that P contains at least one such W ′ is bounded by
+1.1i
+Ni/4 · 10Niqt
+n
+= 10 · 1.1iqt
+n
+≤1.1i
+2
+r
+log n
+n
+,
+provided α is small enough. The case that W ′ contains an endpoint of a path in Pi is treated
+similarly, except that there are at least
+Ni
+4·1.1i locations (that contain an endpoint) to uniformly
+choose from for W ′, with only at most two of the locations belonging to P. A similar accounting
+gives a bound of 1.1i
+2
+q
+log n
+n
+for this case as well, provided small enough α. The proof follows by a
+union bound on these two cases.
+To complete the proof of the lemma, recall that the number of events of adding an edge to
+an existing short walk is bounded by q ≤α
+p
+n/ log n, and the probability of each such event to
+lead to merging with another short walk is bounded by
+q
+log n
+n . By a union bound, the probability
+for a short-short merge is at most α. The other type of merging events happen when at least
+one of the walks is long. The probability of such merging to happen is bounded by the sum of
+31
+
+--- Page 32 ---
+probabilities, over all long walks W in GA, of W having another GA-walk residing in the same
+path. By Claim 6.9, the latter sum is bounded by
+X
+W∈Pi:W long
+1.1i
+r
+log n
+n
+≤
+X
+W∈Pi:W long
+3|W|
+r
+log n
+n
+≤3q
+r
+log n
+n
+≤3α,
+where the second inequality holds because the sum of length of (long) walks in GA is bounded
+by twice the total number of queries. The sum of probabilities of all “bad” events in the analysis
+(which may lead to possible merging) is bounded by
+1
+10 + O(α) ≤1
+5 for small enough α.
+6.3
+On algorithms for finding claws without merging
+We next establish the near-instance-optimality of claw detection in the absence of merging between
+walks. Our main result is as follows.
+Lemma 6.10 (Near instance-optimality in graphs without merges). There exists a constant α > 0
+for which the following holds. Let G be a path-symmetric graph admitting an algorithm A for PS3
+with expected query complexity qG ≤
+1
+20
+√n. Suppose that the probability of A to cause merging in
+GA within its first 2qG queries, provided that it has not found a claw before merging, is bounded
+by 1/5. Then there exists an algorithm Aall-scales without an unlabeled certificate, that finds a claw
+with expected query complexity O(qG log n).
+The algorithm Aall-scales.
+Before proving the lemma, we present the algorithm Aall-scales operat-
+ing on a graph G on n vertices v1, . . . , vn. The algorithm Aall-scales first picks a random permutation
+(vπ(1), vπ(2), . . . , vπ(n)) of the vertices. Now, for each 0 ≤i < log n, define A(i) as follows. Iterate
+the following for j = 1, 2, . . . , n:
+1. Set v = vπ(j).
+2. Walk from v in both directions (alternately) for 2i+1 steps, or until one of the following is
+found: a claw, a path endpoint, or a closing of a simple cycle. Terminate algorithm and
+report success if a claw was found. In the other two cases, stop the iteration and continue to
+the next one.
+The algorithm Aall-scales simulates one copy of each algorithm A(i), 0 ≤i < log n, in an inter-
+leaved manner as follows. Aall-scales proceeds in rounds, where in each round it simulates exactly
+one step for each algorithm A(i). (Note that a single round of Aall-scales uses a total of log n queries,
+one for each copy.)
+Proof of Lemma 6.10. Let A be any algorithm making up to q queries to G = (V, E). Without
+loss of generality, we may assume there is a random string r(q, G) = (v1, v2, . . . , vq) ∈V q, picked
+uniformly at random among all sequences of q vertices without repetitions, and used as follows.
+Each time that A intends to query a “new” (previously unseen) vertex in V , it picks the first vertex
+from this sequence that was not queried until now, and uses it as the new vertex. We may also
+view each A(i) (when running for a total of q iterations) as using the same type of random string
+r(q, G), where in the i-th time that a new vertex v ∈V \ S(i) is picked in the first bullet of the
+algorithm description, we set v = vi.
+We define the following events of interest.
+32
+
+--- Page 33 ---
+• Eno-merge(A, q, G, r) is the event that when running A for q queries on G with r as the random
+string, no merging of walks occurs before the first time a claw is found (and, if no claw is
+found during this entire time window, then simply no merging occurs for the entire window).
+• Eskip(A, q, G, r) is the event that, at some point during the run of A on G (with up to q
+queries and random string r), some vertex vi in the random string is encountered by a query
+made by A before being selected as a “new” vertex. This means that A will skip vi when
+picking new vertices in the future. We denote by Eno-skips(A, q, G, r) the complementary event
+to Eskip. The event Eno-skips corresponds to the situation where for all 1 ≤i ≤q, in the i-th
+occurrence where A picks and queries a “new” vertex, this vertex will be vi.
+• Eclaw(i, A, q, G, r) is the event in which the following two conditions hold: (i) A detects a
+claw-center, w, in G within up to q rounds using the random string r; and (ii) the walk W
+containing w in the walk graph GA at the time where w is first queried is of length (number
+of vertices) between 2i and 2i+1 −1.7
+Our main technical claim of the proof is that A(i) stochastically dominates A in the following
+asymptotic sense.
+Claim 6.11. Fix A, q, G, r as above. Let Eno-merge and Eno-skips be defined as above with respect to
+A, q, G, r. For any 0 ≤i < log n,
+Pr(Eclaw(i, A(i), 4q, G, r) | Eclaw(i, A, q, G, r) ∩Eno-merge ∩Eno-skips) = 1.
+In particular, the proof shows that when A and A(i) are coupled, using the same random string
+r, then conditioned on both events Eno-merge and Eno-skips holding with respect to the algorithm A,
+if the algorithm A can find a claw within q queries, then A(i) will (deterministically) find the same
+claw, albeit with a slightly higher query cost of 4q (instead of q).
+Proof of Claim 6.11. We can view each of A and A(i) as maintaining a collection of walks. Recall
+that the event Eno-merge holds, that is, the walks in A do not merge (in A(i) we do not care about
+merging). By symmetry considerations, we may assume that A operates according to the following
+“older first” principle: if two walks W and W ′ in GA have the exact same shape at some moment
+during the run of A, and if A decides to extend one of W and W ′ by an edge at that moment, then
+the extension will take place at the walk that is older, i.e., that was created earlier.
+Since the event Eno-skips holds, the j-th “new” vertex to be queried by the algorithm (for all
+1 ≤j ≤q) will be vj.
+Let Wj denote the walk in GA that emanates from vj (if vj was not
+yet queried, we think of Wj as a length-0 walk). Observe that for two walks Wa and Wb where
+a < b that have not yet encountered a path endpoint (or a claw) at some point in time, it holds
+that |Wa| ≥|Wb| at that time. This is a direct consequence of the ‘older first” principle (and the
+no-merging property).
+Suppose that A first encounters a claw center w at time t ≤q, as part of a walk Wj of length
+between 2i and 2i+1 −1. That is, the event Eclaw(i, A, G, t, r) holds while Eclaw(i, A, G, t −1, r)
+does not hold. We claim that A(i) will encounter (with probability 1) the same claw center within
+its first 4q queries, implying in particular that with probability 1, the event Eclaw(i, A(i), G, 4t, r)
+also holds in this case.
+7We will only be interested in this event in situations where walk merging did not happen before a claw was found.
+Thus, this event is well defined: there is exactly one walk containing w when it is first queried.
+33
+
+--- Page 34 ---
+Indeed, suppose this is the case for some walk Wj at some time t. For any vertex v ∈G, denote
+by dG(v) the distance of v from an endpoint of the path it belongs to; if v belongs to a cycle, then
+dG(v) is defined as the length of the cycle. Let
+I = {j′ ≤j : dG(vj′) ≥2i}
+and
+¯I = [j] \ I.
+Recall that |Wj| ≥2i at time t. By the “older first” principle, |Wj′| ≥2i holds at time t for any
+j′ ∈I, and |Wj′| ≥dG(vj′) for any j′ ∈¯I. Thus,
+t ≥2i · |I| +
+X
+j′∈¯I
+dG(vj′)
+.
+On the other hand, by definition of A(i) and since its randomness is coupled with that of A as
+detailed above, A(i) will spend at most 2 · 2 · 2i+1 = 2i+2 queries for the walk emanating from each
+vj′ with j′ ∈I; and at most 2dG(vj′) queries for j′ ∈¯I. Thus, the total number of queries until it
+encounters the claw center w is at most
+·2i+2|I| + 2
+X
+j′∈¯I
+dG(vj′) ≤4t,
+as desired.
+We now resume the proof of Lemma 6.10. Let A be an algorithm achieving an expected query
+complexity qG for finding a claw in G. By Markov’s inequality, A finds a claw with probability at
+least 1/2 within 2qG queries. Fix a random string r = r(2qG, G). By the statement of the lemma,
+Pr(Eno-merge(A, 2qG, G, r)) ≥4/5. Further, it is easy to show that the probability of Eskip(A, q, G, r)
+for any algorithm A making q queries is bounded by 2q2/n. In our case q = 2qG ≤1
+10
+√n, and this
+probability is smaller than 1/20. We conclude that
+Pr(Eno-merge ∩Eno-skips) ≥3/4.
+Next, observe that A finds a claw after at most 2qG rounds if and only if at least one of the
+events Eclaw(i, A, 2qG, G, r) holds. Since the total probability to find a claw is 1/2, we get that
+Pr
+ log n−1
+[
+i=0
+Eclaw(i, A, 2qG, G, r) | Eno-merge ∩Eno-skips
+!
+≥1
+2 −1
+4 = 1
+4.
+Thus, by Claim 6.11 we have
+Pr
+ log n−1
+[
+i=0
+Eclaw(i, A(i), 8qG, G, r) | Eno-merge ∩Eno-skips
+!
+≥1
+4.
+Thus, Aall-scales finds a claw with probability 1/4 within 8qG rounds (with a total query complexity
+of 8qG log n). By standard properties of the geometric distribution, Aall-scales finds a claw with
+expected query complexity O(qG log n), and the proof follows.8
+8Note that the geometric distribution requires independence between different trials, whereas the way we defined
+Aall-scales may make it seem at first that there are nontrivial dependencies, due to the algorithm generating a random
+permutation in its setup. However, the algorithm can be defined equivalently using a “with replacement” version
+without the need to specify a random permutation. Indeed, when starting a walk from a vertex v that was already
+used as a source, we can simply reuse the old walk from v for free, without paying any extra queries.
+34
+
+--- Page 35 ---
+It remains to combine all pieces for the proof of Theorem 6.1.
+Proof. By Lemma 6.3, we may assume that the input graph G is path-symmetric. Suppose that G
+admits an algorithm (with an unlabeled certificate) for PS3 with expected query complexity at most
+q ≤α
+2
+q
+n
+log n, where α is as in Lemma 6.6. By the latter lemma combined with Lemma 6.10, the
+algorithm Aall-scales detects a claw in G with expected query complexity O(q log n), as desired.
+References
+[ABC17] Peyman Afshani, J´er´emy Barbay, and Timothy M. Chan. Instance-optimal geometric
+algorithms. J. ACM, 64(1):3:1–3:38, 2017.
+[AG21] Gal Arnon and Tomer Grossman. Min-entropic optimality. Electron. Colloquium Com-
+put. Complex., TR21-152, 2021.
+[BD04] Ilya Baran and Erik D. Demaine. Optimal adaptive algorithms for finding the nearest
+and farthest point on a parametric black-box curve. In Proceedings of the 20th ACM
+Symposium on Computational Geometry (SOCG), pages 220–229, 2004.
+[DLM00] Erik D. Demaine, Alejandro L´opez-Ortiz, and J. Ian Munro. Adaptive set intersections,
+unions, and differences. In Proceedings of the Eleventh Annual ACM-SIAM Symposium
+on Discrete Algorithms (SODA), pages 743–752, 2000.
+[FLN03] Ronald Fagin, Amnon Lotem, and Moni Naor. Optimal aggregation algorithms for
+middleware. J. Comput. Syst. Sci., 66(4):614–656, 2003.
+[GKN20] Tomer Grossman, Ilan Komargodski, and Moni Naor. Instance complexity and unla-
+beled certificates in the decision tree model. In 11th Innovations in Theoretical Com-
+puter Science Conference (ITCS), pages 56:1–56:38, 2020.
+[GRS11] Mira Gonen, Dana Ron, and Yuval Shavitt. Counting stars and other small subgraphs
+in sublinear-time. SIAM Journal on Discrete Mathematics, 25(3):1365–1411, 2011.
+[HO20] Yi Hao and Alon Orlitsky. Data amplification: Instance-optimal property estimation. In
+Proceedings of the 37th International Conference on Machine Learning (ICML), 2020.
+[HOSW18] Yi Hao, Alon Orlitsky, Ananda T. Suresh, and Yihong Wu. Data amplification: A
+unified and competitive approach to property estimation. In Proceedings of the 32nd
+International Conference on Neural Information Processing Systems (NeurIPS), page
+8848–8857, 2018.
+[HWZ21] Bernhard Haeupler, David Wajc, and Goran Zuzic. Universally-optimal distributed
+algorithms for known topologies. In Proceedings of the 53rd Annual ACM SIGACT
+Symposium on Theory of Computing (STOC), page 1166–1179, 2021.
+[KNY18] Ilan Komargodski, Moni Naor, and Eylon Yogev. Collision resistant hashing for para-
+noids: Dealing with multiple collisions. In EUROCRYPT 2018 - 37th Annual Interna-
+tional Conference on the Theory and Applications of Cryptographic Techniques, pages
+162–194, 2018.
+35
+
+--- Page 36 ---
+[LM23] Alison Hsiang-Hsuan Liu and Nikhil S. Mande. Instance complexity of boolean func-
+tions. CoRR, abs/2309.15026, 2023.
+[MP91] Nimrod Megiddo and Christos H. Papadimitriou. On total functions, existence theorems
+and computational complexity. Theor. Comput. Sci., 81(2):317–324, 1991.
+[Pap94] Christos H. Papadimitriou. On the complexity of the parity argument and other inef-
+ficient proofs of existence. J. Comput. Syst. Sci., 48(3):498–532, 1994.
+[VV16] Gregory Valiant and Paul Valiant. Instance optimal learning of discrete distributions.
+In Proceedings of the 48th Annual ACM SIGACT Symposium on Theory of Computing
+(STOC), pages 142–155, 2016.
+[VV17] Gregory Valiant and Paul Valiant. An automatic inequality prover and instance optimal
+identity testing. SIAM J. Comput., 46(1):429–455, 2017.
+36
+
+
+
+Current round tag: Round 0001 — 2025-08-27T15:16:00.329619Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

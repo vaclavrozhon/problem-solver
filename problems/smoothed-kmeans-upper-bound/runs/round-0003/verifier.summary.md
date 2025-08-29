@@ -1,0 +1,1 @@
+Overall, both reports build on the now-correct plateau calculus (Theorems 1–3 and Corollaries 4–6). There are, however, a few precision issues that must be fixed before adding some of the suggested refinements to output.md. I summarize key points, flag correctness issues, and outline actionable next steps.

@@ -1,0 +1,66 @@
+## Quick audit of output.md (this round)
+- The new τ≈m/ln L branch (Corollary 10) is stated correctly with L≥3 and uses the previously recorded remark L≤m on [k0,2k0). The inequalities τ≥m/ln L−1 ⇒ ln(2m/τ)≤ln(4 ln L), τ/(L−1)≤m/((L−1) ln L), and H_{L−2}−H_{τ−1}≤1+ln ln L are valid and inserted properly.
+- The min-of-three envelope (Corollary 11) logically follows by taking the minimum of the three explicit instantiations and absorbing additive terms. The explicit-constant version for C_bi=C_fix=5 (Corollary 12) is conservative and sound. A minor constant improvement is possible (see below), but not necessary for asymptotics.
+- The probability remark now uses η=0.98 and c=2 to ensure an unconditional ≥1% mass (up to O(1/L)), which fixes the earlier 0.0099 issue.
+
+I found no correctness errors; the presentation is coherent and self-contained for the plateau calculus.
+
+## New, checkable contributions
+
+### Lemma 1 (Global worst-case aggregation recovers O(log k0))
+Statement. Let [k0,2k0) be partitioned into maximal factor-2 plateaus I_j=[m_j,m_j+L_j) with ∑_j L_j=k0. Using the pure-log branch from Corollary 7 (and the fixed-k bound for L_j=1), we have the unconditional bound
+E_{k∼U([k0,2k0)),++}[ALG_k/OPT_k] ≤ K′ + K″·ln(2k0),
+for absolute constants K′,K″ depending only on C_bi,C_fix.
+Why useful. This shows our framework unconditionally matches the Θ(log k0) baseline, validating that improvements necessarily require structural information on plateaus.
+Sketch proof (fully checkable). For L_j≥2,
+(1/k0)·L_j·ln^+(2m_j/(L_j−1)) ≤ (1/k0)·L_j(ln 2 + ln m_j) − (1/k0)·L_j·ln(L_j−1).
+Summing over j and using L_j−1≥1 so the last term is ≤0, we get
+(1/k0)∑_{j:L_j≥2} L_j ln^+(2m_j/(L_j−1)) ≤ ln 2 + (1/k0)∑_{j:L_j≥2} L_j ln m_j.
+Now, for every k∈I_j, m_j≤k, hence ln m_j ≤ ln k. Therefore,
+(1/k0)∑_{j:L_j≥2} L_j ln m_j ≤ (1/k0)∑_{k=k0}^{2k0−1} ln k ≤ ln(2k0) − 1 + o(1).
+Add the endpoint terms (1/k0)∑_{j:L_j≥2} A2 ln m_j ≤ A2 ln(2k0) and the L_j=1 contribution (bounded by C_fix(ln(2k0)+O(1)) per index). Multiplying by the fixed absolute coefficients from Corollaries 2 and 7 and absorbing constants yields the displayed K′+K″ ln(2k0) bound.
+
+### Corollary 1 (Mixture bound with a long-plateau mass)
+Statement. Suppose the set J_long of plateaus satisfying L_j ≥ α m_j covers a γ-fraction of [k0,2k0), i.e., ∑_{j∈J_long} L_j ≥ γ k0, where α,γ∈(0,1]. Then
+E_{k}[ALG/OPT] ≤ γ·B_long(α) + (1−γ)·(K′ + K″·ln(2k0)) + O((1/k0)∑_j ln m_j),
+with B_long(α) = 2·C_bi·(a+1+ln(2/α)) (cf. Corollary 5) and absolute K′,K″ from Lemma 1.
+Why useful. This gives a clean, global interpolation: any nontrivial mass γ of long plateaus pushes the average below the Θ(log k0) worst case by an additive γ·O(1), with explicit constants.
+Proof sketch. Average Corollary 5 over j∈J_long with weights L_j/k0 (giving ≤γ·B_long(α)+o(1)), and use Lemma 1 on the complement. The endpoint O((ln m_j)/L_j) terms aggregate into O((1/k0)∑_j ln m_j) ≤ O(ln(2k0)).
+
+### Corollary 2 (Global ≥1% probability guarantee under a single long plateau)
+Statement. If some plateau I=[m,m+L) satisfies L ≥ α m and covers a γ-fraction of [k0,2k0), then for k uniform on [k0,2k0) and ++ randomness,
+P[ ALG_k/OPT_k ≤ 2·B_I ] ≥ γ·(0.5−O(1/L))·0.5 ≥ 0.01−o(1)
+for parameters η=0.98, c=2 in Corollary 9, with B_I=2·C_bi·(1 + 1/(α e η)) + O(1/L).
+Why useful. This is a global, fully explicit ≥1% probability guarantee under a single structural condition on OPT(·), mirroring the task’s alternative objective.
+Proof. Directly apply Corollary 9 on I (with η=0.98, c=2) and mix with γ.
+
+### Minor constant refinements (optional)
+- In Corollary 12 with C_bi=C_fix=5, 2·C_bi·(a+1)=10·(3+1/(2e))≈31.84. One can safely state 33 instead of 35 if desired by allocating at most 1.16 to the endpoint O(1/L) term; this is purely cosmetic.
+
+## Examples and sanity checks
+- Worst-case pattern: Taking all plateaus of length 1 (i.e., OPT changes at every k) yields E_k,++[ALG/OPT] = Θ(log k0), matched by Lemma 1.
+- Single dyadic-long plateau: If OPT halves once across the window (L≈m), then B_long(1) ≤ 2·C_bi·(a+1+ln 2) and the average is constant; Corollary 2 then gives a concrete ≥1% bound with an explicit constant factor.
+
+## Heavy-coverage program: a clean conditional collision bound (clarified)
+We crystallize a conditional, pathwise statement that reduces the heavy-collision analysis to two verifiable parameters.
+
+Lemma 2 (Heavy-collision bound under dominance and covered-cost control).
+Let H be a set of k1 “heavy” optimal clusters (in the k-clustering P). Assume that up to the stopping time τ when all heavy clusters are first covered, for every t<τ,
+- Dominance: U_t(H) ≥ β · ( H_t(all) + U_t(L) ) for some β>0; and
+- Covered-heavy control: H_t(H) ≤ α · S_H, where S_H := ∑_{P∈H} OPT1(P), α≥1 is an absolute constant (α=5 suffices in expectation via the MRS Lemma 4.1; pathwise we can enforce H_t(H) ≤ eH_t(H) ≤ 5 S_H). 
+Then the expected number of times k-means++ samples a point from a covered heavy cluster before τ is at most k1 · ( α/(β+1) ) · (S_H/inf_{t<τ} U_t(H)). In particular, if inf_{t<τ} U_t(H) ≥ S_H (a strong persistence condition), then E[# heavy-collisions] ≤ k1·α/(β+1).
+Why useful. This isolates the role of a quantitative persistence lower bound on U_t(H) and converts it into an explicit expected-collisions bound. It also cleanly uses the pathwise inequality H_t(H) ≤ eH_t(H) and the supermartingale eH_t.
+Proof sketch. At step t<τ, conditional collision probability is p_t := H_t(H)/cost_t(X). By dominance, cost_t(X) = U_t(H) + (H_t(all)+U_t(L)) ≤ U_t(H)·(1 + 1/β). Hence p_t ≤ (α S_H)/((1+1/β) U_t(H)). Each sample that lands in heavy either covers a new heavy cluster or collides. Summing per-step collision probabilities over the at most k1 heavy hits and lower-bounding U_t(H) by inf_{t<τ} U_t(H) yields the bound.
+Next step. Derive a sufficient condition (in terms of OPT-scale separation and/or geometric separation) implying inf_{t<τ} U_t(H) ≥ c·S_H with c>0 and β=poly(1), then lift expectation to high probability by Freedman’s inequality for supermartingales.
+
+## Obstacles and open items
+- Unconditional improvement barrier. Lemma 1 confirms that without structural constraints, the average cannot beat Θ(log k0), aligning with the fixed-k lower bounds.
+- Heavy-coverage derivation from OPT-separation. The key missing piece remains a principled lower bound on U_t(H) in terms of S_H under a scale-separation hypothesis (e.g., OPT_{k1} ≫ OPT_k). We need to quantify how much sampling outside H can decrease U_t(H) before heavy clusters are hit; this likely requires a refined use of the eH_t supermartingale and per-cluster contributions.
+
+## Next steps (concrete, verifiable)
+1) Curate Lemma 1 and Corollary 1 into output.md to document unconditional aggregation and explicit mixture with long plateau mass.
+2) Add Corollary 2 as a global ≥1% probability statement (with η=0.98, c=2) and explicit constants, referencing Corollary 9.
+3) Optionally tighten Corollary 12’s leading constant from 35 to 33, or annotate why 35 is a conservative rounding.
+4) For heavy-coverage, formalize Lemma 2 in output.md only after we pin down a verifiable persistence condition; in the meantime, attempt to prove inf_{t<τ} U_t(H) ≥ c·S_H and β=Ω(1) under a clean geometric or OPT separation hypothesis.
+5) Provide a compact “regime chart” illustrating which of the three branches dominates as a function of L/m, to guide users of the envelope (purely expository, no new math).
+

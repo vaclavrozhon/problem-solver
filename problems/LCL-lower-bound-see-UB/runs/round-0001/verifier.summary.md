@@ -1,7 +1,3 @@
-- The gating idea (Prover 02) is essential: without it, (F1)’s “all ordered pairs” quantification breaks 01’s existential-pointer plan. Adopt gating plus 01’s window anchoring.
-- Two claims are untenable as stated: (i) deriving 2^B distinct types from only 2 boundary nodes; (ii) validating clause triples in O(1) local steps. Both must be replaced with interior, poly(s)-length, radius-1 tableaus inside wb/wc.
-- Window-anchoring is sound and useful; ⊥-plumbing to trivialize (F2) seems feasible if seams are fully absorbing and independent of S.
-- The reduction needs a precise lemma that mismatched active pairs are OFF and always completable, while matched pairs are ON and enforce literal satisfaction.
-- Provide explicit C_in–out/C_out–out tables for the 4 boundary nodes and the conduits (OFF→PAD, ON→CAP), plus the clause-evaluation tableau.
-- Prove a formal type-separation lemma that guarantees ≥2^B variable types and ≥2^B clause types via differing boundary-extendibility, not boundary-only signatures.
-- Validate by a complete B=2 example and DP simulation; then scale the parameter bookkeeping (β, tableau length, |Σ_out|) to poly(s).
+High-level assessment
+- The upper-bound ingredients (finite number of types for r=1; composition/pumping; DP for extension; finite-Z bound for (F2)) look solid across the reports and are worth recording formally. I have written them up as rigorous lemmas (with proofs) in output.md. They give a clean algorithmic skeleton for feasible-function verification and will be needed regardless of the hardness route.
+- The existing hardness sketches via Succinct-3SAT (reports 02–04) still have unresolved quantifier and type-invariance issues. Report 01 correctly identified the core mismatch for (F1) with clause-level existential quantification and proposed pivoting to Succinct 3-Coloring, which aligns with (F1)’s universal pair checks. This is the cleanest route so far and avoids the “exists a satisfied literal” difficulty.

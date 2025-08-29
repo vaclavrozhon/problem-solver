@@ -1,0 +1,168 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+Round 0005 — audit, formalizations, and small structural lemmas
+
+Audit of output.md (gaps, clarifications, corrections)
+- Meandering vs “constant increment” rigidity. Output now correctly includes Proposition K (any singleton tiling in the complementary two-layer construction is parameterized by arbitrary increments Δ_n∈Stab(J_0)). However, two places still list as a “next target” to prove that θ_m−θ_{m−1}−α is constant modulo 1/q. This goal contradicts Proposition K unless one restricts to periodic tilings (or imposed extra structure). Suggest replacing that target with “classify periodic tilings: Δ_n periodic ⇒ a period (r, rα+∑_{j=1}^rΔ_j).” I give the precise statement and proof below.
+- Theorem A non-column step (component-length obstruction). The current text invokes a component-length mismatch but does not state the necessary lemma explicitly. I provide a short, clean lemma (“component-length obstruction”) that justifies this step for any finite union of intervals E⊂S^1: if the multiset of component lengths of E differs from the multiset of gap lengths, then no translate of E can equal its complement a.e. This closes the only missing justification in (iii) for |J_0|=1/2.
+- Proposition H (incommensurability clause). The statement assumes s rational; output later records Lemma Q (s/β∉Q ⇒ β/(β−s)∉Q). I recommend adding to Prop. H a remark that one can ensure incommensurability for arbitrary s by choosing β with s/β∉Q.
+- Boundary tool. The explicit aggregated-measure Lemma E is now present (good). I add a small corollary (below) ruling out “single-row columns” whenever k_min<k_max; this can be cited for K={0,1,2} as a quick structural check.
+
+New lemmas and micro-results (auditable)
+
+1) Component-length obstruction to complementary translation
+- Lemma (component-length obstruction). Let E⊂S^1 be a finite union of closed intervals with pairwise disjoint interiors. Write L(E) for the multiset of lengths of its connected components, and G(E) for the multiset of cyclic gap-lengths between consecutive endpoints of E. If there exists δ with E+δ = S^1\E a.e., then L(E)=G(E) as multisets. In particular, if L(E)≠G(E), such δ cannot exist.
+- Proof. Translation preserves component lengths, so L(E+δ)=L(E). The complement S^1\E is exactly the disjoint union (up to endpoints) of the gaps between consecutive endpoints of E, so its component-length multiset is G(E). If E+δ=S^1\E a.e., then L(E)=L(E+δ)=L(S^1\E)=G(E).
+- Why useful here. This formalizes the non-column step in Theorem A when |J_0|=1/2: our chosen U ensures L(J_0)≠G(J_0), hence J_0 cannot be a complementary translate of itself, forbidding the 2-translate partition forced at the boundary.
+
+2) Periods from periodic increments in the meandering classification
+- Proposition (periodicity of T from periodic Δ). In the setting of Proposition K (complementary two-layer, singleton-per-row), suppose the increments Δ_n:=θ_n−θ_{n−1}−α take values in Stab(J_0) and are periodic of period r, i.e., Δ_{n+r}=Δ_n for all n. Then T has period (r, α_r) with
+  α_r := rα + ∑_{j=1}^r Δ_j  (in S^1).
+- Proof. From θ_{n}−θ_{n−1}=α+Δ_n, we have θ_{n+r}−θ_n = rα + ∑_{j=1}^r Δ_{n+j}. If Δ is r-periodic, the sum is independent of n and equals ∑_{j=1}^r Δ_j. Hence T_{n+r} = T_n + α_r for all n.
+- Why useful here. This replaces the (now incorrect) “constant increment” rigidity target by a correct periodic-Δ classification of periodic tilings. As a corollary, the helical families in Theorem A and Prop. G correspond to r=1 with constant Δ.
+
+3) No single-row column when the tile spans multiple heights
+- Lemma (no one-row columns if k_min<k_max). Let A=⋃_i {k_i}×[a_i,b_i] with k_min:=min{k_i}<k_max:=max{k_i}. Then there is no tiling A+T={p}×S^1 with a single row p. More generally, no connected component of a finite-column set X⊂Z can have size < (k_max−k_min)+1.
+- Proof (single-row case). If A+T={p}×S^1, any anchor (z,θ) that contributes to row p via some height k′ (i.e., z+k′=p) also produces contributions at rows z+k for all k∈{k_i}. Since k_max>k′, the same anchor contributes to row p+(k_max−k′) > p, contradicting A+T⊂{p}×S^1. The general bound follows by the same argument applied at both ends of a connected component [p,q]: any anchor contributing to the left endpoint generates coverage extending at least k_max−k_min rows to the right, hence the component must have length ≥ (k_max−k_min)+1.
+- Why useful here. This gives an immediate structural constraint on prospective columns and can be combined with the boundary integrality (Lemma E) to streamline non-column checks for multi-height tiles (e.g., K={0,1,2}).
+
+4) Quick corollary for K={0,1,2}
+- Corollary. For K={0,1,2}, any finite column component X∩[p,q] must satisfy q−p≥2. At the left boundary c_1 d_p=1 and at the right boundary c_3 d_{q−2}=1, hence 1/c_1,1/c_3∈N. If c_1/c_3∉Q, this is impossible; thus A is not a column. (This complements Lemma E’s “not a reciprocal” test.)
+
+Examples and sanity checks
+- Theorem A (|J_0|=1/2). With U=[0,0.2]∪[0.3,0.35], L(J_0)={0.2,0.05,0.2,0.05}, while G(J_0)={0.1,0.15,0.1,0.15}; Lemma (component-length obstruction) forbids J_0+δ=S^1\J_0. Combined with the boundary argument, (iii) follows. (Fourier Lemma T gives an alternative certificate.)
+- Periodic Δ example. In the complementary construction with J_0+1/2=J_0, let Δ_n alternate between 0 and 1/2. Then r=2 and α_2=2α+1/2, so T has period (2, 2α+1/2). This exhibits a third periodic tiling (beyond T_α and T_{α+1/2}) for the same tile, consistent with Proposition K.
+
+Why these help the program
+- The component-length lemma closes a justification gap in Theorem A’s non-column proof for |J_0|=1/2 using a minimal, checkable combinatorial invariant.
+- The periodic-Δ proposition corrects and refines the “rigidity” narrative: it identifies exactly when an arbitrary meandering singleton tiling is periodic, subsuming the helical cases.
+- The “no single-row component” lemma plus Lemma E yields easy, general non-column criteria (and prohibits tiny components) for multi-height tiles like K={0,1,2}.
+
+Obstacles and cautions
+- m=3 Fourier obstruction. We still have only a sketch for “no 3-translate partition” based on two nonzero modes; a full proof requires a short algebraic lemma on unit-modulus sums (I will write it out next). Until then, use Lemma T (m=2) and integrality exclusions (Prop. S) to certify singleton rigidity.
+- Endpoint choices remain a.e.; all statements are robust under null perturbations (as recorded in the endpoint remark).
+
+Actionable next steps for output.md
+- Add the component-length obstruction lemma immediately after the Fourier Lemma T and cite it in Theorem A(iii). This makes that step fully formal without Fourier.
+- Insert the periodic-Δ proposition as a corollary to Proposition K (“classification of periodic singleton tilings”); update the “Next targets” to reflect this correct structure (drop the constant-increment aim).
+- Add the “no single-row component” lemma as a corollary of Lemma E (or as a separate observation) and reference it in the K={0,1,2} discussion.
+- In Proposition H, append a remark: incommensurability also holds whenever s/β∉Q (Lemma Q), allowing arbitrary s by appropriate β.
+
+
+
+=== prover-02.out.json (progress_md) ===
+Round 0005 — audit corrections, new Fourier obstruction (m=3), and two structural lemmas
+
+Gaps and corrections in output.md (to fix explicitly)
+- Incorrect “m=3 Fourier obstruction” sketch. In “Fourier obstructions” the sketch claims that requiring both ∑ e^{2π i t δ_j}=0 and ∑ e^{2π i 2t δ_j}=0 for three translates is impossible unless the δ_j are (rotated) cube roots of unity, and then asserts this contradicts the second equation. This is not correct: if z_j are a rotated triple of cube roots of unity, then both sums at t and 2t vanish. So the stated sketch cannot be used as an obstruction.
+  • Corrected usable obstruction (see Lemma M3 below): for three translates, the simultaneous vanishing at frequencies t and 3t is impossible when both Fourier coefficients \(\hat{1_E}(t),\hat{1_E}(3t)\neq0\). This should replace the current sketch.
+- Minor duplication. Lemma E appears first as “[As before]” and later as a full statement with proof. For coherence, keep only the explicit statement with proof and ensure earlier references point to it.
+- Minor precision in Lemma T’s proof. It says “for t=2 and t=4 this would impose δ≡1/2 and δ≡1/4 simultaneously.” The precise congruences are e^{4π i δ}=−1 ⇒ δ≡1/4 (mod 1/2) and e^{8π i δ}=−1 ⇒ δ≡1/8 (mod 1/4). The contradiction remains, but stating moduli avoids confusion.
+- Proposition H’s incommensurability clause. The “s rational” hypothesis is sufficient but not necessary. Lemma Q already included shows an alternative: choose β with s/β∉Q; then β/(β−s)∉Q. It would be good to mention this option in the main body of Proposition H (not only in the “Additions” section).
+
+New small lemmas (auditable) to add
+1) Lemma M3 (Fourier obstruction to 3-translate tilings via t and 3t)
+- Statement. Let E⊂S^1 be measurable. If S^1 is a.e. the disjoint union of three translates E+δ_1,E+δ_2,E+δ_3, then for every t∈Z\{0} with \(\hat{1_E}(t)\neq0\) one has \(\sum_{j=1}^3 e^{2\pi i t\,\delta_j}=0\). In particular, if there exists t with \(\hat{1_E}(t)\neq0\) and \(\hat{1_E}(3t)\neq0\), then no such 3-translate tiling exists.
+- Proof. The identity 1=∑_{j=1}^3 1_{E+δ_j} a.e. gives, for t≠0, \(\sum_j e^{2\pi i t\delta_j}\,\hat{1_E}(t)=0\). If both \(\hat{1_E}(t),\hat{1_E}(3t)\neq0\), then with x_j:=e^{2\pi i t\delta_j} we must have \(\sum_j x_j=0\) and \(\sum_j x_j^3=0\). By Newton’s identity for three variables, \(\sum_j x_j^3 = 3 x_1 x_2 x_3\). Since each x_j has unit modulus, the product is nonzero, so \(\sum_j x_j^3\neq0\), a contradiction. ∎
+- Why useful here. This supplies a correct and sharp obstruction for m=3 (replacing the incorrect sketch). It lets us forbid 3-fold partitions for concrete E by checking two Fourier modes t and 3t.
+
+2) Lemma P (Periodicity of singleton complementary tilings ⇔ periodicity of increments)
+- Setting. In the complementary two-layer construction A=({0}×J_0)∪({1}×(S^1\(J_0+α))) assume the tiling is singleton-per-row, T_n={θ_n}, and write increments Δ_n:=θ_n−θ_{n−1}−α ∈ Stab(J_0) (Proposition K).
+- Claim. T has period (r,α_*) iff (i) Δ_{n+r}=Δ_n for all n (r-periodicity), and (ii) \(\alpha_* \equiv r\alpha + \sum_{j=1}^r \Delta_j\) (mod 1).
+- Proof. T has period (r,α_*) iff θ_{n+r}−θ_n is independent of n and equals α_* (mod 1). But θ_{n+r}−θ_n = rα + ∑_{j=1}^r Δ_{n+j}. Thus constancy in n is equivalent to Δ_{n+r}−Δ_n=0 for all n (by taking successive differences of r-window sums), and the constant value equals rα+∑_{j=1}^rΔ_j, yielding α_*. ∎
+- Consequence. Choosing a nonperiodic sequence (Δ_n)∈Stab(J_0)^Z produces an aperiodic (yet irreducible) tiling. For q=2 (Stab(J_0)={0,1/2}), any nonperiodic 0–1 sequence gives an aperiodic tiling.
+
+3) Lemma R′ (Two-sided boundary obstruction via rational independence)
+- Statement. Let A be any tile with aggregated boundary measures μ_{k_min}, μ_{k_max} at the lowest and highest heights, respectively. If A tiles a finite set X×S^1, Lemma E forces μ_{k_min}=1/d_L and μ_{k_max}=1/d_R for some d_L,d_R∈N. Hence μ_{k_min}/μ_{k_max}=d_R/d_L∈Q. Therefore, if μ_{k_min}/μ_{k_max}∉Q, A cannot be a column.
+- Proof. Immediate from Lemma E’s boundary equalities and d_L,d_R∈N. ∎
+- Use. This strengthens easy non-column tests: for K={0,1,2} with one interval per layer, if c_1/c_3 is irrational then A is not a column, regardless of c_2.
+
+Examples and quick checks
+- Corrected Fourier m=3 certificate: Take E=U∪(U+1/3)∪(U+2/3) with U=[0,c) and choose c so that \(\hat{1_E}(1)\neq0\) and \(\hat{1_E}(3)\neq0\) (true for generic c). Then by Lemma M3, E cannot 3-tile S^1 by translations. This provides a clean “anti-3-tiling” hypothesis to feed into Proposition K2 when |E|=1/3.
+- Aperiodic irreducible tilings in the complementary q=2 case: Let J_0 be as in Theorem A (for which singleton rigidity holds). Pick any nonperiodic bi-infinite sequence ε_n∈{0,1} and put Δ_n:=ε_n·(1/2). Then T_n={θ_0+nα+∑_{j=1}^nΔ_j} defines a tiling by Proposition K. By Lemma P, T has no period (k,α_*). Irreducibility follows as in Lemma B (gcd(K−K)=1).
+
+Why useful here
+- Lemma M3 repairs and strengthens the Fourier toolkit for m=3, replacing an incorrect sketch and giving a crisp, checkable obstruction in a delicate case (|E|=1/3) that our boundary lemma alone does not exclude.
+- Lemma P formalizes the exact relationship between periods and increment sequences in the complementary construction. It both explains the source of many periods (constant increments) and guarantees the existence of aperiodic irreducible tilings when increments meander.
+- Lemma R′ packages a very simple non-column test that only inspects the two boundary layers; it is immediately applicable to many K (including K={0,1,2}).
+
+Obstacles and cautions
+- Fourier obstructions beyond m=2 and m=3. For m≥4, requiring p_1=∑z_j=0 does not in general force p_m=∑z_j^m≠0, so the t and mt strategy may not yield a contradiction. Stronger multi-frequency constraints (a set T of t’s with \(\hat{1_E}(t)\neq0\)) or structural assumptions on E are likely needed.
+- Classification for q≥3. Proposition K gives the meandering classification but does not force constant increments modulo 1/q. Proving rigidity (only the q helical tilings) seems to require an additional nondegeneracy hypothesis; current attempts via two- or three-row endpoint propagation have not yet yielded a contradiction when offsets vary.
+
+Next steps (concrete, testable updates to output.md)
+1) Replace the incorrect m=3 Fourier sketch by Lemma M3 (t and 3t obstruction) with its short proof. Optionally add a brief worked example class (E as a 1/3-periodic union of intervals with nonvanishing \(\hat{1_E}(1),\hat{1_E}(3)\)).
+2) Insert Lemma P (periodicity ⇔ periodic increments) after Proposition K; add a one-line corollary: aperiodic increments produce aperiodic irreducible tilings.
+3) Add Lemma R′ (boundary rational independence) to the “Boundary tools” and cite it in the K={0,1,2} section as an alternative non-column certificate when c_1/c_3∉Q.
+4) In Proposition H, append: “Alternatively, incommensurability holds whenever s/β∉Q (Lemma Q), allowing arbitrary s by a suitable choice of β.”
+5) Minor housekeeping: remove the first “[As before]” occurrence of Lemma E in favor of the explicit statement later, and refine the modulus wording in Lemma T’s proof as noted above.
+
+These are all incremental, auditable changes that close a correctness gap (m=3 Fourier), add two compact structural lemmas, and expand the stock of easy-to-verify non-column and aperiodicity criteria.
+
+=== prover-03.out.json (progress_md) ===
+Round 0005 — audit, corrections, and small new lemmas/extensions
+
+Audit of output.md (what to fix or clarify)
+- Duplication of “Lemma E.” The document contains two entries named “Lemma E”: (i) a placeholder “[As before.]” in the main body and (ii) a fully stated and proved version in the “Additions, clarifications, and new tools” section. For consistency and auditability, the placeholder should be removed or replaced by the explicit statement (the latter is already correct and sufficiently general via aggregated layers J_k with measures μ_k).
+- Minor but real arithmetic slip in Lemma T (Fourier two-translate obstruction). The proof concludes “for t=2 and t=4 this would impose δ≡1/2 and δ≡1/4 simultaneously.” The correct implication of e^{2π i t δ}=−1 is tδ≡1/2 (mod 1). Thus for t=2 one gets δ≡1/4 (mod 1/2), and for t=4 one gets δ≡1/8 (mod 1/4). These congruences have no common solution modulo 1, which is the intended contradiction. The fix is easy (replace δ≡1/2 by 2δ≡1/2, etc.).
+- Theorem A, proof of (iii). The line “(iii) can also be deduced from Corollary F by instead choosing |J_0|∉{1/m}” changes the data of the theorem (J_0 was fixed with |J_0|=1/2). This is fine as a variant but should be flagged as a separate remark (Theorem A′). As written in the main proof, the non-column argument appeals to component-length mismatch; that is correct but it would help to cross-reference Lemma T as an alternate short certificate in the present example.
+- Proposition H (incommensurability clause). The statement assumes s rational. Since Lemma Q is now recorded, one can add: “More generally, incommensurability holds whenever s/β∉Q” (choose β accordingly). Suggest adding this as an inline remark after the current sentence to broaden applicability without changing the core proof.
+- “As before” placeholders. Proposition G is referenced “As before.” Given the short proof (phase transport plus J_0+1/q=J_0), I recommend inserting a brief proof sketch or an explicit reference to the earlier established argument so that output.md is self-contained.
+
+New small lemmas/propositions (incremental, auditable)
+1) Period from periodic meanders (complementary two-layer, singleton regime)
+- Lemma (period-lifting). In Proposition K’s setting (singleton, Δ_n∈Stab(J_0)), if Δ_n has period r and S:=∑_{j=1}^r Δ_j, then T has period (r, rα+S): θ_{n+r}−θ_n = rα+S for all n. Conversely, any choice of r and S∈r·Stab(J_0) is realizable by some periodic Δ_n.
+- Proof. θ_{n+r}−θ_n = ∑_{j=1}^r(α+Δ_{n+j}) = rα + ∑_{j=1}^rΔ_{n+j} = rα+S by r-periodicity of Δ. The converse is obtained by picking any r-periodic Δ with sum S.
+- Why useful here. Packages how meandering increments generate periods beyond the constant-increment (helical) case; helps enumerate all periodic tilings produced by a given J_0 (especially when Stab(J_0)=(1/q)Z).
+
+2) Two-sided boundary obstruction (quick non-column via rational independence)
+- Corollary (to Lemma E). With k_min:=min K and k_max:=max K, let μ_{min}:=|J_{k_min}| and μ_{max}:=|J_{k_max}|. If A tiles a finite X×S^1, then μ_{min}d_{p−k_min}=1 and μ_{max}d_{q−k_max}=1 at the leftmost and rightmost boundary rows p=min X, q=max X. If μ_{min} and μ_{max} are rationally independent over Q, this is impossible. Hence A is not a column.
+- Why useful here. This complements Lemma E with a concrete algebraic obstruction often met in K={0,1,2} with asymmetric endpoint measures.
+
+3) Symmetry of stabilizers (used implicitly in K2)
+- Lemma. For any measurable E⊂S^1 and any α∈S^1, Stab(E)=Stab(S^1\E)=Stab(E+α) (a.e.).
+- Proof. 1_{S^1\E} = 1−1_E and 1_{E+α}(x)=1_E(x−α) imply equality of stabilizers a.e. This justifies Stab(J_1)=Stab(J_0) used in Proposition K2.
+- Why useful here. Makes an implicit step explicit and reusable.
+
+Small examples/sanity checks (consistent with current framework)
+- q=3 complementary family with many periods. Choose U=[0,t) with t=√2/30, set J_0:=U∪(U+1/3)∪(U+2/3) so |J_0|=3t∉{1/m}. For irrational α (e.g., √3/10 mod 1), Proposition G gives three tilings with periods (1,α+j/3), pairwise incommensurable by Lemma R. Lemma E yields non-column; Proposition S makes all tilings singleton-per-row.
+- K={0,1,2} two-order with rational independence at the boundary. Take c_1=√2/5, c_2=1−2c_1, c_3=c_1 (valid since 2c_1<1); then 1/c_1, 1/c_3∉N and are rationally independent with each other, so the boundary corollary forbids finite columns. Two orders exist by Lemma C; incommensurability by Lemma Q after choosing β so that c_1/β∉Q.
+
+Obstacles and failure modes (why some approaches don’t go further)
+- Constancy of increments Δ_n. Proposition K shows many singleton tilings with Δ_n varying in Stab(J_0) exist; thus a global “all tilings helical” classification is false without extra rigidity. Any attempt to force Δ_n constant must impose additional structure (e.g., forbid certain patterns via combinatorial propagation or impose extra symmetry on J_0), which is not presently available.
+- Using the boundary lemma alone at |J_0|=1/2. The integrality d_p=2 at the boundary is compatible with measure; forbidding it requires a separate obstruction (component-length or Fourier). This is already addressed (good), but worth keeping in mind for future examples at |E|=1/m.
+
+Actionable edits to output.md (concise)
+- Fix Lemma T’s last line as noted: replace “δ≡1/2 and δ≡1/4” by “2δ≡1/2 and 4δ≡1/2 (mod 1), i.e., δ≡1/4 (mod 1/2) and δ≡1/8 (mod 1/4), which are incompatible.”
+- Remove the earlier “Lemma E [As before]” placeholder; keep the explicit version with proof.
+- Move the “variant |J_0|∉{1/m}” comment from within Theorem A’s proof (iii) into a separate remark (Theorem A′) to avoid changing parameters mid-proof.
+- After Proposition H, add: “By Lemma Q, incommensurability also holds whenever s/β∉Q (thus for any s one can choose β accordingly).”
+- Optionally add the period-lifting lemma to the complementary two-layer section; it succinctly classifies periodic tilings generated by meandering increments.
+
+Next steps (concrete, testable)
+- Formalize and insert the “period-lifting” lemma and the two-sided boundary corollary into output.md.
+- Provide a brief proof sketch for Proposition G in situ (phase transport using J_0+1/q=J_0 and complementarity) to eliminate “As before.”
+- Add an explicit worked example (e.g., the q=3 construction above) to demonstrate multiple incommensurable periods and non-columnity in a single place, referencing Lemma T or Lemma E as appropriate.
+- Extend Fourier obstructions to m=3 rigorously (already sketched in notes), then apply to an explicit |J_0|=1/3 example to certify the anti-m-tiling hypothesis in Proposition K2.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+partial success
+

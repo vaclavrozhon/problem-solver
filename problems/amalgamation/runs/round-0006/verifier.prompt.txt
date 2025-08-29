@@ -1,0 +1,298 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "Round 0006 \u2014 Focus: closing the |A|=4 one\u2011point step; small unconditional progress and a tiny decision check\n\nContext recap and what is already rigorous in output.md\n- Orientation function model (Prop. 1), sufficiency of one\u2011point amalgamation (Lemma 2), and the |A|=4 6\u2011variable CSP formulation (Prop. 3) are correct and sufficient to reduce AP to a finite local decision.\n- Small cases: |A|\u22642 are trivial (Cor. 4). The |A|=3 one\u2011point amalgamation is now fully solved constructively (Prop. 14).\n- Tools: explicit S5 signed action (Lemma 6) and central symmetry of O5 (Lemma 8, Cor. 9).\n- |A|=4: We have a conditional uniform solution (Prop. 11) via a 2+2 vertex\u2011sign ansatz x_{ij}=w_iw_j if all three permutations of (+,\u2212,\u2212) are allowed in each local table F(\u03b1,\u03b2). We also have a nontrivial solvable subclass (Prop. 15) and the equal\u2011constant case (Prop. 12).\n\nNew, unconditional micro\u2011lemma (auditable) \u2014 a union\u2011bound satisfiability criterion\nLemma UB (union\u2011bound CSP feasibility for |A|=4).\n- Setup: In the |A|=4 CSP (variables x_{ij} on edges of K_4), suppose that for each triangle T_k (k=1,2,3,4), at most one ordered triple in {\u00b11}^3 is forbidden (i.e., |{\u00b11}^3\\F(\u03b1_k,\u03b2_k)| \u2264 1).\n- Claim: Then there exists a satisfying assignment to the six variables.\n- Proof: There are 2^6=64 global assignments. Fix a triangle T; forbidding one ordered triple on its three variables eliminates exactly 2^3=8 of the 64 assignments (the other three variables are free). By the union bound, the four triangles together eliminate at most 4\u00b78=32 assignments, leaving at least 32 \u2265 1 satisfying assignments.\u220e\nWhy useful here. This gives a rigorous, computation\u2011light sufficient condition for one\u2011point amalgamation at |A|=4. It reduces the task to bounding, per case (\u03b1,\u03b2), the number of forbidden triples. If a tiny computation confirms |{\u00b11}^3\\F(+,+)| \u2264 1 and |{\u00b11}^3\\F(+,-)| \u2264 1 (the other two follow by Cor. 9), then AP follows at once (by Lemma 2) without searching the 6\u2011variable space.\n\nProduct\u2011pattern conjecture (testable; would settle |A|=4 uniformly)\nConjecture P+. For both (\u03b1,\u03b2)=(+,+) and (\u03b1,\u03b2)=(+,-), one has\nF(\u03b1,\u03b2) = { (x,y,z) \u2208 {\u00b11}^3 : x\u00b7y\u00b7z = +1 }.\n- Evidence: All explicit non\u2011O5 witnesses used so far (|A|=3 and the P1\u2013P3 test vectors in notes.md) exhibit triple product +1; the only hard exclusion we proved (Lemma 13: (\u2212,\u2212,\u2212) \u2209 F(+,-)) has triple product \u22121.\n- Consequence if true: The structured ansatz x_{ij}=w_iw_j (with arbitrary w: A\u2192{\u00b11}) yields, on each triangle, product +1 (since (w_iw_j)(w_iw_k)(w_jw_k)=+1). Hence it would satisfy every local constraint for any (\u03b1_k,\u03b2_k), giving a uniform one\u2011point amalgam for |A|=4 (indeed for all |A|, by the same local reasoning). This would prove AP outright.\n- Action: This is an 8+8 evaluation check once IsO5 is in place.\n\nClarification of the triangle coordinate mapping (implementation aid)\n- For Y_k={b,c}\u222a(A\\{k}) with A={1,2,3,4} and i<j<\u2113 the increasing order on A\\{k}, our fixed encoding is\n  p(Y_k) = (p_{missing\\ c}, p_{missing\\ b}, p_{missing\\ i}, p_{missing\\ j}, p_{missing\\ \u2113}).\n- The last three coordinates are expressed via the edge\u2011variables as\n  p_{missing\\ i} = x_{j\u2113},\\quad p_{missing\\ j} = x_{i\u2113},\\quad p_{missing\\ \u2113} = x_{ij}.\nThis convention is already used in Prop. 15 and should be observed when populating F(\u03b1,\u03b2).\n\nConcrete examples and unit checks to run (tiny, decisive)\n- Maintain the unit tests for IsO5: (+,+,+,+,+) \u2209 O5; (+,\u2212,\u2212,\u2212,\u2212) \u2208 O5; (+,\u2212,+,\u2212,+) \u2209 O5.\n- The four decisive test vectors from notes.md \u00a7P1\u2013P3:\n  \u2022 (+,+,\u2212,\u2212,+), (+,+,+,\u2212,\u2212), (+,\u2212,\u2212,\u2212,+), (+,\u2212,+,\u2212,\u2212). Each should be classified non\u2011O5 for the 2+2 ansatz to witness those profiles.\n- Populate F(+,+) and F(+,-) fully (8 triples each). Immediate checks: (+++)\u2208F(+,+); (\u2212,\u2212,\u2212)\u2209F(+,-). Report sizes |F(+,+)|, |F(+,-)| and list the complements {\u00b11}^3\\F.\n- If both complements have size \u22641, conclude |A|=4 by Lemma UB. If, stronger, F(\u03b1,\u03b2) equals \u201cproduct +1,\u201d conclude AP by the structured ansatz (Conjecture P+).\n\nWhy these steps are valuable incremental progress\n- Lemma UB is unconditional and reduces the |A|=4 decision to checking two tiny local tables (16 values total) and two cardinality inequalities; this is significantly weaker than the earlier need to solve all 6\u2011variable instances, yet it suffices to conclude AP if the tables are as sparse as anticipated.\n- Conjecture P+ crystallizes the suspected structure of the local constraints and provides a one\u2011line uniform solution template if verified; even if false, the explicit counter\u2011entries will directly inform a minimal backtracking strategy.\n\nObstacles and open points\n- We still lack an analytic classification of the O5 orbit to certify F(\u03b1,\u03b2) without computation. Given the minute size (32 total 5\u2011vectors), a brute\u2011force enumeration remains the quickest rigorous path.\n- The conditional Prop. 11 remains unverified pending the membership of the three permutations of (+,\u2212,\u2212) in each F(\u03b1,\u03b2). This should be settled by the same F\u2011table computation.\n\nGaps, corrections, and notes on output.md\n- Prop. 3 uses a coordinate\u2011free description of Y_k; when F\u2011tables are integrated into output.md, it would be helpful to restate the fixed 5\u2011coordinate ordering (as above) near Prop. 3 or before Prop. 11 (currently the precise ordering is spelled out later in Prop. 15).\n- All other statements in output.md remain correct; no further errors spotted. Lemma 13 is properly justified (it uses the canonical O5 representative under the fixed coordinate order).\n\nNext steps for the verifier (minimal and decisive)\n1) Implement IsO5 via Lemma 6; run the three unit tests and report the O5 orbit size.\n2) Evaluate IsO5 on the four concrete 5\u2011vectors listed above to settle P1\u2013P3 for the 2+2 ansatz.\n3) Compute F(+,+) and F(+,-) completely; derive the other two by Cor. 9. Report complements and sizes.\n4) If |{\u00b11}^3\\F(+,+)| \u2264 1 and |{\u00b11}^3\\F(+,-)| \u2264 1, invoke Lemma UB to conclude the |A|=4 step and AP.\n5) If, stronger, F(\u03b1,\u03b2)={triples with product +1} in both cases, record the uniform construction x_{ij}=w_iw_j as a final proof strategy for all |A|.\n6) If either complement has size \u22652, run the 2^6 brute\u2011force CSP per realized (B,C) profiles or at least per the 16 type\u2011patterns over k\u2208A (keeping the ordered pairs {++,\u2212\u2212,+\u2212,\u2212+}); archive either SAT witnesses or a single UNSAT certificate (refuting AP).\n\nEnd of round summary\n- Introduced a new unconditional lemma (union\u2011bound feasibility) that can, by checking two 8\u2011entry tables, settle |A|=4 and hence AP.\n- Formulated the \u201cproduct +1\u201d conjecture (precisely testable) which, if true, yields a uniform, simple construction for the amalgam.\n- Provided precise, small computational tasks that will decisively resolve the remaining |A|=4 bottleneck, along with explicit test vectors and sanity checks."}, {"prover_id": "02", "progress_md": "Status and aim\n- We continue to resolve the one-point amalgamation for |A|=4, which reduces AP for H to a finite CSP on six edge variables with four local 5-set constraints (output.md Prop. 3). The computational oracle IsO5 is still the bottleneck; I add rigorously checkable lemmas that simplify the local constraint analysis and shrink the number of patterns to verify.\n\nNew lemma: explicit O5-image formula (useful for hand checks)\n- Lemma (O5 image equals \u201c\u2212\u03b5 off one coordinate\u201d). Let e_O = (+,\u2212,\u2212,\u2212,\u2212). For any \u03c4\u2208S_5 with \u03b5(\u03c4)=(\u03b5_1,\u2026,\u03b5_5) and any i_0 with \u03c4^{-1}(i_0)=the + position of e_O, the image p\u2032 under the signed action satisfies\n  p\u2032_i = \u2212\u03b5_i for i\u2260i_0, and p\u2032_{i_0} = \u03b5_{i_0}.\n  Proof. Immediate from p\u2032_i = \u03b5_i\u00b7(e_O)_{\u03c4^{-1}(i)} and that (e_O)_j is + at one j and \u2212 otherwise.\n- Why useful: To test whether a target 5-vector p lies in the O5 orbit, it suffices to check if there exists some i_0 with \u03b5 determined by \u03b5_{i_0}=p_{i_0} and \u03b5_i=\u2212p_i for i\u2260i_0 such that \u03b5=\u03b5(\u03c4) for some \u03c4. This is a sharper necessary-and-sufficient condition and provides quick hand-proofs in some cases.\n\nCorollary: all-equal triple is forbidden in the opposite-fixed case (now with a clean proof)\n- Corollary (completes the \u201chard exclusion\u201d in both directions). For (\u03b1,\u03b2)=(+,-), both (+++) and (---) are forbidden: (x,y,z)\u2209F(+,-) for (x,y,z)=(+,+,+) and (x,y,z)=(\u2212,\u2212,\u2212). Proof:\n  \u2022 (---) gives p=(+,-,\u2212,\u2212,\u2212), the canonical O5 representative.\n  \u2022 (+++) gives p=(+,-,+,+,+). By Lemma 8 there exists \u03c4 with \u03b5_i(\u03c4)=\u22121 for all i. Taking i_0=2 yields p\u2032 with p\u2032_2=\u03b5_2=\u22121 and p\u2032_i=\u2212\u03b5_i=+1 for i\u22602, i.e., p\u2032=(+,-,+,+,+). Hence p is in O5.\u220e\n- Symmetrically, for (\u03b1,\u03b2)=(\u2212,+), both (+++) and (---) are forbidden by global sign reversal (output.md Cor. 9).\n- Why useful: This fully classifies the all-equal triples for the opposite-fixed case without computation, tightening the F(+,-) and F(\u2212,+) tables and providing robust unit tests for IsO5.\n\nHand-verified \u03b5-examples (sanity catalog for the verifier)\n- Using Lemma 6, I computed \u03b5(\u03c4) for small \u03c4 (useful to debug IsO5):\n  \u2022 id: \u03b5=(+,+,+,+,+), \u03a3\u03b5=+5.\n  \u2022 (12): \u03b5=(+,+,\u2212,\u2212,\u2212), \u03a3\u03b5=\u22121.\n  \u2022 (123): \u03b5=(+,\u2212,\u2212,+,+), \u03a3\u03b5=+1.\n  \u2022 (12)(34): \u03b5=(\u2212,\u2212,\u2212,\u2212,+), \u03a3\u03b5=\u22123.\n  \u2022 (13): \u03b5=(\u2212,\u2212,\u2212,\u2212,\u2212), \u03a3\u03b5=\u22125 (the \u201ccentral\u201d flip from Lemma 8).\n  These confirm that \u03a3\u03b5 can realize \u00b15, \u00b13, \u00b11, so constraints based solely on \u03a3\u03b5 (or plus-counts) cannot rule out O5 membership.\n\nExample checks guided by the O5-image formula\n- For p=(+,-,+,-,-): considering i_0=2 gives \u03b5=(\u2212,\u2212,\u2212,+,+); i_0=1 gives \u03b5=(+,+,\u2212,+,+). Both patterns appear plausible from small \u03c4, but I do not assert membership either way; this illustrates how the formula reduces a membership query to \u201cdoes this \u03b5 occur as \u03b5(\u03c4)?\u201d, which is trivial to decide computationally and infeasible by hand enumeration.\n\nNew solvable family via 2+2 vertex-sign ansatz (synthesis and scope)\n- Recall Lemma 10 and Prop. 11. Under x_{ij}=w_iw_j with exactly two + and two \u2212 on A, each triangle-triple is a permutation of (+,\u2212,\u2212). Thus, if the verifier confirms that every F(\u03b1,\u03b2) contains all three permutations of (+,\u2212,\u2212), then the one-point step over |A|=4 is uniformly solvable (Prop. 11), implying AP for H (Lemma 2).\n- I emphasize that the only remaining local memberships to check for this route are the 12 entries: for each (\u03b1,\u03b2)\u2208{++, +\u2212, \u2212+, \u2212\u2212}, the three permutations of (+,\u2212,\u2212). Cor. 9 halves this (the two opposite-sign cases follow by triplewise negation), so only F(+,+) and F(+,-) need computing.\n\nRefined classification of 4-bit type patterns on A (search-space reduction)\n- Observation (C5): For any B of type C5 on A\u222a{b}, the 5-vector on that 5-set is constant \u00b1, hence the 4-bit pattern (p^B_k)_{k\u2208A} is constant (all equal) as well. This confirms that, in the one-point data, any non-constant 4-bit pattern on A must come from an H5 side.\n- Heuristic (H5, to be verified computationally): For any C of type H5 on A\u222a{c}, the 4-bit pattern (p^C_k)_{k\u2208A} consists of exactly two + and two \u2212 (never all equal). The canonical representative (+,\u2212,+,\u2212) exhibits this; testing whether all six 2\u20132 patterns occur will reduce the |A|=4 enumeration by symmetry. Action item: Enumerate the orbit of H5 under relabelings that fix c and record the distinct 4-bit patterns on A; this bounds the profile list to check.\n\nObstacles and why a small computation remains necessary\n- Attempts to certify (+,\u2212,\u2212)-admissibility analytically in F(+,+) or F(+,-) via parity/sum invariants fail because the S_5 signed action realizes \u03b5 with all odd sums, and the O5 orbit is large. The O5-image formula reduces membership to \u03b5-realizability, yet characterizing the full image E={\u03b5(\u03c4):\u03c4\u2208S_5} pen-and-paper appears cumbersome. A 120-step enumeration is the right tool here.\n\nActionable next steps for the verifier (precise and minimal)\n1) Implement IsO5 via output.md Lemma 6. Unit tests: (+,+,+,+,+) non\u2011O5; (+,\u2212,\u2212,\u2212,\u2212) O5; (+,\u2212,+,\u2212,+) non\u2011O5; and the five \u03b5-vectors above should appear for the listed \u03c4.\n2) Populate F(+,+) and F(+,-) (8 triples each) under the fixed coordinate order (notes/output). Obtain F(\u2212,\u2212), F(\u2212,+) by triplewise negation (Cor. 9). Confirm the proven exclusions: for (+,-), exclude (+++) and (---).\n3) Check the 12 key memberships: for each (\u03b1,\u03b2), all permutations of (+,\u2212,\u2212) belong to F(\u03b1,\u03b2). If yes, conclude the |A|=4 one\u2011point step via Prop. 11 and hence AP (Lemma 2).\n4) If any of those memberships fail, revert to the 2^6 brute\u2011force CSP per realized (B,C) profile (with the H5 4-bit patterns catalogued as above). Either archive SAT assignments or produce an UNSAT certificate.\n\nGaps and clarifications in output.md\n- Prop. 11 remains conditional on the F-table check; it should eventually cite explicitly which 12 memberships were verified. The present round supplies a complete proof that (+++) and (---) are both forbidden in F(+,-), filling a previously flagged gap.\n- The precise ordering of the last three coordinates in p(Y_k) is critical and already stated; when the F-tables are recorded, repeat this convention in output.md adjacent to their definition for reproducibility.\n\nSummary of this round\u2019s contributions\n- Introduced and proved the O5-image formula p = \u2212\u03b5 off one coordinate, enabling quick hand checks and guiding IsO5 implementation.\n- Fully classified \u201call-equal\u201d triples in the opposite-fixed case as O5 (forbidden) by a short, rigorous argument.\n- Provided computed \u03b5-vectors for several small \u03c4 as sanity data.\n- Outlined a minimal verification plan: compute two F-tables, test 12 memberships to unlock the uniform 2+2 solution; otherwise, fall back to the tiny 2^6 CSP with a reduced profile list via H5\u2019s 4-bit patterns on A."}, {"prover_id": "03", "progress_md": "Status and focus\n- We keep the one\u2011point reduction and the 6\u2011variable CSP for |A|=4 (output.md Prop. 3). The key missing piece remains deciding the local 5\u2011set constraints, i.e., membership in F(\u03b1,\u03b2)\u2286{\u00b11}^3 (output.md Cor. 9 gives the sign\u2011flip symmetry, but we still need explicit tables or at least a few decisive entries).\n- Proposition 11 is conditional; Proposition 12 settles the equal\u2011constant subcase; Proposition 14 settles |A|=3; Proposition 15 provides a further solvable subclass. No contradictions detected in output.md.\n\nNew micro\u2011lemmas and structural observations (auditable)\n1) Type patterns on A induced by 5\u2011types (enumeration aid).\n- Lemma T. Let B be a 5\u2011vertex structure on A\u222a{b} with type T_B\u2208{C5,H5}. Then the 4\u2011tuple (p^B_k)_{k\u2208A} equals:\n  \u2022 Constant (all + or all \u2212) if T_B=C5.\n  \u2022 A 2+2 pattern (exactly two + and two \u2212) if T_B=H5.\n  Proof. For the 5\u2011vector p on A\u222a{b}, p_x is constant on C5; restricting to coordinates indexed by A yields a constant 4\u2011tuple. For H5, the canonical representative (+,\u2212,+,\u2212,+), after removing the \u201cmissing b\u201d coordinate, leaves exactly two + and two \u2212 on A; S4 relabelings of A preserve the 2+2 property.\u220e\n- Why useful: Narrows the |A|=4 case analysis to macro\u2011profiles (C,C), (C,H), (H,C), (H,H), and within each, the eq/opp pattern over k is now strongly constrained (e.g., C vs H yields exactly two equals and two opposites).\n\n2) Triangle triple distribution under vertex\u2011sign assignments (combinatorial control).\n- Lemma D. Let w\u2208{\u00b11}^A and set x_{ij}=w_i w_j. For the four triangles (Y_k), the triple on Y_k is:\n  \u2022 If |{i:w_i=+1}|=4 or 0: all four triples are (+++).\n  \u2022 If |{i:w_i=+1}|=3 or 1: exactly one Y_k has (+++); the other three have permutations of (+,\u2212,\u2212).\n  \u2022 If |{i:w_i=+1}|=2: all four Y_k have permutations of (+,\u2212,\u2212).\n  Proof. For a 3\u2011vertex set, the pairwise products are (+++) if all three w are equal; otherwise exactly one edge\u2011product is + and two are \u2212. Counting how many triangles contain three equal signs yields the cases above.\u220e\n- Why useful: This extends Lemma 10 (the 2+2 case) and gives us three controllable regimes (0/1/4 occurrences of (+++)) by choosing w with 2+/2\u2212, 3+/1\u2212 (or 1+/3\u2212), or 4+/0\u2212 (or 0+/4\u2212).\n\n3) Global parity constraint across the four triangles (sanity check for UNSAT certificates).\n- Lemma P (parity). For any assignment x_{ij}\u2208{\u00b11}, the product of the four triangle\u2011products equals +1. Equivalently, the number of triangles whose triple has product \u22121 is even.\n  Proof. Each edge variable x_{ij} appears in exactly two triangles of K_4, hence \u220f_k (x_{ab}x_{ac}x_{bc} on triangle k) = \u220f_{edges} x_{ij}^2 = 1.\u220e\n- Why useful: If future F\u2011tables force odd parity (e.g., three triangles requiring triple product \u22121 and one requiring +1), we get an immediate contradiction, giving a clean UNSAT witness.\n\n4) Minimal decisive membership checks for the 2+2/3+1 strategy (refinement of Prop. 11).\n- Observation: The vertex\u2011sign method only ever produces (+++) or permutations of (+,\u2212,\u2212). Thus, to certify existence of an amalgam, it suffices to know, per (\u03b1,\u03b2): whether (+++) is allowed and whether the specific permutations of (+,\u2212,\u2212) that occur under a chosen w are allowed.\n- Conditional Proposition 11\u2032 (weaker prerequisites than Prop. 11). Fix the coordinate order from notes/output. If the following hold:\n  (E1) (+++)\u2208F(+,+) and (+++)\u2208F(\u2212,\u2212) (true: \u00b1C5),\n  (E2) For (\u03b1,\u03b2)\u2208{(+,+),(\u2212,\u2212)}, at least one of the two concrete permutations of (+,\u2212,\u2212) realized by a 2+2 choice w=(+,+,\u2212,\u2212) (e.g., (+,\u2212,\u2212) and (\u2212,\u2212,+) as in P1) lies in F(\u03b1,\u03b2),\n  (E3) For (\u03b1,\u03b2)\u2208{(+,-),(\u2212,+)}, at least one of the two concrete permutations of (+,\u2212,\u2212) realized by a 2+2 choice w lies in F(\u03b1,\u03b2),\n  (E4) For (\u03b1,\u03b2)\u2208{(+,-)}, (+++)\u2208F(+,-) or else (E3) holds and the count of k with (\u03b1_k,\u03b2_k)=(+,-) is even (so w with 2+2 can serve). For (\u2212,+), (+++) is known forbidden (output.md Lemma 13), so require (E3) for those k.\n  then every one\u2011point instance over |A|=4 is solvable by choosing w with 2+2, 3+1, or 4+0 as appropriate (use Lemma D to match how many (+++) triples are needed).\n- Why useful: This further reduces the needed F\u2011table data to a handful of entries tied to the two triple shapes the vertex\u2011sign method can realize, and it incorporates the parity Lemma P to handle counts.\n\nConcrete test vectors (to be evaluated by IsO5)\n- As already prepared in notes/output, validating the following suffices to green\u2011light the 2+2 ansatz on central profiles:\n  \u2022 P1 (C vs C, aligned): (+,+,\u2212,\u2212,+), (+,+,+,\u2212,\u2212).\n  \u2022 P2 (C vs C, opposed): (+,\u2212,\u2212,\u2212,+), (+,\u2212,+,\u2212,\u2212).\n  \u2022 P3 (C vs H, mixed): same two vectors as P2.\n- Action: A single IsO5 pass on these four 5\u2011vectors decides P1\u2013P3. If all are non\u2011O5, we have explicit amalgams for these macro\u2011profiles.\n\nEnumeration of macro\u2011profiles and expected eq/opp distribution (for small exhaustive runs)\n- By Lemma T, the four p^B_k (k\u2208A) are: all equal (C) or 2+2 (H). Hence, up to S4 on A, the possibilities are:\n  \u2022 (C,C): either all eq (\u03b4,\u03b4) or all opp (\u03b4,\u2212\u03b4).\n  \u2022 (C,H) or (H,C): exactly two eq and two opp (which of the two depends on \u03b4 and the 2+2 positions).\n  \u2022 (H,H): 4 eq (when identical), 0 eq (when negations), or 2 eq.\n- These five eq/opp profiles, coupled with which positions within the 2+2 pattern, represent all realizable one\u2011point patterns.\n- Why useful: This confines the 2^6 brute\u2011force search to a tiny, structured set of cases for final certification if needed.\n\nGaps/clarifications in output.md\n- Prop. 11 requires \u201call three permutations\u201d of (+,\u2212,\u2212) in each F(\u03b1,\u03b2). For our vertex\u2011sign method, only two concrete permutations occur for a fixed 2+2 choice; moreover, we can swap which two appear by permuting which vertices receive w=+ (Lemma D/notes\u2019 P1\u2013P3). It would be slightly sharper to state a conditional that only requires those two realized permutations (as in Proposition 11\u2032 above) rather than all three.\n- The precise mapping from the triple (x_{j\u2113},x_{i\u2113},x_{ij}) to the last three coordinates of p(Y_k) is stated in notes.md but not explicitly in output.md\u2019s Prop. 3. When F\u2011tables are finalized, restating the \u201cmissing i/j/\u2113\u201d order there would aid reproducibility.\n\nObstacles\n- An analytic characterization of F(+,+) and F(+,-) remains elusive. We therefore continue to rely on the minimal computation plan (IsO5 oracle + 16 evaluations) to settle them.\n- We cannot presently certify or refute the status of (+++) in F(+,-) without computation (we correctly retracted a heuristic argument earlier; output.md Lemma 13 addresses only (---)\u2209F(+,-)).\n\nNext steps for the verifier (small, decisive)\n1) Run IsO5 on the four vectors listed under P1\u2013P3.\n2) Compute F(+,+), F(+,-) fully (8 triples each) under the fixed coordinate convention; derive F(\u2212,\u2212), F(\u2212,+) by sign\u2011flip (Cor. 9). Archive tables.\n3) If both (+,\u2212,\u2212) and (\u2212,\u2212,+) lie in each F(\u03b1,\u03b2), apply output.md Prop. 11 directly. Otherwise, apply Proposition 11\u2032 + Lemma D + parity Lemma P to choose between 2+2 vs 3+1 vs 4+0 for each macro\u2011profile, using (+++) where allowed to match the required counts among k.\n4) If any macro\u2011profile remains unresolved, brute\u2011force its 2^6 assignments (Prop. 3), report SAT/UNSAT, and archive witnesses/certificates.\n\nWhy this is progress\n- We refined the uniform vertex\u2011sign construction beyond the 2+2 case (Lemma D), and distilled the necessary F\u2011table checks to a minimal, actionable set (Proposition 11\u2032), incorporating a global parity invariant (Lemma P).\n- We classified the realizable p^B, p^C patterns over A (Lemma T), narrowing the remaining search to five macro\u2011profiles and providing a clear plan to dispatch each.\n- These steps are immediately testable by the IsO5 routine and require only a handful of evaluations to either conclude AP or extract a concrete counterexample."}]
+
+Current notes.md:
+Set‑up and notations (agreed baseline)
+- 4‑hypertournament on finite V: equivalent to a function f:[V]^4→{±1}. For an ordered 4‑tuple (x1,x2,x3,x4) with underlying set S, we declare (x1,x2,x3,x4)∈R iff the permutation from the increasing ordering of S to (x1,…,x4) has sign equal to f(S). This satisfies (i) tuples have distinct entries, (ii) closure under even permutations, (iii) exactly one of (x1,x2,x3,x4) and (x2,x1,x3,x4) lies in R.
+- For a 5‑set X, define its 5‑vector p(X)∈{±1}^X by p_x:=f(X\{x}). Isomorphisms act by p↦(ε_i(τ)·p_{τ^{-1}(i)}) with ε_i(τ)=sign of τ restricted to X\{τ^{-1}(i)}. The three isomorphism types on 5 points are denoted C5, H5, O5. For computation we may use representatives C5=(+,+,+,+,+), O5=(+,-,-,-,-), H5=(+,-,+,-,+); the orbit relation is determined by the above action (not by raw counts of pluses).
+
+One‑point amalgamation reduction
+- AP for H (class of finite 4‑hypertournaments with no induced O5) reduces to the one‑point case: Given A∈H, B=A∪{b}∈H, C=A∪{c}∈H with B∩C=A, existence of D on A∪{b,c} in H extending B and C implies full AP by iteratively adding the vertices of C\A to B.
+
+CSP for the minimal nontrivial one‑point case |A|=4
+- Fix A={1,2,3,4}, b=5, c=6. The only undetermined f‑values are the six cross 4‑sets X_{ij}={i,j,5,6} (1≤i<j≤4). Let variables x_{ij}:=f(X_{ij})∈{±1}.
+- The only potentially new 5‑sets are Y_k:={5,6}∪(A\{k}) for k∈{1,2,3,4}. For each k, p(Y_k) has two fixed coordinates: p missing 6 equals p^B_k:=f_B({5}∪(A\{k})), and p missing 5 equals p^C_k:=f_C({6}∪(A\{k})); and three variable coordinates drawn from {x_{ij}} on the three pairs inside A\{k}:
+  • Y_1 depends on {x_{23},x_{24},x_{34}}
+  • Y_2 depends on {x_{13},x_{14},x_{34}}
+  • Y_3 depends on {x_{12},x_{14},x_{24}}
+  • Y_4 depends on {x_{12},x_{13},x_{23}}.
+- Constraint: For each k, p(Y_k) must not lie in the O5‑orbit. This is the complete constraint system for the one‑point amalgam over A of size 4.
+
+Base sizes |A|≤2 and |A|=3
+- |A|≤2: There are no 5‑sets Y; any assignment to cross 4‑sets works, so one‑point amalgamation always succeeds.
+- |A|=3: There is exactly one 5‑set Y=A∪{b,c}, with two fixed coordinates (those missing b and c) and three unknowns (those missing each a∈A). We expect (and plan to verify computationally) that for every (α,β)∈{±1}^2 at least one of the 8 assignments to the three unknowns avoids the O5 orbit. This settles one‑point amalgamation at size 3 once verified.
+
+Switching: what it does and what it does not
+- For ε:V→{±1}, define f^ε(S):=(∏_{v∈S}ε(v))·f(S). Then f^ε encodes another 4‑hypertournament.
+- Caution: For a fixed 5‑set X, switching at a vertex v∈X flips the four coordinates of p(X) corresponding to the 4‑sets that contain v and leaves the coordinate “missing v” unchanged. This can change the 5‑type: e.g., (+,-,-,-,-) (an O5 representative) switches at the ‘+’ vertex to (+,+,+,+,+) (a C5 representative). Thus switching is not a valid normalization trick for fixed one‑point data (B,C) in H.
+
+Computational plan (to settle |A|=3 and |A|=4)
+- Step A: Compute the O5 orbit via the S5 action above; implement IsO5(p).
+- Step B (|A|=3): For each (α,β), enumerate the 8 triples, test IsO5, and record that at least one choice avoids O5.
+- Step C (|A|=4): Enumerate compatible (B,C) (both of type C5 or H5, agreeing on f(A)), form p^B_k,p^C_k (k=1..4), and brute‑force the 2^6 choices of x_{ij}, rejecting any assignment for which some Y_k is O5. Record either a counterexample or certify all cases pass.
+- Precompute F(α,β)⊆{±1}^3: the allowed triples for a 5‑set with given two fixed coordinates. Then the |A|=4 CSP checks membership of the four triangle‑triples in F(p^B_k,p^C_k).
+
+Constructive ansatz to test
+- Try x_{ij}=w_iw_j with w_i:=p^B_i·p^C_i for i∈A. For T={i,j,k} this gives a triple (w_iw_j,w_iw_k,w_jw_k) of product +1. If this never yields O5 for any (p^B_k,p^C_k), it provides a uniform construction for all |A| (worth testing; not proved).
+Addendum: explicit S5 action, corrections, and computation plan
+
+1) Explicit ε-formula for the S5 action (implementation aid)
+For τ ∈ S5 and i ∈ {1,…,5}, write j := τ^{-1}(i) and define
+c_j(τ) := |{k<j : τ(k) > τ(j)}| + |{k>j : τ(k) < τ(j)}|.
+Then the sign multiplier in the action p′_i = ε_i(τ)·p_{τ^{-1}(i)} equals
+ε_i(τ) = sgn(τ)·(−1)^{c_j(τ)}.
+Sketch of justification: Let τ′ be the induced bijection from [5]\{j} to [5]\{i}. Its inversion count is inv(τ′) = inv(τ) − c_j(τ) because the inversions of τ decompose into those not involving j (which biject with the inversions of τ′) and those involving j (counted by c_j). Hence sgn(τ′) = (−1)^{inv(τ′)} = (−1)^{inv(τ)−c_j} = sgn(τ)·(−1)^{c_j}. By definition ε_i(τ) = sgn(τ′). A immediate corollary is the product identity ∏_{i=1}^5 ε_i(τ) = sgn(τ), since Σ_j c_j(τ) = 2·inv(τ).
+
+Practical note: This eliminates ambiguity about ε and supports a robust IsO5 enumerator.
+
+2) Correction to the “fully aligned” claim
+The statement “If p^B_k = p^C_k for all k then setting all x_{ij}=δ makes p(Y_k) constant δ for all k” is false unless the common pattern (p^B_k)_{k∈A} is itself constant with value δ. Counterexample: take p^B=p^C=(+,+,−,+) and δ=+. Then for k=3 the fixed coordinates are (−,−) while the three variables are +, so p(Y_3) is not constant. A correct (weaker) statement is: if p^B_k = p^C_k = δ for all k, then x_{ij}≡δ makes every p(Y_k) constant δ, hence non-O5.
+
+3) F(α,β) tables: compute all four cases
+Define F(α,β) ⊆ {±1}^3 as the set of triples (x,y,z) for which p=(α,β,x,y,z) is non-O5. Do not assume F(+,+)=F(−,−) or F(+,-)=F(−,+) a priori; compute all four cases. This is an 8×4=32-evaluation task. Record each F(α,β) explicitly along with any observed symmetries (e.g., invariance under permuting x,y,z).
+
+Consequence: |A|=3 reduces to checking that for each (α,β) there exists at least one triple in F(α,β). Archive one such triple per case.
+
+4) |A|=4 CSP protocol (profiles and ansatz)
+- Use the already-recorded CSP with variables x_{ij} on the six edges of K4 and four constraints Y_k. For any concrete pair (B,C) over A with B∩C=A and both omitting O5, determine the four pairs (p^B_k,p^C_k) and require the corresponding triangle-triple to lie in F(p^B_k,p^C_k).
+- Profiles to test early:
+  • P1: p^B≡+, p^C≡+. The corrected alignment lemma (constant case) gives the assignment x_{ij}≡+.
+  • P2: p^B≡+, p^C≡−. Try the perfect-matching assignment x_{12}=x_{34}=+, others −; check all four Y_k via IsO5.
+  • P3: p^B≡+, p^C drawn from an H5 labeling consistent on A; try ansatz x_{ij}=w_i w_j with w_i=p^B_i p^C_i.
+  • P4: both sides H5 aligned on A; by the corrected alignment lemma with δ=+, x_{ij}≡+ works if the common 4-bit pattern on A is constant +.
+- Constructive ansatz: x_{ij}:=w_i w_j where w_i:=p^B_i p^C_i. For T={i,j,k}, the triple is (w_i w_j, w_i w_k, w_j w_k) with product +1. Test this uniformly across enumerated cases; if it always avoids O5, it suggests a uniform construction for general |A|.
+
+5) Unit tests for IsO5
+- p=(+,+,+,+,+) should classify non-O5; p=(+,−,−,−,−) should classify O5; p=(+,−,+,−,+) should classify non-O5 (H5). Also verify that for a transposition τ, ∏_i p′_i flips sign (product identity) and that orbit membership is invariant under the action.
+
+6) Checklist for the next round
+- Implement IsO5 with the ε-formula; report the size of the O5 orbit found by enumeration.
+- Compute and list F(α,β) for all four cases; confirm |A|=3.
+- Run the |A|=4 CSP on P1–P4 first, then extend to representatives modulo S4 on A; archive satisfying/unsatisfying assignments.
+- Report whether the ansatz x_{ij}=w_i w_j succeeds in all tested instances.
+Additional clarifications, small lemmas, and symmetry for the 5-vector orbit
+
+1) Semantics of the fixed bits p^B_k and p^C_k (|A|=4)
+For B on A∪{b} and k∈A, define p^B_k:=f_B({b}∪(A\{k})). On the 5-set A∪{b}, the 5-vector p has entries p_x=f((A∪{b})\{x}). Thus for k∈A, p^B_k coincides with the coordinate “missing k” of p on A∪{b}: it records whether the increasing 4-tuple on {b}∪(A\{k}) is in R_B. Analogously p^C_k is the coordinate “missing k” of the 5-vector on A∪{c}.
+
+2) Necessary local exclusions in the opposite-fixed case (rigorous justification)
+- With (α,β,x,y,z)=(+;−;−,−,−) we obtain the canonical O5 representative; hence this triple is forbidden for (α,β)=(+,-).
+- By central symmetry of the O5 orbit (see 4) below), (−;+;+,+,+) is also O5; hence forbidden for (α,β)=(−,+).
+These give immediate unit tests for any IsO5 implementation and constraints for F(+,-) and F(−,+).
+
+3) Edge/triangle viewpoint and the structured ansatz
+- Place the six variables x_{ij} on the edges of K4 on A. The constraint Y_k uses the triangle on T=A\{k}.
+- Structured ansatz: pick w_i∈{±1} on the vertices and set x_{ij}:=w_i w_j. For any triangle {i,j,k}, the triple (w_iw_j,w_iw_k,w_jw_k) has product +1, realizing exactly (+++),(+−−),(−+−),(−−+).
+
+4) Central symmetry of the O5 orbit and a consequence for F(α,β)
+There exists τ∈S5, e.g. τ=(13), with ε_i(τ)=−1 for all i (check via Lemma 6: c_j(τ) is even for every j and sgn(τ)=−1). Hence for any 5-vector p, p∈O5 iff −p∈O5. As a consequence, for the local tables F(α,β)⊆{±1}^3 (defined by p=(α,β,x,y,z) non-O5), one has
+F(−α,−β) = { (−x,−y,−z) : (x,y,z)∈F(α,β) }.
+Therefore it suffices to compute F(+,+) and F(+,-); the other two cases follow by triplewise negation. Do not assume any further symmetries (e.g., permutations of x,y,z or F(+,-)=F(−,+)) without verification.
+
+5) On classifying |A|=4 instances
+The constraint at each k depends on the ordered pair (p^B_k,p^C_k)∈{++,−−,+−,−+}. Reduction to the pure eq/opp pattern E={k: p^B_k=p^C_k} is insufficient unless one proves F(+,+)=F(−,−) and F(+,-)=F(−,+). Use the full type-vector in {++,−−,+−,−+}^A. By 4), it is enough to compute and store F(+,+), F(+,-), and infer the other two by negation.
+
+6) Implementation checklist (precise conventions)
+- Fix, once and for all, an ordering of the five vertices of each Y_k with the first two positions corresponding to the coordinates “missing c” and “missing b”, respectively, and the last three to the vertices of A\{k} in increasing order. Use the same convention for constructing p=(α,β,x,y,z) when populating F(α,β).
+- Implement IsO5 via Lemma 6. Unit tests: (+,+,+,+,+) is non-O5; (+,−,−,−,−) is O5; (+,−,+,−,+) is non-O5. Report the orbit size and verify closure under the action.
+- Compute F(+,+), F(+,-); obtain F(−,−), F(−,+) by triplewise negation. Conclude |A|=3 by listing one admissible triple for each (α,β).
+- For |A|=4, enumerate realizable type-vectors from actual pairs (B,C) (both C5/H5, agreeing on A), and brute-force 2^6 assignments to x_{ij}. Archive SAT witnesses or UNSAT certificates. Test the ansatz x_{ij}=w_i w_j with w_i=p^B_i p^C_i across the same cases.
+
+These additions lock down the symmetry that underlies Claim N1, correct the eq/opp reduction, and make the forthcoming computations unambiguous and reusable.
+Uniform 2+2− assignment and a corrected conditional reduction for |A|=4
+
+Ordering convention for local F-tables
+- For any 5-set Y_k={b,c}∪(A\{k}) with A={1,2,3,4} and i<j<ℓ the increasing order on A\{k}, we use the coordinate order
+  p(Y_k) = (p_{\text{missing }c}, p_{\text{missing }b}, p_{\text{missing }i}, p_{\text{missing }j}, p_{\text{missing }\ell}).
+- With this convention, F(α,β)⊆{±1}^3 is the set of ordered triples (x,y,z) such that (α,β,x,y,z) is non-O5.
+
+Lemma A (2+2 vertex-sign ansatz yields (+−−)-type on every triangle).
+- Let w_i∈{±1} (i∈A) have exactly two + and two −, and set x_{ij}:=w_i w_j. For each k, the triple (x,y,z) contributed by the three edges inside A\{k} is, up to permutation of its three coordinates, of the form (+,−,−).
+- Proof. If k is from the + vertices, then A\{k} contains {+,−,−}; the pairwise products are (−,−,+). If k is from the − vertices, then A\{k} contains {+, +, −}; the pairwise products are (+,−,−). In either case the unordered triple has one + and two −. The order within (x,y,z) depends on the fixed coordinate convention but is a permutation of (+,−,−). ∎
+
+Corrected conditional reduction for |A|=4
+- Conditional Proposition (uniform 2+2 ansatz). Fix the above ordering convention. Suppose that for each (α,β)∈{++, +−, −+, −−}, all three permutations of (+,−,−) lie in F(α,β). Then for every one-point instance over |A|=4 there exists an amalgam D in H obtained by the uniform assignment x_{ij}=w_i w_j with some w having exactly two + and two − on A.
+  • Proof. By Lemma A, for every k the ordered triple on Y_k is a permutation of (+,−,−). By hypothesis, this ordered triple is in F(p^B_k,p^C_k) for each k, hence none of the four Y_k is O5, and D∈H. ∎
+- Unconditional subcase (equal-constant fixed pairs). If (p^B_k,p^C_k)=(δ,δ) for all k (with δ∈{±1}), then the constant assignment x_{ij}≡δ makes every p(Y_k) equal to (δ,δ,δ,δ,δ), which is ±C5 and therefore non-O5. Hence an amalgam exists in this subcase.
+
+Hard local exclusion in the opposite-fixed case
+- For (α,β)=(+,-), the triple (−,−,−) is forbidden: p=(+,-,−,−,−) is the canonical O5 representative. By central symmetry of the S5 action, (+++) is forbidden for (α,β)=(−,+) as well. These serve as unit checks for IsO5 and constraints in populating F.
+
+Notes on earlier claims
+- The claim “(+++) is forbidden in F(+,-)” has not been proved. The argument via “flipping one coordinate” is not valid under the S5 signed action. Treat this as a computational check when populating F.
+
+Computational checklist (precise and minimal)
+1) Implement IsO5 via Lemma 6; unit tests: (+,+,+,+,+) non-O5; (+,−,−,−,−) O5; (+,−,+,−,+) non-O5. Report the size of the O5 orbit and closure under the action.
+2) Compute F(+,+) and F(+,-) completely (8 triples each) under the above ordering; use Corollary 9 to derive F(−,−) and F(−,+) by triplewise negation. Do not assume S3-invariance.
+3) Test the 12 memberships: for each (α,β)∈{++, +−, −+, −−}, verify that all three permutations of (+,−,−) lie in F(α,β).
+4) If step 3 passes, conclude by the conditional proposition that the |A|=4 one-point step is uniformly solvable by a 2+2 ansatz; with Lemma 2 this yields AP.
+5) If step 3 fails, run the 2^6 CSP for the offending type-profile to search for a different satisfying assignment or produce an UNSAT certificate (listing, for each assignment, a Y_k showing O5).
+
+Implementation detail retained: the structured ansatz yields triangle triples of product +1, hence it can never realize (−,+,+) or (−,−,−). Keep this in mind when interpreting F-tables and debugging assignments.
+Updates: explicit |A|=3 solution, concrete |A|=4 tests, and a solvable subclass
+
+Coordinate convention reminder (used below)
+- For Y_k={b,c}∪(A\{k}) with A={1,2,3,4} and i<j<ℓ the increasing order on A\{k}, we encode
+  p(Y_k) = (p_{missing c}, p_{missing b}, p_{missing i}, p_{missing j}, p_{missing ℓ}).
+- Mapping of the last three coordinates to edge variables on K4[A]:
+  • p_{missing i} = x_{jℓ},  p_{missing j} = x_{iℓ},  p_{missing ℓ} = x_{ij}.
+
+|A|=3 one‑point amalgamation solved (constructive)
+- Let A have size 3. For Y=A∪{b,c} write p(Y)=(α,β,x,y,z) in the above order, where α is fixed by B (missing c), β by C (missing b), and x,y,z are the cross 4‑sets. The following choices always avoid O5:
+  • (α,β)=(+,+): take (x,y,z)=(+,+,+) → p(Y)=(+,+,+,+,+)=C5.
+  • (α,β)=(−,−): take (x,y,z)=(−,−,−) → p(Y)=(−,−,−,−,−)=−C5.
+  • (α,β)=(+,-): take (x,y,z)=(+,-,+) → p(Y)=(+,-,+,-,+)=H5.
+  • (α,β)=(−,+): take (x,y,z)=(−,+,−) → p(Y)=(−,+,−,+,−)=−H5.
+  Hence the one‑point extension over |A|=3 always exists in H.
+
+Concrete |A|=4 test profiles for the 2+2 ansatz (w=(+,+,−,−), x_{ij}=w_i w_j)
+- Triangles (Y_k):
+  • k=1: (x_{23},x_{24},x_{34})=(−,−,+) → p(Y_1)=(p^B_1,p^C_1,−,−,+).
+  • k=2: (x_{13},x_{14},x_{34})=(−,−,+) → p(Y_2)=(p^B_2,p^C_2,−,−,+).
+  • k=3: (x_{12},x_{14},x_{24})=(+,-,−) → p(Y_3)=(p^B_3,p^C_3,+,−,−).
+  • k=4: (x_{12},x_{13},x_{23})=(+,-,−) → p(Y_4)=(p^B_4,p^C_4,+,−,−).
+- Profiles to check via IsO5 (the first two coordinates are specialized as follows):
+  • P1: p^B≡+, p^C≡+ → test (+,+,−,−,+) and (+,+,+,−,−).
+  • P2: p^B≡+, p^C≡− → test (+,−,−,−,+) and (+,−,+,−,−).
+  • P3: p^B≡+, p^C=(+,-,+,-) (aligned H5 on A∪{c}) → same two vectors as P2.
+A single IsO5 pass on these four vectors settles P1–P3 for the 2+2 ansatz.
+
+A solvable subclass for |A|=4 via a “local H5 witness” pattern
+- Prescribe for each k a local triple (x_{jℓ}, x_{iℓ}, x_{ij}) = (α_k, β_k, α_k), where (α_k,β_k)=(p^B_k,p^C_k) and i<j<ℓ enumerate A\{k}.
+- Shared‑edge consistency forces:
+  • α_1=α_2=α_3=α_4;  β_1=α_3;  β_4=α_2;  β_2=β_3.
+- If the given one‑point data (B,C) satisfy these equalities, then for each k we get p(Y_k)=(α_k,β_k,α_k,β_k,α_k), which is ±C5 if α_k=β_k, else ±H5. Hence an amalgam exists for this subclass.
+
+Caveat on the LLL heuristic
+- The symmetric LLL condition e·p·(d+1)≤1 with d=3 would require p≤1/(4e)≈0.091. If |{±1}^3\F(α,β)|≤1 then p=1/8≈0.125, which does not meet the symmetric bound. Treat any LLL‑based argument as heuristic unless we deploy a sharper criterion tailored to our dependency graph.
+
+Actionable checklist (minimal computation to unblock |A|=4)
+1) Implement IsO5 (Lemma 6), run unit tests, and report the O5 orbit size.
+2) Test the four 5‑vectors from P1–P3 above.
+3) Compute F(+,+) and F(+,-) fully (8 triples each) under the fixed ordering; obtain the other two by triplewise negation. Archive the tables.
+4) If all permutations of (+,−,−) lie in each F(α,β), invoke Proposition 11 (uniform 2+2). Otherwise, brute‑force the 2^6 CSP per realized 4‑type profile and record SAT witnesses or an UNSAT certificate.
+
+
+Current output.md (if any):
+Proposition 1 (Orientation function model).
+For a finite set V, giving a 4‑hypertournament structure (V,R) satisfying: (i) all tuples in R have distinct entries; (ii) R is closed under even permutations of coordinates; (iii) for every 4‑tuple of distinct vertices (x1,x2,x3,x4), exactly one of (x1,x2,x3,x4) and (x2,x1,x3,x4) lies in R; is equivalent to giving an arbitrary function f:[V]^4→{±1}.
+Proof. Given f, declare (x1,x2,x3,x4)∈R iff the permutation from the increasing ordering of S={x1,x2,x3,x4} to (x1,…,x4) has sign equal to f(S). This satisfies (i)–(iii) by construction. Conversely, given R with (i)–(iii), fix any 4‑set S and any increasing ordering s of S. By (iii), exactly one of s and its swap lies in R; define f(S)=+1 if s∈R and f(S)=−1 otherwise. By (ii) and (iii), membership of any ordered tuple from S depends only on the parity relative to s, so f is well defined and recovers R. ∎
+
+Lemma 2 (One‑point amalgamation suffices for AP in H).
+Let H be the class of finite 4‑hypertournaments omitting O5. Suppose that whenever A∈H and B=A∪{b}∈H and C=A∪{c}∈H with B∩C=A, there exists D∈H on A∪{b,c} extending both B and C. Then H has the amalgamation property.
+Proof. Given B0,B1∈H over A, enumerate C\A as c1,…,ck and set A0:=A. Inductively, amalgamate Bi with Ai∪{ci} over Ai to obtain Bi+1 on Ai+1:=Ai∪{ci}. At each step, by hypothesis, all 5‑sets involving the new vertex ci avoid O5, and previously constructed parts are unchanged. After k steps we obtain an amalgam D∈H of B0 and C over A. ∎
+
+Proposition 3 (CSP formulation of the |A|=4 one‑point step).
+Let A={1,2,3,4}, b, c new. Given B on A∪{b} and C on A∪{c} in H that agree on A, any amalgam D on A∪{b,c} is determined on new 4‑sets by the six values x_{ij}:=f({i,j,b,c}) (1≤i<j≤4). The only new 5‑sets are Y_k:={b,c}∪(A\{k}) for k=1,2,3,4. Writing p^B_k:=f_B({b}∪(A\{k})) and p^C_k:=f_C({c}∪(A\{k})), the 5‑vector p(Y_k) has two fixed coordinates (missing c gives p^B_k; missing b gives p^C_k) and three coordinates equal to the x_{ij} for {i,j}⊂A\{k}. D∈H iff for each k, p(Y_k) is not in the O5 orbit.
+Proof. All 4‑sets contained in B or C are already fixed. The only 4‑sets not contained in B or C are precisely the six X_{ij}={i,j,b,c}. The only new 5‑subsets of A∪{b,c} (relative to B and C) are those that contain both b and c; there are exactly four, the Y_k. Their p‑vectors depend on the listed values. Avoidance of O5 on all 5‑sets is thus equivalent to the stated four constraints. ∎
+
+Corollary 4 (Trivial one‑point cases |A|≤2).
+If |A|≤2, then one‑point amalgamation always succeeds in H.
+Proof. When |A|≤2 there are no 3‑subsets of A, hence no 5‑sets of the form {b,c}∪T with T⊂A of size 3. Thus there are no new 5‑set constraints; any assignment to cross 4‑sets yields an amalgam in H. ∎
+
+Fact 5 (Switching yields a 4‑hypertournament but may change 5‑types).
+For ε:V→{±1}, define f^ε(S):=(∏_{v∈S}ε(v))·f(S). Then f^ε encodes a 4‑hypertournament. However, for a fixed 5‑set X, switching at v∈X flips the four coordinates of p(X) corresponding to 4‑sets containing v and leaves the coordinate “missing v” unchanged; this can change the isomorphism type on X (e.g., an O5 representative (+,-,-,-,-) switches at its ‘+’ vertex to (+,+,+,+,+), a C5 representative). ∎
+Lemma 6 (Explicit formula for the S5 action on 5-vectors).
+Let X be a 5-set equipped with an increasing labeling {1,2,3,4,5}. For τ∈S5 and i∈{1,…,5}, write j:=τ^{-1}(i) and define
+c_j(τ) := |{k<j : τ(k) > τ(j)}| + |{k>j : τ(k) < τ(j)}|.
+In the isomorphism action on p∈{±1}^X given by p′_i = ε_i(τ)·p_{τ^{-1}(i)}, the sign factor is
+ε_i(τ) = sgn(τ)·(−1)^{c_j(τ)}.
+
+Proof. Let τ′ be the induced bijection from [5]\{j} to [5]\{i}, obtained by deleting position j in the domain and value i in the codomain. By definition, ε_i(τ)=sgn(τ′). The inversions of τ split into two disjoint families: those not involving j (which correspond bijectively to inversions of τ′) and those involving j, whose number is c_j(τ) by definition. Hence inv(τ)=inv(τ′)+c_j(τ), so sgn(τ)= (−1)^{inv(τ)} = (−1)^{inv(τ′)+c_j(τ)} = sgn(τ′)·(−1)^{c_j(τ)} = ε_i(τ)·(−1)^{c_j(τ)}. Rearranging gives the claimed formula. ∎
+
+Corollary 7 (Product identity for ε-factors).
+For τ∈S5, one has ∏_{i=1}^5 ε_i(τ) = sgn(τ).
+
+Proof. Using ε_i(τ) = sgn(τ)·(−1)^{c_{τ^{-1}(i)}(τ)} and the fact that each inversion contributes 1 to c_a and 1 to c_b, we have Σ_{j=1}^5 c_j(τ) = 2·inv(τ). Therefore ∏_{i=1}^5 ε_i(τ) = sgn(τ)^5 · (−1)^{Σ_j c_j(τ)} = sgn(τ)·(−1)^{2·inv(τ)} = sgn(τ). ∎
+Lemma 8 (Central symmetry of the O5 orbit).
+There exists τ∈S5 with ε_i(τ)=−1 for all i. In particular, for any 5-vector p one has p∈O5 if and only if −p∈O5. Thus the O5 orbit is closed under global sign reversal.
+
+Proof. Take τ=(13) in one-line notation [3,2,1,4,5]. By Lemma 6, for j:=τ^{-1}(i), ε_i(τ)=sgn(τ)·(−1)^{c_j(τ)}. A direct count gives c_1(τ)=c_2(τ)=c_3(τ)=2 and c_4(τ)=c_5(τ)=0, so c_j(τ) is even for all j. Since sgn(τ)=−1, we get ε_i(τ)=−1 for every i. If q is in the O5 orbit, then so is R_τ(q)=−q∘τ^{−1}. As σ ranges over S5, the set {−R_σ(e1)} equals {R_{τσ}(e1):σ∈S5}, hence −O5=O5. ∎
+
+Corollary 9 (Sign-flip symmetry for local tables F).
+For F(α,β)⊆{±1}^3 defined by: (x,y,z)∈F(α,β) iff (α,β,x,y,z) is non-O5, one has
+F(−α,−β) = { (−x,−y,−z) : (x,y,z)∈F(α,β) }.
+
+Proof. (α,β,x,y,z) is non-O5 iff its global negation (−α,−β,−x,−y,−z) is non-O5 by Lemma 8. This is exactly the stated correspondence. ∎
+Lemma 10 (2+2 vertex signs induce (+−−)-type on every triangle).
+Let A={1,2,3,4} and choose w_i∈{±1} with exactly two plus and two minus. Define x_{ij}:=w_i w_j for 1≤i<j≤4. For each k∈A, on the triangle induced by A\{k} the ordered triple of edge-variables (x,y,z) (in any fixed coordinate convention) is a permutation of (+,−,−).
+
+Proof. If k is one of the + vertices, then A\{k} contains one + and two −; the three pairwise products are (−,−,+). If k is one of the − vertices, then A\{k} contains two + and one −; the three pairwise products are (+,−,−). Thus in either case the unordered triple has signs {+ , − , −}. The ordering of (x,y,z) depends on the fixed convention but is a permutation of (+,−,−). ∎
+
+Proposition 11 (Conditional |A|=4 amalgamation via a uniform 2+2 ansatz).
+Fix a consistent ordering convention for the last three coordinates in the definition of F(α,β) (e.g., by increasing order of the three vertices in A\{k}). Suppose that for each (α,β)∈{++, +−, −+, −−}, all three permutations of (+,−,−) belong to F(α,β). Then for every one-point diagram over |A|=4 there exists an amalgam D∈H obtained by setting x_{ij}=w_i w_j for some choice of w with exactly two + and two − on A.
+
+Proof. Choose any w with exactly two + and two − on A and set x_{ij}=w_i w_j. By Lemma 10, for each k the ordered triple contributed by the three edges in A\{k} is a permutation of (+,−,−). By hypothesis, this ordered triple lies in F(p^B_k,p^C_k) for every k, so no Y_k is of type O5. Therefore the resulting structure on A∪{b,c} is in H and extends both B and C. ∎
+
+Proposition 12 (Equal-constant fixed pairs are solvable by a constant assignment).
+In the |A|=4 one-point amalgamation problem, if (p^B_k,p^C_k)=(δ,δ) for all k∈A with a fixed δ∈{±1}, then there exists an amalgam D∈H obtained by setting x_{ij}≡δ.
+
+Proof. With this assignment, for each k the 5-vector p(Y_k) equals (δ,δ,δ,δ,δ), which is ±C5. Since ±C5 is not in the O5 orbit, each Y_k is non-O5 and the amalgam lies in H. ∎
+
+Lemma 13 (A hard local exclusion in the opposite-fixed case).
+For (α,β)=(+,-), the triple (−,−,−) is forbidden: (x,y,z)=(−,−,−)∉F(+,-). Symmetrically, for (α,β)=(−,+), (+++)∉F(−,+).
+
+Proof. For (α,β)=(+,-) and (x,y,z)=(−,−,−) one has p=(+,-,−,−,−), which is the canonical O5 representative; hence it is in the O5 orbit. By Lemma 8 (global sign-reversal is in the orbit), (−,+,+,+,+) is also in O5, yielding the symmetric statement. ∎
+Proposition 14 (The one-point amalgamation over |A|=3 always succeeds, constructively).
+Let A have size 3 and let B=A∪{b} and C=A∪{c} lie in H and agree on A. On Y:=A∪{b,c}, write p(Y)=(α,β,x,y,z) in the coordinate order (missing c, missing b, then missing the elements of A in increasing order). Then for each (α,β)∈{±1}^2 there is a choice of (x,y,z)∈{±1}^3 such that p(Y) is not in the O5 orbit, namely:
+- If (α,β)=(+,+), take (x,y,z)=(+,+,+), so p(Y)=(+,+,+,+,+)=C5.
+- If (α,β)=(−,−), take (x,y,z)=(−,−,−), so p(Y)=(−,−,−,−,−)=−C5.
+- If (α,β)=(+,-), take (x,y,z)=(+,-,+), so p(Y)=(+,-,+,-,+)=H5.
+- If (α,β)=(−,+), take (x,y,z)=(−,+,−), so p(Y)=(−,+,−,+,−)=−H5.
+In all cases Y is non‑O5, hence there exists an amalgam D∈H on A∪{b,c} extending B and C.
+
+Proof. The only new 5‑set is Y=A∪{b,c}. The displayed assignments set its 5‑vector equal to one of ±C5 or ±H5 in the fixed coordinate order, and these are not in the O5 orbit. There are no other new 5‑sets to check. Hence the extension lies in H. ∎
+
+Proposition 15 (A solvable subclass for |A|=4 via a local H5 pattern with consistency).
+Let A={1,2,3,4}, and let B=A∪{b} and C=A∪{c} lie in H and agree on A. For k∈A, write (α_k,β_k):=(p^B_k,p^C_k). Adopt the coordinate order
+p(Y_k)=(p_{missing c},p_{missing b},p_{missing i},p_{missing j},p_{missing ℓ}) for Y_k={b,c}∪(A\{k}) with i<j<ℓ the increasing order on A\{k}. Suppose the type‑data satisfy the equalities
+α_1=α_2=α_3=α_4,
+β_1=α_3,
+β_4=α_2,
+β_2=β_3.
+Then there exists an assignment to the six cross 4‑sets x_{ij}=f({i,j,b,c}) such that, for each k, p(Y_k) is ±C5 if α_k=β_k and ±H5 otherwise. In particular, an amalgam D∈H exists.
+
+Proof. Define the triple of edge variables on Y_k by (x_{jℓ},x_{iℓ},x_{ij})=(α_k,β_k,α_k), where {i,j,ℓ}=A\{k} with i<j<ℓ. Each edge variable x_{ij} appears in exactly two such triples, corresponding to the two values of k∈A\{i,j}. The displayed equalities on the α_k and β_k are exactly those required to make these two prescriptions agree for every edge (a direct check using the mapping p_{missing i}=x_{jℓ}, p_{missing j}=x_{iℓ}, p_{missing ℓ}=x_{ij}). With this consistent assignment, p(Y_k)=(α_k,β_k,α_k,β_k,α_k), which is ±C5 if α_k=β_k and ±H5 otherwise. None of these are in the O5 orbit, so all four Y_k are non‑O5 and the resulting structure is an amalgam in H. ∎

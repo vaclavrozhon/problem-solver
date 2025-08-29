@@ -1,0 +1,149 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+## Status and goals
+- Target: Prove that any LCL solvable in O(1) rounds in deterministic Online-LOCAL(t) on bounded-degree (nonoriented) trees admits an O(log* n) deterministic LOCAL algorithm.
+- Current archive (output.md): Contains the output-only/t-local-dependence bridges, bounded-writes simulation with the corrected K = max(2W, R+W), 2t-commutativity (Lemma 7), the quiescent bridge (Lemma 8) with the necessary +1 in K, strong witness-localization (Lemma 9), and Phase-locality (Claim 8.1). These cover O(log* n) for quiescent and output-only variants.
+- Open gap: the unrestricted Online-LOCAL(t) case. Lower-bound program via localized round-elimination for sinkless orientation needs two missing pieces: a precise normalization-and-extension lemma, and a non-conflict argument in the node→edge step (the earlier sketch was invalid in the node-form).
+
+## New clean tools (ready to archive)
+
+### Lemma NE (Normalization-and-Extension around an edge on trees)
+- Statement. Let A be any deterministic Online-LOCAL(t) algorithm on a bounded-degree tree G, and let e = uv be an edge. Fix any finite arrival sequence prefix τ consisting of distinct vertices of B(e,2t). There exists a global arrival sequence σ on V(G) such that:
+  1) The first |τ| steps of σ equal τ (same vertices in the same order), and no vertex outside B(e,2t) arrives before those |τ| steps.
+  2) For every 0 ≤ j ≤ |τ|, the state and fixed outputs on B(e,t) after j steps of σ coincide with those obtained by executing exactly the first j steps of τ (i.e., executing A on the induced subgraph of the arrived vertices inside B(e,2t), with all other vertices absent).
+  Moreover, given any global arrival sequence σ0, there exists σ1 obtained from σ0 by repeatedly swapping adjacent arrivals at distance > 2t such that up to and including the first arrival of the second endpoint of e, no vertex outside B(e,2t) arrives in σ1, and the state on B(e,t) at each step up to that time is identical under σ0 and σ1.
+- Why useful here. This formalizes the exact “local sandbox” principle needed for localized round-elimination: any normalized local execution inside B(e,2t) is realized by some global schedule and unaffected by outside arrivals; conversely, any global schedule can be normalized so that only B(e,2t) arrives before e is decided without changing B(e,t).
+- Proof sketch (auditable). The second part is Lemma 7 iterated: swap any pre-decision arrival at distance > 2t past the decision time; each swap preserves states in B(e,t). For the first part, define σ by listing τ first and then any permutation of V(G)\B(e,2t). Before the |τ|-th step, no vertex outside B(e,2t) arrives; thus the online runs of A on σ and on the local τ coincide on B(e,t), since absent vertices neither send nor receive. □
+
+### Lemma (+1 minimality re-stated, with a crisp example)
+- Statement. For (W,t)-quiescent batching in Lemma 8, K = 2t+2W is insufficient in general; K = 2t+2W+1 is necessary to forbid one-round coupling across distinct active regions.
+- Proof idea. Path example, W=0, t=1: choose two same-color centers a,b at distance 3. Then B(a,1) and B(b,1) are disjoint but adjacent by a single edge. In the first round of the phase, a boundary node of B(a,1) may send a message to a boundary node of B(b,1); in the second round, that boundary node (if not quiescent) could forward to the interior. Under quiescence, nodes outside the active regions do not change state and cannot forward newly received information, but if K=2t (so dist(R_a,R_b)=1), a single cross-edge allows immediate coupling. K=2t+2W+1 implies dist(R_a,R_b) ≥ 2, forbidding any direct edge between active regions; Claim 8.1 then applies. □
+
+## Revised formulation of the node→edge elimination (fixing the non-conflict)
+We adopt a universal-quantifier variant that aligns with classical round-elimination (where labels become sets of allowed labels) and avoids the earlier “double-grab is fine” pitfall.
+
+### Definitions (edge-local boundary types and consistency)
+- Fix Δ, t and a bounded-degree tree G. For an edge e = uv, let B = B(e,2t) and let ∂B be the set of vertices at exact distance 2t from e. A boundary snapshot β consists of: (i) the arrived subgraph inside B just before the (yet-to-be-decided) step at which e will be oriented, (ii) the fixed outputs and internal states on ∂B at that moment. We say a local arrival schedule τ inside B (a permutation of some/all vertices of B, ending at or after the arrival of the second endpoint of e) is consistent with β if running A on the induced arrived subgraph inside B, starting from β with all vertices outside B absent, produces the transcript τ and preserves the boundary β as fixed (i.e., no outside interaction).
+- By Lemma NE, any such τ is realized as the prefix of some global schedule with the same transcript on B(e,t) up to the decisive step, and any global schedule can be normalized to such a τ without changing B(e,t) transcripts.
+
+### Universal forcing relation and node→edge step (LB.1u)
+- For each oriented option u→v of e and boundary snapshot β, define that u universally forces u→v under β if for all normalized local arrival schedules τ inside B consistent with β in which both u and v have arrived (i.e., up to and including the step that makes e decidable), the online run of A yields orientation u→v for e (under the natural interpretation of A’s final decision on e at or before the second endpoint’s arrival; if A defers orientation, consider the orientation implied by the first time both endpoints have arrived and message influence can reach e within the remaining steps of τ).
+- Define the derived edge-centered (t−1/2)-local rule A′ on B: given β, set the admissible set S_e(β) ⊆ {u→v, v→u} by
+  S_e(β) = { u→v : u universally forces u→v under β } ∪ { v→u : v universally forces v→u under β }.
+- Non-conflict lemma. For any β, it is impossible that both u universally forces u→v under β and v universally forces v→u under β. Otherwise, pick any τ consistent with β; by universality, e must be oriented both u→v and v→u in the same (normalized) run—a contradiction.
+- Why useful here. A′ assigns, per boundary β, a set S_e(β) of admissible orientations; this is the standard “set-valued label” after a half-step of round-elimination. No contradictions arise, and the dependency radius drops by 1/2 (node→edge) while everything remains confined to B(e,2t).
+- Correctness scope. Using Lemma NE, any normalized local schedule realized globally has the same transcripts on B(e,t); thus the admissible set S_e(β) captures exactly the orientations consistent with all normalized continuations, which is the right notion in round-elimination. This construction is independent of arrivals outside B, thanks to normalization.
+
+### Iteration plan (edge→node universal half-step)
+- Symmetrically, define for a node x the set of admissible incident-edge orientations based on universal quantification over normalized local schedules within B(x,2t−1), obtaining a node-centered (t−1) rule with set-valued labels.
+- Iterating node↔edge 2t times yields a 0-round object in which each edge e has a non-empty set S_e of admissible orientations determined by its constant-radius type (from the ID-graph framework). The contradiction to the ID-graph (Def. 2.16) follows if one shows that these sets cannot be assigned globally without creating a forbidden configuration (as in the classical proof).
+- To do next: formalize the symmetric edge→node universal step and state the precise induction invariant “universality is preserved under elimination,” paralleling the classical round-elimination schema with set-valued labels.
+
+## How this addresses the verifier’s concerns
+- The earlier non-conflict gap is eliminated: we no longer claim existential “there exists a witness” for each direction; instead, we define admissibility via universal quantification over all normalized local schedules given a fixed boundary snapshot β. Non-conflict is immediate by logic, and the elimination becomes a transformation on sets of allowed labels, i.e., exactly the classical framework.
+- The required normalization-and-extension tool is provided (Lemma NE), ensuring any normalized local schedule and boundary snapshot β correspond to some global execution and that outside arrivals can be pushed after without affecting B(e,t).
+
+## Minor clarifications on output.md
+- Lemma 8: The boundary-state sufficiency (Claim 8.1) is correctly stated; it may help to add one explicit sentence that the ≥2 separation is used only to exclude any single cross-edge between distinct active regions, which, together with quiescence and standard LOCAL timing, forbids any causal path between active regions within the t-round phase.
+- Remark after Corollary B vs Lemma 8: The archive already notes why no +1 is needed for sequential (R,W)-simulation. The minimal-path counterexample above motivates the +1 for quiescent batching, with an explicit 2-round signal path ruled out by dist(R_v,R_w) ≥ 2.
+
+## Obstacles and caveats
+- Precise semantics at the “decisive step for e”: In the universal relation, we appealed to the first moment both endpoints have arrived under τ. This is natural for edge-orientation; still, to be fully rigorous, we will explicitly fix the “decision time” as the earliest time at which both endpoints are arrived and the remaining rounds of the current window cannot affect the admissible orientation beyond B(e,t) (this is standard in the classical proof and aligns with Lemma NE).
+- Edge→node half-step and preservation of universality: We need to write the exact dual construction and show that the set-valued constraints compose without loss; this mirrors the classical proofs, but we will write it out with the online normalization in place.
+
+## Next steps (auditable)
+1) Write and insert Lemma NE (Normalization-and-Extension around an edge) in output.md with the proof based on Lemma 7 (and its vertex counterpart already archived as Lemma 9).
+2) Restate LB.1 as LB.1u (universal node→edge step) precisely, with the definitions of boundary snapshot β, normalized local schedules inside B(e,2t), and the universal forcing relation; include the non-conflict lemma and the (t→t−1/2) dependency analysis.
+3) Formalize the symmetric edge→node universal step and the induction invariant that the admissible-set semantics is preserved by iteration; then state LB.2 (iteration to 0 rounds) and conclude the ID-graph contradiction.
+4) Optionally, add a brief “modeling note” explaining that our elimination works with set-valued admissible labels under universal quantification, which is the standard device in classical round-elimination, and that normalization via Lemma NE ensures online effects outside B(e,2t) are irrelevant.
+5) In parallel, continue exploring a constructive positive route under additional hypotheses (finite-state and ID-oblivious algorithms): attempt to prove a path, t=1 interface-invariance lemma via finite enumeration of boundary types; if successful, this yields a quiescentization transform in that regime.
+
+## Why this is progress
+- We provide a rigorous normalization-and-extension lemma tailored to edges, removing ambiguity about embedding local schedules into global runs.
+- We fix the core gap in the lower-bound program by adopting a universal set-valued elimination step (LB.1u), which is standard in classical proofs and avoids the earlier invalid “double-grab” argument in the node-form.
+- These pieces are local, finite-radius, and independently checkable, and they pave the way to completing the lower-bound route, which in turn implies the desired O(log* n) LOCAL upper bound for the class Online-LOCAL(t)=O(1) on trees via the known classification.
+
+
+=== prover-02.out.json (progress_md) ===
+Status and target
+- Goal: Close the remaining gap for the general Online-LOCAL(t) case on bounded-degree trees by finalizing the lower-bound route (localized round-elimination for sinkless orientation) and by clarifying the decision semantics so that the non-conflict step (“double grab implies contradiction”) is valid.
+- What is already archived and solid: Lemma 7 (2t-commutativity), Corollary 7.1 (witness localization), Lemma 8 (quiescent bridge with K = 2t+2W+1), Claim 8.1 (phase-locality inside a color phase), and Lemma 9 (strong witness localization at v). These give an O(log* n) upper bound for quiescent/output-only regimes and the tools needed to localize online effects to B(·,2t).
+
+Gap identified in output.md (lower-bound program)
+- The previously sketched node→edge elimination step (LB.1) for sinkless orientation used the node-form (each node chooses an outgoing edge). As the verifier noted, “double witnesses” at the two endpoints of an edge do not contradict node-form feasibility—both endpoints may choose the same edge without violating “not a sink.” To proceed, we must (i) change to an edge-form LCL with a decisive step at the second endpoint, or (ii) use a universal-quantifier elimination variant that records sets of feasible labels per edge. Below I formalize both options, with a concrete normalization-and-extension lemma that is needed in either case.
+
+New model ingredient (to make non-conflict well-defined)
+- Edge-decided Online-LOCAL(t) for sinkless orientation. For orientations, we adopt edge-form semantics: an edge e = uv becomes decidable at the moment the second endpoint arrives; in that arrival window (t rounds), the algorithm must irrevocably choose one of the two orientations for e, and encode it redundantly at both endpoints. Earlier arrivals may maintain local state and make temporary proposals, but the only irrevocable decision for e is the orientation made when the second endpoint arrives. The global LCL constraint is: in the final orientation, every vertex has outdegree ≥ 1, and every edge is oriented in exactly one direction.
+- Why useful: Under this semantics, two locally consistent histories that force opposite orientations for the same edge at the same decisive moment are genuinely contradictory; hence a “double-witness” proves inconsistency, fixing the non-conflict step in LB.1.
+
+Normalization-and-extension lemma (precise, to use in LB.1)
+- Lemma NE (Extension of localized schedules on trees). Fix an edge e = uv and radius t ≥ 1. Let X := B(e,2t). Consider any arrival schedule τ on X in which (i) only vertices of X arrive before the decisive step for e (the second of u,v), and (ii) outside vertices V\X are absent up to that decisive step. Then τ extends to a global arrival order 
+  
+  τ̂ on V(G) such that the transcript inside B(e,t) up to and including the decisive step is identical to that under τ.
+- Proof idea (tree + Lemma 7 + Corollary 7.1): Keep all steps on X exactly as in τ and defer all outside arrivals to after the decisive step. During each arrival inside X, any vertex w ∈ V\X is at distance > 2t from both u and v (by definition of X), hence cannot affect B(e,t) within t rounds (Lemma 7). Thus, the absence of outside vertices is consistent and their later arrival cannot retroactively change the transcript in B(e,t). Corollary 7.1 guarantees we can push any stray outside arrival (if any) past the decisive moment without changing states in B(e,t). The tree structure prevents cycles across ∂X and ensures no “feedback” from absent nodes. Therefore τ̂ exists and preserves the local transcript. (We will write a fully quantified version for output.md; the above captures the key invariants.)
+- Sanity check (t = 1): X = B(e,2) contains u, v, their neighbors, and neighbors’ neighbors. Any path from V\X to B(e,1) has length ≥ 2. In the 1-round windows of vertices of X, information from V\X cannot reach B(e,1); hence deferring V\X is harmless.
+
+LB.1e (node→edge reduction, decisive-edge variant)
+- Statement (existential form). Assume a deterministic Online-LOCAL(t) algorithm A solves sinkless orientation under edge-decided semantics for all arrival orders on bounded-degree trees. Fix an edge e = uv. After normalizing the prefix so that only vertices in X = B(e,2t) may arrive before the decisive step for e (by Cor. 7.1 and Lemma NE), the orientation of e produced by A depends only on the labeled ball X (IDs and port orderings restricted to X). Consequently, there is a well-defined edge-centered (t−1/2)-local rule A′ that, given X, outputs the unique orientation of e.
+- Proof sketch (two parts):
+  1) Dependence on X. Suppose there are two normalized schedules τ1, τ2 on X (with outside vertices absent) that lead A to choose opposite orientations at the decisive step. Apply Lemma NE to extend τ1, τ2 to global schedules τ̂1, τ̂2 that preserve the transcript inside B(e,t) up to the decisive step. Now consider a hybrid schedule that follows τ̂1 up to the decisive step and τ̂2 afterward (or vice versa). Since the decisive decision must be made based solely on the state in B(e,t) at that moment, and these states coincide with the ones in τ̂1 and τ̂2 respectively, we force A to choose both orientations on the same global input at the same decisive moment—a contradiction. Hence the orientation is unique and depends only on X.
+  2) Radius accounting and “−1/2”: The rule is edge-centered because the decisive step is tied to the second endpoint. Looking one “half layer” beyond B(e,t) suffices to resolve which endpoint arrives second in the normalized view and to collect all causal influences (the classical t→t−1/2 descent). The dependence on X = B(e,2t) matches the standard round-elimination radius on trees.
+- Why (t−1/2)-local: As in classical round-elimination, the node→edge step consumes half a round because the edge rule skips one endpoint’s final local step and aggregates the two adjacent node views into a single decision.
+
+LB.1u (universal-sets variant—safer and closer to classical elimination)
+- Statement (set labeling). Under the same setup, for each edge e and labeled ball X = B(e,2t), define S_e(X) ⊆ {u→v, v→u} to be the set of orientations that A may choose at the decisive step over all normalized arrival schedules on X consistent with the fixed labels on X (with outside vertices absent). By Lemma NE and Cor. 7.1, S_e(X) depends only on X. Moreover, S_e(X) ≠ ∅ (A always orients e when both endpoints have arrived). This yields an edge-centered (t−1/2)-local rule that assigns each edge a nonempty set of allowed orientations.
+- Preservation of node constraints under sets. For any vertex w and its incident edges E(w), define the node constraint “no-sink in sets” as: there exists e ∈ E(w) such that S_e contains an orientation pointing away from w. Suppose, for contradiction, that all S_e forbid an outgoing choice for w. Then, in every normalized local schedule on the union ⋃_{e∈E(w)} B(e,2t) consistent with the same labels, A would be forced to leave w without any outgoing edge at the moment all incident edges become decidable—contradicting correctness. Thus the “no-sink in sets” constraint holds locally for the family {S_e}.
+- Why this variant is attractive: It avoids the non-conflict/gluing subtlety entirely; instead of proving uniqueness, we carry sets of feasible labels as in classical round-elimination. The next elimination step will shrink these sets further.
+
+LB.2 (iteration to 0 rounds and ID-graph contradiction)
+- Statement (outline in the universal-sets framework). Alternating the localized node↔edge elimination steps 2t times, we obtain a 0-round edge-centered set-labeling rule S^{(0)} that assigns to each edge e a nonempty subset S^{(0)}_e ⊆ {u→v, v→u}, where S^{(0)}_e depends only on the ID labels in B(e,2t). The node constraints persist at each step (“no-sink in sets” remains satisfiable). As in the classical proof with ID-graphs, this induces a 0-round global prescription depending only on IDs in constant-radius neighborhoods which must satisfy the sinkless-orientation constraints. By the ID-graph property (Def. 2.16), such a 0-round prescription cannot exist, yielding a contradiction. Therefore, no deterministic constant-t Online-LOCAL algorithm (under edge-decided semantics) solves sinkless orientation on bounded-degree trees.
+- Remarks:
+  • The elimination preserves nonemptiness and the node constraints because both are verified locally on finite balls and follow from correctness of A over all normalized local schedules (by Lemma NE and witness localization).
+  • The final contradiction for 0 rounds mirrors Theorem 2.15’s ID-graph argument: a 0-round rule reduces to an ID-based choice for each edge with no room for coordination; the girth and independence properties of H forbid satisfying the constraints everywhere.
+
+Auditable components ready to integrate into output.md
+1) Add the new Edge-decided Online-LOCAL(t) semantics for orientations (a brief model paragraph). This cleanly separates edge orientation from node “grabs” and fixes the earlier non-conflict issue.
+2) Add Lemma NE (Normalization-and-extension of localized schedules) with a complete proof. It relies only on Lemma 7, Corollary 7.1, and the tree structure. We recommend including the explicit t=1 special case as an illustrative sublemma.
+3) Add LB.1u (universal-sets node→edge step) as the main elimination step (safer to verify). State precisely that S_e depends only on X = B(e,2t); prove nonemptiness and the local “no-sink in sets” property.
+4) State LB.2 (iteration to 0 rounds) at the same universal-sets level, and outline the ID-graph contradiction. If desired, include the decisive-edge variant LB.1e as a lemma following from uniqueness; its proof is short once Lemma NE is in place.
+
+Sanity checks and small examples
+- t = 1, paths/trees. For e = uv, X = B(e,2) suffices. It is straightforward to enumerate normalized schedules on X and verify that S_e(X) is determined solely by labels on X; any attempted dependence on arrivals outside X would contradict Lemma NE.
+- Why “no-sink in sets” is preserved: If S_e(X) excluded all orientations out of u for e incident to u, then every completion of arrivals consistent with X would leave u sink at the decisive times—contradiction to A’s correctness.
+
+Edits and clarifications suggested for output.md
+- Add a short “Orientation semantics for lower bounds” remark: we work with edge-decided Online-LOCAL(t) for sinkless orientation (orientation fixed at the second endpoint’s arrival). This avoids the double-grab pitfall in the node-form.
+- Insert Lemma NE (Normalization-and-extension lemma) in the “Online round-elimination on trees” subsection; cite it in LB.1u/LB.2.
+- Present LB.1u (universal-sets node→edge) and LB.2 (iteration) as formal statements; defer the mechanical details of the edge→node half-step to the next iteration (we will mirror the standard set-propagation used in classical elimination and keep all radii explicit).
+
+Next steps (concrete, checkable)
+1) Write the full proof of Lemma NE with explicit quantifiers and a careful boundary argument (no edges across R_v regions for t rounds). Provide the t = 1 special case as a warm-up.
+2) Formalize the edge→node half-step in the universal-sets framework, including its exact radius transformation and the preservation of nonemptiness and node constraints.
+3) Complete the LB.2 write-up: define the inductive family of set rules S^{(k)}, prove invariants, and carry out the final ID-graph contradiction carefully (as in Theorem 2.15), referencing the girth and independence properties.
+4) Optionally, give a short note showing that, if one prefers, LB.1e (decisive-edge uniqueness) can be proven directly for t = 1 (trees), then extended to general t by induction on t using the universal-sets machinery.
+
+Additional observations (minor)
+- Output.md is consistent on radii: Lemma 8 needs K = 2t+2W+1; Corollary B simulates a derived sequential (R,W)-rule and needs K = max(2W, R+W) (no +1). The explanatory remark is already present—good.
+- No further gaps spotted in the positive (quiescent) route. After integrating the LB lemmas above, we can state the main theorem existentially: Any LCL solvable in O(1) deterministic Online-LOCAL(t) on bounded-degree trees admits an O(log* n) deterministic LOCAL algorithm. (Proof: such an LCL cannot be in the log n-hard class by the lower bound; hence by tree classification it lies in the O(1)/Θ(log* n) class.)
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+nothing so far
+

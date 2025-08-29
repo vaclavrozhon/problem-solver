@@ -1,0 +1,82 @@
+## Round 0004 — 2025-08-27T19:48:23.817717Z
+
+Overview and audit of output.md
+- The curated file now contains: (i) the per-k anchor bound (Theorem 1), (ii) per-plateau averaging (Theorem 2), (iii) the monotonicity lemma, (iv) a tunable τ-split (Theorem 3), (v) the hybrid extremes (Corollary 4), (vi) long-plateau constants (Corollary 5), (vii) a quantile-in-Δ lemma (Corollary 6), (viii) the min-of-extremes bound (Corollary 7), (ix) an upper envelope (Corollary 8), and (x) a plateau-level and globally mixed probability statement (Corollary 9). The remark “L ≤ m on [k0,2k0)” is present with the correct implication m/(L−1) ≥ 1.
+- I see no correctness issues that require retraction. Constants are not yet fully optimized but are kept symbolic, which is fine for now.
+
+New refinement: an improved “third branch” via choosing τ ≈ m/ln L
+Why useful here. Corollary 8 gives the envelope K0 + K1·min{ ln^+(2m/(L−1)), (m ln L)/L } + K2·(ln m)/L. The (m ln L)/L term is sometimes loose. By an explicit choice τ := ⌊m/ln L⌋ in Theorem 3 (when admissible), we can replace (m ln L)/L by (m (1 + ln ln L))/L, which is strictly smaller for L≥e^e, tightening intermediate regimes.
+
+Statement (proposed Corollary: τ = ⌊m/ln L⌋ branch).
+- Setting τ* := min{ L−1, ⌊m/ln L⌋ } in Theorem 3, for L≥3 and m≥L, there exist absolute constants K0,K1,K2 (depending only on C_bi,C_fix) such that
+  E_{k∈I} E_++[ALG_k/OPT_k]
+  ≤ K0 + K1·(m/L)·(1 + ln ln L) + K2·(ln m)/L.
+- In particular, when τ* = ⌊m/ln L⌋ ≤ L−1 (i.e., m ≤ (L−1) ln L), one can take
+  E_{k∈I} E_++[ALG_k/OPT_k]
+  ≤ 2 C_bi·[ 1 + (m/((L−1) ln L))·(a+1+ln(4 ln L)) + (m/(e(L−1)))·(1 + ln ln L) ] + (C_fix·(ln m + 2))/L,
+  with a := 2 + 1/(2e).
+
+Proof sketch (fully checkable from Theorem 3).
+- Start from Theorem 3 with general τ. Put τ := ⌊m/ln L⌋. We use the following bounds for L≥3 and m≥L:
+  1) τ ≥ m/ln L − 1 ⇒ 2m/τ ≤ 4 ln L ⇒ ln(2m/τ) ≤ ln(4 ln L).
+  2) τ/(L−1) ≤ (m/ln L)/(L−1) ≤ m/(L ln L).
+  3) H_{L−2} − H_{τ−1} ≤ ln((L−2)/(τ−1)) + 1 ≤ ln(L/τ) + 1 ≤ ln( (L ln L)/m ) + 1 ≤ 1 + ln ln L, since L ≤ m.
+- Plugging into Theorem 3’s RHS:
+  (τ/(L−1))(a + 1 + ln(2m/τ)) ≤ (m/(L ln L))(a+1+ln(4 ln L));
+  ((L−1−τ)/(L−1)) ≤ 1;
+  (m/(e(L−1)))(H_{L−2} − H_{τ−1}) ≤ (m/(e(L−1)))(1 + ln ln L).
+- Add the Δ=0 endpoint term C_fix(ln m + O(1))/L. Absorb additive constants into K0 and account for L−1 ≈ L (since L≥3) to get the displayed form.
+- If τ* = L−1 (i.e., m > (L−1) ln L), we revert to the pure-log branch in Corollary 4.
+
+Consequences and regime comparison
+- Min-of-three envelope. Taken together with Corollary 7, we can use a min of three branches: (i) pure-log: ln^+(2m/(L−1)), (ii) hybrid (τ=1): (m ln L)/L, (iii) the new τ=⌊m/ln L⌋: (m (1 + ln ln L))/L. This uniformly strengthens Corollary 8 by allowing the improved middle regime.
+- Where it helps: When L is moderately large relative to m (e.g., L ≥ m^γ with γ∈(0,1)), both hybrid branches yield O(1). The improvement is most visible for intermediate L where the previous envelope gave O((m ln L)/L) but ln ln L ≪ ln L, so the new bound is smaller by a factor ≈ ln L / ln ln L.
+- Checkable example. Let L = m/√ln m (so L ≤ m and L≥3 for m large). Then
+  • Pure-log: ln(2m/(L−1)) ≈ ln(2√ln m) = O(ln ln m).
+  • Old hybrid: (m ln L)/L ≈ (m ln(m/√ln m))/(m/√ln m) ≈ √ln m · (ln m − (1/2) ln ln m) = Θ(√ln m · ln m) [very loose].
+  • New branch: (m (1 + ln ln L))/L ≈ √ln m · (1 + ln(ln m − (1/2) ln ln m)) = Θ(√ln m · ln ln m).
+  Hence min{·} now picks the O(ln ln m) pure-log branch anyway, but the new branch dramatically tightens the hybrid alternative and will be advantageous in other intermediate regimes (e.g., L = m / polylog m).
+
+Global aggregation (plateau-wise min-of-three)
+- Using the decomposition of Corollary 3, we can strengthen Corollary 8 as follows. There exist absolute constants K0,K1,K2 such that for the covering plateaus I_j=[m_j,m_j+L_j),
+  E_{k∼U([k0,2k0))} E_++[ALG_k/OPT_k]
+  ≤ (1/k0) ∑_j L_j [ K0 + K1·min{ ln^+(2m_j/(L_j−1)), (m_j ln L_j)/L_j, (m_j (1 + ln ln L_j))/L_j } ]
+    + (K2/k0) ∑_j ln m_j.
+- This follows by taking, for each plateau, the minimum over the three explicit instantiations τ=L−1, τ=1, τ=⌊m_j/ln L_j⌋, and summing with weights L_j/k0.
+
+Probability-≥0.01 guarantees (clarification)
+- Corollary 9 provides the plateau-level and globally mixed guarantees via (η,c). A simple instantiation for “≥0.01 probability”: If a single plateau I occupies a γ≥0.02 fraction of [k0,2k0) and satisfies L ≥ α m, then choosing η=0.5 and c=2 gives
+  P[ ALG_k/OPT_k ≤ 2·B_I ] ≥ γ·(0.5−O(1/L))·0.5 ≥ 0.01 for all sufficiently large L,
+  with B_I ≤ 2·C_bi (1 + 1/(α e η)) + o(1). This is numerically loose but completely explicit. Tuning (η,c) can improve constants as desired.
+
+Small technical lemmas and clarifications (ready-to-curate)
+- Stirling floor correction in the τ=⌊m/ln L⌋ branch: Using τ ≥ m/ln L − 1 and m ≥ L ≥ 3, the inequality 2m/τ ≤ 4 ln L holds (since m/ln L ≥ L/ln L ≥ 3/ln 3 > 2, hence m/ln L − 1 ≥ (1/2)·m/ln L), justifying ln(2m/τ) ≤ ln(4 ln L) cleanly.
+- Harmonic tail control: H_{L−2} − H_{τ−1} ≤ ln(L/τ) + 1 works uniformly for L≥3, τ≥1; with τ=⌊m/ln L⌋ and L ≤ m, this gives ≤ 1 + ln ln L.
+
+Heavy-coverage program: a precise, checkable sub-lemma (pathwise bound)
+- Pathwise covered-heavy control. For any set H of heavy optimal clusters, define eH_t(P) as in MRS. Then pathwise we have H_t(P) ≤ eH_t(P) ≤ 5·OPT1(P) for every heavy P and every t (the first inequality is by definition of eH, the second is Lemma 4.1 applied at first hit). Hence
+  H_t(H_cov) ≤ 5·∑_{P∈H} OPT1(P) deterministically for all t.
+- Conditional per-step collision probability bound. At step t conditioned on filtration F_t,
+  P[“sample from a covered heavy cluster” | F_t] = H_t(H_cov) / cost_t(X)
+  ≤ 5·(∑_{P∈H} OPT1(P)) / cost_t(X).
+- This converts the heavy-collision question into lower bounding cost_t(X) (denominator) by a function of the current uncovered-heavy mass U_t(H) (plus possibly light mass). Under a quantitative “dominance/persistence” hypothesis of the form cost_t(X) ≥ β·U_t(H) for all t before heavy coverage completes (β≥1), we immediately get
+  P[collision in heavy at step t | F_t] ≤ 5·(∑_H OPT1(P)) / (β·U_t(H)).
+  Summing only over steps in which a heavy pick occurs and using U_t(H) ≥ ∑_{P∈H_uncovered} OPT1(P), we find that the expected number of heavy collisions before covering all heavy clusters is bounded by a telescoping potential argument akin to a variable-probability coupon collector. This is a concrete, checkable path: it remains to prove the β-persistence from a scale-separation condition (e.g., OPT_{k1} ≥ k^C·OPT_k) via the eH_t supermartingale and to carry out the summation rigorously (I will do this next).
+
+Examples and sanity checks
+- Dyadic plateau (one long plateau): L≈m. All three branches give O(1) (pure-log dominates), consistent with Corollary 5.
+- Geometric intermediate L: If L = m / polylog m, then the pure-log branch gives O(log log m); the new τ=⌊m/ln L⌋ branch gives O( (m/L)·ln ln L ) = O( polylog(m)·ln ln m ), which is larger; hence the min will pick the pure-log branch, as desired.
+- Short plateaus L=O(1): All hybrid branches devolve to O(m/L), while pure-log gives O(ln m). Min therefore selects O(ln m), matching known worst cases.
+
+Gaps and open tasks (clearly identified)
+- output.md currently presents the min-of-two envelope (Corollary 8). The improved τ=⌊m/ln L⌋ branch is not yet recorded; adding it would strengthen the per-plateau bound in some regimes.
+- The heavy-coverage argument remains conditional. The pathwise bound H_t(H_cov) ≤ 5∑_H OPT1(P) is now explicit and correct. The key missing piece is to prove a denominator persistence bound cost_t(X) ≥ β·U_t(H) (or a comparable lower bound) from a scale-separation assumption; I will attempt this via the eH_t supermartingale and a careful analysis of how sampling outside H affects U_t(H).
+- Lower bound under random-k smoothing: still open; designing an instance with many short plateaus across the entire window requires careful OPT(·) control. This remains an item for a separate development.
+
+Concrete next steps (verifiable)
+1) Curate the new τ=⌊m/ln L⌋ corollary into output.md (as a third explicit instantiation of Theorem 3) and add the “min-of-three” per-plateau envelope and its global aggregation counterpart. All inequalities are elementary and already itemized above.
+2) Provide explicit numerical constants K0,K1,K2 when C_bi=C_fix=5 for the new branch, e.g., K0≈40, K1≈10, K2≈5 (to be checked and tightened in write-up).
+3) For the probability-≥0.01 variant, add a short remark instantiating Corollary 9 with (η,c) tuned to hit 1% under a simple plateau mass condition (as outlined above), giving a concrete constant.
+4) Heavy-coverage: formalize “β-persistence from scale separation” and sum conditional collision probabilities over heavy draws until coverage; aim for an explicit bound on expected heavy collisions (e.g., polynomially small in k under scale separation), then lift to high probability via Freedman–Azuma.
+5) Explore, even empirically, OPT profiles where the new τ=⌊m/ln L⌋ branch strictly improves the previous envelope, to guide any further analytical tightening (e.g., replacing ln(4 ln L) by ln ln(2m) in some ranges).
+

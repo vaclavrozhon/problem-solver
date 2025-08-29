@@ -1,0 +1,18 @@
+Summary and audit
+- Both provers focused on the unique–maximal regime and proposed short, local uniqueness certificates that dovetail with the existing pivot-or-corner framework. I checked each new claim against the multiplicity formulas (Theorem 1), O1 (coordinatewise maxima), and UM1 (NE neighbors of SW-maxima lie on the boundary). The statements UM2′ (boundary contacts at a SW-max ⇒ unique type 2), UM-single (|Max(S)|=1 ⇒ a unique color), and T2α/T2β (boundary-local type-2 triggers) are correct as stated and can be curated. They are nontrivial and useful.
+- Minor phrasing issue in UM-single, Case D/E: the sentence about “every top-row point obeys x ≤ α₂ ≤ p_x” should be read as applying to top-row points other than m; m is allowed and is indeed the unique NE neighbor there. This does not affect correctness; I have rewritten the proof to avoid relying on UM–X/UM–Y and to be completely self-contained.
+- The T2α/T2β lemmas are immediate consequences of the type-2 formula. They can be seen as boundary-anchored instances of Theorem 7 (robust L-corner). They are accurate and safe. The example for T2β in the report informally invoked O1 to suggest (5,8) “must be present,” but the lemma itself already assumes v_{α_r}(β₂)=1, so the example is fine once we explicitly posit (5,8) ∈ U.
+- Optional RL′ (column-dual of the two-rows RL pattern) is also a direct instance of Theorem 7; I keep it in notes as pattern stock rather than elevating it to output.
+
+Curation decisions
+- I have appended to output.md: (i) Theorem 12 (UM2′), (ii) Theorem 13 (UM-single, with a self-contained proof), and (iii) Lemma 14 (T2α/T2β boundary-local type-2 triggers). All rely only on Theorems 1,3,7,9,10 and Lemmas O1, UM1 that are already curated.
+- No other changes to previously curated material were needed.
+
+Promising directions and concrete next steps
+1) Finish the unique–maximal case for |Max(S)| ≥ 2 via the “crossing-pair” analysis: index the SW-maxima s_1,…,s_k (x increasing, y decreasing), choose f,g with x(s_f) ≥ α₂ and y(s_g) ≥ β₂ but no single s_i meeting both; set the crossing corner c=(x(s_g), y(s_{g+1})). Prove a nearest-interloper lemma: if both the vertical segment above c and the horizontal segment to the right of c are populated, then at least one nearest interloper yields a unique color via either (a) a robust L-corner (Theorem 7) at c or a nearby corner, or (b) a singleton+extension trigger (Theorem 3), or (c) an R3/R4 global row/column-of-two trigger. Otherwise the corner is clean and Theorem 7 applies directly.
+2) When both local counts at α₂ and β₂ are ≥2 (h_{β_c}(α₂) ≥ 2 and v_{α_r}(β₂) ≥ 2), implement the minimality choices β_c and α_r, and prove that all potential extra contributors for T_3/T_4 live on disjoint rows/columns across consecutive maxima, letting you isolate a globally unique base (R3/R4). This is the key technical closure.
+3) Expand Theorem 6’s last subcase (permutation analysis) with an explicit identification of the consecutive x-order pair producing r=s=1, removing any terseness.
+4) Stress-test on staircase-with-boundary-fillers families to calibrate the nearest-interloper lemma and ensure all branches (Theorem 7 vs. 3 vs. R3/R4) are covered without overlap or gaps.
+
+Net assessment
+- We now have robust, local type-2 certificates at boundary-aligned positions and a full resolution of the unique–maximal regime when |Max(S)|=1. The remaining open work is the |Max(S)|≥2 crossing subcase; the blueprint and the exact minimality choices are in notes for the next round.

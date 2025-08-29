@@ -1,0 +1,1387 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.tex ===
+%\newcommand{\X}{X}
+%\newcommand{\R}{\mathbb{R}}
+%\newcommand{\cost}{\phi}
+%\newcommand{\OPT}{\mathrm{OPT}}
+%\newcommand{\ALG}{\mathrm{ALG}}
+%\newcommand{\E}{\mathbb{E}}
+
+\section*{Algorithm, model, and task}
+
+\paragraph{Objective.}
+Fix a dataset $\X=\{x_1,\dots,x_n\}\subseteq\R^d$ and the standard $k$-means cost
+\begin{equation*}
+\cost(C) \;=\; \sum_{x\in \X} \min_{c\in C} \|x-c\|_2^2
+\qquad\text{for a center set } C\subseteq\R^d,\ |C|=k.
+\end{equation*}
+Let $\OPT(k)=\min_{|C|=k}\cost(C)$ and let $\ALG(k)$ denote the cost of the clustering returned by the $k$-means++ seeding.
+
+\paragraph{$k$-means++ seeding (Arthur--Vassilvitskii).}
+Pick the first center uniformly from $\X$. Then, iteratively, sample the next center $c$ from $\X$ with probability proportional to $D(x)^2$, where $D(x)$ is the distance from $x$ to its closest previously chosen center. Stop after $k$ centers are chosen; assign each $x$ to its nearest chosen center.
+
+\paragraph{Smoothed random-$k$ experiment.}
+Given an integer $k_0\ge 1$, draw $k$ uniformly at random from $\{k_0,k_0{+}1,\dots,2k_0{-}1\}$, run $k$-means++ with this $k$ on $\X$, and set the random variable
+\begin{equation*}
+\alpha \;=\; \frac{\ALG(k)}{\OPT(k)} \;\ge\; 1.
+\end{equation*}
+
+\section*{The task}
+Prove the strongest possible asymptotic lower bound on
+\begin{equation*}
+\E_{k\sim U([k_0,2k_0)),\,\text{$k$-means++}}\!\!\Big[\; \tfrac{\ALG(k)}{\OPT(k)} \;\Big],
+\end{equation*}
+as a function of $k_0$. 
+
+Even a relatively small improvement over $O(1)$, e.g., $\Omega(\log\log k)$ is considered as a success. 
+
+\section*{Context and prior results}
+
+For standard $k$-means++ with $k$ centers, $\E[\ALG(k)]\le O(\log k)\cdot \OPT(k)$ and there are instances with $\E[\ALG(k)]\ge \Omega(\log k)\cdot \OPT(k)$.
+
+It is unknown whether their lower bound construction can be successfully adapted to the setup of this task. 
+
+=== 1.pdf ===
+
+--- Page 1 ---
+k-means++: The Advantages of Careful Seeding
+David Arthur ∗
+Sergei Vassilvitskii†
+Abstract
+The k-means method is a widely used clustering technique
+that seeks to minimize the average squared distance between
+points in the same cluster. Although it oﬀers no accuracy
+guarantees, its simplicity and speed are very appealing in
+practice. By augmenting k-means with a very simple, ran-
+domized seeding technique, we obtain an algorithm that is
+Θ(log k)-competitive with the optimal clustering.
+Prelim-
+inary experiments show that our augmentation improves
+both the speed and the accuracy of k-means, often quite
+dramatically.
+1
+Introduction
+Clustering is one of the classic problems in machine
+learning and computational geometry. In the popular
+k-means formulation, one is given an integer k and a set
+of n data points in Rd. The goal is to choose k centers
+so as to minimize φ, the sum of the squared distances
+between each point and its closest center.
+Solving this problem exactly is NP-hard, even with
+just two clusters [10], but twenty-ﬁve years ago, Lloyd
+[20] proposed a local search solution that is still very
+widely used today (see for example [1, 11, 15]). Indeed,
+a recent survey of data mining techniques states that it
+“is by far the most popular clustering algorithm used in
+scientiﬁc and industrial applications” [5].
+Usually referred to simply as k-means, Lloyd’s
+algorithm begins with k arbitrary centers, typically
+chosen uniformly at random from the data points. Each
+point is then assigned to the nearest center, and each
+center is recomputed as the center of mass of all points
+assigned to it. These two steps (assignment and center
+calculation) are repeated until the process stabilizes.
+One can check that the total error φ is monotoni-
+cally decreasing, which ensures that no clustering is re-
+peated during the course of the algorithm. Since there
+are at most kn possible clusterings, the process will al-
+ways terminate. In practice, very few iterations are usu-
+ally required, which makes the algorithm much faster
+∗Stanford University, Supported in part by NDSEG Fellow-
+ship, NSF Grant ITR-0331640, and grants from Media-X and
+SNRC.
+†Stanford University, Supported in part by NSF Grant ITR-
+0331640, and grants from Media-X and SNRC.
+than most of its competitors.
+Unfortunately, the empirical speed and simplicity
+of the k-means algorithm come at the price of accuracy.
+There are many natural examples for which the algo-
+rithm generates arbitrarily bad clusterings (i.e.,
+φ
+φOPT is
+unbounded even when n and k are ﬁxed). Furthermore,
+these examples do not rely on an adversarial placement
+of the starting centers, and the ratio can be unbounded
+with high probability even with the standard random-
+ized seeding technique.
+In this paper, we propose a way of initializing
+k-means by choosing random starting centers with
+very speciﬁc probabilities.
+Speciﬁcally, we choose a
+point p as a center with probability proportional to p’s
+contribution to the overall potential. Letting φ denote
+the potential after choosing centers in this way, we show
+the following.
+Theorem 1.1. For any set of data points, E[φ] ≤
+8(ln k + 2)φOP T .
+This sampling is both fast and simple, and it already
+achieves approximation guarantees that k-means can-
+not.
+We propose using it to seed the initial centers
+for k-means, leading to a combined algorithm we call
+k-means++.
+This complements a very recent result of Ostrovsky
+et al. [24], who independently proposed much the same
+algorithm. Whereas they showed this randomized seed-
+ing is O(1)-competitive on data sets following a certain
+separation condition, we show it is O(log k)-competitive
+on all data sets.
+We also show that the analysis for Theorem 1.1 is
+tight up to a constant factor, and that it can be eas-
+ily extended to various potential functions in arbitrary
+metric spaces.
+In particular, we can also get a sim-
+ple O(log k) approximation algorithm for the k-median
+objective. Furthermore, we provide preliminary experi-
+mental data showing that in practice, k-means++ really
+does outperform k-means in terms of both accuracy and
+speed, often by a substantial margin.
+1.1
+Related work As a fundamental problem in
+machine learning, k-means has a rich history. Because
+of its simplicity and its observed speed, Lloyd’s method
+[20] remains the most popular approach in practice,
+
+--- Page 2 ---
+despite its limited accuracy. The convergence time of
+Lloyd’s method has been the subject of a recent series
+of papers [2, 4, 8, 14]; in this work we focus on improving
+its accuracy.
+In the theory community, Inaba et al. [16] were
+the ﬁrst to give an exact algorithm for the k-means
+problem, with the running time of O(nkd). Since then, a
+number of polynomial time approximation schemes have
+been developed (see [9, 13, 19, 21] and the references
+therein). While the authors develop interesting insights
+into the structure of the clustering problem, their
+algorithms are highly exponential (or worse) in k, and
+are unfortunately impractical even for relatively small
+n, k and d.
+Kanungo et al. [17] proposed an O(n3ϵ−d) algorithm
+that is (9 + ϵ)-competitive.
+However, n3 compares
+unfavorably with the almost linear running time of
+Lloyd’s method, and the exponential dependence on d
+can also be problematic. For these reasons, Kanungo et
+al. also suggested a way of combining their techniques
+with Lloyd’s algorithm, but in order to avoid the
+exponential dependence on d, their approach sacriﬁces
+all approximation guarantees.
+Mettu and Plaxton [22] also achieved a constant-
+probability O(1) approximation using a technique called
+successive sampling. They match our running time of
+O(nkd), but only if k is suﬃciently large and the spread
+is suﬃciently small. In practice, our approach is simpler,
+and our experimental results seem to be better in terms
+of both speed and accuracy.
+Very recently, Ostrovsky et al. [24] independently
+proposed an algorithm that is essentially identical to
+ours, although their analysis is quite diﬀerent. Letting
+φOPT,k denote the optimal potential for a k-clustering
+on a given data set, they prove k-means++ is O(1)-
+competitive in the case where
+φOPT,k
+φOPT,k−1
+≤ϵ2.
+The
+intuition here is that if this condition does not hold,
+then the data is not well suited for clustering with the
+given value for k.
+Combining this result with ours gives a strong
+characterization of the algorithm’s performance.
+In
+particular, k-means++ is never worse than O(log k)-
+competitive, and on very well formed data sets, it
+improves to being O(1)-competitive.
+Overall, the seeding technique we propose is similar
+in spirit to that used by Meyerson [23] for online facility
+location, and Mishra et al. [12] and Charikar et al. [6]
+in the context of k-median clustering.
+However, our
+analysis is quite diﬀerent from those works.
+2
+Preliminaries
+In this section, we formally deﬁne the k-means problem,
+as well as the k-means and k-means++ algorithms.
+For the k-means problem, we are given an integer k
+and a set of n data points X ⊂Rd. We wish to choose
+k centers C so as to minimize the potential function,
+φ =
+X
+x∈X
+min
+c∈C ∥x −c∥2.
+Choosing these centers implicitly deﬁnes a clustering
+– for each center, we set one cluster to be the set of
+data points that are closer to that center than to any
+other. As noted above, ﬁnding an exact solution to the
+k-means problem is NP-hard.
+Throughout the paper, we will let COPT denote the
+optimal clustering for a given instance of the k-means
+problem, and we will let φOPT denote the corresponding
+potential.
+Given a clustering C with potential φ, we
+also let φ(A) denote the contribution of A ⊂X to the
+potential (i.e., φ(A) = P
+x∈A minc∈C∥x −c∥2).
+2.1
+The k-means algorithm The k-means method
+is a simple and fast algorithm that attempts to locally
+improve an arbitrary k-means clustering. It works as
+follows.
+1. Arbitrarily choose k initial centers C = {c1, . . . , ck}.
+2. For each i ∈{1, . . . , k}, set the cluster Ci to be the
+set of points in X that are closer to ci than they
+are to cj for all j ̸= i.
+3. For each i ∈{1, . . . , k}, set ci to be the center of
+mass of all points in Ci: ci =
+1
+|Ci|
+P
+x∈Ci x.
+4. Repeat Steps 2 and 3 until C no longer changes.
+It is standard practice to choose the initial centers
+uniformly at random from X. For Step 2, ties may be
+broken arbitrarily, as long as the method is consistent.
+Steps 2 and 3 are both guaranteed to decrease φ, so
+the algorithm makes local improvements to an arbitrary
+clustering until it is no longer possible to do so. To see
+that Step 3 does in fact decreases φ, it is helpful to recall
+a standard result from linear algebra (see [14]).
+Lemma 2.1. Let S be a set of points with center of
+mass c(S), and let z be an arbitrary point.
+Then,
+P
+x∈S∥x −z∥2 −P
+x∈S∥x −c(S)∥2 = |S| · ∥c(S) −z∥2.
+Monotonicity for Step 3 follows from taking S to be a
+single cluster and z to be its initial center.
+As discussed above, the k-means algorithm is at-
+tractive in practice because it is simple and it is gener-
+ally fast. Unfortunately, it is guaranteed only to ﬁnd a
+local optimum, which can often be quite poor.
+2.2
+The k-means++ algorithm The k-means algo-
+rithm begins with an arbitrary set of cluster centers.
+We propose a speciﬁc way of choosing these centers. At
+
+--- Page 3 ---
+any given time, let D(x) denote the shortest distance
+from a data point x to the closest center we have al-
+ready chosen. Then, we deﬁne the following algorithm,
+which we call k-means++.
+1a. Choose an initial center c1 uniformly at random
+from X.
+1b. Choose the next center ci, selecting ci = x′ ∈X
+with probability
+D(x′)2
+P
+x∈X D(x)2 .
+1c. Repeat Step 1b until we have chosen a total of k
+centers.
+2-4. Proceed as with the standard k-means algorithm.
+We call the weighting used in Step 1b simply “D2
+weighting”.
+3
+k-means++ is O(log k)-competitive
+In this section, we prove our main result.
+Theorem 3.1. If C is constructed with k-means++,
+then the corresponding potential function φ satisﬁes
+E[φ] ≤8(ln k + 2)φOPT.
+In fact, we prove this holds after only Step 1 of the
+algorithm above.
+Steps 2 through 4 can then only
+decrease φ. Not surprisingly, our experiments show this
+local optimization is important in practice, although it
+is diﬃcult to quantify this theoretically.
+Our analysis consists of two parts. First, we show
+that k-means++ is competitive in those clusters of COPT
+from which it chooses a center. This is easiest in the
+case of our ﬁrst center, which is chosen uniformly at
+random.
+Lemma 3.1. Let A be an arbitrary cluster in COPT, and
+let C be the clustering with just one center, which is
+chosen uniformly at random from A. Then, E[φ(A)] =
+2φOPT(A).
+Proof. Let c(A) denote the center of mass of the data
+points in A.
+By Lemma 2.1, we know that since
+COPT is optimal, it must be using c(A) as the center
+corresponding to the cluster A. Using the same lemma
+again, we see E[φ(A)] is given by,
+X
+a0∈A
+1
+|A| ·
+ X
+a∈A
+∥a −a0∥2
+!
+=
+1
+|A|
+X
+a0∈A
+ X
+a∈A
+∥a −c(A)∥2 + |A| · ∥a0 −c(A)∥2
+!
+=
+2
+X
+a∈A
+∥a −c(A)∥2,
+and the result follows.
+Our next step is to prove an analog of Lemma 3.1
+for the remaining centers, which are chosen with D2
+weighting.
+Lemma 3.2. Let A be an arbitrary cluster in COPT, and
+let C be an arbitrary clustering.
+If we add a random
+center to C from A, chosen with D2 weighting, then
+E[φ(A)] ≤8φOPT(A).
+Proof. The probability that we choose some ﬁxed a0 as
+our center, given that we are choosing our center from
+A, is precisely
+D(a0)2
+P
+a∈A D(a)2 . Furthermore, after choos-
+ing the center a0, a point a will contribute precisely
+min(D(a), ∥a −a0∥)2 to the potential. Therefore,
+E[φ(A)] =
+X
+a0∈A
+D(a0)2
+P
+a∈A D(a)2
+X
+a∈A
+min(D(a), ∥a −a0∥)2.
+Note by the triangle inequality that D(a0)
+≤
+D(a) + ∥a −a0∥for all a, a0.
+From this, the power-
+mean inequality1 implies that D(a0)2
+≤2D(a)2 +
+2∥a −a0∥2.
+Summing over all a, we then have that
+D(a0)2 ≤
+2
+|A|
+P
+a∈A D(a)2 +
+2
+|A|
+P
+a∈A∥a −a0∥2, and
+hence, E[φ(A)] is at most,
+2
+|A| ·
+X
+a0∈A
+P
+a∈A D(a)2
+P
+a∈A D(a)2 ·
+X
+a∈A
+min(D(a), ∥a −a0∥)2
++ 2
+|A| ·
+X
+a0∈A
+P
+a∈A∥a −a0∥2
+P
+a∈A D(a)2
+·
+X
+a∈A
+min(D(a), ∥a −a0∥)2.
+In the ﬁrst expression, we substitute min(D(a), ∥a −
+a0∥)2 ≤∥a −a0∥2, and in the second expression, we
+substitute min(D(a), ∥a −a0∥)2 ≤D(a)2. Simplifying,
+we then have,
+E[φ(A)]
+≤
+4
+|A| ·
+X
+a0∈A
+X
+a∈A
+∥a −a0∥2
+=
+8φOPT(A).
+The last step here follows from Lemma 3.1.
+We have now shown that seeding by D2 weighting
+is competitive as long as it chooses centers from each
+cluster of COPT, which completes the ﬁrst half of our
+argument. We now use induction to show the total error
+in general is at most O(log k).
+1The power-mean inequality states for any real numbers
+a1, · · · , am that Σa2
+i ≥
+1
+m(Σai)2.
+It follows from the Cauchy-
+Schwarz inequality. We are only using the case m = 2 here, but
+we will need the general case for Lemma 3.3.
+
+--- Page 4 ---
+Lemma 3.3. Let C be an arbitrary clustering. Choose
+u > 0 “uncovered” clusters from COPT, and let Xu
+denote the set of points in these clusters.
+Also let
+Xc = X −Xu. Now suppose we add t ≤u random centers
+to C, chosen with D2 weighting. Let C′ denote the the
+resulting clustering, and let φ′ denote the corresponding
+potential. Then, E[φ′] is at most,
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht) + u −t
+u
+· φ(Xu).
+Here, Ht denotes the harmonic sum, 1 + 1
+2 + · · · + 1
+t .
+Proof. We prove this by induction, showing that if the
+result holds for (t −1, u) and (t −1, u −1), then it
+also holds for (t, u).
+Therefore, it suﬃces to check
+t = 0, u > 0 and t = u = 1 as our base cases.
+If t = 0 and u > 0, the result follows from the fact
+that 1 + Ht =
+u−t
+u
+= 1.
+Next, suppose t = u = 1.
+We choose our one new center from the one uncovered
+cluster with probability exactly
+φ(Xu)
+φ
+.
+In this case,
+Lemma 3.2 guarantees that E[φ′] ≤φ(Xc)+8φOPT(Xu).
+Since φ′ ≤φ even if we choose a center from a covered
+cluster, we have,
+E[φ′]
+≤
+φ(Xu)
+φ
+·
+
+φ(Xc) + 8φOPT(Xu)
+
++ φ(Xc)
+φ
+· φ
+≤
+2φ(Xc) + 8φOPT(Xu).
+Since 1 + Ht = 2 here, we have shown the result holds
+for both base cases.
+We now proceed to prove the inductive step. It is
+convenient here to consider two cases. First suppose we
+choose our ﬁrst center from a covered cluster. As above,
+this happens with probability exactly φ(Xc)
+φ
+. Note that
+this new center can only decrease φ.
+Bearing this in
+mind, apply the inductive hypothesis with the same
+choice of covered clusters, but with t decreased by one.
+It follows that our contribution to E[φ′] in this case is
+at most,
+φ(Xc)
+φ
+·
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht−1)
++ u −t + 1
+u
+· φ(Xu)
+
+.
+On the other hand, suppose we choose our ﬁrst
+center from some uncovered cluster A. This happens
+with probability
+φ(A)
+φ .
+Let pa denote the probability
+that we choose a ∈A as our center, given the center is
+somewhere in A, and let φa denote φ(A) after we choose
+a as our center.
+Once again, we apply our inductive
+hypothesis, this time adding A to the set of covered
+clusters, as well as decreasing both t and u by 1.
+It
+follows that our contribution to E[φOPT] in this case is
+at most,
+φ(A)
+φ
+·
+X
+a∈A
+pa
+
+φ(Xc) + φa + 8φOPT(Xu) −8φOPT(A)
+
+· (1 + Ht−1) + u −t
+u −1 ·
+
+φ(Xu) −φ(A)
+
+≤φ(A)
+φ
+·
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht−1)
++ u −t
+u −1 ·
+
+φ(Xu) −φ(A)
+
+.
+The
+last
+step
+here
+follows
+from
+the
+fact
+that
+P
+a∈A paφa ≤8φOPT(A), which is implied by Lemma
+3.2.
+Now,
+the
+power-mean
+inequality
+implies
+that
+P
+A⊂Xu φ(A)2 ≥1
+u · φ(Xu)2. Therefore, if we sum over
+all uncovered clusters A, we obtain a potential contri-
+bution of at most,
+φ(Xu)
+φ
+·
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht−1)
++ 1
+φ · u −t
+u −1 ·
+
+φ(Xu)2 −1
+u · φ(Xu)2
+
+=
+φ(Xu)
+φ
+·
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht−1)
++ u −t
+u
+· φ(Xu)
+
+.
+Combining the potential contribution to E[φ′] from
+both cases, we now obtain the desired bound:
+E[φ′] ≤
+
+φ(Xc) + 8φOPT(Xu)
+
+· (1 + Ht−1)
++ u −t
+u
+· φ(Xu) + φ(Xc)
+φ
+· φ(Xu)
+u
+≤
+
+φ(Xc) + 8φOPT(Xu)
+
+·
+
+1 + Ht−1 + 1
+u
+
++ u −t
+u
+· φ(Xu).
+The inductive step now follows from the fact that 1
+u ≤1
+t .
+We specialize Lemma 3.3 to obtain our main result.
+Theorem 3.1 If C is constructed with k-means++,
+then the corresponding potential function φ satisﬁes
+E[φ] ≤8(ln k + 2)φOPT.
+Proof. Consider the clustering C after we have com-
+pleted Step 1. Let A denote the COPT cluster in which
+we chose the ﬁrst center.
+Applying Lemma 3.3 with
+
+--- Page 5 ---
+t = u = k −1 and with A being the only covered clus-
+ter, we have,
+E[φOPT] ≤
+
+φ(A) + 8φOPT −8φOPT(A)
+
+· (1 + Hk−1).
+The result now follows from Lemma 3.1, and from the
+fact that Hk−1 ≤1 + ln k.
+4
+A matching lower bound
+In this section, we show that the D2 seeding used
+by k-means++ is no better than Ω(log k)-competitive
+in expectation, thereby proving Theorem 3.1 is tight
+within a constant factor.
+Fix k, and then choose n, ∆, δ with n ≫k and ∆≫
+δ. We construct X with n points. First choose k centers
+c1, c2, . . . , ck such that ∥ci −cj∥2 = ∆2 −
+  n−k
+n
+
+· δ2
+for all i ̸= j.
+Now, for each ci, add data points
+xi,1, xi,2, · · · , xi, n
+k arranged in a regular simplex with
+center ci, side length δ, and radius
+q
+n−k
+2n · δ. If we do
+this in orthogonal dimensions for each i, we then have,
+∥xi,i′ −xj,j′∥=
+ δ
+if i=j, or
+∆
+otherwise.
+We prove our seeding technique is in expectation
+Ω(log k) worse than the optimal clustering in this case.
+Clearly, the optimal clustering has centers {ci},
+which leads to an optimal potential of φOPT = n−k
+2
+· δ2.
+Conversely, using an induction similar to that of Lemma
+3.3, we show D2 seeding cannot match this bound. As
+before, we bound the expected potential in terms of
+the number of centers left to choose and the number
+of uncovered clusters (those clusters of C0 from which
+we have not chosen a center).
+Lemma 4.1. Let C be an arbitrary clustering on X with
+k −t ≥1 centers, but with u clusters from COPT
+uncovered.
+Now suppose we add t random centers to
+C, chosen with D2 weighting.
+Let C′ denote the the
+resulting clustering, and let φ′ denote the corresponding
+potential.
+Furthermore, let α =
+n−k2
+n
+, β =
+∆2−2kδ2
+∆2
+and
+H′
+u = Pu
+i=1
+k−i
+ki . Then, E[φ′] is at least,
+αt+1 ·
+
+nδ2 · (1 + H′
+u) · β +
+n
+k ∆2 −2nδ2
+· (u −t)
+
+.
+Proof. We prove this by induction on t. If t = 0, note
+that,
+φ′ = φ =
+
+n −u · n
+k −k
+
+· δ2 + u · n
+k · ∆2.
+Since n−u· n
+k ≥n
+k , we have n−u· n
+k −k
+n−u· n
+k
+≥
+n
+k −k
+n
+k
+= α. Also,
+α, β ≤1. Therefore,
+φ′ ≥α ·
+
+n −u · n
+k
+
+· δ2 · β + u · n
+k · ∆2
+.
+Finally, since nδ2u ≥u · n
+k · δ2 · β and nδ2u ≥nδ2H′
+uβ,
+we have,
+φ′ ≥α ·
+
+nδ2 · (1 + H′
+u) · β +
+n
+k ∆2 −2nδ2
+· u
+
+.
+This completes the base case.
+We now proceed to prove the inductive step. As
+with Lemma 3.3, we consider two cases. The probability
+that our ﬁrst center is chosen from an uncovered cluster
+is,
+u · n
+k · ∆2
+u · n
+k · ∆2 + (k −u) · n
+k · δ2 −(k −t)δ2
+≥
+u∆2
+u∆2 + (k −u)δ2
+≥
+α ·
+u∆2
+u∆2 + (k −u)δ2 .
+Applying our inductive hypothesis with t and u both
+decreased by 1, we obtain a potential contribution from
+this case of at least,
+u∆2
+u∆2 + (k −u)δ2 · αt+1 ·
+
+nδ2 · (1 + H′
+u−1) · β
++
+n
+k ∆2 −2nδ2
+· (u −t)
+
+.
+The probability that our ﬁrst center is chosen from
+a covered cluster is
+(k −u) · n
+k · δ2 −(k −t)δ2
+u · n
+k · ∆2 + (k −u) · n
+k · δ2 −(k −t)δ2
+≥
+(k −u) · n
+k · δ2 −(k −t)δ2
+(k −u) · n
+k · δ2
+·
+(k −u)δ2
+u∆2 + (k −u)δ2
+≥
+α ·
+(k −u)δ2
+u∆2 + (k −u)δ2 .
+Applying our inductive hypothesis with t decreased by 1
+but with u constant, we obtain a potential contribution
+from this case of at least,
+(k −u)δ2
+u∆2 + (k −u)δ2 · αt+1 ·
+
+nδ2 · (1 + H′
+u) · β
++
+n
+k ∆2 −2nδ2
+· (u −t + 1)
+
+.
+Therefore, E[φ′] is at least,
+αt+1 ·
+
+nδ2 · (1 + H′
+u) · β +
+n
+k ∆2 −2nδ2
+· (u −t)
+
++
+αt+1
+u∆2 + (k −u)δ2 ·
+
+(k −u)δ2 ·
+n
+k ∆2 −2nδ2
+
+−u∆2 ·
+
+H′(u) −H′(u −1)
+
+· nδ2 · β
+
+.
+
+--- Page 6 ---
+However, H′
+u −H′
+u−1 = k−u
+ku and β = ∆2−2kδ2
+∆2
+, so
+u∆2 ·
+
+H′(u) −H′(u −1)
+
+· nδ2 · β
+= (k −u)δ2 ·
+n
+k ∆2 −2nδ2
+,
+and the result follows.
+As in the previous section, we obtain the desired
+result by specializing the induction.
+Theorem 4.1. D2 seeding is no better than 2(ln k)-
+competitive.
+Proof. Suppose a clustering with potential φ is con-
+structed using k-means++ on X described above. Ap-
+ply Lemma 4.1 with u = t = k −1 after the ﬁrst
+center has been chosen.
+Noting that 1 + H′
+k−1 =
+1 + Pk−1
+i=1
+  1
+i −1
+k
+
+= Hk > ln k, we then have,
+E[φ] ≥αkβ · nδ2 · ln k.
+Now, ﬁx k and δ but let n and ∆approach inﬁnity.
+Then α and β both approach 1, and the result follows
+from the fact that φOPT = n−k
+2
+· δ2.
+5
+Generalizations
+Although the k-means algorithm itself applies only
+in vector spaces with the potential function φ
+=
+P
+x∈X minc∈C∥x −c∥2, we note that our seeding tech-
+nique does not have the same limitations. In this sec-
+tion, we discuss extending our results to arbitrary met-
+ric spaces with the more general potential function,
+φ[ℓ] = P
+x∈X minc∈C∥x −c∥ℓfor ℓ≥1. In particular,
+note that the case of ℓ= 1 is the k-medians potential
+function.
+These generalizations require only one change to
+the algorithm itself. Instead of using D2 seeding, we
+switch to Dℓseeding – i.e., we choose x0 as a center
+with probability
+D(x0)ℓ
+P
+x∈X D(x)ℓ.
+For the analysis, the most important change ap-
+pears in Lemma 3.1. Our original proof uses an inner
+product structure that is not available in the general
+case. However, a slightly weaker result can be proven
+using only the triangle inequality.
+Lemma 5.1. Let A be an arbitrary cluster in COPT, and
+let C be the clustering with just one center, which is cho-
+sen uniformly at random from A. Then, E[φ[ℓ](A)] ≤
+2ℓφ[ℓ]
+OPT(A).
+Proof. Let c denote the center of A in COPT. Then,
+E[φ[ℓ](A)]
+=
+1
+|A|
+X
+a0∈A
+X
+a∈A
+∥a −a0∥ℓ
+≤
+2ℓ−1
+|A|
+X
+a0∈A
+X
+a∈A
+ ∥a −c∥ℓ+ ∥a0 −c∥ℓ
+=
+2ℓφ[ℓ]
+OPT(A).
+The second step here follows from the triangle inequality
+and the power-mean inequality.
+The rest of our upper bound analysis carries
+through without change, except that in the proof of
+Lemma 3.2, we lose a factor of 2ℓ−1 from the power-
+mean inequality, instead of just 2. Putting everything
+together, we obtain the general theorem.
+Theorem 5.1. If C is constructed with Dℓseeding,
+then the corresponding potential function φ[ℓ] satisﬁes,
+E[φ[ℓ]] ≤22ℓ(ln k + 2)φ[ℓ]
+OPT.
+6
+Empirical results
+In order to evaluate k-means++ in practice, we have
+implemented and tested it in C++ [3]. In this section,
+we discuss the results of these preliminary experiments.
+We found that D2 seeding substantially improves both
+the running time and the accuracy of k-means.
+6.1
+Datasets We
+evaluated
+the
+performance
+of
+k-means and k-means++ on four datasets.
+The ﬁrst dataset, Norm25, is synthetic. To generate
+it, we chose 25 “true” centers uniformly at random
+from a 15-dimensional hypercube of side length 500.
+We then added points from Gaussian distributions of
+variance 1 around each true center. Thus, we obtained
+a number of well separated Gaussians with the the true
+centers providing a good approximation to the optimal
+clustering.
+We chose the remaining datasets from real-world
+examples oﬀthe UC-Irvine Machine Learning Reposi-
+tory. The Cloud dataset [7] consists of 1024 points in 10
+dimensions, and it is Philippe Collard’s ﬁrst cloud cover
+database. The Intrusion dataset [18] consists of 494019
+points in 35 dimensions, and it represents features avail-
+able to an intrusion detection system. Finally, the Spam
+dataset [25] consists of 4601 points in 58 dimensions,
+and it represents features available to an e-mail spam
+detection system.
+For each dataset, we tested k = 10, 25, and 50.
+6.2
+Metrics Since we were testing randomized seed-
+ing processes, we ran 20 trials for each case. We report
+
+--- Page 7 ---
+Average φ
+Minimum φ
+Average T
+k
+k-means
+k-means++
+k-means
+k-means++
+k-means
+k-means++
+10
+1.365 · 105
+8.47%
+1.174 · 105
+0.93%
+0.12
+46.72%
+25
+4.233 · 104
+99.96%
+1.914 · 104
+99.92%
+0.90
+87.79%
+50
+7.750 · 103
+99.81%
+1.474 · 101
+0.53%
+2.04
+−1.62%
+Table 1:
+Experimental results on the Norm25 dataset (n = 10000, d = 15).
+For k-means, we list the
+actual potential and time in seconds.
+For k-means++, we list the percentage improvement over k-means:
+100% ·
+ 1 −k-means++ value
+k-means value
+
+.
+Average φ
+Minimum φ
+Average T
+k
+k-means
+k-means++
+k-means
+k-means++
+k-means
+k-means++
+10
+7.921 · 103
+22.33%
+6.284 · 103
+10.37%
+0.08
+51.09%
+25
+3.637 · 103
+42.76%
+2.550 · 103
+22.60%
+0.11
+43.21%
+50
+1.867 · 103
+39.01%
+1.407 · 103
+23.07%
+0.16
+41.99%
+Table 2: Experimental results on the Cloud dataset (n = 1024, d = 10). For k-means, we list the actual potential
+and time in seconds. For k-means++, we list the percentage improvement over k-means.
+Average φ
+Minimum φ
+Average T
+k
+k-means
+k-means++
+k-means
+k-means++
+k-means
+k-means++
+10
+3.387 · 108
+93.37%
+3.206 · 108
+94.40%
+63.94
+44.49%
+25
+3.149 · 108
+99.20%
+3.100 · 108
+99.32%
+257.34
+49.19%
+50
+3.079 · 108
+99.84%
+3.076 · 108
+99.87%
+917.00
+66.70%
+Table 3: Experimental results on the Intrusion dataset (n = 494019, d = 35). For k-means, we list the actual
+potential and time in seconds. For k-means++, we list the percentage improvement over k-means.
+Average φ
+Minimum φ
+Average T
+k
+k-means
+k-means++
+k-means
+k-means++
+k-means
+k-means++
+10
+3.698 · 104
+49.43%
+3.684 · 104
+54.59%
+2.36
+69.00%
+25
+3.288 · 104
+88.76%
+3.280 · 104
+89.58%
+7.36
+79.84%
+50
+3.183 · 104
+95.35%
+2.384 · 104
+94.30%
+12.20
+75.76%
+Table 4: Experimental results on the Spam dataset (n = 4601, d = 58). For k-means, we list the actual potential
+and time in seconds. For k-means++, we list the percentage improvement over k-means.
+
+--- Page 8 ---
+the minimum and the average potential (actually di-
+vided by the number of points), as well as the mean
+running time. Our implementations are standard with
+no special optimizations.
+6.3
+Results The results for k-means and k-means++
+are displayed in Tables 1 through 4. We list the absolute
+results for k-means, and the percentage improvement
+achieved by k-means++ (e.g., a 90% improvement in
+the running time is equivalent to a factor 10 speedup).
+We observe that k-means++ consistently outperformed
+k-means, both by achieving a lower potential value, in
+some cases by several orders of magnitude, and also by
+having a faster running time. The D2 seeding is slightly
+slower than uniform seeding, but it still leads to a faster
+algorithm since it helps the local search converge after
+fewer iterations.
+The synthetic example is a case where standard
+k-means does very badly.
+Even though there is an
+“obvious” clustering, the uniform seeding will inevitably
+merge some of these clusters, and the local search will
+never be able to split them apart (see [12] for further
+discussion of this phenomenon).
+The careful seeding
+method of k-means++ avoided this problem altogether,
+and it almost always attained the optimal clustering on
+the synthetic dataset.
+The diﬀerence between k-means and k-means++
+on the real-world datasets was also substantial.
+In
+every case, k-means++ achieved at least a 10% accuracy
+improvement over k-means, and it often performed
+much better.
+Indeed, on the Spam and Intrusion
+datasets, k-means++ achieved potentials 20 to 1000
+times smaller than those achieved by standard k-means.
+Each trial also completed two to three times faster, and
+each individual trial was much more likely to achieve a
+good clustering.
+7
+Conclusion and future work
+We have presented a new way to seed the k-means
+algorithm that is O(log k)-competitive with the optimal
+clustering. Furthermore, our seeding technique is as fast
+and as simple as the k-means algorithm itself, which
+makes it attractive in practice.
+Towards that end,
+we ran preliminary experiments on several real-world
+datasets, and we observed that k-means++ substantially
+outperformed standard k-means in terms of both speed
+and accuracy.
+Although our analysis of the expected potential
+E[φ] achieved by k-means++ is tight to within a con-
+stant factor, a few open questions still remain. Most
+importantly, it is standard practice to run the k-means
+algorithm multiple times, and then keep only the best
+clustering found. This raises the question of whether
+k-means++ achieves asymptotically better results if it is
+allowed several trials. For example, if k-means++ is run
+2k times, our arguments can be modiﬁed to show it is
+likely to achieve a constant approximation at least once.
+We ask whether a similar bound can be achieved for a
+smaller number of trials.
+Also, experiments showed that k-means++ generally
+performed better if it selected several new centers during
+each iteration, and then greedily chose the one that
+decreased φ as much as possible.
+Unfortunately, our
+proofs do not carry over to this scenario. It would be
+interesting to see a comparable (or better) asymptotic
+result proven here.
+Finally, we are currently working on a more thor-
+ough experimental analysis. In particular, we are mea-
+suring the performance of not only k-means++ and stan-
+dard k-means, but also other variants that have been
+suggested in the theory community.
+Acknowledgements
+We would like to thank Rajeev Motwani for his helpful
+comments.
+References
+[1] Pankaj K. Agarwal and Nabil H. Mustafa.
+k-means
+projective clustering. In PODS ’04: Proceedings of the
+twenty-third ACM SIGMOD-SIGACT-SIGART sym-
+posium on Principles of database systems, pages 155–
+165, New York, NY, USA, 2004. ACM Press.
+[2] D. Arthur and S. Vassilvitskii.
+Worst-case and
+smoothed analysis of the ICP algorithm, with an ap-
+plication to the k-means method.
+In Symposium on
+Foundations of Computer Science, 2006.
+[3] David Arthur and Sergei Vassilvitskii.
+k-means++
+test
+code.
+http://www.stanford.edu/∼darthur/
+kMeansppTest.zip.
+[4] David Arthur and Sergei Vassilvitskii.
+How slow is
+the k-means method?
+In SCG ’06: Proceedings of
+the twenty-second annual symposium on computational
+geometry. ACM Press, 2006.
+[5] Pavel Berkhin.
+Survey of clustering data mining
+techniques.
+Technical report, Accrue Software, San
+Jose, CA, 2002.
+[6] Moses Charikar, Liadan O’Callaghan, and Rina Pani-
+grahy. Better streaming algorithms for clustering prob-
+lems. In STOC ’03: Proceedings of the thirty-ﬁfth an-
+nual ACM symposium on Theory of computing, pages
+30–39, New York, NY, USA, 2003. ACM Press.
+[7] Philippe Collard’s cloud cover database. ftp://ftp.
+ics.uci.edu/pub/machine-learning-databases/
+undocumented/taylor/cloud.data.
+[8] Sanjoy Dasgupta. How fast is k-means? In Bernhard
+Sch¨olkopf and Manfred K. Warmuth, editors, COLT,
+volume 2777 of Lecture Notes in Computer Science,
+page 735. Springer, 2003.
+
+--- Page 9 ---
+[9] W. Fernandez de la Vega, Marek Karpinski, Claire
+Kenyon, and Yuval Rabani. Approximation schemes
+for clustering problems. In STOC ’03: Proceedings of
+the thirty-ﬁfth annual ACM symposium on Theory of
+computing, pages 50–58, New York, NY, USA, 2003.
+ACM Press.
+[10] P. Drineas, A. Frieze, R. Kannan, S. Vempala, and
+V. Vinay. Clustering large graphs via the singular value
+decomposition. Mach. Learn., 56(1-3):9–33, 2004.
+[11] Fr´ed´eric Gibou and Ronald Fedkiw.
+A fast hybrid
+k-means level set algorithm for segmentation. In 4th
+Annual Hawaii International Conference on Statistics
+and Mathematics, pages 281–291, 2005.
+[12] Sudipto Guha, Adam Meyerson, Nina Mishra, Rajeev
+Motwani, and Liadan O’Callaghan.
+Clustering data
+streams: Theory and practice. IEEE Transactions on
+Knowledge and Data Engineering, 15(3):515–528, 2003.
+[13] Sariel Har-Peled and Soham Mazumdar. On coresets
+for k-means and k-median clustering.
+In STOC ’04:
+Proceedings of the thirty-sixth annual ACM symposium
+on Theory of computing, pages 291–300, New York,
+NY, USA, 2004. ACM Press.
+[14] Sariel Har-Peled and Bardia Sadri.
+How fast is the
+k-means method?
+In SODA ’05: Proceedings of the
+sixteenth annual ACM-SIAM symposium on Discrete
+algorithms, pages 877–885, Philadelphia, PA, USA,
+2005. Society for Industrial and Applied Mathematics.
+[15] R.
+Herwig,
+A.J.
+Poustka,
+C.
+Muller,
+C.
+Bull,
+H. Lehrach, and J O’Brien. Large-scale clustering of
+cdna-ﬁngerprinting data.
+Genome Research, 9:1093–
+1105, 1999.
+[16] Mary Inaba, Naoki Katoh, and Hiroshi Imai. Applica-
+tions of weighted voronoi diagrams and randomization
+to variance-based k-clustering: (extended abstract). In
+SCG ’94: Proceedings of the tenth annual symposium
+on Computational geometry, pages 332–339, New York,
+NY, USA, 1994. ACM Press.
+[17] Tapas Kanungo, David M. Mount, Nathan S. Ne-
+tanyahu, Christine D. Piatko, Ruth Silverman, and An-
+gela Y. Wu. A local search approximation algorithm
+for k-means clustering.
+Comput. Geom., 28(2-3):89–
+112, 2004.
+[18] KDD Cup 1999 dataset.
+http://kdd.ics.uci.edu/
+/databases/kddcup99/kddcup99.html.
+[19] Amit Kumar, Yogish Sabharwal, and Sandeep Sen. A
+simple linear time (1 + ϵ)-approximation algorithm for
+k-means clustering in any dimensions. In FOCS ’04:
+Proceedings of the 45th Annual IEEE Symposium on
+Foundations of Computer Science (FOCS’04), pages
+454–462, Washington, DC, USA, 2004. IEEE Com-
+puter Society.
+[20] Stuart P. Lloyd. Least squares quantization in pcm.
+IEEE Transactions on Information Theory, 28(2):129–
+136, 1982.
+[21] Jir´ı Matousek. On approximate geometric k-clustering.
+Discrete & Computational Geometry,
+24(1):61–84,
+2000.
+[22] Ramgopal R. Mettu and C. Greg Plaxton.
+Optimal
+time bounds for approximate clustering.
+In Adnan
+Darwiche and Nir Friedman, editors, UAI, pages 344–
+351. Morgan Kaufmann, 2002.
+[23] A. Meyerson. Online facility location. In FOCS ’01:
+Proceedings of the 42nd IEEE symposium on Founda-
+tions of Computer Science, page 426, Washington, DC,
+USA, 2001. IEEE Computer Society.
+[24] R. Ostrovsky, Y. Rabani, L. Schulman, and C. Swamy.
+The eﬀectiveness of Lloyd-type methods for the k-
+Means problem.
+In Symposium on Foundations of
+Computer Science, 2006.
+[25] Spam e-mail database.
+http://www.ics.uci.edu/
+∼mlearn/databases/spambase/.
+
+
+
+Current round tag: Round 0001 — 2025-08-27T15:18:19.117597Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

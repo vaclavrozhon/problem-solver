@@ -1,0 +1,111 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+Summary of status and gaps
+- The archived output (Theorem A, Lemma 1–2, Corollary A) cleanly proves the O(log* n) speedup on bounded-degree trees for the order-robust r-local sequential model (aka “greedy sequential local”), with the important restriction “reads within distance ≤ r, writes only at the current vertex”. This is correct and standard.
+- However, the task statement requests the speedup for a “deterministic online local model”. In the literature there are two different models under this name:
+  1) Order-robust r-local sequential model (what we already handled in output.md).
+  2) Online-LOCAL(t) model of Akbari–Eslami–Lievonen–Melnyk–Särkijärvi–Suomela (ICALP’23): when a vertex arrives, the algorithm is allowed t synchronous LOCAL rounds on the subgraph induced by arrived vertices; over many arrivals, long-range state/message propagation can accumulate across arbitrarily many t-round windows.
+- The color-phased simulation we sketched in earlier rounds does not in general simulate (2), due to unbounded long-range state accumulation before a vertex arrives. The output.md already includes a remark acknowledging this gap.
+
+New incremental results and proposals
+1) Clarify the model target and add a safe variant we can prove now
+- Definition (Output-only Online-LOCAL(t)). A deterministic online algorithm is output-only if an arrived vertex irrevocably sets its output, and thereafter any messages it sends in subsequent arrivals depend only on the underlying graph and the immutable outputs in its radius-t (no auxiliary mutable state beyond fixed outputs; previously arrived vertices do not maintain or evolve additional state across arrivals other than their final output label).
+- Lemma O1 (Output-only online ⇒ sequential r-local). Let Π be an LCL on bounded-degree graphs. If Π has a deterministic output-only Online-LOCAL(t) algorithm, then Π has a deterministic order-robust r-local sequential algorithm with r = t that reads only B(v,t) and writes only at v.
+  Why useful: This bridges a natural restriction of the online model to the sequential model covered in output.md, yielding O(log* n) LOCAL time on bounded-degree trees.
+  Proof sketch (checkable): Fix any arrival order that first lists all vertices with colors < i, then color i, etc., derived from a proper coloring of G^t. For a vertex v, the t-round transcript relevant to determining v’s output depends only on the outputs within B(v,t), by the output-only restriction. Hence a sequential rule that, upon processing v, gathers outputs in B(v,t) and applies the online decision procedure produces the same output as the online algorithm on any arrival order consistent with those outputs; order-robustness then holds by the online algorithm’s correctness for all orders.
+  Consequence: Combining Lemma O1 with Lemma 1–2 from output.md yields an O(log* n) LOCAL algorithm on bounded-degree trees.
+
+2) Minimal counter-scenario illustrating the gap for general Online-LOCAL(t)
+- Consider a path and t = 1. In the genuine online model, before some vertex v arrives, there may have been Θ(n) earlier arrivals, each granting one synchronous round on the entire arrived subgraph. Information originating far away can propagate one hop per arrival and reach B(v,1) by the time v arrives. In a color-phased simulation that grants only O(1) rounds before v’s phase, such accumulated state within B(v,1) is not reproduced. Hence, without extra assumptions, we cannot claim that our phase simulation computes the same output as the online algorithm would under any fixed arrival order.
+- This shows that to leverage an online algorithm as a black-box subroutine, we need a restriction (like output-only) preventing long-range state effects from being essential to v’s decision.
+
+3) Special-case sanity checks on trees
+- Positive example (fits our proven pipeline): MIS/greedy maximal matching on trees admits a deterministic order-robust sequential r-local algorithm with r = 1 (reads only outputs of earlier neighbors and writes only at v). Our output.md pipeline yields O(log* n) LOCAL as expected.
+- Negative intuition for general Online-LOCAL(t): If an online algorithm uses persistent mutable state at arrived nodes, then even on trees it may encode far-away information inside B(v,t) before v’s arrival. Our current simulation does not account for this. We have not yet constructed a concrete LCL that exploits this to beat O(log* n), and Theorem 2.33 (classification on trees) suggests such a separation is unlikely. Still, a proof that state can be eliminated is needed to complete the general reduction.
+
+4) A concrete “state-elimination” goal for the full Online-LOCAL(t) model on trees
+- Target Lemma (to prove next): For bounded-degree trees and fixed t = O(1), any deterministic Online-LOCAL(t) algorithm for an LCL Π can be transformed into an equivalent output-only Online-LOCAL(t) algorithm (or into an order-robust sequential r-local algorithm with r = O(t)), without increasing locality. Intuition: On trees, the influence of nodes outside B(v,2t) on v’s decision must pass through the annulus R = B(v,2t)\B(v,t). If auxiliary state is unbounded, in principle R could encode arbitrarily long histories. However, because Π has finite checkability radius and t is constant, we conjecture that for deciding v’s output there exists a constant-size canonical summary of the interface over R, depending only on the final outputs in B(v,2t). If so, auxiliary state can be replaced by a local function of outputs in B(v,2t), and thus eliminated.
+- Why plausible on trees: The absence of cycles suggests a finite “context automaton” across a cut; any information flowing from outside must cross the cut and influence the inside only via a constant-depth, constant-degree neighborhood, potentially yielding a finite equivalence of contexts. Yet, the caveat is that nodes in Online-LOCAL(t) have unbounded memory; any proof must show that unbounded histories are irrelevant for the final LCL outputs at constant-radius decisions.
+- Plan to attack: Start with paths and t = 1. Formalize the notion of an “interface context” at the boundary ∂B(v,2), and show that for any two online executions producing the same outputs on B(v,2), the set of feasible outputs for v is identical. If this holds, we can define a sequential rule depending only on outputs in B(v,2). Extend to general t by replacing 2 with 2t. If counterexamples exist on paths, we will pivot to a separation attempt.
+
+5) Alternative route (if state-elimination fails): A separation attempt
+- Try to construct an LCL Π on bounded-degree trees for which there is a constant-t deterministic Online-LOCAL(t) algorithm that crucially uses accumulated mutable state, and yet any order-robust r-local sequential algorithm would require r growing with n (or does not exist). This would invalidate the desired speedup under the full Online-LOCAL(t) definition and justify restricting the theorem to the sequential/greedy or output-only variants.
+- Candidates to explore: LCLs that encode a long-range parity/potential propagated along the tree via mutable state before a node is processed. We will start with paths, try to enforce via local constraints that the propagated value is globally consistent, and test whether this yields any advantage over the standard O(log* n) symmetry-breaking barrier. Given Theorem 2.33, the end complexity class on trees should still be O(log* n), suggesting that either such an LCL cannot benefit from Online-LOCAL(t), or it is simulable by sequential rules of constant radius.
+
+What to add/adjust in output.md
+- Make explicit (in the Model and definitions) that the archived Theorem A applies to sequential/greedy, order-robust r-local rules which write only at the current vertex; emphasize that this is the “online local” variant covered.
+- Add Lemma O1 to the archived list as a bridge from an output-only Online-LOCAL(t) algorithm to the sequential model already handled. This covers a meaningful online variant and clarifies the scope.
+- Keep the current remark on the full Online-LOCAL(t) model and expand it with the “state-elimination” target lemma stated above as an open step.
+
+Next concrete steps
+- Formalize and prove Lemma O1 rigorously (definitions and proof details are straightforward and checkable).
+- Begin the path/t = 1 case study for state-elimination:
+  • Precisely define the interface ∂B(v,2) and the annulus R = B(v,2)\B(v,1).
+  • Show that if two online executions agree on outputs in B(v,2), then any valid output for v in one execution is valid in the other (towards context-independence of far-away state). If true, set r = 2 for paths.
+  • Either obtain a proof (yielding an order-robust sequential rule with r = 2 on paths), or construct a counterexample LCL on paths demonstrating dependence on accumulated state inside B(v,1).
+- If the path case succeeds, generalize to trees and t > 1 by induction on t using the same interface argument with ∂B(v,2t).
+
+References and alignment
+- Online-LOCAL(t) model: Akbari et al., ICALP’23.
+- Tree LCL classification: Theorem 2.33 in the attached notes; supports the expectation that O(log* n) is the relevant upper bound on trees in the sublogarithmic regime.
+- Our proof tools for the sequential-to-LOCAL step (Linial’s coloring on power graphs) do not use orientations and hence apply directly to nonoriented trees.
+
+
+=== prover-02.out.json (progress_md) ===
+Ideas
+- Clarify target model and bridge. The archived Theorem A already proves the O(log* n) speedup from an order-robust r-local sequential algorithm that only writes the output at the current vertex. To reach the stated Online-LOCAL(t) goal, we propose the following incremental plan.
+  1) Define a t-local-dependence property for deterministic Online-LOCAL(t): when vertex v arrives, its output depends only on the induced arrived subgraph inside B(v,t) and the already fixed outputs in that ball (no dependence on mutable state originating outside B(v,t)).
+  2) Lemma (Online-LOCAL(t) with t-local-dependence ⇒ sequential r-local): Under this property, fixing any arrival order produces a local decision rule of radius r=t that is order-robust and writes only at the current vertex. This drops directly into Theorem A, giving O(log* n) in LOCAL.
+  3) Conversion attempt on trees: For LCLs on bounded-degree trees, try to transform any constant-t Online-LOCAL algorithm into one satisfying t-local-dependence with the same t (or t′=O(t)). Intuition: on trees, arrivals at distance >2t commute (their effects on B(v,t) do not interact), and an adversarial order certification plus a confluence-style argument should let us “erase” far-away influences without affecting correctness.
+
+Examples and sanity checks
+- Toy counterexample to naive phase compression (why we need the extra property). Consider a path and t=1. In a genuine online run that processes almost all nodes on the left before v, one-hop state can per-arrival propagate across the path and reach the neighbors of v before v arrives. A color-phased simulation that grants only O(1) rounds before v’s phase cannot reproduce these accumulated states. Hence the earlier invariant “simulate an identical transcript” fails in the unrestricted online model.
+- Benign class where the reduction works: problems for which nodes never maintain auxiliary state, and per-arrival message contents are functions of already fixed outputs within distance ≤t (e.g., greedy MIS/Maximal Matching in their purely local sequential guise). These satisfy t-local-dependence and are covered by Theorem A via the proposed Lemma.
+
+Obstacles
+- Unrestricted Online-LOCAL(t) admits unbounded many t-round windows before a vertex arrives; local states in B(v,t) may depend on far-away arrivals via long chains of arrived vertices. Without t-local-dependence, a color-phased simulation cannot in general reconstruct the per-arrival transcript or even guarantee correctness.
+- Confluence on trees is nontrivial: While arrivals at distance >2t commute, establishing a global Church–Rosser–type property that yields a canonical local state in B(v,t) independent of far-away order requires careful formalization of the per-arrival t-round “rewrite steps”.
+
+Proposed lemmas (clean, checkable)
+- Definition (t-local-dependence). A deterministic Online-LOCAL(t) algorithm A has t-local-dependence if, when vertex v arrives, its output is a function of the arrived subgraph induced in B(v,t) and of the already fixed outputs within B(v,t); in particular, it does not depend on any additional mutable states in B(v,t) that could have been imported from beyond B(v,t).
+- Lemma 1 (Bridge under t-local-dependence). If Π has a deterministic Online-LOCAL(t) algorithm with t-local-dependence, then Π has a deterministic order-robust t-local sequential algorithm that writes only at the current vertex. Why useful: plugs directly into Theorem A to get O(log* n) LOCAL on bounded-degree graphs.
+  Sketch: Fix any adversarial order. At v, read G[B(v,t)] and the outputs already fixed within B(v,t). By t-local-dependence, this determines exactly the output that A would produce when v arrives under that order; writing only at v yields an order-robust sequential rule.
+- Lemma 2 (Power-graph coloring as in output.md). Already archived; we will use k=r=t.
+- Lemma 3 (Color-phased simulation of order-robust rules). Already archived; note the “writes only at v” hypothesis. If a rule may write to neighbors, replace G^r-coloring by G^{2r}-coloring; the asymptotics on bounded-degree graphs remain O(log* n).
+
+Next steps (auditable)
+- Formalize Lemma 1 and add to output.md the “writes only at v” caveat explicitly (or the G^{2r} variant). Provide a crisp proof.
+- Attempt a tree-specific conversion from arbitrary Online-LOCAL(t) to t-local-dependence. Plan: model each arrival as a local rewrite acting on radius-t views; prove commutativity for arrivals at distance >2t; use acyclicity of trees to show that the local state in B(v,t) at the time v arrives has a canonical form depending only on outputs in B(v,t). If successful, this removes the extra assumption on trees.
+- In parallel, explore lower bounds: adapt round-elimination or known hard LCLs on trees (e.g., sinkless orientation) to Online-LOCAL, aiming to show they require Ω(log n) even there. This would indirectly support the classification-based route: constant-time Online-LOCAL cannot handle the log n-class, hence any LCL solvable in O(1) Online-LOCAL sits in the O(1)/Θ(log* n) bucket.
+- Construct toy counterexamples to test necessity/tightness of t-local-dependence: try to design an LCL and an Online-LOCAL(1) algorithm whose output at v provably depends on imported far-away state within B(v,1). If such an LCL exists, then the general reduction needs genuinely new ideas (or must fail for that problem).
+
+Notes on gaps or edits for output.md
+- Lemma 2 currently assumes the sequential rule “reads within distance r and writes only at the current node”; mention this hypothesis explicitly. If one wishes to allow writing to neighbors within distance r, modify the coloring to G^{2r} to ensure independence of same-color phases.
+- The remark about Online-LOCAL(t) correctly flags the key gap: unlimited accumulation of state prior to an arrival. We will add Definition/Lemma (t-local-dependence and bridge) if the verifier agrees; this would document a precise condition under which the claimed speedup is valid for online algorithms as well.
+
+Why this is progress
+- We identified the precise barrier preventing a direct reduction from Online-LOCAL(t) to LOCAL and proposed a concrete, checkable locality-of-dependence condition that suffices to bridge the models.
+- We outlined a tree-specific confluence program that, if proven, removes the extra assumption and would settle the original task.
+- We gave a tight modification to the archived Lemma 2 concerning writing side effects and the need for G^{2r}-coloring, which the verifier can incorporate immediately.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+success
+

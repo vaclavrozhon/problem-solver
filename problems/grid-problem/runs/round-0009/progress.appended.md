@@ -1,0 +1,57 @@
+## Round 0009 — 2025-08-27T20:19:41.814630Z
+
+Round 0009 — incremental, auditable progress
+
+### Quick audit of output.md (minor issues; no fatal gaps)
+- Theorem 11, last paragraph: notation “v(β)=1” is imprecise. It should read “there is a unique column α with (α,β)∈U and v_α(β)=1, hence T_3(β)=1.” This is purely cosmetic; the argument is correct because in that subcase every row has exactly one point, so exactly one column α has (α,β) and that column has exactly one point above β.
+- Duplication: The “Setup and notation” and Theorems 1–11 appear twice in the curated output segment. This is editorial only; no logical conflict.
+- Theorems 12–14: I rechecked each against Theorems 1, 3, 7, 9–10, O1 and UM1. All are sound as stated.
+
+### New, rigorously stated micro-lemmas (safe, immediate from multiplicity formulas)
+
+- Lemma S4gen (generalized row-base uniqueness for type 4).
+  Statement. Fix α. If there exists a row β0 with (α,β0)∈U and h_{β0}(α)=1, and for every β≠β0 with (α,β)∈U we have h_β(α)=0, then T_4(α)=1 and (4,α) is unique.
+  Proof. By Theorem 1 (type 4), T_4(α)=∑_β 1_{(α,β)}·h_β(α)=h_{β0}(α)=1.
+  Why useful. A direct generalization of R4; it allows multiple occurrences of (α,·) provided only one row contributes and that contribution equals 1.
+
+- Lemma S3gen (generalized column-base uniqueness for type 3; dual of S4gen).
+  Statement. Fix β. If there exists a column α0 with (α0,β)∈U and v_{α0}(β)=1, and for every α≠α0 with (α,β)∈U we have v_α(β)=0, then T_3(β)=1 and (3,β) is unique.
+  Proof. By Theorem 1 (type 3), T_3(β)=∑_α 1_{(α,β)}·v_α(β)=v_{α0}(β)=1.
+  Why useful. A direct generalization of R3; it tolerates multiple occurrences of the base row β as long as only one column contributes and contributes 1.
+
+- Lemma RLclean+ (two 2-point rows with shared left endpoint and clean shared column ⇒ unique type 2, robust to extra points off the shared column).
+  Statement. Suppose U contains two distinct rows β_1<β_2 with points {(α,β_i),(γ_i,β_i)} and α<γ_i (i=1,2); assume further that column α contains exactly the two points (α,β_1),(α,β_2). Then color (2,α,β_1) is unique.
+  Proof. On column α, the only point above β_1 is (α,β_2), so r_U(α,β_1)=1. On row β_1, the only point to the right of α is (γ_1,β_1), so s_U(α,β_1)=1. Theorem 1 (type 2) gives uniqueness.
+  Why useful. This packages a frequent 2+2 pattern and is stable under arbitrary extra points off column α.
+
+### Partial classification for |U|=5 (curatable subcases with complete proofs)
+We advance the small-case frontier by handling three row-occupancy patterns. Let |U|=5.
+
+- Pattern 4+1 (some row has 4 points). Let that row be y0 with x_1<x_2<x_3<x_4. Within the row, (4,x_3) occurs exactly once. Any additional occurrence of (4,x_3) would require another row β to contain both (x_3,β) and some (x> x_3,β). But only one point lies off y0, so no such β exists. Hence T_4(x_3)=1 (unique type 4).
+
+- Pattern 3+1+1 (some row has 3 points; the other two rows are singletons). Let the 3-point row be y0 with x_1<x_2<x_3. Within that row, (4,x_2) occurs exactly once. Any other row β with (x_2,β) is a singleton, so h_β(x_2)=0 and contributes nothing to T_4(x_2). Therefore T_4(x_2)=1 (unique type 4) by Theorem 1.
+
+- Pattern 3+2 (two rows, one with 3 points, the other with 2). Let the 3-point row be y0 with x_1<x_2<x_3, and the 2-point row be y1 with points (α, y1),(γ, y1), α<γ. If α≠x_2, then as in 3+1+1, (4,x_2) is unique: the only potential duplicator row would need two off-row points with left base x_2; but both off-row points lie on y1, and by assumption y1’s left base is α≠x_2. If α=x_2, then column α contains exactly (α,y0),(α,y1) and on row y1 there is exactly one point to the right of α, namely (γ,y1). Hence r_U(α,y1)=s_U(α,y1)=1, and (2,α,y1) is unique by Theorem 1 (type 2). Thus, in all 3+2 configurations, a unique color exists.
+
+Remarks. The 3+2 resolution is robust: in the “shared left endpoint” subcase it is exactly the robust L-corner at (α,y1); in the other subcase, the unique type-4 on the 3-point row survives because two off-row points cannot assemble an additional (4,x_2) color with only one row available.
+
+### Examples and sanity checks
+- S4gen in action. U has (α,β0),(α,β1),(α,β2) with h_{β0}(α)=1 and h_{β1}(α)=h_{β2}(α)=0. Then T_4(α)=1 by S4gen; the unique edge is horizontal on row β0 with left endpoint α.
+- 3+2 shared-left example. U contains y0: (2,5),(5,5),(7,5) and y1: (5,2),(9,2). Column 5 has exactly (5,5),(5,2); on row 2 the only right neighbor of 5 is 9. Hence (2,5,2) is unique.
+- 3+2 non-shared-left example. U contains y0: (2,5),(5,5),(7,5) and y1: (3,2),(9,2). Then (4,5) is unique: on row 5 it occurs once; no other row has left base 5 with a right neighbor, as y1’s left base is 3.
+
+### Obstacles and why some attempts fail
+- Extending 2+2+1 fully. If two 2-point rows share a left endpoint α and the 5th point also lies in column α, the clean-column hypothesis of RLclean+ fails (r_U(α,β_low)≥2). Neither Theorem 7 nor S4gen/S3gen applies automatically. A different trigger (e.g., a boundary-local type-2 at α₂ or β₂, or a singleton+extension on a different row/column) must be extracted. This motivates the nearest-interloper analysis in the unique–maximal regime and a refined 2+2(+1) pattern lemma.
+- Crossing subcase under unique–maximality. When both T2α and T2β fail (h_{β_c}(α₂)≥2 and v_{α_r}(β₂)≥2), a naïve choice of the crossing corner c=(x(s_g),y(s_{g+1})) need not satisfy D′ (there may be interlopers on both rays), and neither type-3/4 triggers fire without additional global control. A nearest-interloper lemma is needed to convert the closest vertical/horizontal interlopers into a safe R3/R4 or Theorem 3 witness; I will prove this next.
+
+### Next steps (concrete and auditable)
+1) Curate S4gen and S3gen into the auxiliary lemmas section (they are direct corollaries of Theorem 1) and RLclean+ as a robust instance of Theorem 7; these strengthen the pattern library without new prerequisites.
+2) Complete the |U|=5 classification by handling the remaining patterns 2+2+1, 2+1+1+1, and 1+1+1+1+1. The 2+1+1+1 and 1+1+1+1+1 patterns should follow quickly from existing tools (Theorems 4, 7, 11-style arguments); 2+2+1 requires careful treatment when the extra point lies in a shared column.
+3) Prove a nearest-interloper lemma for the unique–maximal crossing subcase: with s_g,s_{g+1} and c=(x(s_g),y(s_{g+1})), define the nearest vertical interloper y_v and nearest horizontal interloper x_h. Show that if both exist, then either (i) c is a robust L-corner (Theorem 7) or (ii) one of rows y_v / columns x_h satisfies S4gen/S3gen (hence a unique type-4/3), or (iii) a boundary-local type-2 (Lemma 14) fires at (α₂,β_c) or (α_r,β₂). This will close the unique–maximal regime.
+4) Editorial: de-duplicate repeated sections in output.md and fix the “v(β)=1” notation in Theorem 11.
+
+### Why this is progress
+- The new lemmas S4gen/S3gen broaden the applicability of type-3/4 certificates in global settings and will be useful when interlopers prevent D′ but contributions aggregate to a single base.
+- The 3+2 and 3+1+1 patterns for |U|=5 are now settled with short, verifiable proofs; the 4+1 pattern is also covered. This materially advances small-case verification and stress-tests the trigger library.
+- The identified hard subcases and the stated nearest-interloper plan provide a clear, checkable path to finish both the unique–maximal crossing regime and the remaining 2+2+1 pattern.
+

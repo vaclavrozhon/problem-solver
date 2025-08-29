@@ -598,3 +598,1175 @@ Next steps
 - Provide a short appendix with the O(β^6) concatenation implementation details (Left/Right slices) and a small API sketch for type enumeration and Ext operations, to make the verifier code straightforward.
 - Prepare a tiny regression suite (β∈{2,3}) to test base cases and concatenation, catching the k=2 update glitch and seam indexing.
 
+## Round 0005 — 2025-08-27T15:07:17.291300Z
+
+Status check and gaps in output.md
+- Present: rigorous r=1 primitives: Ext-tables, k_flag, append-one-bit DP (including k=1→2, 2→3, 3→4), congruence under append, Ext-level concatenation (for k_flag≥4), an O(β^6) concatenation routine, a counterexample to R-composition, δ well-defined and BFS enumeration, Type-count bound |T| ≤ 4·2^{β^4}, and a reversal operator.
+- Missing: (A) A pumping bound ℓ_pump and the associated type-level pumping lemmas (they are implicitly used but not stated). (B) Stage-1 trichotomy step: a precise type-level feasible-function theorem (o(n) iff a feasible f exists) specialized to oriented paths using only Ext. (C) Stage-2 trichotomy step: a constant-round construction from per-type boundary interfaces Q_τ with complete, oriented-path-specific partition argument. (D) Associativity of Ext-level concatenation (useful for sanity checks and caching). (E) Clarification that Stage-1/2 quantification ranges over long types T_long := {τ : k_flag(τ)=≥4}, which matches the pumping-based constructions.
+
+Additions proposed (statements, why useful, proof sketches)
+
+1) Type-level pumping (define ℓ_pump and two pumping lemmas)
+- Definition. Let T be the set of reachable types computed by Proposition 9, and δ: T×{0,1}→T the append successor. Define ℓ_pump := |T|. Let run(s) be the δ-trajectory when reading s left-to-right from an initial length-1 seed type.
+- Lemma P1 (prefix pumping). For any input string w with |w| ≥ ℓ_pump, there exist a decomposition w = x y z with 1 ≤ |y| ≤ ℓ_pump and |x y| ≤ ℓ_pump such that for all i ≥ 0, Type(x y^i z) is constant (independent of i). Why useful: Enables length normalization of contexts to [ℓ_pump, ℓ_pump+1] and underpins the o(n)⇒feasible f construction.
+  Proof sketch. Along the first ℓ_pump states of the δ-run there is a repetition by pigeonhole, say after positions i<j≤ℓ_pump with the same type. Let y := w[i+1..j], and x,z be the corresponding prefix/suffix. Since δ is a DFA on Types (Proposition 9) and congruence holds (Proposition 3), repeating y preserves the final Type.
+- Lemma P2 (periodic pumping). For any nonempty u there exist a,b with a+b ≤ ℓ_pump such that Type(u^{a+bi}) is invariant for all i≥0. Why useful: Allows injecting arbitrarily long repeated contexts of the same Type (used to space out separators in the two-stage constructions). Proof sketch. Run δ on u,u^2,…; within ℓ_pump+1 steps two Types repeat, say after exponents a and a+b; then δ-closure yields Type(u^{a+bi}) fixed.
+
+2) Ext-level concatenation for all k_flags
+- Lemma C (general concatenation). For any P,Q (no restriction on k_flag) and B=P·Q, for all (o1,o2,o3′,o4′),
+  (o1,o2,o3′,o4′)∈Ext_B iff ∃ x3,x4,x1′,x2′: (o1,o2,x3,x4)∈Ext_P, (x1′,x2′,o3′,o4′)∈Ext_Q, and E(x4,x1′).
+  Why useful: Allows concatenation in verifiers even if a few short types appear (e.g., when S is short), and simplifies uniform API. Proof sketch. Identical to Lemma 2; coordinate equalities when k_flag<4 are harmless because the boundary map B_k is definitional.
+- Lemma A (associativity). For any P,Q,R, Ext_{(P·Q)·R} = Ext_{P·(Q·R)}. Why useful: sanity check and enables memoization policies independent of parenthesization. Proof sketch. Expand both sides with Lemma C: both characterize the set of boundary quadruples admitting witnesses (x3,x4,x1′,x2′) at the first seam and (y3,y4,y1′,y2′) at the second seam with E-seam constraints; the conjunctions are equivalent by rebracketing witnesses.
+
+3) Stage-1 (Ω(n) vs o(n)) — feasible f theorem at the type level
+- Definition (domain restriction to long types). Let T_long := {τ∈T : k_flag(τ)=≥4}. Define f: T_long × {0,1}^2 × T_long → Σ_out^2. For each (τ_L,s,τ_R), f(·)=(α1,α2) must satisfy αi∈A_{s[i]} and E(α1,α2).
+- Verification condition (Ext-based). For all τ_b,τ_c∈T_long and s1,s2∈{0,1}^2 and all τ_a,τ_d∈T_long (these only affect α_L,α_R), let α_L := second output of f(τ_a,s1,τ_b) and α_R := first output of f(τ_c,s2,τ_d). Require ∃(o1,o2,o3,o4)∈Ext_{τ_b ⊙ τ_c} with E(α_L,o1) and E(o4,α_R). Here ⊙ is Ext-concatenation on long types.
+- Theorem S1 (equivalence). An r=1, β-normalized LCL on globally oriented paths has deterministic complexity o(n) iff a feasible f as above exists. Why useful: This cleanly separates Ω(n) from o(n) and is implementable in NEXPTIME using only T_long and Ext.
+  Proof sketch (⇒). Given an o(n)-round algorithm A, fix n large and choose s≫T(n) so that A’s runtime on n-node instances is <0.1s. For any w∈{0,1}^{1..ℓ_pump}, choose w^+ with Type(w^+)=Type(w) and |w^+|∈[s,s+ℓ_pump] (Lemma P1). For any tuple (τ_L,s,τ_R) with long τ_L,τ_R, pick representatives w_L^+,w_R^+ realizing τ_L,τ_R and define f(τ_L,s,τ_R) as A’s output on the 2-node window S when run on the pumped path w_L^+ · S · w_R^+ with arbitrary distinct IDs consistent inside the 0.1s halos. To verify feasibility, consider any adjacent separators (S1 next to τ_b) and (S2 next to τ_c). Build a cycle G′ by concatenating w_a^+, S1, w_b^+, w_c^+, S2, w_d^+, and run A; legality implies the existence of a labeling of the middle w_b^+·w_c^+ consistent with α_L,α_R. By Lemma 11 and Lemma C, the boundary witness lives in Ext_{τ_b⊙τ_c}, yielding the required (o1,o2,o3,o4). (⇐). Given f, place separators in O(log* n) rounds with spacing K≳ℓ_pump using a standard MIS on the directed path. Label each separator’s 2 nodes by f(·), producing boundary colors α_L,α_R on either side of each middle block. For a middle block with long type τ_b⊙τ_c, the Ext-witness in Ext_{τ_b⊙τ_c} provides a legal completion consistent with the seams. This yields an O(log* n) algorithm. The construction does not need reversals on globally oriented paths.
+- NEXPTIME verification. Deterministically compute T_long and Ext_{τ⊙σ} for all τ,σ∈T_long (Proposition 5). Nondeterministically guess f; verify all constraints by membership tests in Ext_{τ⊙σ} and E. The number of checks is |T_long|^4·4; total time 2^{poly(β)}.
+
+4) Stage-2 (O(1) vs Ω(log* n)) — per-type boundary interfaces and constant-round construction
+- Witness. For each τ∈T_long, guess Q_τ=(L1_τ,L2_τ,R2_τ,R1_τ)∈Ext_τ.
+- Checks.
+  (a) Tiling per τ: E(L1_τ,L2_τ), E(R2_τ,R1_τ), and wrap E(R1_τ,L1_τ) (so copies of τ can be tiled). Already implied by Ext_τ computed from legal colorings, but we keep the explicit checks.
+  (b) Universal bridging: For all τ_left,τ_S,τ_right with τ_left,τ_right∈T_long and τ_S arbitrary (short or long), require ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(R1_{τ_left},o1) and E(o4,L1_{τ_right}). For τ_S empty, this reduces to E(R1_{τ_left},L1_{τ_right}). Use Lemma C to allow short τ_S.
+- Theorem S2 (construction). If such {Q_τ} exist, there is an O(1)-round deterministic algorithm on globally oriented paths. Why useful: Cleanly separates O(1) from Θ(log* n) and yields a verifiable certificate of constant-time solvability.
+  Proof sketch. In O(1) rounds, compute a partition into “long periodic” and “short/irregular” subpaths with parameters (ℓ_width,ℓ_count,ℓ_pattern) := (ℓ_pump,2ℓ_pump+2,ℓ_pump); for oriented paths, a specialization of Lemma 22 suffices (orientation is given). On each long periodic block P with primitive pattern of length ≤ℓ_pump and length ≥ℓ_count, its type τ is long; tile P by repeats of τ using E(R1_τ,L1_τ); interior legality follows from Q_τ∈Ext_τ. Each short/irregular separator S (any k_flag) is filled using the existential witness from Ext_{τ_S} to attach to the adjacent long blocks’ boundary colors, by (b). Endpoints require no special handling on oriented paths. Runtime is O(1) as all decisions take radius O(ℓ_pump).
+- NEXPTIME verification. Guess {Q_τ} over T_long. Compute Ext tables once. Verify (a) per τ and (b) for all triples (τ_left,τ_S,τ_right), using Ext_{τ_S} and E. Number of checks is |T_long| + |T_long|^2·|T| = 2^{poly(β)}; each check is polynomial in β.
+
+5) Implementation-level refinements for verifiers
+- Restricting to long types. Both Stage-1 and Stage-2 certificates and universal checks can safely limit τ ranging over T_long on the left/right contexts. Middle τ_S in Stage-2 may be any type; Lemma C covers short τ_S.
+- Precomputation plan. Compute T (BFS), split T_long and T_short. Precompute Left_τ and Right_τ for τ∈T (for Stage-2 we need short τ too). Materialize Ext_{τ⊙σ} for τ,σ∈T_long using Proposition 5. Cache membership queries for Ext_{τ_S} via hash/table lookups.
+
+6) Extra sanity: small lemmas and examples
+- Lemma M (nonemptiness monotonicity under concatenation). If Ext_P and Ext_Q are nonempty and there exists at least one seam pair (x4,x1′) with E(x4,x1′), then Ext_{P·Q} is nonempty. Why useful: quick diagnostics when pruning infeasible candidates. Proof sketch. Choose any quadruples realizing x4 and x1′; then Lemma C yields a witness.
+- Example (proper 2-coloring on oriented paths). Σ_out={a,b}, A_0=A_1={a,b}, E forbids equal neighbors. Stage-1 admits feasible f (log* algorithm exists); Stage-2 fails (cannot have wrap E(R1_τ,L1_τ) for a single τ), so the verifier classifies Θ(log* n).
+- Example (constant label). If ∃c with (c,c)∈E and c∈A_0∩A_1, set f constant and Q_τ=(c,c,c,c); both stages accept (O(1)).
+
+Complexity recap (unchanged asymptotically)
+- Precomputation: |T| ≤ 4·2^{β^4}. BFS and Ext tables in 2^{poly(β)} time/space.
+- Stage-1: guess f over T_long×{0,1}^2×T_long; verify O(|T_long|^4) constraints using Ext_{·⊙·} in O(1) each → 2^{poly(β)}.
+- Stage-2: guess Q_τ over T_long; verify per-type tiling and |T_long|^2·|T| bridging constraints → 2^{poly(β)}.
+
+Obstacles and pitfalls addressed
+- Short types in concatenation: handled by Lemma C; Stage-1 still quantifies only over long contexts (as in the pumping-based definition).
+- Seam indexing: clarified that seams meet o1 on the left and o4 on the right under the (L1,L2,R2,R1) convention.
+- MIS/orientation: On globally oriented paths, no reversal and the standard O(log* n) MIS suffices for Stage-1’s construction; Stage-2 uses a constant-radius partition specialized to oriented paths (orientation is already globally consistent).
+
+Next concrete steps
+- Integrate Lemmas P1, P2, C, A, M and the theorems S1, S2 into output.md with concise proofs (as above). Explicitly define ℓ_pump := |T| and note it is computable in 2^{poly(β)}.
+- Amend Stage-1/2 verifier specs in outputs to quantify over T_long for the left/right contexts and to use Ext_{τ_S} for arbitrary τ_S in Stage-2 bridging.
+- Provide a short appendix with the MIS-based O(log* n) separator placement and the constant-radius partition for oriented paths (parameters and radii explicitly spelled out).
+- Add a tiny regression suite (β∈{2,3}) to test: (i) pumping decomposition found via δ; (ii) associativity of Ext-concatenation on random instances; (iii) Stage-1 acceptance on trivial/all-allowed LCL; (iv) Stage-2 rejection on proper 2-coloring.
+
+## Round 0006 — 2025-08-27T15:15:31.218157Z
+
+Round 0006 — audit, small lemmas, optimizations, and checks
+
+Summary of what is already solid in output.md
+- Core r=1 machinery is in place: (i) base cases k=1→2, 2→3, 3→4 and the general append-one-bit recurrence; (ii) congruence under append (without carrying the leftmost input bit); (iii) concatenation for k_flag≥4 and, more importantly, for all k_flag; (iv) associativity; (v) a clean NEXPTIME preprocessing (enumerate Types via δ) and Stage-1 trichotomy (o(n) iff a feasible f exists) with both directions proved; (vi) pumping lemmas with ℓ_pump := |T|; (vii) a counterexample to R-composition; (viii) an O(β^6) concatenation routine.
+
+Gaps and minor clarifications spotted in output.md
+- δ base case for k_flag=1 (Proposition 9): it currently says “input bit inside τ is b (implicitly recoverable as A_b = {x : (x,x,x,x) ∈ Ext_τ})”. The proof does not need the bit b, only the set S_τ := {x : (x,x,x,x) ∈ Ext_τ}. Suggest stating the k=1→2 update directly in terms of S_τ rather than referring to a recovered b. This also cleanly covers the degenerate case A_0 = A_1 where b is not uniquely identifiable but S_τ still determines the update.
+- End segments in the Stage-1 (⇐) construction: the proof handles “middle blocks” between two separators. Paths have endpoints; these produce one-sided blocks adjoining a single separator. A short lemma (provided below) showing how to fill endpoints from Ext without the right/left seam removes any doubt.
+- Optional but helpful: document a faster append-one-bit update (O(β^4) instead of O(β^5)) via 3D slices, analogous to the O(β^6) concatenation optimization.
+- Quantifier economy in Stage-1 verification: the universal check can be reformulated to range over the sets of attainable α_L, α_R values induced by f, eliminating explicit quantification over τ_a, τ_d (details below). While worst-case complexity is not asymptotically improved, the reformulation reduces constant factors and clarifies intent.
+
+Lemma A — δ base case k_flag=1 can be stated without “recovering b”
+Statement.
+- Let τ be a Type with k_flag(τ)=1 and Ext_τ given. Define S_τ := {x ∈ Σ_out : (x,x,x,x) ∈ Ext_τ}. For any appended bit a, Ext_{δ(τ,a)} consists exactly of the tuples (x1,x2,x3,x4) with x1=x3, x2=x4, x1∈S_τ, x2∈A_a and E(x1,x2).
+Why useful here.
+- Removes the (unneeded) reference to the internal input bit and works uniformly even when A_0=A_1.
+Sketch proof.
+- Immediate from Proposition 6 by observing that Ext_{(b)} encodes A_b as S_τ.
+
+Lemma B — Endpoint completion in Stage-1 (⇐)
+Statement.
+- In the Stage-1 construction with separators spaced by K=ℓ_pump+4, the remaining end segments (from a path endpoint to the nearest separator) admit a legal completion consistent with the separator’s seam color. Concretely, suppose the right endpoint of a block has seam color α_R (first output of the separator just to its right). Let P be the (one-sided) left block. There exists a labeling of P whose rightmost color o4 and last-but-one o3 yield a quadruple (o1,o2,o3,o4)∈Ext_P with E(o4, α_R). A symmetric claim holds for right blocks with a left seam α_L.
+Why useful here.
+- Closes the small gap in the Stage-1 (⇐) proof for finite directed paths.
+Sketch proof.
+- If the block length ≤ 2K−2, the Type of P is long. Consider Ext_P and the set End(P):={o4 : ∃(o1,o2,o3,o4)∈Ext_P}. Since A,E guarantee at least one legal labeling on any finite input segment encountered during δ-enumeration, Ext_P≠∅. If there exists o4∈End(P) with E(o4, α_R), any witnessing quadruple completes the block. If no such o4 exists, then Ext_{P·Q} would be empty for any right context Q starting with α_R, contradicting that the actual global instance is solvable (the separator labeling is chosen from a feasible f). This contradiction formalizes by taking Q to be the actual right context used in the construction and invoking Lemma 11.
+
+Lemma C — Quantifier minimization for the feasible-function check
+Statement.
+- Given a guessed f: T_long×{0,1}^2×T_long→Σ_out^2, define for each τ_b and s∈{0,1}^2:
+  OutR2(τ_b,s) := { second(f(τ_a,s,τ_b)) : τ_a ∈ T_long };
+  and for each τ_c and s′: OutL1(τ_c,s′) := { first(f(τ_c,s′,τ_d)) : τ_d ∈ T_long }.
+- The universal extendibility clause in Theorem 15 is equivalent to: for all τ_b,τ_c and s1,s2, and for all α_L ∈ OutR2(τ_b,s1), α_R ∈ OutL1(τ_c,s2), there exists (o1,o2,o3,o4) ∈ Ext_{τ_b⊙τ_c} with E(α_L,o1), E(o4,α_R).
+Why useful here.
+- Eliminates explicit quantification over τ_a, τ_d in verification, reducing the number of cases and clarifying that only the sets of attainable seam colors matter.
+Sketch proof.
+- “Only if” is tautological: α_L, α_R in the original clause range over exactly these sets. “If” follows by instantiating α_L, α_R with the values arising from some τ_a, τ_d.
+Implementation tip.
+- After guessing f, precompute the sets OutR2 and OutL1 (sizes ≤|Σ_out| each) and reduce the verification loops accordingly.
+
+Optimization — O(β^4) append update via slices
+Observation.
+- For k_flag≥4, (x1,x2,x3,x4) ∈ Ext_{t·a} iff x4∈A_a ∧ E(x3,x4) ∧ Left3_t[x1,x2,x3], where Left3_t[x1,x2,x3] := ∃z (x1,x2,z,x3)∈Ext_t.
+Routine.
+- Precompute Left3_t (a β×β×β boolean tensor) in O(β^4) time. Then fill Ext_{t·a} by scanning all (x1,x2,x3) and for each, iterate neighbors x4 with E(x3,x4) and x4∈A_a, setting Ext_{t·a}[x1,x2,x3,x4]←true. This costs O(β^4 + β^3·Δ), where Δ is the max out-degree in E (Δ≤β), i.e., O(β^4) in dense worst-case.
+Why useful here.
+- Brings append down from O(β^5) to O(β^4), improving the preprocessing constants while preserving single-exponential bounds overall.
+
+Implementation detail — Precompute seam-feasibility matrices W_{b⊙c}
+Statement.
+- For each pair (τ_b, τ_c), define a β×β boolean matrix W_{b⊙c}[α_L][α_R] that is true iff ∃(o1,o2,o3,o4)∈Ext_{τ_b⊙τ_c} with E(α_L,o1) and E(o4,α_R). Using the Left/Right 3D slices for τ_b⊙τ_c, W can be computed in O(β^4·Δ^2) or faster with sparse E.
+Why useful here.
+- Stage-1 verification reduces to testing W_{b⊙c}[α_L][α_R] for α_L∈OutR2(τ_b,s1), α_R∈OutL1(τ_c,s2). This removes any per-case scanning over tuples in Ext during verification (all heavy work moved to preprocessing).
+
+Sanity checks and small examples
+- Equality LCL (E={(x,x)}; A_0=A_1=Σ_out). Types collapse quickly; Ext_t contains only quadruples with equal coordinates per k_flag. Stage-1: OutR2=OutL1=Σ_out; concatenation Ext_{τ_b⊙τ_c} permits any α with E(α,α), so any f that outputs equal pairs is feasible. End segments are trivial by Lemma B.
+- Proper 2-coloring (Σ_out={a,b}, A_0=A_1=Σ_out, E forbids equal). Stage-1: feasible f exists (standard Θ(log* n)); verification with W_{b⊙c} succeeds for an appropriate f (alternating outputs), but the Stage-2 certificate is impossible (as noted earlier).
+- Degenerate A_0=A_1: δ base-case k=1 works with S_τ (Lemma A); seeds (0) and (1) merge to the same Type, which is intended.
+
+Obstacles and caveats
+- Lemma B’s endpoint argument uses the fact that a feasible f exists (we are in the (⇐) direction); the nonemptiness of End(P)∩E^{-1}(α_R) is thus reduced to the existence of a global legal labeling and Lemma 11. This logical dependency should be stated explicitly when integrating Lemma B.
+- Quantifier minimization (Lemma C) does not asymptotically improve worst-case verification time, but it separates concerns and simplifies implementation.
+
+Concrete next steps (actionable)
+1) Amend Proposition 9 to remove references to the internal bit b for k_flag=1 and use S_τ explicitly; mention this in the k=1→2 update description.
+2) Add Lemma B to output.md to explicitly cover endpoint completion in the Stage-1 (⇐) proof; a short paragraph suffices.
+3) Add the O(β^4) append optimization as a proposition parallel to Proposition 5 (concatenation optimization) for completeness.
+4) Optionally incorporate Lemma C’s reformulation into the Stage-1 verification corollary, and mention the W_{b⊙c} precomputation trick.
+5) Continue toward Stage-2: either supply the constant-radius partition lemma for oriented paths (with parameters and a self-contained proof) or redesign the constant-time certificate to avoid periodicity. Until then, keep Stage-2 out of output.md.
+
+Append-only regression checklist
+- For random Σ_out up to size 3, verify: (i) O(β^4) append matches the O(β^5) brute force; (ii) Ext-concatenation associativity; (iii) W_{b⊙c} agrees with direct scanning of Ext_{τ_b⊙τ_c}; (iv) Stage-1 acceptance on equality LCL and rejection on instances known to be Ω(n).
+
+## Round 0007 — 2025-08-27T15:27:59.162756Z
+
+Round 0007 — endpoint-aware Stage‑1 for paths; audits, fixes, and a path-specific feasible witness
+
+Audit of output.md (gaps and quick fixes)
+- Missing base-case k=2→3. outputs.md currently states k=1→2 (Prop 6) and k=3→4 (Prop 7) but omits the explicit k=2→3 rule, although later arguments (“short cases follow by base cases”) rely on it. Please add:
+  Proposition (Base-case update; k=2→3). Let t=(b1,b2), t′=t·a. For all (x1,x2,x3,x4)∈Σ_out^4,
+  (x1,x2,x3,x4)∈Ext_{t′} ⇔ [x3=x2, x1∈A_{b1}, x2∈A_{b2}, x4∈A_a, E(x1,x2), E(x2,x4)].
+  This is the corrected rule that eliminates the earlier x2∈A_a bug and is needed by δ.
+- Stage‑1 equivalence on paths is still marked as “pending endpoint treatment.” Below I propose an endpoint-aware feasible witness and theorem tailored to globally oriented paths that cleanly resolves this gap using only Ext-level checks.
+
+Preliminaries to reuse (from outputs.md)
+- Types T with k_flag and Ext tables; δ enumeration and |T|≤4·2^{β^4} (Props 8–9).
+- Ext-concatenation for all k_flags (Lemma 11) and associativity (Prop 12).
+- Feasible function f over long types (Definition, Lemma 20) and seam-feasibility matrices W_{b⊙c} (Prop 21).
+- Optimized append (Prop 19) and O(β^6) concatenation (Prop 5).
+
+New endpoint primitives (one-sided summaries)
+- RightColors and LeftColors of a type τ:
+  RightColors(τ):= { y∈Σ_out : ∃ x1,x2,x3 with (x1,x2,x3,y)∈Ext_τ }.
+  LeftColors(τ):= { x∈Σ_out : ∃ x2,x3,x4 with (x,x2,x3,x4)∈Ext_τ }.
+  These are simply the projections of Ext_τ to the last and first coordinates.
+- Endpoint seam-compatibility matrices (precomputed once):
+  • V_left[τ][α1] := true iff ∃ y∈RightColors(τ) with E(y,α1). This witnesses the possibility to attach a left-end block of type τ to the first node of a separator colored α1.
+  • V_right[α2][τ] := true iff ∃ x∈LeftColors(τ) with E(α2,x). This witnesses the possibility to attach the last node of a separator colored α2 to a right-end block of type τ.
+  Complexity: RightColors, LeftColors in O(β^4) per τ by projecting Ext_τ; V_left, V_right in O(|T|·β·Δ) where Δ≤β.
+
+Endpoint-aware Stage‑1 witness for paths
+- Mid-separator witness (unchanged): f_mid : T_long × {0,1}^2 × T_long → Σ_out^2. This is the feasible function of outputs.md (Out-set form), to be used for separators strictly between two long contexts. Verification uses the W_{b⊙c} matrices (Prop 21).
+- Endpoint witnesses: g_L : T × {0,1}^2 → Σ_out^2 and g_R : {0,1}^2 × T → Σ_out^2, giving the 2-node output on the unique separator adjacent to the left end (g_L) and to the right end (g_R). They must satisfy:
+  (i) Node/edge legality on the separator: if g_L(τ_end,s)=(β1,β2) then βi∈A_{s[i]} and E(β1,β2); similarly for g_R(s,τ_end)=(β1,β2).
+  (ii) One-sided extendibility:
+    • Left end: V_left[τ_end][β1]=true (equivalently, ∃y∈RightColors(τ_end) with E(y,β1)).
+    • Right end: V_right[β2][τ_end]=true (equivalently, ∃x∈LeftColors(τ_end) with E(β2,x)).
+  Remarks. We quantify τ_end over all reachable types (short or long). The checks involve only precomputed endpoint matrices and A,E.
+
+Theorem (Stage‑1 for globally oriented paths — equivalence).
+Let P be a β-normalized r=1 LCL on globally oriented paths. The following are equivalent:
+- P has deterministic LOCAL complexity o(n) on paths.
+- There exist witnesses (f_mid, g_L, g_R) such that f_mid is feasible in the sense of outputs.md (Out-set form; Lemma 20) and g_L,g_R satisfy (i)–(ii) above.
+Moreover, existence of such witnesses is checkable in nondeterministic time 2^{poly(β)}.
+
+Proof sketch.
+⇒ (Only if; extract witnesses from an o(n) algorithm A.)
+- Let t(n)=o(n) be the runtime of A. Fix s≫t(n) and n′≫s as in Lemma 18. For each w with |w|≤ℓ_pump, define pumped w^+ with |w^+|∈[s,s+ℓ_pump] and Type(w^+)=Type(w). As in Lemma 18, define f_mid by simulating A on w_a^+·S·w_b^+ (two-sided) and reading the 2-node outputs on S; feasibility follows exactly as in the cycle proof using concatenation and Type pumping.
+- Left endpoint g_L: For any end type τ_end and 2-bit input s of the separator S, consider an imaginary path P := Y · P_end · S · Z where P_end has Type τ_end, Y and Z are long pumped contexts with Type in T_long (|Y|,|Z|≥s), and the total size is ≤n′. Assign pairwise distinct IDs so that the view of S is determined as in Lemma 24. Run A on P, and define g_L(τ_end,s) as the 2-node output on S. Since A produces a legal labeling, the edge between the last node of P_end and the first node of S is legal; thus ∃y∈RightColors(τ_end) with E(y,β1)=true for β1 = first(g_L(τ_end,s)), i.e., V_left[τ_end][β1] holds. Node memberships and E(β1,β2) hold by local legality on S. g_R is extracted symmetrically by placing S before P_end. This construction is independent of particular Y,Z choices due to pumping and Type-determinism; hence witnesses are well-defined.
+⇐ (If; construct an O(log* n)-round algorithm.)
+- Place separators by computing an MIS on the K-th power of the directed path in O(log* n) rounds with K:=ℓ_pump+4; as standard, the distance between neighboring separators is in [K,2K] except possibly from an endpoint to its nearest separator, which is <K+1.
+- For any two separators S1,S2 (with a middle block B between them), let τ_b,τ_c be the long Types of the (at least K−2)-long contexts abutting S1 on the right and S2 on the left, respectively (pumping and δ ensure K is above the threshold so Types are long). Label S1 and S2 using f_mid (either orientation as needed). The feasibility of f_mid and the precomputed W_{b⊙c} matrix guarantee a consistent completion of B via membership in Ext_{τ_b⊙τ_c} with the seam constraints E(α_L,o1), E(o4,α_R).
+- For the leftmost end block P_end (from the path’s first node to the first separator S), let τ_end be its Type and s the 2-bit input on S. Label S by g_L(τ_end,s). Then (ii) ensures V_left[τ_end][β1]=true for β1=first(g_L(τ_end,s)), i.e., ∃(o1,o2,o3,o4)∈Ext_{τ_end} with E(o4,β1). Fill P_end by any such Ext-witness; all internal nodes of P_end and the seam to S are now locally consistent. Handle the right end with g_R symmetrically using V_right.
+- All nodes satisfy A/E constraints by construction; runtime is O(log* n) (the MIS step dominates; all fillings are local constant-radius choices guided by precomputed tables).
+
+NEXPTIME verification (paths)
+- Deterministically enumerate T and split T_long; precompute Ext_τ for τ∈T, W_{b⊙c} for τ_b,τ_c∈T_long (Prop 21), and endpoint matrices V_left, V_right.
+- Nondeterministically guess f_mid and verify:
+  • For every (τ_L,s,τ_R): node constraints on f_mid(·) (A and internal E).
+  • For all τ_b,τ_c∈T_long and s1,s2 and all α_L∈OutR2(τ_b,s1), α_R∈OutL1(τ_c,s2): W_{b⊙c}[α_L][α_R]=true (Lemma 20).
+- Nondeterministically guess g_L,g_R and verify their (i) node constraints and (ii) one-sided feasibility via V_left,V_right.
+- Total time 2^{poly(β)}; all lookups are constant-time in the precomputed tables.
+
+Indexing sanity and orientation
+- Ext quadruples are ordered (L1,L2,R2,R1). For the left end, the seam to S is between R1 of P_end and L1 of S, hence we use V_left[τ_end][β1] with β1=first(g_L). For the right end, the seam is between R1 of S and L1 of P_end, hence we require V_right[β2][τ_end] with β2=second(g_R).
+
+Why the endpoint augmentation is necessary
+- The two-sided feasibility of f_mid on cycles does not imply one-sided compatibility with arbitrary short end segments (counterexamples exist where RightColors(τ_end) has no E-neighbor in some OutL1-set). The explicit endpoint witnesses g_L,g_R and checks via V_left,V_right are exactly the missing conditions to make the (⇐) direction work on paths without circularity.
+
+Small examples and stress tests
+- Equality E={(c,c)}. RightColors(τ)=LeftColors(τ)={c} for all τ with Ext≠∅. Pick f_mid constant (c,c) and let g_L(·,·)=g_R(·,·)=(c,c). V_left,V_right trivially true. Classified O(1) by Stage‑2 later; Stage‑1 accepts.
+- Proper 2-coloring (Σ_out={a,b}, A_0=A_1=Σ_out, E forbids equal). There exists f_mid (Θ(log* n)), and we can choose g_L,g_R that alternate (e.g., g_L returns (a,b) or (b,a) matching end inputs), since both RightColors and LeftColors are {a,b}. Stage‑1 accepts; Stage‑2 will reject, yielding Θ(log* n).
+- Linear/unsatisfiable seam cases. If for some τ_end we have RightColors(τ_end)⊆N_E^{-1}(α) empty for all α in some OutL1-set forced by any f_mid, then no g_L can satisfy V_left on that τ_end; Stage‑1 rejects, certifying Ω(n).
+
+Implementation additions (to integrate into outputs.md)
+- Add the missing k=2→3 base-case proposition.
+- Add definitions of RightColors, LeftColors and endpoint matrices V_left,V_right with complexity notes.
+- Add the endpoint-aware Stage‑1 witness (f_mid, g_L, g_R), its verification conditions, and the Stage‑1 theorem (equivalence on paths) with the proof outline as above.
+- Keep the quantifier-minimized Out-set verification and W_{b⊙c} precomputation; add a note that g_L,g_R do not require quantification over left/right long types—only endpoint matrices V_left,V_right.
+
+Next steps
+- Promote the proposed theorem and primitives into output.md, resolving the “pending endpoint treatment” remark.
+- Provide a short appendix with an MIS-on-Kth-power routine for directed paths and the exact K used (ℓ_pump+4), to make the O(log* n) construction fully explicit for paths.
+- Stage‑2: once Stage‑1 is in place for paths, return to the constant-time partition for oriented paths (Lemma 22 analogue) and integrate the per-type boundary interface certificate Q_τ to decide O(1) vs Θ(log* n).
+- Regression: extend the existing tests to include endpoint checks using V_left,V_right; verify on random tiny β that RightColors/LeftColors agree with direct enumeration; re-run concatenation associativity and W_{b⊙c} validation.
+
+## Round 0008 — 2025-08-27T18:48:23.764148Z
+
+Round 0008 — endpoints for Stage-1 on paths, missing base case k=2→3, and a clean endpoint-aware feasible-function theorem
+
+Summary of gaps spotted in output.md
+- Missing base case k=2→3. The current output.md has Proposition 6 (k=1→2) and Proposition 7 (k=3→4), but does not state the k=2→3 update explicitly. This base rule is used by δ and is necessary for deterministic enumeration from length 1.
+- Stage-1 equivalence is still marked as “pending endpoint treatment.” The text has a clean Out-set feasible-function definition and the pumping/concatenation tools, but the (⇐) direction on paths needs endpoint handling. This is the main blocker to claiming the ω(n) vs o(n) trichotomy on globally oriented paths.
+- Minor duplication: concatenation is stated once for k_flag≥4 (Lemma 2) and later for all k_flag (Lemma 11). It is harmless, but a single “all k_flag” statement would suffice.
+
+Proposed additions (self-contained, Ext-level, auditable) to close the Stage-1 endpoint gap
+
+Definitions (endpoint projections and seam matrices)
+- RightColors(τ) := { y ∈ Σ_out : ∃ x1,x2,x3 with (x1,x2,x3,y) ∈ Ext_τ }.
+- LeftColors(τ) := { x ∈ Σ_out : ∃ x2,x3,x4 with (x,x2,x3,x4) ∈ Ext_τ }.
+- Endpoint seam-compatibility matrices:
+  - V_left[τ][α] is true iff ∃ y ∈ RightColors(τ) with E(y, α).
+  - V_right[α][τ] is true iff ∃ x ∈ LeftColors(τ) with E(α, x).
+Why useful here. These capture exactly the one-sided feasibility needed to glue an endpoint block to its unique adjacent separator by a single E-edge. They can be computed in time 2^{poly(β)} after Ext tables, and they reduce all endpoint checks to constant-time lookups.
+
+Lemma E1 (endpoint equivalences)
+- For any type τ and any color α, there exists a legal labeling of a left end-block P of type τ that matches E at the seam to a separator whose first output is α iff V_left[τ][α] is true.
+- Dually, there exists a legal labeling of a right end-block P of type τ that matches E at the seam from a separator whose second output is α iff V_right[α][τ] is true.
+Sketch proof. The rightmost coordinate of Ext_τ lists all possible o4; the existence of an o4 with E(o4, α) is precisely V_left[τ][α]. For the right end, the leftmost coordinate lists all possible o1; the existence of x with E(α, x) is V_right[α][τ]. In both directions, Ext-membership provides the interior completion.
+Why useful here. This is the missing local criterion to fill one-sided blocks in the Stage-1 construction on finite paths.
+
+Endpoint-aware Stage-1 witness for paths
+- Mid-separator feasible function (as in output.md). f_mid: T_long × {0,1}^2 × T_long → Σ_out^2 with the Out-set universal check via Ext_{τ_b ⊙ τ_c}.
+- Endpoint witnesses:
+  - g_L: T × {0,1}^2 → Σ_out^2 assigns the 2-node output on the unique separator adjacent to the left endpoint; for each (τ_end, s), let g_L(τ_end, s) = (β1, β2).
+  - g_R: {0,1}^2 × T → Σ_out^2 assigns the 2-node output on the unique separator adjacent to the right endpoint; for each (s, τ_end), let g_R(s, τ_end) = (β1, β2).
+Constraints for g_L,g_R:
+  - Node/window legality: βi ∈ A_{s[i]} (i=1,2) and E(β1, β2).
+  - One-sided seam feasibility: V_left[τ_end][β1] = true for g_L, and V_right[β2][τ_end] = true for g_R.
+Why useful here. These capture exactly the conditions needed to legally glue an endpoint block to its neighbor separator using only Ext-tables (no global simulation).
+
+Theorem P-S1 (Stage-1 on globally oriented paths)
+Let P be a β-normalized radius-1 LCL on globally oriented paths. The following are equivalent:
+1) P has deterministic LOCAL complexity o(n) on paths.
+2) There exist witnesses (f_mid, g_L, g_R) satisfying: f_mid is feasible (Out-set form in output.md) and g_L,g_R satisfy the above constraints with V_left,V_right.
+Moreover, the existence of such witnesses is verifiable in nondeterministic time 2^{poly(β)}.
+
+Proof outline and how it fits the current framework
+- (⇒) Given an o(n) algorithm A, extract f_mid as in output.md (Lemma 18 style) using pumping and concatenation. For g_L and g_R, place a single separator S next to an arbitrary end block of type τ_end, embed the configuration in a large pumped path to the left/right, simulate A for o(n) rounds, and define g_L(τ_end, s) (resp. g_R) as the 2-node output on S. Local legality of A guarantees the node/window constraints, and seam legality implies the corresponding endpoint matrix entry (Lemma E1). All constructions depend only on Types by pumping; hence well-defined.
+- (⇐) Given (f_mid, g_L, g_R), compute in O(log* n) rounds an MIS on the K-th power of the directed path with K := ℓ_pump + 4. As in output.md, label every internal separator with f_mid and fill each middle block via the Ext-witness in Ext_{τ_b ⊙ τ_c}. For the left end block P_end with its unique neighbor separator S, let g_L(τ_end, s) = (β1, β2). By V_left[τ_end][β1], choose (o1,o2,o3,o4) ∈ Ext_{τ_end} with E(o4, β1) and fill P_end accordingly; similarly the right end via g_R and V_right. All node and edge constraints hold by Ext membership and seam E-tests. Runtime is O(log* n); endpoints add no overhead.
+- NEXPTIME verification. Deterministically enumerate T, T_long, Ext tables, and precompute V_left,V_right and the seam-feasibility matrices W_{b⊙c} (already in output.md). Nondeterministically guess f_mid, g_L, g_R and verify: (i) node/window constraints for all entries; (ii) the Out-set universal checks for f_mid using W_{b⊙c}; (iii) one-sided checks for g_L,g_R using V_left,V_right. Total time 2^{poly(β)}.
+Why useful here. This removes the “pending endpoint treatment” remark and completes the o(n) vs Ω(n) decision for globally oriented paths at the type/Ext level.
+
+Explicit k=2→3 base-case to insert
+Proposition (Base-case update; k=2→3). Let t = (b1, b2), t′ := t·a. For all (x1, x2, x3, x4) ∈ Σ_out^4,
+(x1,x2,x3,x4) ∈ Ext_{t′} ⇔ [ x3 = x2, x1 ∈ A_{b1}, x2 ∈ A_{b2}, x4 ∈ A_a, E(x1,x2), E(x2,x4) ].
+Why useful here. Needed by δ to lift k_flag from 2 to 3 and to make the append DP fully constructive from seeds.
+
+Complexity notes (consistent with output.md)
+- Precompute T via δ in 2^{poly(β)}; compute Ext_τ for all τ and Ext_{τ_b ⊙ τ_c} (for τ_b,τ_c ∈ T_long) using the O(β^6) routine; precompute W_{b⊙c} and V_left,V_right in β^{O(1)} per pair.
+- Certificate size: f_mid has |T_long|^2·4 entries; g_L has |T|·4, g_R has |T|·4 entries. Verification consists of constant-time table lookups per case; total time 2^{poly(β)}.
+
+Sanity checks (toy instances)
+- Equality LCL (E={(c,c)}, A_0=A_1={c}). RightColors(τ)=LeftColors(τ)={c} for all τ; choose f_mid(·)=(c,c), g_L=g_R=(c,c). All matrices trivial; accepts.
+- Proper 2-coloring (Σ_out={a,b}, E forbids equal). A standard f_mid exists (alternating), and V_left,V_right are always true since RightColors=LeftColors={a,b}. Stage-1 accepts. (Stage-2 will correctly reject constant-time.)
+- Linear-hard case: If for some τ_end, RightColors(τ_end) has no E-neighbor in a color forced as β1 by any g_L, then V_left fails and the verifier rejects, certifying Ω(n).
+
+Action items for outputs.md
+- Add the k=2→3 base rule explicitly (as above), beside k=1→2 and k=3→4.
+- Add RightColors/LeftColors and the endpoint matrices V_left,V_right with a short correctness lemma (Lemma E1).
+- Add the endpoint-aware Stage-1 theorem (Theorem P-S1) with the construction/verification outline; reference existing Lemmas 11–14 and Prop. 21 for the internal (two-sided) parts.
+- Optional editorial: merge Lemma 2 and Lemma 11 into a single “all k_flag” concatenation lemma, or keep both but note that Lemma 11 subsumes Lemma 2.
+
+Notes toward Stage-2 (constant vs log* n)
+- The paper’s (ℓ_width, ℓ_count, ℓ_pattern)-partition (Lemma 22) is already reproduced for cycles and applies to oriented paths with a simpler orientation primitive. Integrating the per-type boundary-interface witness Q_τ and bridging checks from earlier rounds should now be feasible. I will prepare a path-specialized statement and proof next, using the existing Ext machinery and associativity.
+
+Why these steps are incremental and testable
+- All additions reduce to precomputable projections or matrices over already-defined Ext tables; no new global gadgets are used.
+- The endpoint matrices enable immediate unit tests: compute V_left,V_right on random tiny instances and compare against brute-force searches over Ext.
+- The endpoint-aware theorem uses the same MIS-based spacing (already standard and cited) and reuses W_{b⊙c}; only constant-size endpoint lookups are added.
+
+## Round 0008 — 2025-08-27T18:49:31.402449Z
+
+Round 0008 — Path endpoints for Stage‑1, Stage‑2 certificate formalization for oriented paths, and audit items
+
+Summary
+- I propose a complete, endpoint-aware Stage‑1 characterization for globally oriented paths that is verifiable in NEXPTIME and closes the gap currently marked as “pending endpoint treatment” in output.md. The witness consists of (i) a two-sided feasible function f_mid on long types, plus (ii) one-sided endpoint witnesses g_L and g_R certified via precomputed endpoint seam-compatibility matrices derived from Ext.
+- I also propose a precise Stage‑2 (O(1) vs Ω(log* n)) certificate specialized to globally oriented paths, with a constant-time construction proof that reuses the paper’s (ℓ_width,ℓ_count,ℓ_pattern)-partition framework, now expressed wholly in Ext/type terms. This fills the other major missing piece.
+- I point out several small gaps/cleanups in output.md (notably the missing k=2→3 base case and a minor duplication) and list concise steps to integrate the new lemmas and theorems.
+
+Audit of output.md: gaps and cleanups
+- Missing base case k=2→3. Proposition 6 (k=1→2) and Proposition 7 (k=3→4) are present, but the explicit k=2→3 update is absent. This is needed to seed δ transitions from length 2.
+  • Correct rule to add: for t=(b1,b2), t′=t·a,
+    (x1,x2,x3,x4)∈Ext_{t′} iff [x3=x2, x1∈A_{b1}, x2∈A_{b2}, x4∈A_a, E(x1,x2), E(x2,x4)].
+- Stage‑1 equivalence on paths is marked “pending endpoint treatment.” Below I supply a self-contained endpoint-aware witness, a verification routine, and an equivalence theorem using only Ext and Types.
+- Redundancy: Lemma 2 (Ext concatenation for k_flag≥4) and Lemma 11 (for all k_flag) both appear. Lemma 11 subsumes Lemma 2; we can keep both but it is clearer to refer uniformly to Lemma 11.
+- Stage‑2 (O(1) vs Ω(log* n)) is not yet included. I give a precise per-type boundary-interface witness and an O(1) labeling construction for oriented paths, with checks entirely in Ext.
+
+Preliminaries to add (endpoint projections)
+- Define for any type τ:
+  • RightColors(τ) := { y ∈ Σ_out : ∃x1,x2,x3 s.t. (x1,x2,x3,y) ∈ Ext_τ }.
+  • LeftColors(τ)  := { x ∈ Σ_out : ∃x2,x3,y s.t. (x,x2,x3,y) ∈ Ext_τ }.
+  These are just projections of Ext_τ; computable in O(β^4) per τ.
+- Define endpoint seam-compatibility (precompute once):
+  • V_left[τ][α1] = true iff ∃y∈RightColors(τ) with E(y,α1).
+  • V_right[α2][τ] = true iff ∃x∈LeftColors(τ) with E(α2,x).
+  These witness that an end block of type τ can be attached to the first (resp. last) node of the adjacent 2-node separator colored α1 (resp. α2).
+
+Stage‑1 (Ω(n) vs o(n)) on globally oriented paths — endpoint-aware witness and equivalence
+Witness objects to guess and verify
+- Long types: T_long := {τ : k_flag(τ)≥4}. Precompute T and split.
+- Mid-separator feasible function f_mid: T_long × {0,1}^2 × T_long → Σ_out^2.
+  • Local legality: if f_mid(τ_L, s, τ_R)=(α1,α2), require αi∈A_{s[i]} and E(α1,α2).
+  • Universal extendibility across two separators: For all τ_b,τ_c∈T_long, s1,s2∈{0,1}^2 and for all α_L ∈ OutR2(τ_b,s1), α_R ∈ OutL1(τ_c,s2), require ∃(o1,o2,o3,o4)∈Ext_{τ_b⊙τ_c} with E(α_L,o1) and E(o4,α_R). Here
+    OutR2(τ_b,s):={second(f_mid(τ_a,s,τ_b)): τ_a∈T_long},
+    OutL1(τ_c,s):={first(f_mid(τ_c,s,τ_d)): τ_d∈T_long}.
+  • Verification reduction: precompute W_{b⊙c}[α_L][α_R] as in Prop. 21; then check W_{b⊙c}[α_L][α_R]=true for all required α_L, α_R.
+- Endpoint witnesses: g_L : T × {0,1}^2 → Σ_out^2 and g_R : {0,1}^2 × T → Σ_out^2.
+  • Local legality: if g_L(τ_end,s)=(β1,β2) then βi∈A_{s[i]} and E(β1,β2). Symmetric for g_R.
+  • One-sided feasibility: V_left[τ_end][β1]=true for g_L, and V_right[β2][τ_end]=true for g_R.
+
+Theorem S1-path (equivalence; oriented paths).
+An r=1, β-normalized LCL on globally oriented paths has deterministic complexity o(n) iff there exist witnesses (f_mid, g_L, g_R) satisfying the above checks. Moreover, existence is verifiable in nondeterministic time 2^{poly(β)}.
+Sketch proof (⇒): Given an o(n)-round algorithm A, define f_mid exactly as in the cycle case by pumping the two long contexts on either side of a 2-node separator; feasibility uses Ext_{τ_b⊙τ_c} (Lemma 11) and pumping (Lemmas 13–14). Define g_L(τ_end,s), g_R(s,τ_end) by simulating A on a path that consists of a long pumped left (resp. right) context, then the endpoint block of type τ_end, then a 2-node separator S with input s, then a long pumped right (resp. left) context; pick IDs so that A’s runtime halo is well inside the pumped parts. Local legality is by correctness of A; one-sided feasibility follows because the seam edge between the endpoint block and S is satisfied in the simulation, hence V_left/V_right holds by projection to Ext.
+Sketch proof (⇐): From (f_mid, g_L, g_R), construct in O(log* n) a labeling as follows. In O(log* n) rounds, compute an MIS on the K-th power of the oriented path (K:=ℓ_pump+4); separators are the selected MIS nodes augmented to 2-node blocks with inputs s, spaced in [K,2K]. For each interior pair of separators (S1, S2) with adjacent long types τ_b, τ_c on their sides, color S1 and S2 by f_mid, and complete the middle using the witness in Ext_{τ_b⊙τ_c}. For endpoint segments, color the unique separator S by g_L or g_R and complete the adjoining block using V_left or V_right and Ext of the endpoint type. All checks and fillings are local and constant-radius; runtime O(log* n) comes from MIS.
+NEXPTIME verification: Deterministically compute T, T_long, Ext and W_{b⊙c}, V_left, V_right in 2^{poly(β)} time. Nondeterministically guess f_mid, g_L, g_R and verify the finite set of constraints via table lookups; total time 2^{poly(β)}.
+
+Stage‑2 (O(1) vs Ω(log* n)) on globally oriented paths — per-type boundary interface
+Witness per long type τ∈T_long: Q_τ=(L1_τ,L2_τ,R2_τ,R1_τ)∈Ext_τ.
+Checks
+- Per-type tiling:
+  • E(L1_τ,L2_τ), E(R2_τ,R1_τ) (redundant but explicit), and wrap E(R1_τ,L1_τ).
+- Universal bridging across any middle type τ_S (short or long):
+  • For all τ_left, τ_S, τ_right with τ_left,τ_right∈T_long: ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(R1_{τ_left},o1) and E(o4,L1_{τ_right}). For S empty, this reduces to E(R1_{τ_left},L1_{τ_right}).
+Theorem S2-path (constant-time construction).
+If {Q_τ} satisfy the above, there is an O(1)-round deterministic algorithm on oriented paths.
+Sketch construction: In O(1) rounds compute an (ℓ_width,ℓ_count,ℓ_pattern)-partition (as in the paper’s Lemma 22; here orientation is globally given). Choose parameters ℓ_width=ℓ_pattern=ℓ_pump and ℓ_count=2ℓ_pump+2. Long paths are periodic with primitive period length ≤ℓ_pump, repeated ≥ℓ_count. Each long path P has a long type τ; tile P by repeats of τ using E(R1_τ,L1_τ); interior legality holds since Q_τ∈Ext_τ. Each short/irregular separator S (any τ_S) is filled using its Ext witness to match the boundary colors of adjacent long blocks (bridging condition). Endpoints need no special treatment beyond bridging to the nearest long block. All decisions are constant-radius.
+NEXPTIME verification: Guess {Q_τ} over T_long; verify tiling and bridging universally with Ext lookups; total time 2^{poly(β)}.
+
+Complexity refinements and preprocessing
+- Append optimization (already Proposition 19): O(β^4) per append after Left3 slices.
+- Concatenation optimization (Proposition 5): O(β^6) per pair via Left/Right 3D slices.
+- Seam feasibility matrices W_{b⊙c} (Proposition 21): speed up Stage‑1 verification.
+- Endpoint matrices V_left, V_right: O(|T|·β·Δ) preprocessing; used by g_L/g_R verification.
+
+Sanity checks on examples
+- Equality LCL: choose c∈A_0∩A_1 with E(c,c); f_mid constant (c,c); g_L, g_R constant (c,c); any Q_τ=(c,c,c,c); both stages accept ⇒ O(1).
+- Proper 2-coloring: Stage‑1 witnesses exist (Θ(log* n)); Stage‑2 fails due to wrap E(R1_τ,L1_τ) and universal bridging impossibility with a period‑1 interface; classification Θ(log* n).
+- Linear case: if no feasible (f_mid,g_L,g_R) exists, Stage‑1 rejects ⇒ Ω(n).
+
+Actionable insertions for output.md
+1) Add Proposition (Base-case update; k=2→3) exactly as stated in the audit.
+2) Add definitions of RightColors, LeftColors, V_left, V_right, and a short proposition on their computation/complexity.
+3) Add the endpoint-aware Stage‑1 theorem S1-path: statement, witness definitions (f_mid, g_L, g_R), quantifier-minimized verification using W_{b⊙c}, and both directions of the equivalence (with brief, oriented-path-specific proofs relying on Lemmas 11, 13–14).
+4) Add Stage‑2 theorem S2-path: the per-type boundary interface witness Q_τ, universal checks, and the O(1) labeling construction using the (ℓ_width,ℓ_count,ℓ_pattern)-partition on oriented paths (cite the paper’s lemma if not reproved in full; parameters explicit).
+5) Note that Lemma 11 subsumes Lemma 2 and refer to Lemma 11 uniformly for concatenation; optionally keep Lemma 2 as a corollary for readability.
+
+Why these fill the gaps
+- Stage‑1 now covers finite paths with endpoints rigorously, removing the caveat. All conditions are expressed with Ext plus precomputed matrices, so the verification remains single-exponential. The construction uses only standard Kth‑power MIS.
+- Stage‑2 shifts entirely to per-type interfaces and Ext bridging, matching the paper’s constant-time regime but specialized to globally oriented paths. The verification is again single-exponential; the algorithm is explicit and constant‑round.
+
+Next steps
+- Integrate the new statements into output.md with concise proofs. Keep the MIS step description and (ℓ_width,ℓ_count,ℓ_pattern)-partition paraphrased from the paper but specialized to oriented paths.
+- Add a small regression suite for β∈{2,3}: (i) verify k=2→3 update; (ii) validate V_left/V_right vs direct Ext; (iii) test W_{b⊙c} correctness; (iv) confirm Stage‑1 acceptance on equality LCL, Stage‑2 rejection on 2‑coloring.
+
+## Round 0009 — 2025-08-27T18:59:35.895061Z
+
+Round 0009 — Endpoint-coupled Stage‑1 for paths; certificate fix, proofs, and verifiable checks
+
+Status and audit of output.md
+- Good: r=1 machinery is solid and comprehensive: append DP with k-flag cases (k=1→2, k=2→3, k=3→4), congruence, general Ext-concatenation (all k_flag) and associativity, δ-enumeration with |T| ≤ 4·2^{β^4}, optimized append (O(β^4)), optimized concatenation (O(β^6)), pumping lemmas, W_{b⊙c} feasibility matrices, and endpoint projections RightColors/LeftColors with V_left/V_right + Lemma E1.
+- Gap: Stage-1 (o(n) vs Ω(n)) is marked “pending endpoint treatment”. The current notes already identify that we must couple the endpoint-adjacent separators with the interior feasible function via OutR2/OutL1; output.md does not yet contain the corrected endpoint-aware certificate and equivalence theorem.
+- Minor: We can note under Proposition 9 that k_flag≥4 transitions can use Proposition 19 to reduce per-append cost from O(β^5) to O(β^4).
+
+Idea — Corrected Stage‑1 path certificate with endpoint coupling
+- Motivation (why necessary). Without coupling, g_L/g_R can choose seam colors that are legal at the endpoint (V_left/V_right true) but fall outside the Out-sets produced by f_mid, so the first interior block (between the endpoint-adjacent separator and the next interior separator) may be unfillable even though interior checks pass. This was the “minimal obstruction” pointed out in the feedback.
+- Definitions (objects and sets already available):
+  • T_long := {τ : k_flag(τ)≥4}.
+  • OutR2(τ_b,s) := { second(f(τ_a,s,τ_b)) : τ_a∈T_long }.
+  • OutL1(τ_c,s) := { first(f(τ_c,s,τ_d)) : τ_d∈T_long }.
+  • W_{b⊙c}[α_L][α_R] records the existence of an Ext-witness across τ_b⊙τ_c consistent with seam colors α_L, α_R.
+  • V_left, V_right as in output.md (endpoint seam feasibility).
+- Certificate (to add):
+  1) f_mid: T_long×{0,1}^2×T_long→Σ_out^2, feasible in the Out-set sense (already defined) and verified via W_{b⊙c}.
+  2) g_L: T×{0,1}^2×T_long→Σ_out^2; for g_L(τ_end,s,τ_b)=(β1,β2) require:
+     (i) node legality βi∈A_{s[i]} and E(β1,β2);
+     (ii) endpoint seam feasibility V_left[τ_end][β1]=true;
+     (iii) interior alignment β2∈OutR2(τ_b,s).
+  3) g_R: T_long×{0,1}^2×T→Σ_out^2; for g_R(τ_c,s,τ_end)=(β1,β2) require:
+     (i) node legality and E(β1,β2);
+     (ii) endpoint seam feasibility V_right[β2][τ_end]=true;
+     (iii) interior alignment β1∈OutL1(τ_c,s).
+  Remarks.
+  - The third argument in g_L/g_R couples endpoint separators to the adjacent long type on the interior side. This ensures the open seam color toward the interior is drawn from the same Out-set used by f_mid, so the W_{b⊙c} universal checks cover the first interior block as well.
+
+Theorem S1-path (Endpoint-coupled equivalence; to insert)
+- Statement. For a β-normalized r=1 LCL on globally oriented paths, the following are equivalent:
+  (A) There is a deterministic LOCAL algorithm with runtime o(n).
+  (B) There exist witnesses (f_mid,g_L,g_R) satisfying: f_mid is feasible in the Out-set sense, g_L,g_R satisfy (i)–(iii) above.
+  Moreover, existence of such witnesses is verifiable in nondeterministic time 2^{poly(β)}.
+- Proof sketch (⇒):
+  • As in Lemma 18 (already in outputs.pdf/paper), choose s≫T(n), pump any short context w to w^+ with |w^+|∈[s,s+ℓ_pump]. Extract f_mid(·) by simulating the o(n)-algorithm A on w_L^+·S·w_R^+ and reading the 2-node outputs on S, implying Out-set feasibility via W_{b⊙c}.
+  • For g_L(τ_end,s,τ_b): embed (left end-block of type τ_end) + separator S with input s + a long pumped block of type τ_b on the right into a large path padded beyond the runtime halo, run A, and set g_L to the 2-node output on S. Local correctness implies (i); the seam into the endpoint implies (ii); the presence of τ_b on the right forces the second output to lie in OutR2(τ_b,s), i.e., (iii). Similarly define g_R with τ_c on the left.
+- Proof sketch (⇐):
+  • Place 2-node separators in O(log* n) by an MIS on the K-th power (K:=ℓ_pump+4), so distances between successive separators are in [K,2K], except for one-sided end segments.
+  • Interior: label each interior separator by f_mid and complete the middle block between any two interior separators using W_{b⊙c} and Ext_{τ_b⊙τ_c}.
+  • Ends: label the left (resp. right) endpoint-adjacent separator using g_L(τ_end,s,τ_b) (resp. g_R(τ_c,s,τ_end)), where τ_b,τ_c are the long types on the interior sides. Then:
+    – Fill the endpoint block via Lemma E1 using V_left/V_right (local seam feasibility).
+    – Fill the intervening block between the endpoint separator and the nearest interior separator via W_{b⊙c}, with α_L=second(g_L) (in OutR2 by (iii)) and α_R=first(f_mid on the interior separator) (in OutL1 by construction), so the prechecked W_{b⊙c}[α_L][α_R] entry guarantees a witness in Ext_{τ_b⊙τ_c}.
+  • All checks are local; the MIS step dominates time: O(log* n).
+- NEXPTIME verification. Deterministically compute T and T_long; precompute Ext_τ and Ext_{τ_b⊙τ_c}, W_{b⊙c}, OutR2/OutL1 sets from f_mid; V_left,V_right from Ext tables. Nondeterministically guess f_mid, g_L, g_R. Verify:
+  • f_mid node legality and the universal Out-set checks via W_{b⊙c}.
+  • For all (τ_end,s,τ_b): g_L node legality; V_left[τ_end][β1]; β2∈OutR2(τ_b,s).
+  • For all (τ_c,s,τ_end): g_R node legality; V_right[β2][τ_end]; β1∈OutL1(τ_c,s).
+  Each is a table lookup; total time 2^{poly(β)}.
+
+Toy counterexample (why alignment is essential; optional to include)
+- Template. Choose τ_b with OutR2(τ_b,s)={α} and a τ_c with some OutL1-set; suppose W_{b⊙c}[α][·] admits fills. Let g_L output (β1,β2) with β2≠α but V_left[τ_end][β1] true. Then the first interior block fails to fill because W_{b⊙c}[β2][α_R] can be false for all α_R. Hence the uncoupled endpoint certificate can produce false positives.
+- This simple construction can be instantiated by adapting the 3-color a→b→c gadget used earlier (Proposition 4), with compatible A/E and Types.
+
+Implementation refinements (verifier-side)
+- Precomputations (single-exponential):
+  • T by BFS; Ext_τ for τ∈T; Left3_t to speed appends (Proposition 19); Ext_{τ_b⊙τ_c} for τ_b,τ_c∈T_long via Proposition 5.
+  • W_{b⊙c}; V_left, V_right.
+  • For a guessed f_mid, compute OutR2(τ_b,s) and OutL1(τ_c,s) (max size β each); for speed, precompute their bitsets.
+- Optional matrices: for endpoints, precompute L_allow[τ_end]:={α | V_left[τ_end][α]} and R_allow[τ_end]:={α | V_right[α][τ_end]} to reduce g_L/g_R checks to set membership plus E/A.
+- Complexity note (to amend Proposition 9). For k_flag≥4 transitions during δ-enumeration, the O(β^4) append (Proposition 19) reduces total preprocessing constants; asymptotics remain 2^{poly(β)}.
+
+Small auxiliary lemmas (easy to add, testable)
+- Endpoint allowable-color sets are exactly the E-neighbors of endpoint projections (already implicit):
+  • L_allow(τ) = N_E(RightColors(τ)) and R_allow(τ) = N_E^{-1}(LeftColors(τ)). This is Lemma E1 reformulated as set identities.
+- RightColors/LeftColors under append (computational aid). For τ′=τ·a with k_flag(τ)≥4,
+  • RightColors(τ′) = { y ∈ A_a : ∃(x1,x2,x3) with Left3_τ[x1,x2,x3] and E(x3,y) }.
+  • LeftColors(τ·a) = LeftColors(τ). These follow directly from Lemma 1 and the definition of Left3_τ.
+  Use: fast updates of V_left/V_right if recomputed incrementally.
+
+Examples and sanity
+- Equality LCL (E={(c,c)}, c∈A_0∩A_1). Choose f_mid(·)=(c,c). OutR2/OutL1 are {c}. Let g_L=g_R=(c,c). V_left/V_right trivially true; W_{b⊙c}[c][c]≈true. Classified O(1) by Stage-2; Stage-1 accepts.
+- Proper 2-coloring: With Σ_out={a,b} and E forbidding equal neighbors, an f_mid exists; OutR2/OutL1={a,b}; pick endpoint g_L/g_R alternating; Stage-1 accepts; Stage-2 later rejects (Θ(log* n)).
+
+Concrete next steps (edits to output.md)
+1) Add “Theorem S1-path (endpoint-coupled equivalence)” with the witnesses and proofs (both directions) as above.
+2) Define g_L, g_R with third argument and spell out the three verification clauses; reference V_left/V_right, OutR2/OutL1, W_{b⊙c}.
+3) Under Proposition 9, note that Proposition 19 yields O(β^4) per-append for k_flag≥4.
+4) Optionally include the toy counterexample to document why the endpoint coupling is necessary.
+5) Leave Stage-2 (constant-time) for paths out of output.md until we integrate a self-contained partition lemma (the paper’s Lemma 22 can be specialized to oriented paths; drafting this is queued for next round).
+
+Regression checklist (to add to notes/tests)
+- Validate endpoint-coupled certificate:
+  • Construct a random small β instance; enumerate T, T_long; nondeterministically synthesize f_mid; derive OutR2/OutL1; then attempt to synthesize g_L/g_R and verify constraints.
+  • Show that dropping (iii) can create false positives (use the minimal obstruction template).
+- Re-run: optimized append vs brute-force append on β≤3; Ext-concatenation associativity; W_{b⊙c} correctness vs direct Ext scans.
+
+Potential pitfalls addressed
+- Seam and indexing: we adhere to (L1,L2,R2,R1); the left seam meets o1 in Ext_{τ_b⊙τ_c}, the right seam meets o4. Endpoint seam checks use β1=first(g_L) at the left seam and β2=second(g_R) at the right seam.
+- Edge cases (small n): if MIS yields 0 or 1 separators, handle with constant-radius fallback (brute-force local completion using Ext tables) — this does not affect asymptotic classification.
+
+## Round 0009 — 2025-08-27T19:01:12.517580Z
+
+Round 0009 — Endpoint-correct Stage-1 for paths, audits, and verifiable fixes
+
+Status and quick audit of output.md
+- What is solid: r=1 primitives (append DP with k-flag, corrected base cases k=1→2, 3→4; concatenation; associativity; congruence), type enumeration and |T| bound; pumping lemmas; Out-set version of feasible f over T_long; optimized append O(β^4); seam-feasibility matrices W; endpoint projections RightColors/LeftColors and endpoint seam matrices V_left,V_right with Lemma E1.
+- Main gap (explicitly acknowledged): Stage-1 equivalence on oriented paths is “pending endpoint treatment.” As written, there is no coupling between the endpoint-adjacent separator’s open seam color and the Out-sets of the interior feasible function; this can admit false positives.
+- Minor editorial/numbering issues to flag: (i) There are two different “Proposition 6” items (base k=1→2 and k_flag=1 update as 6A) and also “Proposition 6B” (k=2→3), which is confusing; consider renumbering. (ii) Both Lemma 2 (k_flag≥4) and Lemma 11 (all k_flag) state concatenation; Lemma 11 subsumes Lemma 2—either keep both with a note or refer to Lemma 11 uniformly. (iii) Proposition 9 still quotes O(β^5) per append in the long regime; Proposition 19 improves this to O(β^4), so the preprocessing bound can be tightened accordingly.
+
+Problem and minimal counterexample (why the current endpoint certificate is insufficient)
+- Obstruction template: Fix a long type τ_b and an input s such that OutR2(τ_b,s) = {α}. Suppose W_{b⊙c}[α][·] admits all right seams induced by f on the next separator. If an endpoint witness g_L(τ_end,s) outputs (β1,β2) with β2 ≠ α but V_left[τ_end][β1]=true, the current checks pass but the fill of the block between this separator and the next separator (colored by f) may fail, as there may be no (o1,o2,o3,o4) ∈ Ext_{τ_b ⊙ τ_c} with E(β2,o1). Hence the endpoint separator must be aligned with the interior Out-sets.
+
+Claim (corrected endpoint-aware Stage-1 certificate for oriented paths)
+- Augmented endpoint witnesses aligned to Out-sets:
+  • g_L: T × {0,1}^2 × T_long → Σ_out^2. For g_L(τ_end,s,τ_b)=(β1,β2) require: (i) βi∈A_{s[i]} and E(β1,β2); (ii) V_left[τ_end][β1]=true; (iii) β2 ∈ OutR2(τ_b,s).
+  • g_R: T_long × {0,1}^2 × T → Σ_out^2. For g_R(τ_c,s,τ_end)=(β1,β2) require: (i) βi∈A_{s[i]} and E(β1,β2); (ii) V_right[β2][τ_end]=true; (iii) β1 ∈ OutL1(τ_c,s).
+- Feasible mid-separator function f_mid: as in output.md (Out-set form over T_long), with universal extendibility checked via W_{b⊙c}.
+- Theorem S1-path (equivalence; oriented paths). An r=1, β-normalized LCL on globally oriented paths has deterministic complexity o(n) iff there exist (f_mid,g_L,g_R) satisfying the above. Verification is in nondeterministic 2^{poly(β)} time.
+
+Proof sketch (auditable pieces)
+- (⇒) Existence. Given an o(n)-round algorithm A:
+  • f_mid: As in output.md (cycle gadget + pumping). Well-definedness uses that we pump to length in [s,s+ℓ_pump] and choose IDs inside the <0.1s halos.
+  • g_L: For any (τ_end,s,τ_b), form a path consisting of a long pumped block of type τ_b to the right, the 2-node separator S with input s, and a left endpoint block of type τ_end; pad far outside S so A’s runtime halo is contained. Set g_L(τ_end,s,τ_b) to A’s 2-node output on S. Then: (i) node/window legality holds by correctness of A; (ii) V_left holds because the seam into τ_end is satisfied in A’s run; (iii) alignment β2∈OutR2(τ_b,s) holds by construction since S’s right output was produced in a context of type τ_b, i.e., it is one of the attained second outputs for τ_b under f_mid with input s. Define g_R symmetrically.
+- (⇐) Construction of an O(log* n) algorithm.
+  • Place separators by an MIS on the K-th power of the directed path in O(log* n) rounds with K := ℓ_pump+4. Standard properties ensure that the distance between neighboring separators is in [K,2K], and that the long contexts abutting each interior side are T_long.
+  • Label interior separators by f_mid (using local s and adjacent long types τ_b,τ_c). Use the precomputed matrix W_{b⊙c} to fill each interior middle block between two separators by choosing a witness in Ext_{τ_b⊙τ_c} consistent with the seams.
+  • Endpoints: Let S_left be the unique separator adjacent to the left end. Compute τ_end (type of the left end-block) and τ_b (long type on S_left’s right). Color S_left by g_L(τ_end,s,τ_b). By V_left there is (o1,o2,o3,o4)∈Ext_{τ_end} with E(o4,β1), so we fill the endpoint block. For the block between S_left and the nearest interior separator S2, by (iii) the outward seam color β2 is in OutR2(τ_b,s), while the left seam color from S2 lies in OutL1(τ_c,s2). Hence W_{b⊙c}[β2][α_R] is true and the block is fillable via Ext_{τ_b⊙τ_c}. Do the right end symmetrically with g_R. Runtime is O(log* n); all fillings are constant-radius lookups in precomputed tables.
+
+NEXPTIME verification details
+- Precompute deterministically in 2^{poly(β)} time:
+  • T, T_long via BFS (Prop. 9) and Ext_τ for τ∈T; use Prop. 19 to implement k_flag≥4 appends in O(β^4).
+  • Ext_{τ_b⊙τ_c} for τ_b,τ_c∈T_long via Prop. 5, and W_{b⊙c}.
+  • V_left, V_right from endpoint projections (as in output.md).
+  • OutR2(τ_b,s), OutL1(τ_c,s) sets from f_mid.
+- Guess f_mid, g_L, g_R. Verify:
+  • For all entries: node legality and E on the 2-node window.
+  • f_mid universal extendibility via W_{b⊙c} (Out-set form; Lemma 20).
+  • g_L: V_left[τ_end][β1]=true and β2 ∈ OutR2(τ_b,s). g_R: V_right[β2][τ_end]=true and β1 ∈ OutL1(τ_c,s).
+- All checks are constant-time table lookups; total number of cases is |T_long|^2·4 for f_mid and (|T|·|T_long|)·4 for each endpoint map; overall time 2^{poly(β)}.
+
+Small example illustrating necessity of alignment
+- Let Σ_out={a,b}, A_0=A_1=Σ_out, and E contains only edges a→a and b→b. Suppose a feasible f_mid exists that always outputs (a,a), hence OutR2(τ_b,s)={a}. Choose τ_end with RightColors(τ_end)={a,b}. If g_L(τ_end,s) outputs (b,a), V_left holds (since E(b,b) and b∈RightColors(τ_end)) but β2=a… OK here it matches. Now flip: define f_mid that always outputs (b,b), so OutR2={b}, but g_L outputs (a,a). V_left still holds if a∈RightColors(τ_end), yet β2=a∉OutR2. There is no guarantee that the endpoint–interior block can be completed respecting the next separator colored according to f_mid. This shows (iii) is required.
+
+Additional small lemmas/propositions to add (self-contained)
+- Endpoint–interior bridging lemma. Given τ_b,τ_c∈T_long, inputs s1,s2, and endpoint-adjacent separator colors α_L,α_R with α_L∈OutR2(τ_b,s1), α_R∈OutL1(τ_c,s2), there exists a completion of the intervening block consistent with both seams iff W_{b⊙c}[α_L][α_R]=true. Proof: by definition of W_{b⊙c}; direction “only if” follows by restricting any legal completion; “if” follows by taking the witnessing (o1,o2,o3,o4)∈Ext_{τ_b⊙τ_c}.
+- Preprocessing remark (tightening Prop. 9). Using Prop. 19, the k_flag≥4 append step is O(β^4), so the BFS enumeration can cite O(β^4) per transition in the long regime; short base-case transitions remain O(β^4).
+
+Implementation notes and counts
+- OutR2/OutL1 sets have size ≤β; precompute once per (τ, s). For faster Stage-1 checks, one can precompute for each (τ_b,τ_c,s1,s2) the β×β mask W_{b⊙c} and then just iterate over α_L in OutR2(τ_b,s1) and α_R in OutL1(τ_c,s2).
+- Endpoints: the verification size of g_L is |T|·|T_long|·4 entries; g_R symmetric. Sparse E can reduce preprocessing time for W and V matrices.
+
+Explicit gaps to address in output.md
+- Integrate the corrected Stage-1 path theorem (S1-path) with (f_mid,g_L,g_R) as above, and add the (⇒) and (⇐) proofs specialized to globally oriented paths.
+- Add the endpoint–interior bridging lemma stated above; it is just an unpacking of W_{b⊙c} and will clarify the fill of the first interior block.
+- Tighten Prop. 9’s complexity to use Prop. 19 (O(β^4) per long append).
+- Note that Lemma 11 subsumes Lemma 2; consider merging references.
+- Clean up numbering: avoid multiple “Proposition 6/6A/6B”.
+
+Next steps
+- Promote S1-path into output.md with full statement and auditable proofs, together with the augmented endpoint witnesses. Update the classification logic: if Stage-1 fails, classify Ω(n); if Stage-1 holds but Stage-2 certificate fails, classify Θ(log* n); if Stage-2 holds, classify O(1).
+- Prepare unit tests: (i) synthetic instances where OutR2 is singleton and g_L is misaligned; the augmented certificate must reject; (ii) equality LCL (accept both stages); (iii) proper 2-coloring (accept Stage-1, reject Stage-2).
+- Return to Stage-2: port the (ℓ_width,ℓ_count,ℓ_pattern)-partition to oriented paths with explicit parameters and a short self-contained proof, then finalize the per-type boundary interface certificate Q_τ.
+
+## Round 0010 — 2025-08-27T19:46:44.278526Z
+
+Round 0010 — audits after integrating S1‑path; minor fixes, endpoint extraction hygiene, and incremental lemmas for endpoint projections
+
+Audit of output.md (gaps, small bugs, and numbering)
+- Numbering consistency. There are now four “Proposition 6/6A/6B/7” base rules: 6 (k=1→2), 6A (k_flag=1 append), 6B (k=2→3), 7 (k=3→4). This is fine logically but confusing; consider renumbering or grouping the three base updates together (k=1→2, 2→3, 3→4) and listing the k_flag=1 append normalization as a lemma.
+- Proposition 9 complexity text still says O(β^5) per long append, while a later correction notes O(β^4) via Proposition 19. Please reconcile in the body of Prop. 9 (replace O(β^5) with O(β^4) for k_flag≥4) so the main statement matches the correction.
+- S1‑path (⇒) endpoint extraction: the proof says “run A on w_{τ_end} · S(s) · w_{τ_b} with padding beyond distance R on both sides”. Here τ_end ranges over T (short and long), but w_τ is only defined for τ∈T_long in the pumping construction. Also, for an endpoint there is no left padding beyond the path boundary. This is easily fixed by: (i) replacing w_{τ_end} with “an arbitrary path P_end realizing Type τ_end” (short allowed), and (ii) only padding on the right by choosing w_{τ_b} long enough so the R‑neighborhood around S is contained in w_{τ_b} on its right side; on the left side the endpoint may lie inside the halo, which is intended. The extraction remains valid and captures the true endpoint behavior.
+- Minor duplication: Lemma 2 (k_flag≥4 concatenation) is subsumed by Lemma 11 (all k_flags). A note that Lemma 11 subsumes Lemma 2 would avoid potential confusion.
+
+Endpoint mechanics — incremental, checkable additions
+1) Fast incremental updates for endpoint projections under append (k_flag≥4)
+- Statement. For τ with k_flag(τ)≥4 and τ′=τ·a,
+  • LeftColors(τ′) = LeftColors(τ).
+  • RightColors(τ′) = { y ∈ A_a : ∃ x1,x2,x3 with Left3_τ[x1,x2,x3]=true and E(x3,y) }.
+- Why useful. Lets the verifier update V_left/V_right incrementally during δ‑BFS using the already‑precomputed Left3_τ, avoiding recomputing projections from scratch (O(β^3) instead of scanning all β^4 quadruples).
+- Proof sketch. LeftColors projects the first coordinate, which is unaffected by appending a new node at the right. RightColors of τ′ consists of those y that can appear as new R1; by Lemma 1, (x1,x2,x3,y)∈Ext_{τ′} iff Left3_τ[x1,x2,x3] and E(x3,y) and y∈A_a.
+
+2) Endpoint allow sets as E‑neighborhoods (explicit identities)
+- Identities. L_allow(τ) := {α : V_left[τ][α]} = N_E(RightColors(τ)), and R_allow(τ) := {α : V_right[α][τ]} = N_E^{-1}(LeftColors(τ)).
+- Why useful. Makes explicit that V_left/V_right are just one‑step E‑blowups of the endpoint projections; convenient for unit tests and caching.
+- Proof. By the definitions of V_left/V_right and LeftColors/RightColors.
+
+3) Early infeasibility filters for Stage‑1 verification (constant‑time table checks)
+- Filter F1 (interior Out‑sets nonempty). If there exist τ_b,s with OutR2(τ_b,s)=∅ or τ_c,s with OutL1(τ_c,s)=∅, then no feasible f_mid can exist — reject.
+- Filter F2 (endpoint alignment reachability). For any τ_end,τ_b,s, if L_allow(τ_end)=∅ or OutR2(τ_b,s)=∅, then any g_L(τ_end,s,τ_b) is impossible. Symmetric for g_R.
+- Why useful. Fast rejections before scanning W_{b⊙c} matrices; reduces witness search space.
+- Justification. Trivial from definitions of Out‑sets and V_left/V_right.
+
+4) Endpoint extraction hygiene for S1‑path (⇒) — revised, auditable phrasing
+- Current line: “run A on w_{τ_end} · S(s) · w_{τ_b} … with padding on both sides.”
+- Revised statement (suggested edit). For each (τ_end∈T, s, τ_b∈T_long): pick any finite path P_end with Type(P_end)=τ_end; pick w_{τ_b} long (as in the f_mid construction) so that the radius‑R halo of S lies entirely inside w_{τ_b} on the right. Run A on the finite path P := P_end · S(s) · w_{τ_b} (no left padding beyond the endpoint). Define g_L(τ_end,s,τ_b) as the output on S. Local correctness implies (i) node/edge legality. Since the seam edge from P_end into S is respected, V_left[τ_end][β1] holds (ii). Because the right context is of Type τ_b and the halo on that side is entirely inside w_{τ_b}, the second output belongs to OutR2(τ_b,s) (iii). Symmetric for g_R.
+- Why this matters. It removes reliance on w_{τ_end} (undefined if τ_end is short) and avoids padding past the endpoint.
+
+Concrete, testable lemmas to consider adding
+- Lemma E3 (Bridging equivalence, restated as set inclusion). For τ_b,τ_c and inputs s1,s2, define the seam‑reachable pair set
+  R̂_{b⊙c}(s1,s2) := { (α_L,α_R) : W_{b⊙c}[α_L][α_R]=true }.
+  Then feasibility of f_mid is equivalent to the pairwise inclusions
+  OutR2(τ_b,s1) × OutL1(τ_c,s2) ⊆ R̂_{b⊙c}(s1,s2) for all τ_b,τ_c,s1,s2.
+  Proof: Unpack Lemma 20 and Prop. 21.
+- Lemma E4 (Endpoint–interior block fill, explicit construction). Given g_L(τ_end,s,τ_b)=(β1,β2) satisfying (i)–(iii) and an interior separator S2 with color pair (α1,α2)=f_mid(τ_c,s2,τ_d), the intervening block between the endpoint separator and S2 admits a completion. Construction: pick (o1,o2,o3,o4) from Ext_{τ_b⊙τ_c} witnessing W_{b⊙c}[β2][α1], then fill by Ext_{τ_b⊙τ_c}; correctness follows from Lemma E2.
+
+Small example to document the need for endpoint alignment (suggested to add as a remark)
+- Let Σ_out={a,b}, A_0=A_1=Σ_out, E={(a,a),(b,b)}. Suppose f_mid always outputs (b,b), thus OutR2={b}. Take τ_end with RightColors(τ_end)={a}. If one chose g_L(τ_end,s,τ_b)=(a,a) based only on V_left (true) but ignored alignment (β2∈OutR2), the adjacent interior block would require W_{b⊙c}[a][·], which can be false, and the construction would fail. The alignment clause (iii) prevents this.
+
+Implementation notes (verifier/solver side)
+- Precompute Left3_τ during δ‑BFS and use the identities in item 1) to maintain RightColors(·), LeftColors(·), thus V_left/V_right, in O(β^3) per long append.
+- For endpoint maps, precompute bit‑sets L_allow(τ) and R_allow(τ) once; checking g_L/g_R then reduces to:
+  • membership in A_{s[i]} and E on the 2‑node window (constant time),
+  • β1 ∈ L_allow(τ_end) or β2 ∈ R_allow(τ_end),
+  • β2 ∈ OutR2(τ_b,s) or β1 ∈ OutL1(τ_c,s).
+- Speed hint: during f_mid verification, build per‑pair masks M_{b⊙c}(s1,s2) := {α_L}×{α_R} for α_L∈OutR2(τ_b,s1), α_R∈OutL1(τ_c,s2), and check that M_{b⊙c}(s1,s2) ⊆ R̂_{b⊙c}(s1,s2); if not, report the first violating pair, making counterexamples easy to extract.
+
+Next steps toward full trichotomy (O(1) vs Θ(log* n) vs Θ(n))
+- Stage‑2 on oriented paths. Bring in a path‑specialized version of the (ℓ_width,ℓ_count,ℓ_pattern)‑partition (paper’s Lemma 22) with explicit constants compatible with ℓ_pump; then formalize the per‑type tiling witness Q_τ and the constant‑round construction. The checks already sketched in earlier rounds (tiling within τ, universal bridging across τ_S via Ext) should carry over verbatim with our Ext/W machinery.
+- MIS on K‑th power (for completeness). Add a brief lemma that on globally oriented paths one can compute an MIS of the K‑th power in O(log* n), and that consecutive MIS nodes are at distance in [K,2K]; cite folklore or include a 3‑line proof via Cole–Vishkin coloring and greedy thinning. This makes the spacing claim in S1‑path fully self‑contained.
+- Regression tests. Extend the harness to check:
+  • Incremental RightColors/LeftColors updates vs direct projection of Ext after append.
+  • S1 verification equivalence in Lemma E3 form (set inclusion) using precomputed R̂_{b⊙c}.
+  • Endpoint misalignment: synthesize instances violating (iii) and confirm rejection.
+  • Prop. 9 runtime constants: confirm O(β^4) append for k_flag≥4 against O(β^5) brute force on β∈{2,3}.
+
+Why these are incremental and auditable
+- Each lemma is a one‑line identity following mechanically from already‑defined objects (Ext and its slices). They admit direct unit tests on small β.
+- The endpoint extraction hygiene is a textual correction with unchanged logic; it prevents an uninstantiated symbol (w_{τ_end}) and avoids padding past the endpoint while preserving the argument.
+- The feasibility filters F1/F2 are immediate consequences of definitions, implementable as constant‑time table emptiness checks.
+
+Open items (to track)
+- Decide whether to keep both Lemma 2 and Lemma 11; if both retained, add an explicit “Lemma 11 subsumes Lemma 2” note.
+- Normalize base‑case numbering to avoid 6/6A/6B confusion.
+- Integrate the MIS‑on‑Kth‑power statement and the Stage‑2 partition lemma specialized to oriented paths to complete the constant‑time classification.
+
+## Round 0010 — 2025-08-27T19:47:47.645358Z
+
+Round 0010 — audit of output.md, endpoint-cleanup notes, and a concrete Stage‑2 plan for oriented paths (O(1) vs Θ(log* n))
+
+Audit of output.md (gaps, inconsistencies, and easy fixes)
+- Duplicate/contradictory remarks on Stage‑1: There is still a “Remark (Stage‑1 equivalence pending endpoint treatment)” before Lemma E2, but Theorem S1‑path later resolves endpoint issues. This is now inconsistent. Suggested fix: remove or rewrite the earlier remark to forward‑reference Theorem S1‑path.
+- Numbering collisions and duplication:
+  • Proposition 6, 6A, 6B all exist; 6 and 6B both are base cases (k=1→2 and k=2→3) and 6A is another base case (k_flag=1 variant). Consider renumbering to 6 (k=1→2), 7 (k=2→3), 8 (k=3→4), or add clear “(Base cases)” headers to avoid confusion.
+  • Concatenation appears as Lemma 2 (k_flag≥4) and Lemma 11 (all k_flag). Lemma 11 strictly subsumes Lemma 2; a short note stating “Lemma 11 subsumes Lemma 2” would prevent confusion.
+- Transition‑cost mismatch: Proposition 9 still states “Each transition costs O(β^5) in the k_flag≥4 regime,” while a later “Correction to Proposition 9” paragraph records the improved O(β^4) bound (via Proposition 19). These must be aligned; keep the O(β^4) bound in the definitive statement of Proposition 9.
+- Small‑n fallback in Theorem S1‑path (⇐): It says “0 or 1 separators handled by brute‑force completion using Ext tables in constant radius.” This is plausible, but a one‑line lemma would clarify that any path of length < K can be labeled (or rejected) by a constant‑time rule derived from Ext (finite lookup radius K). This would parallel Lemma E2’s style, ensuring no gap at tiny n.
+- Orientation/convention reminder: Theorem S1‑path relies on the global convention (L1,L2,R2,R1); all seam references are consistent with earlier definitions. No action, but a short “Indexing reminder” near Definition of OutR2/OutL1 would help readers.
+
+Endpoint coupling in Stage‑1 — sanity check on the new content
+- The strengthened endpoint witnesses g_L(τ_end,s,τ_b), g_R(τ_c,s,τ_end), with (iii) β2∈OutR2(τ_b,s), β1∈OutL1(τ_c,s), are now integrated and correctly cover the first/last interior block via W_{b⊙c}. This closes the earlier gap.
+- Preprocessing coverage is complete: T and T_long (Prop. 9), Ext (Lemmas 1, 11), W (Prop. 21), V_left/V_right (Lemma E1), and OutR2/OutL1 are all defined. The NEXPTIME verification clause is sound.
+
+Stage‑2 on globally oriented paths (O(1) vs Θ(log* n)) — proposed path‑specific certificate and theorem
+Rationale. To complete the trichotomy with a single‑exponential (in β) nondeterministic verifier, it is convenient to mirror the paper’s Section 4.4 feasible‑function framework, specialized to oriented paths. This avoids having to synthesize interior outputs from bare boundary quadruples and leverages the (ℓ_width,ℓ_count,ℓ_pattern) partition (Section 4.3 in the paper) in O(1) rounds.
+
+Definitions (path specialization; reusing the paper’s Gw,z and Gw1,w2,S)
+- Fix r=1 and ℓ_pump=|T| from Prop. 9. For any 1≤|w|≤ℓ_pump and z≥0, Gw,z is the path wr · wz · wr with complete output labeling f0(w)^{z+2r} (here f0 is a Stage‑2 function; see below). Mid(Gw,z): the central wz.
+- For any w1,w2 with 1≤|wi|≤ℓ_pump and any S (possibly empty), Gw1,w2,S is the path w1^{ℓ_pump+2r} · S · w2^{ℓ_pump+2r} with a partial labeling that fixes the first 2r|w1| outputs to f0(w1)^{2r} and the last 2r|w2| outputs to f0(w2)^{2r}. Mid(Gw1,w2,S): w1^{ℓ_pump+r} · S · w2^{ℓ_pump+r}.
+- Stage‑2 feasible function for paths. A map f0: {w ∈ Σ_in^k : 1≤k≤ℓ_pump} → Σ_out^k is path‑feasible if:
+  (F1) For each w, the complete labeling f0(w) is locally legal, and for Gw,1 the labeling is locally consistent on Mid(Gw,1). (Equivalently, Gw,z is locally consistent on its mid for all z≥1.)
+  (F2) For each Gw1,w2,S, there exists a completion L⋄ that is locally consistent on Mid(Gw1,w2,S).
+Remark. This is the path analogue of the cycle notion used in the attached paper (Lemmas 23–27), with the same quantitative parameters (ℓ_pump) and “mid‑block extendibility” semantics; the only change is that we do not wrap ends.
+
+Theorem S2‑path (O(1) vs Θ(log* n) on oriented paths; verifiable in NEXPTIME)
+- Statement. An r=1 β‑normalized LCL on globally oriented paths has deterministic LOCAL complexity O(1) iff there exists a path‑feasible function f0. Otherwise, if Theorem S1‑path holds but no f0 exists, the complexity is Θ(log* n).
+- (⇒) Given an O(1)‑round algorithm A, extract f0 as in the paper’s Lemma 24: for each 1≤|w|≤ℓ_pump, simulate A on wi · w^{2r+1} · wi with distinct IDs confined to a constant halo; define f0(w) as A’s outputs on w (one period). Local legality implies (F1), and by the same mid‑block simulation trick, (F2) holds for all Gw1,w2,S (replace the two long contexts by pumped canonical representatives so that the constant runtime halos are disjoint). This is the path version of Lemmas 24–25.
+- (⇐) Given f0, compute in O(1) rounds an (ℓ_width,ℓ_count,ℓ_pattern)‑partition tailored to oriented paths (paper’s Lemma 22; orientation is given, so Lemma 19’s orientation step is unnecessary): short paths of length ≤2ℓ_width get explicit ranks; long paths P are repetitions wk with primitive w, |w|≤ℓ_pattern and k≥ℓ_count, and each node knows w. Label as follows:
+  • For each long P with period w, label the central window of length 2r in every period occurrence by f0(w) (anchored and repeated), thereby fixing a 2r‑spaced set of “mid blocks” across P.
+  • The remaining subpaths between these mid blocks (and any adjacent short/irregular segments) have total length O(ℓ_width+ℓ_pattern)=O(1). For each such S with adjacent periodic contexts represented by w1 and w2, apply (F2) to Gw1,w2,S to complete S locally. (Ends of the path are treated similarly, with one side lacking a further context; in that case the partially labeled path is a prefix/suffix of Gw1,w2,S and is handled within the same constant‑radius templates.)
+  • All fillings are constant‑radius choices from precomputed tables indexed by (w1,S,w2), exactly as in the cycle proof.
+  Hence a deterministic O(1) algorithm exists.
+- NEXPTIME verification. As in Lemma 23, checking path‑feasibility of f0 reduces to finitely many Gw,1 (one z=1 per w) and finitely many Gw1,w2,S, where S ranges over a representative per Type τ (Lemmas 11 and 14 guarantee a choice with |S|≤ℓ_pump), plus S=∅. With T enumerated (Prop. 9) and Ext computed (Props. 5, 19), all checks are boolean table lookups; total time 2^{poly(β)}.
+
+Endpoint handling in Stage‑2
+- Unlike Stage‑1, Stage‑2’s construction does not require special endpoint witnesses: every short/irregular segment, including the two end segments, falls under the Gw1,w2,S completion rule with one or both contexts being (constant‑size) pumped fragments. No extra V_left/V_right matrices are needed; the end segments are simply instances of S.
+
+Relation to the earlier Q_τ approach
+- The boundary‑quadruple certificate Q_τ (with bridging across arbitrary τ_S) is intuitively sufficient but requires embedding a per‑type interior filler to produce node outputs in O(1). The f0‑based approach avoids this extra layer and follows the attached paper’s decidable formulation; both are single‑exponential in β. We suggest integrating S2‑path using f0 for clarity and alignment with the literature.
+
+Mini‑lemmas to consider adding (short, testable)
+- Tiny‑path completion lemma. Any path of length < K := ℓ_pump+4 is solvable or rejectable in constant radius by enumerating all candidates in Ext for its Type. This justifies the small‑n fallback in S1‑path and S2‑path.
+- Orientation‑specialized (ℓ_width,ℓ_count,ℓ_pattern) partition. State the oriented‑path version (derivable from the paper’s Lemma 22 without re‑orienting) with explicit parameters ℓ_width=ℓ_pattern=ℓ_pump and ℓ_count=2ℓ_pump+2.
+
+Sanity checks and examples for S2‑path
+- Equality LCL (E={(c,c)}, A_0=A_1={c}). Take f0(w)≡c^{|w|}. Gw,1 and all Gw1,w2,S mid‑blocks are trivially consistent. Classified O(1) (agrees with S1‑path acceptance).
+- Proper 2‑coloring on oriented paths. f0 cannot satisfy (F1) across Gw,1 (mid‑block requires a consistent 2r window under period‑1), so S2‑path rejects; S1‑path accepts with f_mid, hence Θ(log* n).
+
+Actionable next steps for output.md
+1) Add S2‑path (Stage‑2 theorem for oriented paths) using the f0 certificate: definitions of Gw,z and Gw1,w2,S, the feasibility conditions (F1)–(F2), the two directions of the equivalence, and the NEXPTIME verification argument.
+2) Insert the oriented‑path (ℓ_width,ℓ_count,ℓ_pattern) partition statement with parameters and a short proof sketch (pointing to the paper’s Lemmas 20–22, noting global orientation simplifies the orientation step).
+3) Clean up numbering and the lingering Stage‑1 remark; align Prop. 9’s transition cost to O(β^4) where referenced.
+4) Optionally add the tiny‑path completion lemma to justify the small‑n fallback.
+
+Why this is incremental and auditable
+- All added checks for S2‑path reduce to Ext‑table membership (finite, precomputable) and pumping lemmas already in output.md; the structure matches the paper’s decidable formulation (Lemma 23). The verifier modifications (table sizes, enumeration scopes, and complexity bounds) remain within 2^{poly(β)}.
+- The proposed edits are localized: no changes to S1‑path content, just removal of an obsolete remark and consistency fixes, plus the new S2‑path section with explicit definitions and a proof outline tied to existing lemmas.
+
+## Round 0011 — 2025-08-27T19:55:01.722515Z
+
+Round 0011 — Endpoint‑coupled Stage‑1 is in place; hygiene fixes, tiny‑path fallback, and small auxiliary lemmas for verification and preprocessing
+
+Audit of output.md (gaps and clarifications)
+- Numbering hygiene. Base cases appear as Proposition 6 (k=1→2), Proposition 6B (k=2→3), and Proposition 7 (k=3→4), plus Proposition 6A for k_flag=1 append. This is logically fine but confusing; consider grouping the three base updates under a common “Base cases” header (or renumber 6,7,8) and keep the k_flag=1 variant as a lemma.
+- Interior separator wording (minor ambiguity). In Theorem S1‑path (⇐), the bullet “Interior separators: For each separator between long blocks of types τ_b and τ_c with local inputs s1 and s2 on its two adjacent 2‑node windows …” is ambiguous (a single separator has one 2‑node window and one input s). Suggested clarification: “For each separator S with adjacent long types (τ_L,τ_R) and input s, set its 2‑node output to f_mid(τ_L,s,τ_R). For a pair of consecutive separators S1,S2 (with adjacent long types τ_b,τ_c to the middle block and inputs s1,s2), use W_{b⊙c}[α_L][α_R] with α_L = second(f_mid at S1) and α_R = first(f_mid at S2) to fill the intervening block.”
+- Δ symbol not defined. Propositions 19 and 21 use Δ (maximum out‑degree of E). Add a one‑line definition near Setup: “Let Δ := max_{x∈Σ_out} |{y : E(x,y)}|.”
+
+Tiny‑path fallback (to justify the small‑n cases in S1‑path)
+Lemma TP (constant‑radius completion for tiny paths). Let K := ℓ_pump+4. There exists a constant M = 2K such that any globally oriented path of length ≤ M can be solved (or rejected) by a deterministic LOCAL algorithm in O(1) rounds using the precomputed Ext tables.
+Sketch proof. Precompute, offline, for each input t with |t| ≤ M, whether Ext_t ≠ ∅ and, if so, a witness labeling for each admissible boundary quadruple; by dynamic programming this is O(β^4·2^M) preprocessing (constant in β). At runtime, each node gathers its entire path in M rounds (a constant) and applies the precomputed decision for its exact instance. This justifies the “0 or 1 separator” fallback in S1‑path. Why useful: removes the last informal piece in the (⇐) direction.
+
+Endpoint‑projection identities (implementation/verification aids)
+Lemma E1′ (allow sets as E‑neighborhoods). Define L_allow(τ):={α:V_left[τ][α]} and R_allow(τ):={α:V_right[α][τ]}. Then L_allow(τ)=N_E(RightColors(τ)) and R_allow(τ)=N_E^{-1}(LeftColors(τ)).
+Proof. Immediate from definitions of V_left,V_right and the endpoint projections. Why useful: quick consistency checks and caches for verifying g_L,g_R.
+
+Incremental updates of endpoint projections under append (k_flag≥4)
+Lemma INC (fast update). For τ with k_flag(τ)≥4 and τ′=τ·a,
+- LeftColors(τ′)=LeftColors(τ).
+- RightColors(τ′)={ y∈A_a : ∃x1,x2,x3 with Left3_τ[x1,x2,x3] and E(x3,y) }.
+Proof. Left endpoint is unchanged by appending on the right. For the right endpoint, use Lemma 1 in the Left3 formulation (Prop. 19) and project to R1. Why useful: enables incremental maintenance of V_left/V_right during δ‑BFS in O(β^3) per long append.
+
+Early infeasibility filters for Stage‑1 verification
+- F1 (nonempty Out‑sets). If ∃(τ_b,s) with OutR2(τ_b,s)=∅ or ∃(τ_c,s) with OutL1(τ_c,s)=∅, then no feasible f_mid exists (reject early). Reason: universal extendibility requires these sets to be nonempty to produce seam colors.
+- F2 (endpoint viability). If L_allow(τ_end)=∅ or R_allow(τ_end)=∅, then no endpoint map g_L/g_R exists for τ_end. Reason: V_left/V_right must be satisfiable for at least one seam color.
+Why useful: reduces certificate search space and speeds up negative instances.
+
+Explicit clarification for Out‑set feasibility check
+Lemma E3 (already implied; restated). For all long τ_b,τ_c and inputs s1,s2, the universal clause is equivalent to OutR2(τ_b,s1)×OutL1(τ_c,s2) ⊆ {(α_L,α_R): W_{b⊙c}[α_L][α_R]=true}. Proof is a direct unpacking of Lemma E2 and the definition of W. Why useful: matches the verifier’s implementation (matrix inclusion tests on β×β masks).
+
+Sanity check on endpoint coupling (toy obstruction)
+- Minimal obstruction persists if (iii) is dropped: choose τ_b with OutR2(τ_b,s)={α} and pick g_L with second output β2≠α but V_left true; the block between the endpoint separator and the next interior separator may be unfillable as all W_{b⊙c}[β2][·] can be false. This validates the necessity of the alignment condition in g_L/g_R.
+
+Complexity accounting (verification)
+- Precompute T via δ (Prop. 9) with O(β^4) per long append (Prop. 19), |T| ≤ 4·2^{β^4}. Split T_long.
+- Build Ext_τ for τ∈T and Ext_{τ_b⊙τ_c} for all τ_b,τ_c∈T_long (Prop. 5), then W_{b⊙c} (Prop. 21), and V_left,V_right (endpoint projections). These are all in 2^{poly(β)}.
+- Certificate sizes: f_mid has |T_long|^2·4 entries; g_L has |T|·|T_long|·4; g_R symmetric. Verification is table lookups; filters F1–F2 prune trivially impossible instances.
+
+Actionable edits to output.md
+1) Add the Δ definition (max out‑degree of E) in Setup; align Prop. 19/21 text to refer to Δ explicitly.
+2) Insert Lemma TP (tiny‑path fallback) with a one‑paragraph proof to justify small‑n handling.
+3) Add Lemma E1′ (allow‑set identities) under the endpoint projections section (optional but harmless and testable).
+4) Optionally add Lemma INC (incremental endpoint projections) in the preprocessing/complexity section as an implementation remark to speed δ‑BFS.
+5) Clarify the interior separator wording in S1‑path (⇐) as noted above.
+
+Next steps toward full trichotomy (kept out of output.md per prior guidance)
+- Formalize the oriented‑path (ℓ_width,ℓ_count,ℓ_pattern) partition (constant rounds) with parameters ℓ_width=ℓ_pattern=ℓ_pump and ℓ_count=2ℓ_pump+2; then port the f0‑based Stage‑2 certificate into output.md. All checks reduce to finitely many Gw,1 and Gw1,w2,S instances with types bounded by ℓ_pump.
+- Add a short “type detection within blocks” remark: since K=ℓ_pump+4 is constant, each separator can learn the input of its O(K) neighborhood in O(1) rounds and determine the adjacent long/short types locally.
+
+Why these are incremental and auditable
+- Each lemma is a local identity or constant‑radius construction derived mechanically from Ext and already‑defined slices (Left3), and can be unit‑tested on small β by direct enumeration.
+- The tiny‑path fallback removes an informal step, and the Δ definition plus interior‑separator wording fix readability issues without changing substance.
+- Early filters F1–F2 are simple emptiness checks and can be added to the verifier immediately.
+
+## Round 0011 — 2025-08-27T19:56:28.669557Z
+
+Round 0011 — Completing Stage‑2 (O(1) vs Θ(log* n)) on oriented paths in NEXPTIME, with an oriented‑path partition lemma and a per‑type boundary certificate; small audits and unit‑testable lemmas
+
+Summary of new ideas
+- Stage‑2 certificate finalized for globally oriented paths via per‑type interfaces Q_τ (one quadruple per long type), augmented with an explicit one‑sided endpoint bridging clause. This keeps verification single‑exponential in β and avoids enumerating all short words w (which would blow up to doubly‑exponential in β).
+- Oriented‑path partition lemma (constant rounds) specialized from the paper’s cycle partition: in O(1) rounds, partition any oriented path into short segments (length ≤ 2ℓ_width) and long periodic segments with primitive period length ≤ ℓ_pattern repeated ≥ ℓ_count times, with each node knowing its role. This provides the scaffolding for the O(1) construction.
+- Auditable fillings: long periodic segments are tiled by Q_τ using the wrap constraint E(R1_τ,L1_τ); short separators between long segments are filled by the universal bridging condition using Ext_{τ_S}; endpoint separators are filled by one‑sided bridging (new clause) that only needs a seam to the adjacent long block.
+
+Gaps identified in output.md
+- Stage‑2 theorem for oriented paths is not yet stated. The Stage‑2 plan has been outlined in earlier notes; below I give a concrete, NEXPTIME‑verifiable certificate and an O(1) construction.
+- Optional: add a “tiny‑path completion” lemma formalizing the small‑n fallback already invoked in S1‑path.
+
+Stage‑2 certificate and theorem to add (path version)
+Definitions (recalled)
+- T is the set of reachable types (Lemma 8, Prop. 9). T_long := {τ ∈ T : k_flag(τ) ≥ 4}. ℓ_pump := |T|.
+- Ext concatenation and associativity as in Lemma 11 and Prop. 12.
+Certificate per long type τ ∈ T_long
+- Q_τ = (L1_τ, L2_τ, R2_τ, R1_τ) ∈ Ext_τ.
+Checks (three families)
+1) Local tiling and wrap (within τ): E(L1_τ,L2_τ), E(R2_τ,R1_τ), and E(R1_τ,L1_τ).
+2) Two‑sided universal bridging (across any middle type): For all τ_left, τ_S, τ_right ∈ T (τ_left, τ_right ∈ T_long; τ_S arbitrary, including short), we require ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_{τ_left}, o1) and E(o4, L1_{τ_right}). (For τ_S empty, the condition reduces to E(R1_{τ_left}, L1_{τ_right}).)
+3) One‑sided endpoint bridging (new, for paths): For all τ ∈ T_long and all τ_S ∈ T, require both
+   • ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(o4, L1_τ) (fill a left‑endpoint short segment abutting a long τ on the right), and
+   • ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_τ, o1) (fill a right‑endpoint short segment abutting a long τ on the left).
+Why (3) is needed and sufficient. In the O(1) construction, any endpoint segment S has only one adjacent long block; filling S requires only a seam into that long block. The existence of a quadruple in Ext_{τ_S} with the single seam satisfied guarantees a legal local labeling of S; the “unused” seam (toward the path boundary) imposes no constraint (there is no edge beyond the endpoint).
+Theorem S2‑path (oriented paths; O(1) vs Θ(log* n))
+- Statement. A β‑normalized radius‑1 LCL on globally oriented paths has deterministic complexity O(1) iff there exist {Q_τ}_{τ∈T_long} satisfying (1)–(3). Otherwise, if S1‑path holds but no {Q_τ} satisfies (1)–(3), the deterministic complexity is Θ(log* n).
+- NEXPTIME verification. Enumerate T (Prop. 9) and Ext_τ for τ ∈ T, plus Ext_{τ_S} for all τ_S. Check (1) directly. For (2), iterate all triples (τ_left, τ_S, τ_right) and test existence of (o1,o2,o3,o4)∈Ext_{τ_S} with the two seam E‑constraints (this reduces to β^2 bit‑matrix membership with precomputed slices). For (3), for each (τ, τ_S) test existence of a right boundary color o4 or left boundary color o1 in Ext_{τ_S} adjacent to L1_τ or from R1_τ, respectively. Total work is |T_long|·β^O(1) for (1), |T_long|^2·|T|·β^O(1) for (2), and |T_long|·|T|·β^O(1) for (3), hence single‑exponential in β.
+- O(1) construction. In O(1) rounds, compute an (ℓ_width, ℓ_count, ℓ_pattern)‑partition with ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump + 2 (lemma below). This yields a decomposition of the oriented path into:
+  • Plong: maximally long periodic subpaths with primitive period w of length ≤ ℓ_pattern, repeated ≥ ℓ_count; each node knows w.
+  • Pshort: short/irregular subpaths, each of length ≤ 2ℓ_width; endpoint segments belong to Pshort or (degenerate case) are absorbed by a long periodic P ∈ Plong.
+  Labeling algorithm:
+  1) For each P ∈ Plong, let τ be its long type (well defined by periodic pumping). Tile P by repeating the boundary interface Q_τ; interior legality holds because Q_τ ∈ Ext_τ and E(R1_τ,L1_τ) (wrap) closes each tile.
+  2) For each short interior S ∈ Pshort between two long neighbors P_L and P_R with types τ_L, τ_R, fill S via (2): pick (o1,o2,o3,o4) ∈ Ext_{Type(S)} that matches E(R1_{τ_L},o1) and E(o4,L1_{τ_R}); interior is legal by Ext membership.
+  3) For each endpoint short S ∈ Pshort adjacent to a single long neighbor of type τ, fill S via (3): pick a quadruple from Ext_{Type(S)} with o4 adjacent to L1_τ (left endpoint) or with o1 adjacent from R1_τ (right endpoint).
+  Every step is constant‑radius and local.
+- Proof sketches. (⇒) If an O(1) algorithm exists, define Q_τ by simulating it on a canonical long representative of τ (periodic pumping identifies τ in O(1)); the checks follow by restricting a legal labeling and concatenation (Lemma 11). (⇐) The algorithm above is constant‑round as all decisions depend on O(ℓ_pump)‑radius information and precomputed tables.
+
+Oriented‑path partition lemma (to add)
+Lemma P‑Partition (O(1) rounds on globally oriented paths). For constants ℓ_width, ℓ_pattern, ℓ_count with ℓ_pattern ≥ ℓ_width, there is a deterministic LOCAL algorithm that in O(1) rounds partitions any globally oriented path into directed subpaths P such that: (i) each P has |P| ≥ ℓ_width; (ii) Pshort := {P : |P| ≤ 2ℓ_width} are short, with each node knowing its rank in P; (iii) Plong := {P : |P| > 2ℓ_width} are periodic, each P is equal to wk for some primitive w with |w| ≤ ℓ_pattern and k ≥ ℓ_count, and each node knows w.
+Proof idea. This is the path‑specialization of [paper, Lemmas 20–22]. Orientation is given, so no initial orientation step is needed. First, for each primitive w (|w| ≤ ℓ_pattern), nodes can detect in O(1) whether they belong to a maximal subpath whose input is wx with x ≥ ℓ_count + 2ℓ_width. Trim ℓ_width·|w| nodes from each end to form Plong. The remaining nodes form Pirreg; by the “no long periodic fragment” property, one can compute an (ℓ_pattern, 2ℓ_pattern)‑independent set in O(1) (as in Lemma 20 in the paper) using distinct colors defined by length‑ℓ windows along the orientation, and then cut Pirreg into subpaths of lengths in [ℓ_pattern, 2ℓ_pattern] (hence ≥ ℓ_width) with rank labels. Setting ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump+2 fits the Stage‑2 construction.
+
+Why the one‑sided endpoint clause (3) is natural and minimal
+- Necessity: Without (3), an endpoint short segment S adjacent to a long τ could fail: Ext_{Type(S)} might have no boundary y with E(y, L1_τ), preventing a legal seam into τ even though two‑sided bridging holds elsewhere.
+- Sufficiency: The seam toward the missing side is not constrained, so any quadruple (o1,o2,o3,o4) with E(o4, L1_τ) (or E(R1_τ, o1) on the other side) yields a legal interior labeling by Ext and satisfies all node/edge constraints in S.
+
+Tiny‑path completion lemma (optional addition)
+Lemma Tiny. For K := ℓ_pump+4, any oriented path of length < K can be decided (solved or declared unsolvable) in constant rounds by exhaustive lookup: enumerate all Ext for its Type and pick any legal completion (or reject). This justifies the small‑n fallbacks used in S1‑path and S2‑path.
+
+Complexity and implementation notes (verifier)
+- Precompute Ext_τ for τ ∈ T (Prop. 9, Prop. 19); Ext_{τ_S} for all τ_S; 3D slices for fast checks (Prop. 5). Build auxiliary endpoint‑allow bitsets per τ_S: RightAllow(τ_S) := {o4 : ∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}}, LeftAllow(τ_S) := {o1 : ∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}; used in (3) via E adjacency.
+- Certificate size is O(|T_long|) quadruples. Verification is dominated by (2), which is O(|T_long|^2·|T|·β^2) boolean checks with precomputed slices.
+
+Sanity checks
+- Equality LCL (E={(c,c)}, A_0=A_1={c}). Choose Q_τ=(c,c,c,c) for all τ∈T_long; (1)–(3) trivially hold; classify O(1).
+- Proper 2‑coloring. No Q_τ can satisfy E(R1_τ,L1_τ) wrap across period‑1, hence (1) fails; S1‑path accepts (feasible f_mid exists); classification Θ(log* n).
+- Endpoint stress: Pick an instance where some τ_S has RightAllow(τ_S) disjoint from N_E(L1_τ) for a candidate τ; then (3) fails and the certificate is correctly rejected.
+
+Relation to f0‑based Stage‑2 (notes)
+- The f0 certificate for cycles (Gw,z, Gw1,w2,S) is elegant but naive verification over all w with |w| ≤ ℓ_pump is doubly exponential in β. The per‑type Q_τ approach keeps checks to a singly‑exponential scale using |T| ≤ 4·2^{β^4}.
+
+Concrete next steps for output.md
+1) Add Theorem S2‑path with the statement above, the certificate Q_τ and checks (1)–(3), proofs of (⇒) and (⇐), and the NEXPTIME verification argument.
+2) Add Lemma P‑Partition (or cite/adapt paper’s Lemmas 20–22) specialized to oriented paths, with parameters ℓ_width=ℓ_pattern=ℓ_pump, ℓ_count=2ℓ_pump+2.
+3) Optionally add Lemma Tiny to justify small‑n fallback.
+4) Add a short “Endpoint one‑sided bridging” remark explaining why no extra endpoint tables (like V_left/V_right) are needed in Stage‑2 beyond (3).
+
+Obstacles and resolutions
+- Endpoint handling in Stage‑2: resolved by the explicit one‑sided bridging clause (3), which is verifiable from Ext tables and does not enlarge asymptotics.
+- Avoiding double‑exponential blow‑up: resolved by using per‑type Q_τ and the partition lemma instead of an f0 on all words of length ≤ ℓ_pump.
+
+Unit‑test ideas for the verifier
+- Verify (1): for random τ∈T_long, check E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+- Verify (2): build bit‑matrices M_{τ_S}[α_L][α_R] := ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1) and E(o4,α_R). Then assert for all τ_left,τ_S,τ_right that M_{τ_S}[R1_{τ_left}][L1_{τ_right}] is true.
+- Verify (3): precompute RightAllow(τ_S), LeftAllow(τ_S); assert ∀τ,τ_S that N_E(RightAllow(τ_S)) contains L1_τ and N_E^{-1}(LeftAllow(τ_S)) contains R1_τ.
+
+Minor audit
+- S1‑path now includes Lemma M1; Prop. 9 states O(β^4) long append and references Prop. 19; endpoint extraction in S1 (⇒) uses P_end (short allowed) with one‑sided padding — good. I found no remaining contradictions in output.md.
+
+## Round 0012 — 2025-08-27T20:06:45.956277Z
+
+Round 0012 — Completing Stage‑2 on oriented paths: a fully specified O(1) partition, certificate, and NEXPTIME verifier; small audits and auxiliary lemmas
+
+Summary of this round
+- Main contribution: a complete, self‑contained oriented‑path partition lemma in O(1) rounds (constant in n) suitable for Stage‑2 on globally oriented paths, with an explicit finite‑state algorithm and a Fine–Wilf–style periodicity argument that guarantees correctness. This closes the remaining conceptual gap flagged in the verifier feedback.
+- With the partition in place, I give a precise Stage‑2 theorem (S2‑path) using the per‑type interfaces Q_τ with a one‑sided endpoint clause, and both directions of the equivalence. I also spell out a single‑exponential (in β) nondeterministic verification procedure. This completes the trichotomy decision method (Ω(n) vs Θ(log* n) vs O(1)) in NEXPTIME for β‑normalized, r=1 LCLs on globally oriented paths.
+- Minor audits: confirm S1‑path interior‑separator seam conventions are now clarified; suggest adding the allow‑set identities L_allow/R_allow; propose early filters for Stage‑2; note that all added checks use already defined Ext machinery.
+
+What may be added to output.md (clean, auditable pieces)
+
+A) Oriented‑path partition lemma (constant rounds)
+- Statement (P‑Partition‑Path). Let ℓ_width, ℓ_pattern, ℓ_count be positive integers with ℓ_pattern ≥ ℓ_width. There is a deterministic LOCAL algorithm that, in O(1) rounds (constant in n), partitions any globally oriented path G into directed subpaths P satisfying:
+  • Direction and minimum length: each P is directed (global orientation) and |P| ≥ ℓ_width.
+  • Long periodic segments (Plong): P ∈ Plong iff the input of P equals w^k for some primitive w with |w| ≤ ℓ_pattern and k ≥ ℓ_count; all nodes in P know this w.
+  • Short/irregular segments (Pshort): P ∈ Pshort otherwise; every P ∈ Pshort has ℓ_width ≤ |P| ≤ 2ℓ_width, and each node in P knows its rank in P.
+  Recommended parameters for Stage‑2: ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump + 2.
+
+- Algorithm (finite‑state; constant in n)
+  1) Detect long periodic runs: For each primitive w with 1 ≤ |w| ≤ ℓ_pattern (finitely many), every node checks (in O(|w|·ℓ_count) rounds, a constant) whether it lies in a maximal w‑run, i.e., a maximal subpath equal to w^k with k ≥ ℓ_count + 2ℓ_width. This is local because ℓ_count,ℓ_width,ℓ_pattern depend only on β. For each such run, trim ℓ_width·|w| nodes from each side; the trimmed interior becomes a member of Plong labeled by w; the trimmed margins are left undecided for now.
+  2) Irregular remainder Pirreg: Let Pirreg be the set of nodes not assigned to any trimmed w‑run interior. By construction, Pirreg contains no subpath of the form w^x with |w| ≤ ℓ_pattern and x ≥ ℓ_count (since any such run would have a length‑ℓ_count interior captured in step 1). Define the big window length Lbig := ℓ_count · ℓ_pattern.
+  3) Color Pirreg by windows: For each node v ∈ Pirreg that has at least Lbig succeeding nodes (handle endpoints by the tiny‑path fallback), define c(v) to be the length‑Lbig binary window starting at v (a symbol in {0,1}^{Lbig}). This is computable in O(Lbig) rounds, a constant.
+  4) Fine–Wilf uniqueness within radius ℓ_pattern: If u,v ∈ Pirreg and 0 < dist(u,v) ≤ ℓ_pattern with c(u) = c(v), then the substring from u to v+Lbig−1 is p‑periodic with p = dist(u,v) ≤ ℓ_pattern, hence contains a run w^x with |w| = p ≤ ℓ_pattern and length ≥ Lbig + p ≥ ℓ_count · ℓ_pattern + 1, i.e., x ≥ ℓ_count. This contradicts the definition of Pirreg. Therefore, in Pirreg, the mapping v ↦ c(v) is injective within distance ℓ_pattern.
+  5) (ℓ_pattern, 2ℓ_pattern)‑independent set on Pirreg in O(1): Process color classes in any fixed total order on {0,1}^{Lbig} (there are 2^{Lbig} classes, a constant). In the phase for color α, a node v with c(v)=α joins I if no node within distance ℓ_pattern has already joined I. Correctness: the injectivity from step 4 implies that no two conflicting nodes share the same color within distance ℓ_pattern, so the greedy per‑color process yields an MIS on the ℓ_pattern‑th power. Consequently, the components of Pirreg \\ I have sizes in [ℓ_pattern, 2ℓ_pattern].
+  6) Output the partition: Plong are the trimmed periodic blocks from step 1; Pshort are the components of Pirreg \\ I; ranks in Pshort are computed by oriented BFS within distance ≤ 2ℓ_pattern = O(1).
+
+- Proof notes (why each claim holds)
+  • Periodic detection is local since |w| and ℓ_count are constants; trimming by ℓ_width·|w| preserves |P| ≥ ℓ_width.
+  • Fine–Wilf variant: if two length‑L windows at shift p < L are equal, the concatenation of them is p‑periodic on length L+p; choosing Lbig = ℓ_count·ℓ_pattern ensures the periodic run length ≥ ℓ_count·p, hence x ≥ ℓ_count for some primitive divisor of p ≤ ℓ_pattern. This contradicts the remainder’s definition.
+  • The per‑color greedy MIS uses a constant number of phases (2^{Lbig}) and a constant‑radius conflict test at each phase, hence O(1) rounds. It produces spacing ≥ ℓ_pattern and gaps ≤ 2ℓ_pattern by maximality on the ℓ_pattern‑power.
+  • Endpoint and tiny segments with fewer than Lbig successors are handled by the tiny‑path fallback (already in output.md) without affecting asymptotics.
+
+- Why this integrates with the attached paper: This is the path analogue of Section 4.3’s cycle partition (Lemmas 19–22), with two changes: (i) use global orientation directly (no re‑orientation needed), (ii) adopt a slightly larger window length Lbig to obtain the necessary local injectivity in Pirreg via a Fine–Wilf argument.
+
+B) Stage‑2 certificate and theorem on oriented paths (S2‑path)
+- Certificate (as in prior rounds, now self‑contained with the partition lemma): For each τ ∈ T_long, supply Q_τ = (L1_τ,L2_τ,R2_τ,R1_τ) ∈ Ext_τ satisfying
+  (1) Local tiling and wrap within τ: E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+  (2) Two‑sided bridging (interior short segments): For all τ_L, τ_R ∈ T_long and τ_S ∈ T (τ_S may be short or empty), ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_{τ_L},o1) and E(o4,L1_{τ_R}); for τ_S empty, reduce to E(R1_{τ_L},L1_{τ_R}).
+  (3) One‑sided endpoint bridging: For all τ ∈ T_long and τ_S ∈ T, require ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(o4,L1_τ) (left endpoint case) and ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_τ,o1) (right endpoint case).
+
+- Theorem (S2‑path). A β‑normalized r=1 LCL on globally oriented paths has deterministic LOCAL complexity O(1) iff there exists {Q_τ}_{τ∈T_long} satisfying (1)–(3). If Theorem S1‑path holds but no such family exists, the deterministic complexity is Θ(log* n).
+
+- Proof (⇐): Given {Q_τ}, choose ℓ_width = ℓ_pattern = ℓ_pump, ℓ_count = 2ℓ_pump + 2 and compute the partition by P‑Partition‑Path in O(1) rounds. Then:
+  • For each Plong with type τ, tile by repeating Q_τ; E(R1_τ,L1_τ) closes tiles; Ext_τ ensures interior legality.
+  • For each Pshort between long neighbors with types τ_L, τ_R, clause (2) furnishes (o1,o2,o3,o4)∈Ext_{Type(Pshort)} matching both seams; fill Pshort accordingly.
+  • For each endpoint short segment S adjacent to a single long neighbor τ, clause (3) supplies a one‑sided seam quadruple in Ext_{Type(S)}; fill S by using the single required seam (the boundary beyond the path imposes no constraint). The tiny‑path fallback covers degenerate small cases.
+  All choices are local lookups in precomputed Ext tables; runtime is O(1) rounds.
+
+- Proof (⇒): From any O(1) algorithm A, extract Q_τ as follows. For each τ ∈ T_long, take a canonical long representative P_τ of type τ (periodic pumping) and run A on P_τ (and on constant‑size canonical concatenations with a middle τ_S) to define Q_τ and to witness (1)–(3). Correctness follows by restricting A’s legal outputs and using Ext‑concatenation (Lemma 11) to move between canonical representatives and arbitrary types τ_S.
+
+- NEXPTIME verification (single‑exponential in β): Precompute T, T_long (Prop. 9) and Ext_τ for τ∈T as in output.md. Then verify:
+  • (1) For each τ ∈ T_long, check membership Q_τ ∈ Ext_τ and E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+  • (2) For all τ_L, τ_R ∈ T_long and τ_S ∈ T, check existence of (o1,o2,o3,o4) ∈ Ext_{τ_S} with the two seam adjacencies (precompute for each τ_S the β×β mask M_{τ_S}[α_L][α_R] := ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1), E(o4,α_R)). Then require M_{τ_S}[R1_{τ_L}][L1_{τ_R}] = true.
+  • (3) For all τ,τ_S, check that L1_τ ∈ N_E(RightAllow(τ_S)) and R1_τ ∈ N_E^{-1}(LeftAllow(τ_S)), where RightAllow(τ_S):={o4 : ∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}} and LeftAllow(τ_S):={o1 : ∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}.
+  These are all finite table checks over |T_long|·β^O(1), |T_long|^2·|T|·β^O(1), and |T_long|·|T|·β^O(1) cases respectively, hence 2^{poly(β)} overall.
+
+C) Small auxiliary lemmas and filters (easy to add)
+- Fine–Wilf window lemma (Path version). Let s be a binary string. If s[i..i+L−1] = s[i+p..i+p+L−1] for some 0 < p < L, then s[i..i+p+L−1] is p‑periodic. Proof: classic; the overlapped equality propagates p‑periodicity over the union interval.
+- Allow‑set identities (Stage‑1 hygiene). Define L_allow(τ):={α : V_left[τ][α]} and R_allow(τ):={α : V_right[α][τ]}. Then L_allow(τ)=N_E(RightColors(τ)) and R_allow(τ)=N_E^{-1}(LeftColors(τ)). Use: quick checks for g_L/g_R.
+- Stage‑2 early filters. If there exist τ∈T_long, τ_S∈T with N_E(RightAllow(τ_S)) not covering any L1 candidate (or symmetrically for R1), no certificate can exist; reject early. Also, if Ext_τ is empty for some τ ∈ T_long, reject immediately.
+
+Audits of output.md (gaps and clarifications)
+- S1‑path: The “Clarification for Theorem S1‑path (Interior vs endpoint seams)” block correctly fixes the earlier ambiguity; α_L/α_R and the neighboring long types (τ_b,τ_c) are clearly defined. Good.
+- Δ definition and Lemma TP are in place and consistent with Prop. 19 and 21.
+- Suggestion: add the allow‑set identities for V_left/V_right (they’re immediate but useful in implementations/tests). Also consider renumbering base cases (6,6B,7,6A) to avoid confusion.
+
+Examples and sanity checks
+- Equality LCL: choose Q_τ=(c,c,c,c) for all τ ∈ T_long; (1)–(3) trivially hold; O(1).
+- Proper 2‑coloring: (1) fails (cannot have E(R1_τ,L1_τ) wrap); S1‑path still passes with feasible f_mid; trichotomy returns Θ(log* n).
+- Endpoint stress: choose τ_S with RightAllow(τ_S) disjoint from N_E(L1_τ) for some τ; clause (3) fails and the certificate is rightly rejected.
+
+Next steps (edits to output.md)
+1) Insert P‑Partition‑Path with Lbig := ℓ_count·ℓ_pattern and the short Fine–Wilf proof of injectivity on Pirreg.
+2) Add Theorem S2‑path with certificate (1)–(3), both directions, and the NEXPTIME verification outlined above.
+3) Optionally add the allow‑set identity lemma and the Stage‑2 early filters.
+4) Keep the existing S1‑path, V_left/V_right, W‑matrices, and tiny‑path fallback unchanged; they integrate seamlessly with S2.
+
+Why this is incremental and auditable
+- Each new component (partition lemma, S2‑path, Fine–Wilf window lemma) uses only finite‑state, constant‑radius constructions and the Ext tables already present. All verifications reduce to finite boolean matrix checks.
+- The partition algorithm is explicit (color by length‑Lbig windows; greedy per‑color MIS on the ℓ_pattern‑th power) and its correctness hinges on a standard periodicity argument that we spelled out.
+- NEXPTIME bounds remain single‑exponential in β; no doubly‑exponential blowups are introduced.
+
+## Round 0012 — 2025-08-27T20:07:23.076774Z
+
+Round 0012 — Completing Stage‑2: a rigorous O(1) partition on oriented paths and a singly‑exponential Stage‑2 certificate based on types (not words), plus audits and verifiable lemmas
+
+Overview
+- Goal this round: close the remaining Stage‑2 gap (O(1) vs Θ(log* n)) for β‑normalized radius‑1 LCLs on globally oriented paths by (i) stating a self‑contained, deterministic O(1) partition lemma tailored to oriented paths and (ii) proposing a singly‑exponential Stage‑2 certificate and verifier that avoids the doubly‑exponential blow‑up inherent in word‑based certificates.
+- High‑level plan: specialize the paper’s Lemma 20/21/22 path partition to our oriented path setting with explicit constants linked to ℓ_pump=|T|, and replace the word‑indexed f0 by a type‑indexed path‑feasible function f_type on short types (length ≤ ℓ_pump). This keeps verification within 2^{poly(β)}.
+- Audit: output.md currently contains a complete Stage‑1 (S1‑path) including endpoint coupling, and the tiny‑path fallback (Lemma TP). Stage‑2 is not yet included; this note supplies a ready‑to‑integrate Stage‑2 section.
+
+A. Oriented‑path partition lemma in O(1) rounds (self‑contained)
+Parameters
+- Set ℓ_pattern := ℓ_pump and ℓ_width := ℓ_pump and ℓ_count := 2ℓ_pump + 2. These are constants depending only on β.
+- Primitive word means a period w ∈ {0,1}^k with 1 ≤ k ≤ ℓ_pattern that is not a proper power.
+
+Statement (P‑Partition‑Path)
+Let G be a globally oriented path. In O(1) LOCAL rounds we can compute a partition P = P_long ∪ P_short of G such that:
+1) Direction and minimum length: each P ∈ P has nodes oriented the same way and |P| ≥ ℓ_width.
+2) Long periodic segments (P_long): each P ∈ P_long is a maximal subpath contained in a run w^K for some primitive w with |w| ≤ ℓ_pattern and K ≥ ℓ_count; each node in P learns the canonical primitive w.
+3) Short/irregular segments (P_short): the remaining subpaths form P_short; each P ∈ P_short has |P| ≤ 2ℓ_width, and each node in P learns its rank in P and the types of the adjacent long neighbors (if any).
+
+Algorithm (constant‑round, oriented)
+- Step A (detect deep interiors of long runs): For each primitive w with 1 ≤ |w| ≤ ℓ_pattern, each node v checks in radius R_w := (ℓ_count + 2ℓ_width)|w| that there exists an aligned block centered near v of the form w^{ℓ_count+2ℓ_width}. If yes, label v ∈ Deep(w). (Alignment uses the global orientation and |w|.) Prioritize conflicts by a fixed total order on primitive words (first by |w|, then lexicographically) and assign each node to the first w for which it is in Deep(w).
+- Step B (form P_long): For each w, let L(w) be the maximal connected subpaths consisting of nodes assigned to w. Each such L ∈ L(w) is contained in a w‑periodic run of length ≥ (ℓ_count + 2ℓ_width)|w|, and by construction each end of the run is at least ℓ_width|w| from the boundary of L. Set P_long := ⋃_w L(w). Each L ∈ P_long is a directed path, and each node knows its w.
+- Step C (form P_short): Define P_short as the connected components of G \ P_long. By construction, each P ∈ P_short has |P| ≤ 2ℓ_width: any longer segment would contain a subpath w^{ℓ_count+2ℓ_width} for some w, contradicting Step A’s maximality and conflict resolution. Each node in P can determine its rank and the adjacent long neighbors (if any) in O(1) rounds.
+
+Correctness and complexity (sketch, auditable)
+- Completeness of long detection: If a primitive run w^K has K ≥ ℓ_count + 2ℓ_width, its internal nodes at distance ≥ ℓ_width|w| from both ends satisfy the Deep(w) test and are captured into P_long. The fixed priority on primitive words yields a disjoint assignment.
+- Boundedness of the remainder: Let H be any component of G \ P_long. If |H| > 2ℓ_width, its interior contains a subpath w^{ℓ_count+2ℓ_width} (for some primitive w with |w| ≤ ℓ_pattern), which would have produced Deep(w) nodes in Step A, contradiction.
+- Round complexity: All pattern detections and conflict resolutions use a constant number of fixed‑length windows bounded by (ℓ_count+2ℓ_width)·ℓ_pattern = O(ℓ_pump^2), hence O(1) rounds. Ranking within short segments and learning adjacent long types are constant‑radius tasks.
+
+Remark (optional, strengthens Step C)
+On each irregular component H of G \ P_long with |H| ≥ ℓ_width, the string has no subpath of the form w^x with |w| ≤ ℓ_pattern and |w^x| ≥ ℓ_count+2ℓ_width. Hence the paper’s (γ,2γ) independent‑set lemma (with γ=ℓ_pattern) applies; combining it with a local cut procedure yields an alternative derivation of |H| ≤ 2ℓ_width and a decomposition into blocks of lengths in [ℓ_pattern,2ℓ_pattern]. We keep the simpler trimming‑based bound ≤ 2ℓ_width above.
+
+B. A singly‑exponential Stage‑2 certificate based on short types (not words)
+Motivation
+- The word‑indexed f0 (mapping each w with |w| ≤ ℓ_pump to f0(w)) risks a doubly exponential verification because the number of words is 2^{Θ(ℓ_pump)} and ℓ_pump itself is exponential in β.
+- Resolution: collapse w to its short type τ_w (Type(w) with |w| ≤ ℓ_pump). The number of short types is ≤ |T| = 4·2^{β^4}, so guessing and verifying a type‑indexed function remains singly exponential in β.
+
+Certificate objects
+- T_short := { τ ∈ T : τ is realized by some word w with 1 ≤ |w| ≤ ℓ_pump }.
+- For each τ ∈ T_short, fix any canonical representative w_τ with |w_τ| ≤ ℓ_pump.
+- The certificate provides f_type: T_short → Σ_out^{|w_τ|}, i.e., an output string f_type(τ) of length |w_τ| for each τ.
+
+Feasibility conditions (typed analogue of (F1)–(F2))
+- (F1‑T) For each τ ∈ T_short, define G_{τ,1} to be the path w_τ^r · w_τ · w_τ^r labeled by f_type(τ)^{2r+1}. Require: the labeling is locally consistent on the mid block w_τ.
+- (F2‑T) For each τ_1, τ_2 ∈ T_short and each τ_S ∈ T (any type, short or long), define G_{τ_1,τ_2,τ_S} as w_{τ_1}^{ℓ_pump+2r} · S · w_{τ_2}^{ℓ_pump+2r}, with the first 2r|w_{τ_1}| outputs fixed to f_type(τ_1)^{2r} and the last 2r|w_{τ_2}| outputs fixed to f_type(τ_2)^{2r}. Require: there exists a completion that is locally consistent on the middle block w_{τ_1}^{ℓ_pump+r} · S · w_{τ_2}^{ℓ_pump+r}.
+
+Why this is enough (intuition)
+- (F1‑T) anchors a 2r‑window per period type τ so that repeating anchors do not conflict.
+- (F2‑T) ensures any finite irregular subpath S flanked by long pumped contexts with anchored mid‑windows can be completed locally.
+
+Verification in NEXPTIME (single‑exponential)
+- Enumerate T and T_short (Proposition 9). For each τ ∈ T_short fix a representative w_τ of length ≤ ℓ_pump.
+- Check (F1‑T): for each τ ∈ T_short, G_{τ,1} mid‑block consistency is a finite Ext‑membership test (at most |T_short| many instances; each reduces to a constant number of seam checks via Ext of Type(w_τ^3)).
+- Check (F2‑T): For each triple (τ_1, τ_S, τ_2), pick any representative S of τ_S with |S| ≤ ℓ_pump (Lemma 14) and test existence of a mid‑consistent completion. This reduces to a boolean check expressible through Ext_{τ_S} and the seam adjacency constraints to the anchored windows. Total checks: |T_short|^2·|T|, each a constant‑size table lookup against precomputed Ext; overall time 2^{poly(β)}.
+
+C. S2‑path (oriented paths; certificate ⇔ O(1))
+Statement (S2‑path)
+A β‑normalized radius‑1 LCL on globally oriented paths has deterministic LOCAL complexity O(1) iff there exists f_type satisfying (F1‑T) and (F2‑T). Otherwise, if S1‑path holds but no such f_type exists, the complexity is Θ(log* n).
+
+(⇒) Given an O(1) algorithm A, construct f_type
+- For each τ ∈ T_short (|w_τ| ≤ ℓ_pump), simulate A on G_{τ,1} with IDs chosen so that the radius‑R (constant) halos of the three copies of w_τ are disjoint and isomorphic (as in the paper’s Lemma 24). Set f_type(τ) to be A’s output string on the mid w_τ. This defines f_type(τ) of correct length and satisfies (F1‑T). For (F2‑T), simulate A on G_{τ_1,τ_2,τ_S} with pumped contexts w_{τ_i}^{ℓ_pump+2r} so that the halos around the two anchors are disjoint; by correctness of A a completion exists.
+
+(⇐) Given f_type, construct an O(1) algorithm
+- Compute the partition P = P_long ∪ P_short in O(1) (P‑Partition‑Path). For each P_long component with primitive w and |w| ≤ ℓ_pattern, each node learns w and |w|.
+- On each P_long, anchor mid‑windows: on every occurrence of the period w, fix the outputs on a 2r window to f_type(τ_w), where τ_w := Type(w) (|w| ≤ ℓ_pump). Each node in that 2r window gathers the |w| input bits (≤ ℓ_pump) to compute τ_w and f_type(τ_w) in O(1) rounds. Repeat this in every period; anchors are disjoint and 2r‑spaced.
+- On each P_short (|P_short| ≤ 2ℓ_width), and on the gaps between adjacent anchors (all of length O(ℓ_pump)), use (F2‑T) to complete the labeling locally: each gap is an instance of some G_{τ_1,τ_2,τ_S} with τ_S being the type of the gap; completeness follows from (F2‑T). End segments (if any) are handled the same way with one anchor missing on one side; this is a special case of (F2‑T) where one anchored context is truncated, admitted by the local check since no seam constraint is required at the path boundary.
+- All steps are constant‑radius table lookups; hence O(1) LOCAL time.
+
+D. Auxiliary check matrices for Stage‑2 verification
+- For τ_S ∈ T, precompute Bridging[τ_S][α_L][α_R] := true iff ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1) and E(o4,α_R). This is exactly the two‑sided seam matrix; computable via Lemma 11 and 3D slices in O(β^4Δ^2). Then (F2‑T) reduces to checking that for each (τ_1,τ_S,τ_2), Bridging[τ_S][L1(τ_1,anchor)→?][?←R1(τ_2,anchor)] is true for each anchored seam color pair read from f_type(τ_1), f_type(τ_2) at the anchor windows.
+- For endpoints, if one uses the specialization where S sits at a boundary, precompute RightAllow(τ_S):={o4:∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}} and LeftAllow(τ_S):={o1:∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}, and then check single‑seam adjacency via E.
+
+E. Audits of output.md (minor issues and alignment)
+- Stage‑2 missing: output.md currently lacks S2‑path and the partition lemma. The P‑Partition‑Path and S2‑path presented here are compatible with the machinery already in output.md (Ext, types, pumping, and seam matrices) and can be integrated.
+- Endpoint handling in S2: With the f_type anchors, endpoint short segments are completed via the same (F2‑T) rule (one anchor missing); no special endpoint tables are needed beyond Ext.
+- MIS mention: Stage‑2 does not rely on MIS; all steps are O(1) owing to the partition and anchors.
+
+F. Testable subclaims and sanity
+- Partition lemma: unit tests on random inputs verifying that P_long obeys periodicity and that all P_short lengths are ≤ 2ℓ_pump.
+- Typed anchoring (F1‑T): for random τ ∈ T_short, construct G_{τ,1} and assert mid‑block consistency from f_type(τ).
+- Bridging (F2‑T): for random triples (τ_1,τ_S,τ_2), verify Bridging[τ_S][·][·] includes all seam pairs induced by the anchor windows of f_type(τ_1) and f_type(τ_2).
+- Endpoints: verify that single‑seam completions exist via RightAllow/LeftAllow + E.
+
+G. Complexity summary (verifier)
+- Enumerating T and T_short takes 2^{poly(β)} (Prop. 9 with Prop. 19). Building Ext tables and slices is 2^{poly(β)} (Props. 5, 19). The certificate f_type has |T_short| entries. Checking (F1‑T) needs |T_short| instances, (F2‑T) needs |T_short|^2·|T| instances; each reduces to constant‑time lookups in precomputed Ext and Bridging matrices. Total nondeterministic time: 2^{poly(β)}.
+
+H. Why type‑indexed f_type avoids the Q_τ tiling gap
+- The earlier Q_τ certificate requires the algorithm to produce an interior labeling of long blocks from boundary quadruples alone; while Ext_τ guarantees existence, it does not supply a constructive constant‑round filler. The f_type anchors provide explicit periodic interior labels (a short block per period), and the remaining gaps are filled by (F2‑T), which is a finite Ext‑check. This is exactly the construct used in the paper’s Section 4.4 but expressed over types to keep verification singly‑exponential.
+
+I. Integration plan for output.md
+1) Add Lemma (P‑Partition‑Path) with parameters ℓ_pattern=ℓ_width=ℓ_pump and ℓ_count=2ℓ_pump+2, algorithm and proof sketch (as above).
+2) Add the S2‑path theorem with the type‑indexed f_type certificate, the (⇒) extraction from an O(1) algorithm, the (⇐) O(1) construction via anchors and (F2‑T) fills, and the NEXPTIME verification argument.
+3) Add Bridging[τ_S] matrices and endpoint allow sets RightAllow/LeftAllow (optional) as implementation aids; all precomputable from Ext.
+4) Cross‑reference existing Ext machinery (Lemmas 11, 12; Props. 5, 19, 21) and the tiny‑path fallback (Lemma TP) for the very small‑n cases.
+
+J. Potential objections and how we address them
+- Do nodes need to know the type of a long block? No: they only need to know the type τ_w of the period w (|w| ≤ ℓ_pump) to read f_type(τ_w) for anchors; gathering |w| inputs is O(ℓ_pump)=O(1).
+- Does irregular segmentation require symmetry breaking? No: the partition is computed solely from input windows and the fixed global orientation (Step A); no MIS is used here.
+- Is (F2‑T) “typed” formulation sufficient? Yes: by Lemma 11, feasibility depends only on the middle type τ_S and the anchored seam colors, which are determined by f_type(τ_1), f_type(τ_2) and Ext_{τ_S}.
+
+K. Closing note
+- With P‑Partition‑Path and the typed Stage‑2 certificate, we now have a clean, singly‑exponential NEXPTIME pipeline for the full trichotomy on globally oriented paths: (i) S1‑path (endpoint‑coupled) separates Ω(n) vs o(n); (ii) S2‑path (typed anchors) separates O(1) vs Θ(log* n). The constructions reduce to precomputed Ext tables, type enumeration, and constant‑radius decisions.
+
+## Round 0013 — 2025-08-27T20:18:52.057147Z
+
+Round 0013 — Repairing the O(1) partition on oriented paths and proposing a typed‑anchor Stage‑2 certificate (singly‑exponential verification); audits and unit tests
+
+Status and goals
+- Stage‑1 (o(n) vs Ω(n)) is now cleanly integrated in output.md via Theorem S1‑path with endpoint coupling (g_L,g_R aligned to Out‑sets) and W/V tables.
+- Stage‑2 (O(1) vs Θ(log* n)) remains out of output.md; prior notes included two alternative certificates. The verifier feedback identified two correctness gaps: (i) the O(1) partition on oriented paths, and (ii) “tiling by Q_τ” is unsound; we should instead use short anchors and Ext‑bridging.
+- This round: (A) I give a repaired, fully local O(1) partition (for globally oriented paths) with an explicit “Good” set and a Fine–Wilf‑based injectivity proof, stated with constants that close earlier gaps; (B) I specify a typed‑anchor Stage‑2 certificate (2‑node anchors per period type) whose verification is singly‑exponential in β and whose construction uses only Ext‑based Bridging/Allow matrices. I also outline unit tests. I do not modify output.md yet; I propose concrete text to add when ready.
+
+A) Oriented‑path partition (repaired; constant rounds)
+Parameters and precomputation (constants depend only on β)
+- Set ℓ_pattern := ℓ_pump and ℓ_width := ℓ_pump, and ℓ_count := 2ℓ_pump + 2 (as in the cycle proof). Let r=1.
+- Define Lbig := (ℓ_count + 2ℓ_width − 1) · ℓ_pattern. This is strictly larger than (ℓ_count+2ℓ_width−1)·p for every period p ≤ ℓ_pattern; it is the key window length used below.
+
+Algorithm (three steps; all O(1) rounds)
+1) Detect long periodic runs and trim interiors (Plong). For each 1 ≤ p ≤ ℓ_pattern and each primitive binary word w of length p, each node checks in radius (ℓ_count+2ℓ_width)·p whether it belongs to a maximal w‑run of length at least (ℓ_count+2ℓ_width)·p. This is a finite‑state, constant‑radius test with the global orientation. For each detected run, trim ℓ_width·p nodes from each end; the trimmed interior segments form Plong; each node in Plong learns p and the primitive w (by reading its p‑window). The trimmed margins remain outside Plong.
+2) Define Pirreg and the Good set. Let Pirreg be the induced subgraph on nodes not in Plong (i.e., all nodes outside the trimmed interiors). Define Good ⊆ Pirreg as the set of nodes v such that the directed forward window of length Lbig (positions v..v+Lbig−1) lies entirely in Pirreg. Each node can test Good locally by seeing both its Plong flags (nearby) and the next Lbig−1 nodes (constant radius).
+3) Beacons via per‑window greedy MIS on Good. Color each v ∈ Good by c(v) := the input substring of length Lbig starting at v. Process colors in any fixed total order on {0,1}^{Lbig}. In the phase of color α, a Good‑node v with c(v)=α joins I if no node within directed path distance ≤ ℓ_pattern to the right or left in the underlying path has already joined I. This is the classic greedy MIS on the ℓ_pattern‑th power, restricted to Good.
+
+Key injectivity claim (new; closes the Fine–Wilf gap)
+Claim. If u,v ∈ Good, dist_G(u,v) ≤ ℓ_pattern, and c(u) = c(v), then contradiction.
+Sketch. Let p := dist_G(u,v) ≤ ℓ_pattern (since the underlying graph is a path, the unique path length equals the shift). Equality c(u)=c(v) (two length‑Lbig windows at shift p<Lbig) implies, by Fine–Wilf, that the concatenation s[u..v+Lbig−1] is p‑periodic over length Lbig+p. Our choice Lbig ≥ (ℓ_count+2ℓ_width−1)·ℓ_pattern ensures Lbig+p ≥ (ℓ_count+2ℓ_width)·p. Hence the input contains a p‑periodic run of length at least (ℓ_count+2ℓ_width)·p around u..v+Lbig−1. By Step 1, the ℓ_width·p‑trimmed interior of this run is in Plong. But u,v ∈ Good means their entire forward Lbig windows avoid Plong; that forces the p‑periodic region s[u..v+Lbig−1] to avoid Plong, contradicting the previous sentence. Therefore c(u) ≠ c(v) for any two Good nodes at path distance ≤ ℓ_pattern.
+Consequence. The per‑color greedy selection on Good computes an MIS on the ℓ_pattern‑th power of the underlying path restricted to Good in O(1) phases; any two beacons are ≥ ℓ_pattern apart, and maximality implies gaps in Good \ I have size ≤ 2ℓ_pattern in the Good‑metric.
+
+Bounding the irregular residuals
+- Nodes in Pirreg \ Good are those within < Lbig positions of some Plong boundary. Every directed component C of Pirreg can be covered by (i) trimmed margins of Plong blocks (each margin has size < ℓ_width·p ≤ ℓ_width·ℓ_pattern) plus (ii) Good‑intervals between margins. After placing beacons in Good, each Good‑interval breaks into pieces of length ≤ 2ℓ_pattern, and the leftover margin pieces have length < Lbig + 2ℓ_width·ℓ_pattern by definition of Good. Hence every connected subpath of Pirreg \ I has length bounded by K_part := Lbig + 2ℓ_width·ℓ_pattern + 2ℓ_pattern = O(ℓ_pump^2), a constant.
+- The final partition P is: Plong (from Step 1) and Pshort: the connected components of the complement (Pirreg \ I) plus the size‑≤2ℓ_pattern residuals inside Good. Each P ∈ Pshort has ℓ_width ≤ |P| ≤ 2K_part (constants), and each node can determine its rank in O(1) rounds.
+
+Why this fixes previous gaps
+- The earlier incorrect “P_short ≤ 2ℓ_width” claim is replaced by an explicit residual bound K_part tied to Lbig and ℓ_pattern.
+- The injectivity is proved only inside Good, and the contradiction explicitly uses that c‑windows stay within Pirreg (hence the periodic run would have forced a Plong interior). We avoid mixing induced‑subgraph and full‑graph distances by measuring MIS adjacency on the underlying path.
+- All steps are constant‑round with global orientation and fixed parameters.
+
+B) Typed‑anchor Stage‑2 certificate (no tiling; singly‑exponential verification)
+Motivation. Instead of “tiling by Q_τ” (unsound), place short anchors (2 nodes for r=1) inside long periodic runs and fill all O(1) gaps using Ext‑based Bridging matrices. To keep verification single‑exponential, anchor types are indexed by period types (derived from short types), not by words.
+
+Objects
+- Period types Θ: for each primitive binary word w with |w| ≤ ℓ_pattern, let θ := Type(w) (on length |w|) — equivalently, any representative of that short type with primitive period p(w). Θ is finite, |Θ| ≤ |T|.
+- Phase selection (deterministic, local). In a long p‑periodic run P ∈ Plong with primitive period w, choose the unique phase φ(w) ∈ {0,1,…,p−1} minimizing the length‑p window lexicographically (ties broken by a fixed total order on {0,1}^p). Each node can compute p and w (p ≤ ℓ_pattern), hence φ(w), in O(1) rounds in Plong.
+- Anchors per period type: f_anchor: Θ → Σ_out^2 assigns a 2‑node output (α1,α2) to be placed on the two consecutive nodes starting at phase φ(w) modulo p across any long run of period w (one anchor per period).
+- Bridging matrices: as already suggested, for every type τ_S (short middle type) define Bridging[τ_S][α_L][α_R] := true iff ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(α_L,o1) and E(o4,α_R). For endpoints, LeftAllow/RightAllow sets are the projections used with E (these equal the V_left/V_right allow‑sets already defined in output.md).
+
+Certificate (finite)
+- f_anchor on Θ.
+- For every τ_S ∈ T, the precomputed Bridging[τ_S], and for endpoints the LeftAllow/RightAllow sets (derivable from Ext; not guessed).
+
+Feasibility conditions (typed anchors)
+- (A1) Local legality of anchors and periodic compatibility: for any θ ∈ Θ with representative primitive period w, the 2‑node string f_anchor(θ) must be locally legal (node/edge checks against A· and E). Moreover, if two copies of the anchor are placed at distance p(w) inside the same run, all edges crossing the two 2‑node windows are locally legal. (This reduces to checking E on a constant number of edges: within and across adjacent anchored windows.)
+- (A2) Two‑sided bridging across short separators: For all τ_L,τ_R ∈ T_long that occur adjacent to a separator S of type τ_S, the seam colors α_L := second(f_anchor(θ_L)) and α_R := first(f_anchor(θ_R)) must satisfy Bridging[τ_S][α_L][α_R] = true.
+- (A3) One‑sided endpoint bridging: For all τ ∈ T_long and τ_S ∈ T that may appear at an endpoint, require LeftAllow(τ_S) ∋ o4 with E(o4, L1_τ) and RightAllow(τ_S) ∋ o1 with E(R1_τ, o1) (the same one‑sided check as in Stage‑2 plan; endpoints impose only one seam).
+
+Construction from the certificate (O(1) rounds)
+- Partition by the repaired scheme above. Inside each Plong component (period w) pick the phase φ(w) and place one 2‑node anchor f_anchor(θ(w)) on each period occurrence; this is consistent and legal by (A1). Then every gap between consecutive anchors (and the short irregular components Pshort and endpoints) has O(1) length by the residual bound K_part; complete each such gap S using (A2) with Bridging[τ_S] (two‑sided interior) or (A3) (one‑sided endpoints). All lookups are in precomputed tables, hence O(1) rounds.
+
+Extraction from an O(1) algorithm (standard) and verification
+- (⇒) Given an O(1) algorithm, extract f_anchor by simulating on a canonical long representative of each θ with disjoint runtime halos, exactly as in Lemma 24/25 of the paper (cycle case). The halo‑isomorphism ensures (A1) and the Ext‑concatenation ensures (A2)–(A3).
+- Verification is singly‑exponential: enumerate T and Θ (≤|T|), compute Ext tables and Bridging/Allow matrices in 2^{poly(β)}, and check (A1)–(A3) entrywise. No enumeration over all words up to length ℓ_pump is needed.
+
+C) Unit‑testable subclaims and experiments
+- Partition injectivity (Good): On adversarial inputs combining long periodic runs and irregular zones (including de Bruijn‑like strings), assert that for random u,v ∈ Good with dist_G(u,v) ≤ ℓ_pattern we never get c(u)=c(v). Also verify that no Good interval without beacons exceeds 2ℓ_pattern, and that residual components have size ≤ K_part.
+- Bridging matrices: for random τ_S, verify Bridging[τ_S] computed from Ext equals the direct scan definition. Sanity: Equality LCL yields all‑true Bridging; proper 2‑coloring yields failure of (A1) for period p=1.
+- Endpoints: pick τ_S with RightAllow(τ_S) disjoint from N_E(L1_τ); (A3) must fail.
+
+D) Audits of output.md (gaps or clarifications)
+- No Stage‑2 is claimed in output.md; good. The Stage‑2 content to add later should follow the typed‑anchor scheme; “tiling by Q_τ” should be avoided.
+- Theorem S1‑path (⇒) mentions a periodic ID pattern; a one‑line remark could note that pumped contexts are chosen long enough so that the runtime halos around the separator(s) do not intersect, ensuring the outputs used to define f_mid and g_L/g_R are well‑defined.
+- Minor hygiene: add an “Indexing reminder” near Lemma E2 (already present at top; consider repeating before E2) to avoid confusion with (L1,L2,R2,R1).
+
+E) Actionable next steps for output.md
+- Add the repaired oriented‑path partition lemma with parameters (ℓ_pattern,ℓ_width,ℓ_count) and Lbig as above, including the Good‑set injectivity proof and the residual bound K_part.
+- State the typed‑anchor Stage‑2 theorem (certificate ⇔ O(1)) with (A1)–(A3) and the O(1) construction via anchors + Bridging/Allow matrices; provide NEXPTIME verification. Cross‑reference Ext, W/Bridging, and endpoint Allow/V tables already defined.
+- Keep S2 out until the partition text is fully integrated; the verifier can nonetheless implement Bridging/Allow tables now (purely precomputable from Ext).
+
+Why this is incremental and auditable
+- Each new component is finite‑state and reduces to boolean table checks based on Ext. The only nontrivial proof is the Good‑set injectivity, spelled with a Fine–Wilf argument that explicitly forces a Plong interior, avoiding the earlier boundary collision.
+- All constants (Lbig, K_part) are expressed in terms of ℓ_pump and ℓ_pattern and are independent of n; all LOCAL steps are O(1) rounds.
+- Unit tests outlined above can be automated for small β (e.g., β∈{2,3}) by enumerating types and random inputs.
+
+## Round 0013 — 2025-08-27T20:19:36.995040Z
+
+Round 0013 — Towards a sound Stage‑2 (O(1) vs Θ(log* n)) on oriented paths: typed anchors + corrected partition injectivity; small audits, new lemmas, and NEXPTIME checks
+
+Summary of this round
+- I propose a type‑based “anchor” certificate f_anc that avoids the earlier length/phase mismatch and does not rely on tiling a long block by a single quadruple Q_τ. The anchors are 2‑node windows placed at a canonical phase inside long periodic runs; they only fix seam colors and rely on Ext‑based bridging to fill the O(1) gaps. All checks are reducible to finite Ext/Bridging matrices and verifiable in NEXPTIME (single‑exponential in β).
+- I give a corrected per‑component injectivity lemma for the irregular remainder Pirreg and an O(1) greedy MIS construction on the ℓ_pattern‑th power of each Pirreg component. This patches the partition lemma gap flagged in the feedback (explicitly avoiding the distance‑mixing issue and boundary leaks). The parameters and proof outline are stated fully so they can be curated into output.md after polishing.
+- I add two small, unit‑testable identities: a reversal identity for W‑matrices (useful to cut verification work by ≈2×) and a formal “no tiling” counterexample to document why Q_τ cannot be naively repeated.
+- Minor output.md hygiene: an indexing reminder near OutR2/OutL1, and a cross‑reference for Lemma E3 where Out‑sets and W are used.
+
+Audit of output.md (gaps/clarifications)
+- OutR2/OutL1 indexing. Suggest adding, immediately after the Definition “Feasible function; Out‑set form,” a one‑liner “Indexing reminder: Ext quadruples are (L1,L2,R2,R1), hence the middle block’s left seam meets o1 and right seam meets o4.” This is used implicitly in Lemma E3.
+- Stage‑2 is intentionally absent (good per the verifier). The proposed additions below (typed anchors + corrected partition) are designed to be inserted as a new Stage‑2 section once curated.
+
+Part I — Typed anchor certificate for Stage‑2 (avoids length/phase mismatch and tiling)
+Idea at a glance
+- Instead of tiling long periodic blocks by Q_τ, we place 2‑node anchors at a canonical phase in each period and require two kinds of finite checks:
+  (A) self‑compatibility of the anchor within a periodic context (no collisions when repeating anchors at period‑spacing), and
+  (B) bridging existence across any short middle type τ_S between two anchored contexts (including the empty middle and one‑sided endpoint cases).
+- All checks are expressed via Ext concatenations and Bridging matrices on short types; no word enumeration, no full‑period outputs.
+
+Objects
+- T, T_long, Ext, W_{b⊙c} as in output.md. Fix constants (as in the paper and notes): ℓ_pattern := ℓ_pump, ℓ_width := ℓ_pump, ℓ_count := 2ℓ_pump + 2.
+- Period base types: Let T_base := {σ ∈ T : k_flag(σ) ∈ {1,2,3} and 1 ≤ |σ| ≤ ℓ_pattern}. Intuitively, σ represents a short block of length p ≤ ℓ_pattern that can act as a period tile when repeated.
+  Remark. We avoid word‑level primitive testing; instead, the verifier (see below) checks only those σ that actually appear as a base in some long periodic type realized by σ^{⊙k} for k ≥ ℓ_count (all in type space via Ext‑concatenation).
+- Long periodic types from a base σ: define Π(σ) := {τ ∈ T_long : ∃k ≥ ℓ_count with τ ≡ Type(σ^{⊙k})} (computed by repeated concatenation in T). This is singly‑ex enumeratable since σ ∈ T and k ≤ ℓ_count is a constant depending only on β.
+
+Certificate (typed anchors)
+- For each σ ∈ T_base used by the certificate, choose a phase m ∈ {0,1,…,|σ|−1} and an anchor pair a(σ) = (α1(σ), α2(σ)) ∈ Σ_out^2.
+- Canonical phase selection rule (executed locally in O(1) inside Plong): On a long period run whose long type lies in Π(σ), nodes know |σ| and rank mod |σ| (from the partition); the anchors are exactly those two‑node windows whose left endpoint has rank ≡ m (mod |σ|). This fixes one anchor per period, spaced by |σ|.
+
+Typed anchor feasibility checks (finite, NEXPTIME)
+Let σ ∈ T_base. Define τ = any member of Π(σ) (choice irrelevant by periodic pumping; picking the τ with k = ℓ_count suffices). Let α(σ):=a(σ).
+- (F1‑anc self‑compatibility): Repeatability of anchors at period spacing:
+  There exists a witness in Ext for the middle σ of σ ⊙ σ ⊙ σ, such that the seam edges toward the two neighbors are E‑adjacent to α(σ) on both sides. Formally, define M_self[σ] := “W_{σ⊙σ}[α(σ)][α(σ)] = true”. This guarantees that placing anchors at phase m in consecutive periods imposes no conflict across the intervening σ block. Because of associativity (Prop. 12), iterating this condition yields consistency for any number of repeats.
+  Why this captures local legality: the adjacency E(α1,α2) and node constraints at the two anchor nodes are baked into the Bridging table via Ext (the middle block σ must accept α(σ) on both seams to be extensible); we do not need to read input bits explicitly.
+- (F2‑anc bridging across arbitrary short middle type): For every τ_S ∈ T (including τ_S = ∅) and for every pair of periodic long types τ_L ∈ Π(σ_L), τ_R ∈ Π(σ_R), require bridging across τ_S from α(σ_L) to α(σ_R):
+  Bridging[τ_S][α(σ_L)][α(σ_R)] = true, where Bridging[τ_S] is the β×β mask defined in the notes and computable from Ext_{τ_S} and E.
+- (F3‑anc endpoints one‑sided): For every τ ∈ Π(σ) and every τ_S ∈ T,
+  • left endpoint: ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(o4, α1(σ)), i.e., α1(σ) ∈ N_E(RightAllow(τ_S)), and
+  • right endpoint: ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α2(σ), o1), i.e., α2(σ) ∈ N_E^{-1}(LeftAllow(τ_S)).
+These are the one‑sided analogues of Stage‑1’s V_left/V_right, now phrased via Ext projections of τ_S.
+
+Why this is enough for an O(1) algorithm (to be added after partition is curated)
+- Compute in O(1) the (ℓ_width,ℓ_count,ℓ_pattern)‑partition (Part II). On each P ∈ Plong with long type in Π(σ), place anchors at the canonical phase m modulo |σ|.
+- The anchors carve P ∈ Plong into O(|σ|)=O(1) gaps (each equal to σ). Gaps between distinct Plong blocks, and all of Pshort components, have length O(ℓ_pump) by construction. Use (F2‑anc) to fill each such gap S (between left α(σ_L) and right α(σ_R)), and (F3‑anc) at endpoints, by table lookups; (F1‑anc) ensures no conflicts between adjacent anchors inside the same Plong block.
+- Everything depends only on constant‑radius information and precomputed tables; hence O(1) LOCAL rounds.
+
+NEXPTIME verification of f_anc (single‑exponential)
+- Enumerate T (Prop. 9), compute Ext_τ for τ∈T and Bridging[τ_S], RightAllow/LeftAllow of each τ_S. For each σ ∈ T_base and k ∈ [ℓ_count], compute Type(σ^{⊙k}) via Prop. 5 to populate Π(σ).
+- Check F1‑anc for each σ by querying W_{σ⊙σ}[α(σ)][α(σ)]. Check F2‑anc for all triples (σ_L,τ_S,σ_R) and all τ_L ∈ Π(σ_L), τ_R ∈ Π(σ_R) by Bridging[τ_S][α(σ_L)][α(σ_R)]. Check F3‑anc for all (σ,τ_S) via precomputed allow‑sets.
+- Total work: |T_base|·β^O(1) for F1, |T_base|^2·|T|·β^O(1) for F2, and |T_base|·|T|·β^O(1) for F3; with |T| ≤ 4·2^{β^4}, this is 2^{poly(β)}.
+
+Notes on correctness vs earlier gaps
+- No tiling by Q_τ: We never assume a reusable interior tile; σ ⊙ σ compatibility (F1‑anc) is enforced by W and guarantees only that anchors coexist when separated by one σ, which by associativity extends to any number of periods.
+- No phase/length mismatch: The algorithm fixes a canonical m modulo |σ| and only places anchors at that phase. The check is independent of the actual bit pattern and uses Ext tables to ensure local legality via extendibility.
+
+Part II — Corrected partition: injectivity in Pirreg and an O(1) MIS
+Parameter recap
+- ℓ_width = ℓ_pattern = ℓ_pump, ℓ_count = 2ℓ_pump + 2, as in output.md prose.
+- Lwin = (ℓ_count + 2ℓ_width)·ℓ_pattern + (ℓ_pattern − 1). This is chosen so that equal length‑Lwin windows at shift p ≤ ℓ_pattern imply a p‑periodic substring of length ≥ (ℓ_count + 2ℓ_width)·p fully contained in the union interval (Fine–Wilf), see below.
+
+Construction (directed case; undirected handled by an initial ℓ‑orientation as in the paper)
+1) Detect and trim long periodic runs (unchanged): For each p ∈ [1..ℓ_pattern] and each short type σ of length p, identify maximal σ^{⊙K} runs with K ≥ ℓ_count + 2ℓ_width. Trim ℓ_width·p nodes from both ends. The interiors form Plong; the remainder is Pirreg.
+2) Define legal window colors on Pirreg: For each directed component H of Pirreg, define c(v) for a node v ∈ H that has at least Lwin successors also in H, as the binary window of length Lwin starting at v and fully contained in H. Nodes within Lwin−1 from the H‑boundary are marked boundary and will not attempt to join the MIS (handled by the fallback cuts below).
+3) Injectivity lemma (per component, induced metric). For any H, if u,v ∈ H with dist_H(u,v) ∈ [1..ℓ_pattern], and both have defined colors c(u)=c(v), then H contains a p‑periodic subpath of length ≥ (ℓ_count + 2ℓ_width)·p for p = dist_H(u,v). This contradicts the construction of Pirreg, since such a subpath would have been captured (and trimmed) in step 1.
+  Proof sketch. Let P_H be the unique directed simple path in H from u to v (length p ≤ ℓ_pattern). Since both length‑Lwin windows at u and v lie entirely within H and are identical, the standard Fine–Wilf lemma implies that the length‑(Lwin+p) union interval (in the ambient path) is p‑periodic. Because P_H is contained in H, the entire union interval also lies within H (by the choice of c(·) we excluded windows spilling outside H), yielding a p‑periodic subpath inside H of length at least Lwin ≥ (ℓ_count+2ℓ_width)·ℓ_pattern ≥ (ℓ_count+2ℓ_width)·p. This would have created a run σ^{⊙K} with K ≥ ℓ_count + 2ℓ_width in step 1, hence is impossible in Pirreg.
+4) Greedy MIS on the ℓ_pattern‑th power of H in O(1): Process color classes in any fixed total order on {0,1}^{Lwin}. In the phase for color x, a node with c(·)=x joins I_H if none of its predecessors within distance ≤ ℓ_pattern in H has already joined. By the injectivity (step 3), no two conflicting nodes share a color within distance ℓ_pattern, so the greedy per‑color process yields an MIS on the ℓ_pattern‑power. Consequently, each component of H\I_H has directed length in [ℓ_pattern, 2ℓ_pattern].
+5) Final partition: Plong are as in step 1. Pshort consists of (i) all components of H\I_H over all H (each length ∈ [ℓ_pattern, 2ℓ_pattern]), and (ii) for boundary nodes within distance < Lwin of H’s endpoints, attach them to neighboring Pshort pieces to ensure every piece has length ≥ ℓ_width (this is feasible since Lwin ≫ ℓ_width). Each node knows its role and rank in O(1) rounds.
+
+Remarks
+- All constants depend only on β; the number of color phases 2^{Lwin} is a large constant, but the LOCAL time is O(1).
+- This fixes the feedback issues: injectivity is proved within the induced metric of H, and colors are defined only by windows fully contained in H, preventing “leaks” into trimmed interiors.
+
+Part III — Small, testable identities and examples
+1) Reversal identity for W.
+Lemma W‑rev. For any τ_b, τ_c ∈ T and α_L,α_R ∈ Σ_out,
+  W_{Rev(τ_c) ⊙ Rev(τ_b)}[α_R][α_L] = W_{τ_b ⊙ τ_c}[α_L][α_R].
+Proof. Combine Lemma 10 (Rev) with the definition of W via Ext and E, and swap coordinates.
+Use. Halves the number of distinct W‑checks in preprocessing and in Stage‑2 verification.
+
+2) “No tiling by Q_τ” counterexample (documenting a pitfall).
+Let Σ_out={a,b}, A_0=A_1={a,b}, and E={(a,b)} (single directed edge). For a length‑4 block τ with Ext_τ containing (a,b,b,a) and (a,b,b,b), one can pick Q_τ=(a,b,b,a)∈Ext_τ and E(R1_τ,L1_τ)=E(a,a) fails. Even if a different Q_τ has E(R1_τ,L1_τ) true, repeating Q_τ creates two adjacent b at the seam (needs E(b,·)), which is impossible. Hence Ext_τ does not imply an interior tile repeatable at period‑1. This illustrates why our anchor‑only approach is needed.
+
+3) Early rejection filters for anchors.
+- If for some σ, W_{σ⊙σ}[α][α] is false for every α∈Σ_out^2, σ cannot be a usable base; skip σ.
+- If Bridging[τ_S] has a row or column of all false entries for some τ_S, any certificate must fail; reject early.
+
+4) Sanity examples.
+- Equality LCL: take any σ, set α(σ)=(c,c); all F1–F3 pass trivially.
+- Proper 2‑coloring: With E={(0,1),(1,0)}, any attempt to anchor at period‑1 fails F1‑anc (W_{σ⊙σ}[α][α]=false). Stage‑1 feasible f still exists; classification Θ(log* n).
+
+Part IV — How to integrate (suggested edits)
+- Add the typed anchors section as Stage‑2 (path version): objects, certificate (σ,m,α(σ)), feasibility checks (F1–F3), and the O(1) construction sketch. Defer inserting the full partition proof until Part II is curated. Explicitly point out that all verification reduces to finite Ext/Bridging tables.
+- Insert Lemma W‑rev in the preprocessing section to shrink checks; reference it in Stage‑1/2.
+- In the Stage‑1 section, add the short Indexing reminder after Lemma E3 as noted above.
+
+Why these steps are incremental and auditable
+- The anchor checks (F1–F3) are boolean matrix queries over objects already defined (Ext, W, Bridging, allow‑sets). They can be unit‑tested directly on small β.
+- The corrected injectivity lemma is local to each Pirreg component and uses only standard Fine–Wilf periodicity; it fixes the earlier distance‑mixing flaw and is independently testable.
+- The reversal identity for W is an immediate corollary of existing lemmas (Rev + Ext‑concatenation); it reduces implementation burden and can be asserted with a simple proof.
+
+Open items
+- Provide the full, polished write‑up of Part II’s partition (directed and undirected cases), including the small boundary‑aggregation argument in step 5.
+- After integrating the partition, complete the (⇐) proof: full O(1) algorithm using typed anchors + Bridging tables on oriented paths. Finally, add the NEXPTIME verification argument tying together F1–F3.
+

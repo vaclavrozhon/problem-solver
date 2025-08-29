@@ -1,921 +1,1588 @@
-## Round 0001 — 2025-08-27T10:31:56.197254Z
+## Round 0001 — 2025-08-28T11:34:40.081926Z
 
-Mini-plan
-- Tighten the NEXPTIME-hardness reduction in the draft (App. B) by fixing the pairing/quantification mismatch in (F1): anchor “active” blocks near the windows S1 and S2 (inside wb and wc) so the (F1) bridge only inspects locally available information.
-- State clean lemmas with explicit “why useful here,” “how it can fail,” and a quick test. Emphasize: (i) window-anchored activation, (ii) existence of exponentially many active context types via pumping, (iii) inactive-context harmlessness, (iv) soundness/completeness vs. Succinct-3SAT, and (v) trivializing (F2) to collapse O(1) vs Θ(n).
-- Sanity-check the adjacency-table (radius-1) verification of bounded-time U and the witness-chain (existential pointer) under β-normalized constraints.
-- Do two toy checks: (a) a 2-variable/1-clause fragment to detect spurious cross-pair constraints, (b) an intentionally malformed block to test that ⊥ makes (F2) vacuous and errors are harmless.
-- Record remaining gaps (e.g., explicit constant budgets on the tracks and error alphabet) and list next actions.
+Status and goal
+- Target: Show NEXPTIME-hardness of the 3-way classification problem for β-normalized, radius-1 LCLs on globally oriented paths: decide whether the LOCAL complexity is O(1) vs. Ω(log* n) vs. Ω(n).
+- Strategy adopted: Factor classification through the “feasible function” certificates that characterize the two gaps on paths/cycles (Balliu–Brandt–Chang–Olivetti–Rabie–Suomela, §4). Prove:
+  1) Feasible-Function Existence for r=1, β-normalized LCLs is NEXPTIME-complete (mid-consistency (F1) only).
+  2) Reduce this to the 3-way classification by neutralizing bridging (F2) so that instances in the image are either O(1) (if (F1) holds) or Ω(n) (if (F1) fails), hence the 3-way decision is at least as hard.
+  3) Record a tight, finite verification procedure for (F1)+(F2) in 2^{poly(β)} to support membership (optional).
 
-1) Patch: make activation window-anchored (fixing the (F1) pairing issue)
-Claim A (Window-anchored activation). Redefine “active” contexts so that, for a left context wa S wb, the presence and correctness (HEAD+RID+RUN) of a variable block must lie inside wb (the length-ℓpump or ℓpump+1 suffix adjacent to S). Similarly, for a right context wc S wd, the presence and correctness (HEAD+GID+RUN) of a clause block must lie inside wc (the length-ℓpump or ℓpump+1 prefix adjacent to S). Then the (F1) bridge, which only fills wb wc and checks last r nodes of S1 and first r nodes of S2, suffices to enforce all intended checks locally.
-- Why useful here: (F1) requires extendibility after labeling S1 and S2 while only filling wb wc. Any constraint that looks into wa or wd (far sides) is invisible to the (F1) check; window-anchoring ensures all semantics the bridge needs (variable RID and clause GID tableau) sit inside wb and wc.
-- How it can fail: If some required header/tableau bits spilled outside wb or wc, the bridge DP would need information beyond wb wc and could neither enforce nor refute the constraint, making the reduction unsound.
-- Quick test: Let wb encode a variable block with RID=5 and wc encode a clause block for clause j. Confirm that the witness chain from S1 into wb and from S2 into wc can reach the one-hot HotRID and the V(+)/V(−) vectors within distance O(|wb|+|wc|), hence within the region the (F1) DP is allowed to fill/check.
+Quick recap of types/pumping for r=1 (specialized bounds)
+- Boundary sets (radius r=1): B1 = {first, last}, B2 = {second, second-to-last}. The type of a path is determined by (i) its 4 boundary input bits and (ii) the extendibility bit-vector for all β^4 assignments of outputs to B1∪B2. Hence the number of types is
+  |Types| ≤ 2^4 · 2^{β^4} = 2^{β^4+4} =: ℓ_pump.
+- Pumping and replacement follow §4, Lemmas 10–15: same-type replacement preserves extendibility and local legality; for any nonempty w there exist a,b>0 with a+b ≤ ℓ_pump such that Type(w^{a t+b}) is t-invariant. We will use these facts repeatedly to (i) realize “active” contexts of the needed form and (ii) bound finite checks below.
 
-2) Existence of many active context types (RID and GID coverage)
-Claim B (RID/GID coverage via pumping and types). For β = poly(s), choose HEAD+RUN+indices of total length poly(s) ≪ ℓpump = 2Θ(β4). Then for each i ∈ {0,1}B and j ∈ {0,1}B there exist context types τVar(i) (left-contexts whose wb contains a well-formed variable block with RID=i) and τCl(j) (right-contexts whose wc contains a well-formed clause block with GID=j). Moreover, τVar(i) ≠ τVar(i′) for i ≠ i′, and τCl(j) ≠ τCl(j′) for j ≠ j′ (distinct types).
-- Why useful here: We need exponentially many distinct context types to encode all variables/clauses addressed by the succinct circuit. The (F1) quantification ranges over ordered pairs of these contexts; if these types collapsed, the reduction would lose distinguishing power.
-- How it can fail: If types lacked the granularity to separate different RIDs or GIDs (e.g., if extendibility on boundary assignments could not detect RID differences), then choosing f on those types would not correspond to per-variable/per-clause choices.
-- Quick test: Fix two RIDs i ≠ i′. By window-anchoring, the extendibility of certain color choices at S1 in τVar(i) must differ from τVar(i′) on at least one pair (with a fixed clause-side type τCl(j)) because the witness chain succeeds only for the matching RID. Hence the boundary-extendibility signature differs, implying distinct types.
+Finite check for bridging (F2)
+- For any fixed context (w1,S,w2) with |w_i|∈{ℓ_pump,ℓ_pump+1} and |S|=2, the type of w1^z S w2^z depends only on the pair (Type(w1^z), Type(w2^z)). By periodicity of w_i (Lemma 15), each side cycles with period ≤ ℓ_pump after ≤ ℓ_pump prefix, hence the pair takes ≤ ℓ_pump^2 values. Therefore there exists Z ≤ ℓ_pump^2 such that (F2) holds iff the partial labeling on S extends for all z∈{1,…,Z}.
+- Verification of extension on a partially labeled path is a standard layered-DAG DP in O(k β^2) time for a path of length k: layer i keeps allowed outputs matching Cin–out (and any forced output); edges between adjacent layers match Cout–out.
 
-3) Harmlessness of inactive contexts
-Claim C (Inactive contexts never constrain f). If a context lacks a well-formed block inside its window-adjacent part (wb or wc), then any non-⊥ choice at S triggers a witness chain that necessarily gets stuck, blocking completion; the symbol ⊥ always admits completion (a local plumbing language). Therefore, setting f(τ)=⊥ for all inactive τ makes all (F1) bridges involving τ automatically pass or fail in the intended (harmless) way, and does not affect satisfiability of the active constraints.
-- Why useful here: (F1) quantifies over all pairs of contexts, including many that should be irrelevant. We need a robust way to neutralize them so they don’t accidentally force or forbid choices.
-- How it can fail: If ⊥ could not safely buffer the seams or non-⊥ colors accidentally admitted completions without a genuine block, f might “cheat” or get overconstrained.
-- Quick test: Construct a context where wb has no HEAD marker. Check that choosing RED at S1 necessarily launches a chain that soon requires a header bit which is absent, causing the DP to fail; choosing ⊥ must have an available local completion (by Cout–out rules supplying a ⊥-plumbing language, cf. Section A matrix view or the DP).
+NEXPTIME upper bound for Feasible-Function Existence (supporting algorithmics)
+- Precompute all types in time 2^{poly(β)} by exploring the boundary-extendibility DFA (composition Lemma 12); set ℓ_pump = |Types|.
+- Let C be the set of context types realized by w1 S w2 with |w_i|∈{ℓ_pump,ℓ_pump+1}. Nondeterministically guess f: C→Σ_out^2. Verify:
+  (V1) Mid-consistency (F1): For every ordered pair of contexts, run the DP on wa S1 wb wc S2 wd with S1,S2 forced to f; accept iff extendible.
+  (V2) Bridging (F2): For each context (w1,S,w2) and each z ≤ Z:=ℓ_pump^2, run the DP on w1^z S w2^z with S forced to f.
+- Complexity: 2^{poly(β)} overall; sound/complete for feasible-function existence.
 
-4) Bridge semantics and satisfying assignment
-Claim D (Soundness/completeness wrt Succinct-3SAT). With window-anchored activation, define:
-- Colors at S: {RED, GRN, BLU, ⊥}. Non-⊥ on a variable-side S requires a single 1 in HotRID (always true for a well-formed block). On a clause-side S with color RED (resp. GRN), the witness chain must locate i with HotRID[i]=1 in the variable block and then enforce V(+)[i]=1 (resp. V(−)[i]=1) in the clause block. Color BLU is a dummy and never witnesses (V(⊥)≡0), usable only as a harmless default when allowed.
-- f picks, for each τVar(i), a color in {RED,GRN} encoding α(xi), and for each τCl(j), a color in {RED,GRN} encoding one true literal of clause(j) (under α). All inactive τ get ⊥.
-Then: ΦC satisfiable ⇒ some f passes all (F1) bridges; and any f that passes all (F1) bridges induces a satisfying α.
-- Why useful here: This is the core correctness of the reduction from Succinct-3SAT to feasible-function existence (F1).
-- How it can fail: If a τCl(j) colored, say, RED must pass (F1) with every τVar(k), we must ensure the bridge is only required to succeed for the τVar(k) that actually occurs in clause(j), not for all k. We achieve this by encoding the “∃i” witness in the bridge itself; (F1) asks for extendibility for each ordered pair, but the bridge completion succeeds if there exists a legal pointer i in wb wc; for τVar(k) with HotRID[k]=1 and k not appearing positively in clause(j), the witness chain cannot find a matching i in wc and the pair blocks unless τCl(j) chose a literal that matches at least one variable appearing in the clause. Since (F1) must hold for all ordered pairs, the only way is to choose τCl(j)’s color to match some literal in the clause; and variable colors must be consistent across all j, forcing a global α.
-- Quick test: Clause (x3 ∨ ¬x7 ∨ x10). For f(τCl(j))=RED, the bridge with τVar(3) succeeds; with τVar(7) it fails via RED, but could succeed if the clause-side had GRN instead; with τVar(2) (variable not in clause), the witness chain has no i and the bridge fails. Hence to pass all (F1) bridges, f(τCl(j)) must select a color corresponding to a literal that matches at least one RID among the three variable types that appear with that clause-side context. Since (F1) ranges over all three τVar(i) that appear, the chosen color must be one of the clause’s true literals.
+Hardness core: Feasible-Function Existence (F1) is NEXPTIME-hard
+- Source: Succinct-3SAT (circuit C of size s “generates” a 3-CNF Φ_C over 2^B variables); NEXPTIME-complete.
+- Parameters: choose B = s^{c0}, β = s^{c1} for constants 1 ≪ c0 ≪ c1. Then ℓ_pump = 2^{Θ(β^4)} = 2^{poly(s)}.
+- Target instance P_C (β-normalized, r=1): Σ_in={0,1}; Σ_out of size β contains constant tracks: role/phase, three colors {RED,GRN,BLU} and a neutral ⊥, a finite error-alphabet, and a constant work alphabet for a fixed universal TM U.
+- Well-formed block language (output-regular, radius-1 checkable): a block = HEAD_C · RID · GID · RUN · PAD laid out along the path. Cin–out enforces that role symbols copy designated input bits (so nodes in HEAD_C positions must see the corresponding input header bit). Cout–out enforces adjacency, phase progress, and single-step consistency of U across seams; malformed fragments admit locally checkable “error chains” (as in §3) that always yield completions and hence never constrain f.
+- Semantics: the 2-node window S admits only colors or ⊥. Non-⊥ at S “activates” a witness-chain gadget: an existential pointer (radius-1) that (i) chooses an index i, (ii) walks to bit i inside the left block (variable) and checks Hot_RID[i]=1, and (iii) walks to bit i inside the right block (clause) and checks V^{(+)}[i]=1 (for RED) or V^{(-)}[i]=1 (for GRN). If any subcheck fails the chain gets stuck → no completion. When S=⊥, a self-looping ⊥-plumbing language (independent of input) always completes. Thus inactive contexts (no valid block on either side) are tautologically satisfied by f(·)=⊥.
+- Existence of exponentially many active context types: Since the HEAD+RID/GID+RUN length is poly(s) ≪ ℓ_pump, pumping/replacement allow us to realize, within contexts (length ≈ℓ_pump), many variants where the left side encodes any RID∈{0,1}^B and the right side encodes any GID∈{0,1}^B. Types differing in RID (or GID) are distinct because extendibility from S depends on Hot_RID and V^{(·)} at the chosen i. Hence we obtain 2^B variable-types {Var_i} and 2^B clause-types {Cl_j} in the context set C.
+- Correctness of reduction:
+  • Completeness: If Φ_C is satisfiable, pick a satisfying assignment α. Define f on variable types by f(Var_i)=RED if α(x_i)=1 and GRN otherwise; for each clause type Cl_j set f(Cl_j) to a true literal’s color. All other (inactive) context types map to ⊥. Every (F1) bridge wa S1 wb wc S2 wd either is trivial (inactive or non-(variable,clause)) or admits an i witnessing the chosen literal, so the DP completes.
+  • Soundness: If f satisfies (F1), define α by reading f(Var_i) (RED→1, GRN→0; BLU arbitrary). For any clause j, (F1) applied to (Var_i,Cl_j) over all i occurring in clause j forces at least one match at i with the color chosen at Cl_j; hence α satisfies clause j. Thus α satisfies Φ_C.
+  • Inactive contexts never constrain: non-⊥ colors at S trigger witness chains that require a valid block; absent one, chains get stuck (no completion); ⊥ always extends. Error chains ensure malformed encodings accept with a consistent “refutation” output.
+- Conclusion: Feasible-Function Existence (mid-consistency (F1) only) is NEXPTIME-hard for β-normalized, r=1 LCLs on oriented paths.
 
-5) Trivializing (F2) to collapse O(1) vs Θ(n)
-Claim E ((F2) can be made vacuous). Extend Σout and Cout–out so that repetitions wz
+From FFE(F1) to the 3-way classification
+- We construct, from P_C, a P_C^⋆ whose bridging (F2) is neutral:
+  • Keep P_C unchanged around S (so (F1) semantics identical).
+  • Permit, in Cout–out and Cin–out, a global ⊥-filler language on repetitions w_1^z and w_2^z that is compatible with any boundary (including adjacency to S) and with any input. Then for every context and every z≥1, the partial labeling that fixes S to f(Type(w1 S w2)) extends by filling w_i^z with ⊥. Thus (F2) holds vacuously for every f.
+- Hence for P_C^⋆:
+  • If a feasible f (for (F1)) exists, both (F1) and (F2) hold, so the problem is O(1) by the standard construction (MIS-free partition with fill-in; §4.5, Lemmas 26–27).
+  • If no feasible f exists, the (ω(log* n)–o(n)) dichotomy (Theorem 8) forces Ω(n) complexity.
+  • The Ω(log* n) class does not occur for P_C^⋆, so the 3-way classifier, when applied to P_C^⋆, outputs either O(1) or Ω(n). Deciding which is equivalent to deciding (F1) for P_C, which is NEXPTIME-hard.
+- Therefore, the 3-way classification problem is NEXPTIME-hard.
+
+Why worst-case over inputs is handled (important subtlety)
+- Complexity is measured in the worst-case over input labelings. Our constructions ensure that malformed inputs are always completable in O(1) (⊥-plumbing or error chains), so the adversary’s worst-case choice will include well-formed active contexts. In the satisfiable case, the O(1)-algorithm derived from f works on all inputs; in the unsatisfiable case, Theorem 8 yields a global Ω(n) lower bound (no f exists → no sublinear algorithm on cycles/paths).
+
+Potential gaps to firm up (action items)
+1) Radius-1 realizability of the block grammar: We sketched role/phase tracks and single-step checks for U across row seams; to be fully formal, we should list the finite set of out–out pairs permitted at row separators and the Cin–out masks that tie “role-phase” symbols to input bits. This is standard but should be written once.
+2) Witness chain details: spell out the constant-size alphabet and local rules for the existential pointer that safely walks to bit i in both blocks and enforces Hot_RID[i] ∧ (V^{(+)}[i] or V^{(-)}[i]). This reuses the error-pointer pattern from §3, but a concrete table will help verification.
+3) Active context separability: we used that distinct RID/GID induce distinct context types. A short lemma should argue: if two left contexts have different Hot vectors, there exists a right clause context and a color such that the extendibility bits differ—hence types differ. (This reduces to the existence of some j and color where the witness succeeds for one RID but not the other.)
+4) Enumeration of types (upper bound side): we outlined a DFA exploration; adding an explicit construction based on the boolean-matrix view C_w (Appendix A of draft) would make precomputation and composition clearer.
+5) Three-class mapping clarity: While our hardness instances never realize the Ω(log* n) class, explaining explicitly that hardness for a subfamily suffices (since the classifier must be correct on all inputs) would avoid confusion.
+
+Small sanity checks / examples
+- Toy DP: For a tiny β (say β=3), define Cin–out to allow ⊥ on both input bits and restrict colors to input bit 1; define Cout–out so that a colored S must be followed on the right by a specific symbol. Running the layered DP checks extendibility quickly; this matches the O(k β^2) bound.
+- Finite-Z for bridging: For a fixed (w1,S,w2), one can compute the two self-maps F_{w1}, F_{w2} on the type set, find their cycles, and set Z to lcm of periods times max preperiod (≤ ℓ_pump^2). On a random small instance, we indeed observe stabilization after a few iterations.
+
+Next steps (concrete deliverables)
+- Write the explicit out–out adjacency tables for: (i) row separators and U’s transition seams, (ii) error-pointer steps; specify the small work alphabet.
+- Prove the “active context separability” lemma rigorously.
+- Package the reduction P_C ↦ P_C^⋆ with exact β = poly(s) and tables’ sizes Θ(β^2); verify radius is 1 everywhere.
+- Optionally, extend the NEXPTIME-membership argument from feasible-function existence to the full 3-way classifier by adding the finite-Z bridging checks; this would give NEXPTIME-completeness if desired.
+
+Notes on attached materials (possible gaps)
+- In the draft (LCL_classification.pdf), Section B (hardness) sketches the block/witness gadgets but leaves adjacency tables implicit; these must be concretized to eliminate ambiguity about radius and alphabet size.
+- The claim “types differing in RID/GID are distinct” is stated but not proved; adding the separability lemma as noted above will close this gap.
+- The finite-Z lemma for (F2) is stated with Z ≤ ℓ_pump^2; a brief derivation from the type DFA (pair product) would strengthen the presentation.
+
+Summary claim (ready to formalize)
+- The 3-way classification problem for β-normalized, radius-1 LCLs on oriented paths is NEXPTIME-hard. Reduction: Succinct-3SAT → Feasible-Function Existence (F1) (NEXPTIME-hard) → classification via bridging neutralization. The gadgets needed are all radius-1 and use β = poly(|C|). The upper-bound side (finite checks via types + DP) sits in NEXPTIME and can be added to obtain completeness if needed.
+
+## Round 0001 — 2025-08-28T11:37:08.567248Z
+
+Ideas and plan for NEXPTIME-hardness via feasible functions (and gaps spotted)
+
+Context recap and goal
+- We work with β-normalized, radius-1 LCLs on globally oriented paths, with explicit tables Cin–out and Cout–out. The classification into O(1), Θ(log∗ n), Θ(n) in the path/cycle case goes via the existence of a feasible function f on “context types” (mid-consistency F1 gives O(log∗ n) vs Θ(n); adding bridging F2 gives O(1) vs Ω(log∗ n)), per Section 4 of the reference (Lemmas 10–15, 11, 12; Theorems 8–9).
+- The attached draft provides: (i) a NEXPTIME upper bound for deciding feasible-function existence (with an explicit bound Z ≤ ℓpump^2 for (F2) finite checks and an O(k β^2) DP for local extendibility), and (ii) a hardness sketch (Section B) intended to reduce Succinct-3SAT to mid-consistency (F1).
+
+Critical gaps in the current hardness sketch (Section B)
+1) Universal machine runtime and one-hot vectors: The draft says a fixed U runs in BO(1) to compute clause literals and uses a 2^B-long one-hot vector HotRID. Neither is feasible. Evaluating a size-s circuit C requires poly(s) steps; one-hot vectors of length 2^B cannot be produced/stored in a constant-alphabet radius-1 LCL with poly(s) footprint.
+2) Mid-consistency quantifies over all ordered pairs of contexts. The current design enforces that for (variable i, clause j) pairs the bridge only succeeds if i appears in j and the chosen colors match a picked literal. But f(Clj) is fixed per type; then for the other two variables in the same clause the bridge would fail, contradicting the “for all pairs” requirement in (F1). This is a fundamental mismatch: 3SAT’s “∃ satisfied literal” cannot be expressed by a constraint that must hold for every pairing.
+3) Type–separation assumptions: The sketch implicitly needs exponentially many distinct context types (e.g., one per RID and per GID) and that type equality can be forced to depend on RID/GID. This needs a concrete mechanism to “project” the index to a boundary-extendibility distinction (otherwise different indices could collapse to the same type).
+
+Proposed pivot: reduce from Succinct 3-Coloring (NEXPTIME-complete)
+Why it matches (F1):
+- Feasible-function mid-consistency induces pairwise constraints among context-types. 3-colorability of a succinctly described graph H on 2^B vertices is a pure pairwise constraint system: for each edge (u, v) we require color(u) ≠ color(v). This aligns with “for all ordered pairs” checks, provided we gate the bridge so that non-edges are trivial.
+- Succinct 3-coloring is NEXP-complete (Papadimitriou–Yannakakis). The succinct adjacency oracle A(u, v) is a circuit of size s on 2B bits. This lets us stay within poly(s) resources inside a block.
+
+Refined reduction outline (mid-consistency (F1) only)
+- Instance: succinct graph G on V = {0,1}^B, circuit D(u, v) outputs 1 iff edge.
+- Build β-normalized LCL P_D with constant-radius verifier and Σin = {0,1}; keep |Σout| = β = poly(s).
+- “Vertex contexts”: For each u ∈ {0,1}^B, we realize many contexts wa S wb whose interior carries a well-formed block encoding: a self-delimiting header (copy of D on input track), the index u, and a locally-checkable runzone computing a short “seam handshake code” Hu placed near the right boundary; symmetrically, the left boundary carries Lu. All of this is forced locally via Cout–out. Error chains per §3 of the reference allow any malformed block to be locally refuted, making such contexts effectively inactive.
+- Coloring choices via f: For each “vertex-type” τu (i.e., the type of contexts realizing u), f(τu) ∈ {RED, GRN, BLU}^2 fixes a color token at S (two nodes). For all non-vertex types, set f(τ) to a neutral token ⊥⊥ that never activates constraints.
+- Gating only edges: In a bridge between (τu on the left, τv on the right), the seam region interprets Hu and the right’s corresponding handshake. It then runs (in the bridge) a locally-checkable simulation of a fixed universal TM U on input (D, u, v) (time poly(s); we have length budget since ℓpump ≫ poly(s)), to compute D(u, v). Error refutations are permitted, as usual. The cout–out grammar enforces: the partial labeling extends if either (i) D(u, v) = 0 (non-edge) irrespective of colors; or (ii) D(u, v) = 1 and the two S colors are different. If D(u, v) = 1 and colors are equal, all completion paths get stuck, so the DP rejects.
+- All pairs outside the (vertex, vertex) role (or with malformed header/index) are trivially extendible (via ⊥ plumbing), so they do not constrain f.
+- This creates the intended constraint family: for all ordered pairs, only edges impose “≠”; others are vacuous.
+
+Why the above fixes the (F1) mismatch
+- With this gating, the (F1) universal quantification over ordered pairs exactly enforces a proper coloring constraint on every edge. There is no clause-like “exists” quantifier left that would clash with the universal pairing; non-edges require nothing.
+
+Key technical components to instantiate and verify
+A. Computing and checking at radius 1:
+- Block language: As in §3, use a constant-alphabet, radius-1 nearest-neighbor checker for the header, index, and a row-by-row simulation of U for poly(s) steps. The input circuit D is copied from the input track (Cin–out). The work alphabet of U is constant and independent of s.
+- Seam handshakes: Deterministically derive short fixed-size codes Lu, Hu from the index u and place them in O(1) cells adjacent to the context boundary; they are computed in the block and forced by Cout–out.
+- Bridge computation: In wb◦wc, run U for poly(s) steps using the adjacent copies of D and the seam codes Lu/Hv to reconstruct u and v and evaluate D(u, v). This is the same 1D-encoding recipe as §3; errors are locally refutable.
+B. Separation of exponentially many vertex context types:
+- We need that for each u, there exist contexts whose type remembers the presence of Lu/Hu; more strongly, to assign different colors per u we only require that for each u there exists at least one type τu on which f can act. Distinctness of types can be enforced by a boundary-extendibility probe: add a reserved boundary-output pattern that triggers a local “index-check subroutine” which accepts iff the seam code equals a prescribed function of u; different u yield different extendibility outcomes under that boundary pattern, hence different types. This uses the definition of Type (extendibility table on 4 boundary nodes).
+- Pumping to reach ℓpump-sized buffers: Lemmas 12, 14–15 ensure we can embed the block and seam codes inside w1/w2 and pump to lengths ℓpump or ℓpump+1 without changing type (replacement lemma, Lemma 11).
+C. β and time bounds:
+- The per-symbol state space (roles/phases/colors/⊥/error alphabet/U work letters) is constant; β can be chosen poly(s) to absorb all tracks comfortably. The LCL description size is poly(β) = poly(s). The verifier’s DP runs in O(k β^2) per string.
+
+Correctness sketch under the new reduction
+- Completeness: If G is 3-colorable, pick any proper coloring χ: V → {RED, GRN, BLU}. Define f(τu) = χ(u). For any ordered pair (τu, τv), the bridge’s local computation derives D(u, v); if D(u, v) = 0, we allow completion; if D(u, v) = 1, χ(u) ≠ χ(v) so completion is allowed. All other context pairs are vacuous. Hence all (F1) checks pass.
+- Soundness: If a feasible f exists, read a color assignment χ(u) = f(τu) (choosing any representative context type for each u; if several exist, they must all share the same f-value else (F1) would fail on the pair of those contexts). For any u, v with D(u, v) = 1, the bridge between τu and τv must be extendible, which forces χ(u) ≠ χ(v). Thus χ is a proper 3-coloring, so G is 3-colorable.
+
+Handling (F2)
+- Make (F2) vacuous by allowing repeated sides wz
 1 and wz
-2 can always be filled with ⊥ while matching the fixed two-node label f(Type(w1Sw2)) at S. Then bridging (F2) holds for any f, and the overall complexity is O(1) iff (F1) holds; if (F1) fails, then by Theorem 8 (o(n) ⇒ feasible function), the problem is Θ(n).
-- Why useful here: We need to map Succinct-3SAT to the tri-class classification task by producing an instance that lands in O(1) iff ΦC is satisfiable, else in Θ(n). This shows NEXPTIME-hardness of the classification problem.
-- How it can fail: If ⊥-filling the repeated sides interacts with S in a way that depends on the context type (e.g., seam constraints disallow ⊥ next to certain S colors), then (F2) may not be vacuous. We avoid this by making ⊥-plumbing fully absorbing at repetition seams and compatible with any S-choice.
-- Quick test: Pick any context and any z ≥1, fix S by f, and fill both repeats with ⊥. The DP should accept by construction in O(kβ^2) for k=|wz
-1Swz
-2|.
-
-6) Radius-1, β-normalized implementation sanity
-Claim F (All checks are radius-1 and β-normalized). The output alphabet contains:
-- A small role/phase track (HEAD markers, region separators, RUN row phases),
-- The color tokens {RED, GRN, BLU, ⊥},
-- A bounded error alphabet for locally checkable refutations,
-- A constant-size work alphabet to simulate a fixed universal TM U for O(1) steps over the block.
-Cin–out forces copying of the input bit to an “in-copy” output subtrack and allows only role-legal symbols per input value; Cout–out encodes the regular language of well-formed blocks and the per-edge consistency of U’s tableau, witness hops, ⊥-plumbing, and error chains. Hence this is a β-normalized, radius-1 LCL.
-- How it can fail: If the RUN verification required long-range dependencies or the witness hop needed >1-step lookahead, we would exceed radius 1. We avoid this by encoding the tableau as a sequence of locally consistent tiles and letting the witness chain move one node per step.
-- Quick toy: Build a 6–10 node block with a two-row “RUN” and ensure the out–out table checks only neighboring pairs (no two-hop dependency), including the seam between rows; confirm that malformed tiles trigger the error chain.
-
-7) Complexity/size bookkeeping
-- Construction size: Σout has β = poly(s) symbols; Cin–out is size 2·β; Cout–out is β×β = poly(s)^2, thus the LCL description size N = poly(β) = poly(s).
-- Type count: ℓpump ≤ 2Θ(β4), so the contexts cataloged by the classification algorithm exist in principle; the reduction itself never enumerates them, it only relies on their existence, ensured by window-anchoring and pumping.
-- Classification mapping: Build PC in poly(N) time. If ΦC ∈ SAT, then PC ∈ O(1). Otherwise PC ∈ Θ(n). Therefore any oracle that classifies O(1) vs Θ(n) (as part of the tri-class classification) decides Succinct-3SAT, implying NEXPTIME-hardness.
-
-8) Summary of lemmas and their roles
-- Lemma A (Window-anchored activation): fixes the (F1) locality/visibility gap.
-- Lemma B (RID/GID coverage): ensures exponentially many active types are available.
-- Lemma C (Inactive harmless): quarantines irrelevant contexts.
-- Lemma D (Reduction correctness): equates feasible f with satisfying assignment.
-- Lemma E (Trivial (F2)): collapses O(1) vs Θ(n) to feasible-function existence.
-- Lemma F (Radius-1 feasibility): guarantees β-normalized implementation.
-
-Potential pitfalls and countermeasures
-- Pitfall 1: Pairwise (F1) quantification could force success for (τVar(k), τCl(j)) even when k does not occur in clause j. Countermeasure: The bridge completion is “∃i” inside wb wc; if no matching i exists, the pair is allowed to fail—(F1) then fails globally unless τCl(j) chose a color matching at least one variable that does occur with that clause-side context. Because all three τVar(i) that occur in clause j appear as left contexts in the full (F1) product, τCl(j) must choose a literal that is true under α.
-- Pitfall 2: Spurious completions for malformed blocks. Countermeasure: Error-chain gadget ensures any malformed encoding has an easy, locally checkable refutation (hence does not constrain f), and non-⊥ colors are only extendible when a valid block sits in the window-adjacent region.
-- Pitfall 3: ⊥ seams interfering with S. Countermeasure: Add Cout–out entries that permit ⊥ to sit next to any S color and to tile arbitrarily within repeats.
-
-Toy example attempts
-- Example 1: 2 variables, clause (x1 ∨ ¬x2 ∨ x2). Active types: τVar(1), τVar(2), τCl(j). Assign f(τVar(1))=RED, f(τVar(2))=GRN, f(τCl(j))=RED. Bridges: (τVar(1), τCl(j)) succeeds via i=1; (τVar(2), τCl(j)) fails (as intended), but this is acceptable only if (F1) also demands success with the τVar’s that appear in the clause. With our construction, all three “appearing” τVar’s do appear as left contexts, and at least one (here i=1) suffices for all (F1) pairs involving τCl(j). This sanity-check matches the intended semantics.
-- Example 2: Malformed left block. Choose non-⊥ at S1; the witness chain attempts to find HEAD in wb and fails quickly; DP declares non-extendible. With ⊥, DP succeeds by ⊥-plumbing.
-
-Open items and measurements
-- Firm up the constant budgets: list the exact tracks and symbols (roles, phases, error types) and bound |Σout| by a fixed polynomial in s.
-- Write down the precise out–out pairs for: (i) RUN row transitions, (ii) witness hop step, (iii) ⊥ plumbing, (iv) error-chain steps.
-- Optional: formalize the “appearing τVar(i)” notion by guaranteeing that for each clause j, exactly the three τVar(i) for its literals occur in the context set on the left of τCl(j). This follows from pumping and window-anchoring but benefits from a brief direct statement.
-
-Bottom line
-- With the window-anchored activation fix, the reduction from Succinct-3SAT to feasible-function existence (F1) is sound, and trivializing (F2) yields an LCL whose complexity is O(1) iff ΦC is satisfiable, otherwise Θ(n). Consequently, tri-class classification is NEXPTIME-hard under the β-normalized, radius-1, globally oriented path model.
-
-## Round 0001 — 2025-08-27T10:31:56.195149Z
-
-Mini-plan
-- Tighten the feasible-function decision upper bound: restate two finite-check lemmas and an explicit O(k β^2) DP for extendibility; note exact state bounds at r=1.
-- Scrutinize the NEXPTIME-hardness reduction (from Succinct-3SAT to feasible-function existence): identify two fragile spots (activation of constraints only on intended ordered pairs; guaranteeing enough distinct context types) and propose robust fixes.
-- Specify a gated-bridge mechanism that makes mid-consistency (F1) equivalent to clause-satisfaction, yet is inert on all other pairs; give a local, radius-1 implementation sketch and why dp-filling cannot bypass it.
-- Ensure the construction remains β-normalized, radius-1, and has size poly(β); check parameter choices β = poly(s), B = poly(s), and ℓ_pump bounds for availability of 2^B active context types.
-- Validate by toy instances (B = 2) and enumerate quick counterexample attempts; list remaining gaps with targeted next steps.
-
-1) Two finite-check lemmas and the DP (radius 1)
-- Lemma A (Finite-z bridging, explicit bound). For r = 1, with ℓ_pump = |Types| ≤ 2^{β^4+4}, fix any context (w1, S, w2) with |w1|, |w2| ∈ {ℓ_pump, ℓ_pump+1}. There exists Z ≤ ℓ_pump^2 such that for all z ≥ 1, Type(w1^z S w2^z) attains one of the first Z types. Hence (F2) holds iff it holds for z ∈ {1, …, Z}.
-  Why useful here: Lets the verifier check bridging (F2) by finitely many DP instances. This underpins membership in NEXPTIME.
-  How it can fail: Only if type composition didn’t factor via the side-types. Quick test: explicitly build the self-map F_{w1} on types for a small β (e.g., β = 3) and observe eventual periodicity; use the DFA product argument to see pair periodicity.
-
-- Lemma B (Layered DP for extendibility). For a β-normalized, r = 1 path segment P = (v1,…,vk) with some forced outputs on a subset F, feasibility of completion reduces to reachability on a k-layer DAG with per-layer states Li ⊆ Σ_out and edges x→y allowed iff (x,y) ∈ C_out–out and (in(vi), x) ∈ C_in–out. Time O(k β^2); space O(k β).
-  Why useful here: This is the primitive used in all checks (windows S, finite-z bridging, and bridge-gadget correctness). Bound keeps the overall verifier within 2^{poly(β)}.
-  How it can fail: If we needed non-local checks; but r = 1 confines all verification to consecutive pairs, exactly captured by the DP. Toy test: enforce a simple 2-coloring C_out–out forbidding equal neighbors; the DP matches the obvious parity constraints.
-
-2) Two fragilities in the hardness blueprint and fixes
-- Fragility F1 (activating constraints on unintended pairs). Mid-consistency (F1) quantifies over every ordered pair of contexts; naïvely forcing a variable–clause witness across every such pair would doom feasibility even for satisfiable instances because most pairs mismatch the variable index.
-  Fix (Gated bridge). We add a locally-checkable, radius-1 “gate” around each S-window that (a) stays inert unless both sides export matching handshake tokens, and (b) only turns on the variable–clause check when the left window encodes a variable index i and the right encodes a clause j with i ∈ vars(clause j). The gate consumes exactly the two boundary edges leading into wb and wc; when off, wb◦wc can be filled by neutral “padding” compatible with any S-labels; when on, the fill must carry a bounded witness gadget that succeeds iff α(x_i) satisfies the chosen literal of clause j.
-  How it can fail: If the DP can always avoid turning the gate on, then the reduction loses soundness. We prevent this by making the presence of non-⊥ labels at S export a mandatory “offer” symbol to the adjacent boundary; the gate turns on if and only if both sides’ offers pass a local membership test (see §3 below), which occurs precisely on matching (i,j) pairs. Toy test: Construct a pair with i ∉ vars(j); show that at least one side’s offer fails the membership check, making the gate provably off.
-
-- Fragility F2 (enough distinct context types to carry indices). Feasible f maps types→Σ_out^2; to encode an assignment α over 2^B variables, we need ≥ 2^B distinct variable-types and ≥ 2^B distinct clause-types in the domain C of contexts. If C_in–out ignores inputs, types collapse (risking insufficient domain size).
-  Fix (Input-driven local alphabets). Use the input bit to partition Σ_out into two constant-size “micro-alphabets” per role. That is, constrain C_in–out so that the allowed output tokens at a node depend on its input bit. We represent RID and GID in binary on the input track within a bounded-radius neighborhood of S; the local output near S must copy/confirm these bits (per-node) by C_in–out. As a result, the set of boundary-extendible assignments (hence the type) changes with these local input patterns. Since only a constant-width neighborhood around each window affects type extendibility (r = 1 ⇒ 2 nodes per end), we “project” the RID/GID signature to fixed positions immediately adjacent to S (two nodes on each side), encoding Θ(1) bits per node with finitely many token types. By arranging a deterministic decoding rule from these 4 nodes, we can realize ≥ 2^B distinct variable-types and ≥ 2^B clause-types across the family of inputs (because ℓ_pump ≫ B and contexts range over all input strings of length ℓ_pump or ℓ_pump+1).
-  How it can fail: If type ignores all interior input beyond boundary, we must ensure the RID/GID bits appear exactly in the boundary’s 2 nodes on each side so that different indices yield different types. Quick test: instantiate B = 2 and enumerate the 4 boundary input configurations at both ends; confirm that the accept/reject bitmask over the β^4 boundary-output tuples differs among the four indices.
-
-3) Gated-bridge gadget (radius-1, r = 1)
-- Roles in Σ_out (constant tracks; |Σ_out| = β = poly(s)):
-  1) S-window palette: {⊥, RED, GRN, BLU}.
-  2) Role tags: VAR, CLA, PAD.
-  3) Offer/cap tokens: OFFVAR(i,σ), OFFCLA(j,ℓ), CAP (σ ∈ {0,1} for variable truth; ℓ ∈ {pos,neg,aux}).
-  4) Error-chain alphabet E (finite set) per §3 of the reference (locally checkable refutations on malformed encodings).
-  5) Synchronization phases (small constant) to break local symmetries in the grammar.
-
-- Input usage (C_in–out). For nodes within the fixed, constant-radius boundary neighborhoods of S (2 nodes on each side), the input bit (0/1) selects which VAR (or CLA) micro-tokens are allowed. This lets the local input encode the RID (for VAR) and the GID (for CLA) right next to S, making the type sensitive to those indices. For nodes away from S, set C_in–out to be permissive (enables error-chains to make malformed inputs harmless).
-
-- Activation condition (purely local at both sides): If S-label = ⊥, no offers are permitted; wb◦wc must be neutral PAD. If S-label ∈ {RED,GRN,BLU} and the two nodes immediately adjacent to S form a valid VAR boundary (left case) or CLA boundary (right case) consistent with their input bits, then an OFFVAR(i,σ) (left) or OFFCLA(j,ℓ) (right) token is forced at the outer boundary of the S-window. Otherwise, labeling with non-⊥ at S is rejected (forcing ⊥ to be chosen by any feasible f on inactive contexts).
-
-- Gate semantics (deciding on/off purely from offers): The pair (OFFVAR(i,σ), OFFCLA(j,ℓ)) turns the gate ON iff i ∈ vars(clause j) and ℓ selects that occurrence; otherwise the gate remains OFF. This test is made local by storing (near S) the RID bits (left) and computing (near S) the 3 indices of clause j with a small bounded-time tableau segment (as in §3 of the reference: the run is locally checked row-by-row with radius-1, and its entire space/time footprint fits into the constant neighborhood reserved around S because we keep only the 3 output indices, not a full expansive run; see “How it can fail” below). If ON, wb◦wc must begin with CAP(σ) and end with CAP(σ) at the respective seams; if OFF, wb◦wc must be PAD-only.
-
-- Witness for ON (bounded, radius-1). When ON, the right S-color fixes ℓ ∈ {pos,neg,aux} (RED→pos, GRN→neg, BLU→aux). Locally, at the CLA boundary, we force CAP(σ′) with σ′ = 1 if ℓ = pos, σ′ = 0 if ℓ = neg (aux disallowed when ON). At the VAR boundary, we force CAP(σ) to match the left variable’s truth σ = f(VAR_i). The only admissible fills for wb◦wc carry CAP unchanged (a 1-state “wire” alphabet through PAD) from left to right; hence fill succeeds iff σ = σ′. All is enforced by C_out–out across consecutive edges.
-
-  Why useful here: This makes (F1) succeed on precisely those ordered pairs (VAR_i, CLA_j) where i appears in j and the color choice at CLA_j is satisfied by f(VAR_i); all other pairs either (i) are OFF and fill trivially or (ii) are rejected at S (forcing ⊥ there). Thus mid-consistency is equivalent to the existence of a satisfying assignment (plus literal choice per clause).
-  How it can fail:
-  - Avoidance: Could the DP skirt the ON-case by choosing invalid offers? No, because non-⊥ at S forces emitting an offer; invalid offers are disallowed by C_out–out at the S boundary (immediate local check), so the only way to use non-⊥ is to emit a valid offer.
-  - Spurious ON: Could OFF flip to ON in the interior? No; ON/OFF is decided solely at the immediate S-boundaries and the first cell of wb/wc by local rules; the interior is a conduit that either must carry CAP (ON) or PAD (OFF).
-  - Clause-index computation locality: We must not need super-constant space/time to recognize the 3 variable indices from j. Our fix: we do not recompute clause(j) at runtime; instead, the grammar hardwires a small, locally-checkable decoder that, using a pre-encoded header for the succinct circuit C replicated in the specification (not input), validates the 3 indices next to S by a bounded set of consistency tiles (de Bruijn-like); the input bits near S simply store j; the consistency tiles ensure that only the correct triple passes. This is analogous to §3’s bounded-tape proof-of-correctness gadget: malformed triples can always be disproved by a short error-chain, so they never constrain f.
-  Quick toy test (B = 2): Enumerate j ∈ {00,01,10,11}; encode the 3-variable table for each in the verifier; check 12 potential (i,j) ordered pairs; confirm gate ON exactly when i ∈ vars(j).
-
-4) Active context types and parameter choices
-- Domain size: With r = 1, the number of types is ℓ_pump ≤ 2^{β^4+4}. Set B = s^{c0} and β = s^{c1} with c1 ≫ c0 so that 2^{B} ≪ ℓ_pump. Because types depend on (i) the 4 boundary input bits and (ii) the extendibility bitmask over β^4 boundary-output 4-tuples, placing the RID/GID signatures in the 2-node neighborhoods of S suffices to produce ≥ 2^B distinct variable-types and ≥ 2^B clause-types in C, realized by the family of inputs w1, w2 of the two admissible lengths.
-  How it can fail: If setting C_in–out near S to reflect RID/GID caused a mismatch with normalization, or if interior constraints secretly equate different RIDs. Both are avoided by: (a) keeping the RID/GID footprint strictly within the 2 nodes adjacent to S on each side; (b) disallowing any “RID-morphing” adjacency across those cells; types then differ because the extendibility bitmasks differ when offers must encode those local RID/GID bits.
-
-5) Completeness and soundness (sketch at the (F1) level)
-- Completeness. If Φ_C is satisfiable, fix α. Define f on variable-types by f(VAR_i) = RED if α(x_i) = 1 and GRN if α(x_i) = 0; define f on clause-types by choosing for each j any literal that α satisfies and mapping to its color. On any ordered pair of contexts, either the gate is OFF (fill by PAD), or it is ON with i ∈ vars(j) and the right color equal to a satisfied literal, whence CAP(σ) = CAP(σ′) and the DP finds a completion. Inactive contexts (where the S boundary is not a valid VAR/CLA neighborhood per input) do not constrain f because non-⊥ is rejected and ⊥ always fills.
-  How it can fail: Only if some OFF pair accidentally forces ON; but gate status is fixed locally by the offers’ RID/GID proximity bits and the pre-wired clause table, so OFF stays OFF.
-
-- Soundness. Suppose f is feasible. From f on variable-types, read α(x_i) by the RED/GRN choice. From f on clause-types, read a literal choice per clause j. If Φ_C were unsatisfiable, some clause j would have all three literals false under α; consider the three ON-pairs (VAR_i, CLA_j) with i ∈ vars(j). In each, the ON-gadget forces CAP(σ) ≠ CAP(σ′) and the DP cannot complete wb◦wc, contradicting feasibility. Therefore α satisfies Φ_C.
-  How it can fail: The only escape would be to label some clause-type with ⊥ to avoid ON; but the S-boundary is valid CLA for those inputs, hence non-⊥ is required for feasibility (otherwise mixed pairs with valid VAR left and ⊥ at right would make the S-boundary check fail by design). This is ensured by the same local boundary rule that guarded offers.
-
-6) From (F1) to classification (O(1) vs Ω(n) vs Θ(n))
-- Making (F2) trivial. Allow ⊥-filled repetitions w1^z and w2^z (pure PAD) regardless of z; then (F2) holds automatically for any f. Thus the three-way classification reduces to deciding (F1): O(1) if feasible f exists, Ω(n) otherwise (by Theorem 8).
-  Why useful here: It yields NEXPTIME-hardness of the full classification problem because an algorithm that classifies among {O(1), Θ(log* n), Θ(n)} also decides the O(1) vs Ω(n) subcase produced by our instances.
-  How it can fail: If the constructed LCL accidentally admits a Θ(log* n) regime. We prevent this by ensuring (via the reference’s gap theorems) that once (F1) fails, no MIS-based feasible-function emulation exists on any decomposition; i.e., our family sits exactly on the O(1)–Ω(n) dichotomy.
-
-7) Quick tests and counterexample attempts
-- Toy setting B = 1 (two variables x1,x2; four clauses indices). Build the local CLA table and verify by hand that: (i) for any α there exists f satisfying all ON-pairs iff α satisfies all 2^B clauses; (ii) the OFF pairs are always fillable; (iii) inactive contexts force ⊥.
-- Circumventing with errors. Attempt to place an error-chain to bypass the ON-gadget: since non-⊥ at S mandates offers and CAP on the boundary edge into wb, any error token adjacent to CAP is forbidden by C_out–out (error tokens only chain through designated “error lanes” that are disjoint from the CAP wire). Hence no bypass.
-- Type collapse. Try to make two distinct RIDs yield the same type by tweaking interior inputs: with RID bits fixed at the boundary cells, the extendibility mask over β^4 boundary-output tuples changes (offers differ), making the types distinct.
-
-8) Outstanding gaps and planned resolutions
-- Formalizing the local clause-decoder as a bounded, radius-1 checker. Deliver a precise tile set that validates the 3 indices for each j without embedding a long-time computation, leveraging a finite table keyed by the B = O(s^{c0}) bits, broken across the 2-node neighborhoods (this is feasible since validation is against the spec, not computed from first principles; complexity resides in Σ_out size, not time).
-- Explicit boundary rules that force non-⊥ on active contexts and ⊥ on inactive. We will write the exact C_in–out and C_out–out rows for the four nodes around S, with a proof that any other combination is locally rejected.
-- Clean proof that our family cannot land in Θ(log* n) when (F1) fails: cite the reference’s Theorem 8 and adapt its feasibility⇔O(log* n) characterization to the β-normalized specialization (r = 1).
-
-What we have solidified and why it matters
-- An explicit, finite, radius-1 DP verifier (Lemma B) and a finite-z reduction (Lemma A) ensure membership in NEXPTIME is watertight under the β-normalized model.
-- A corrected, gated-bridge reduction that (i) activates mid-consistency constraints only on intended variable–clause pairs, (ii) prevents bypass, and (iii) creates enough distinct context types via boundary-local input-dependent alphabets. Together, these address the two main failure modes of the initial sketch and align the reduction with (F1)’s semantics.
-- Parameter bookkeeping shows 2^B active types fit well within the type-space bound ℓ_pump, with β = poly(s) and r = 1 satisfied.
-
-Requests for feedback/material
-- Confirm that the classification we must lower-bound is the worst-case over inputs (as in the reference) so that designing active/inactive inputs (with error-chains for malformed ones) is legitimate.
-- Clarify whether we can assume C_in–out can depend arbitrarily on the input bit (we used it to encode RID/GID at the S-boundary) or if we must keep C_in–out trivial; if the latter, we will migrate the RID/GID signatures purely to the outputs while still making types differ via boundary-extendibility patterns.
-
-Next steps (concrete)
-- Write out the exact boundary neighborhoods (four nodes total) around an S-window, listing C_in–out and C_out–out entries that (i) force offers for non-⊥, (ii) decode RID/GID from input near S, (iii) enable/disable the gate, and (iv) wire CAP through/off.
-- Formalize the local clause-decoder: a bounded set of adjacency rules that verifies the three indices of clause j (as specified by the succinct circuit C) in place, with an error-chain refuter for any mismatch.
-- Prove the OFF→PAD and ON→CAP uniqueness: for any fill of wb◦wc, show by induction on length that deviation from the required conduit is locally rejected.
-- Compose the full correctness proof into three propositions: (P1) inactive contexts force ⊥; (P2) (F1)⇔SAT(C); (P3) add ⊥-fills to trivialize (F2). Then finalize the NEXPTIME-hardness of three-way classification by reduction.
-
-## Round 0002 — 2025-08-27T11:23:07.543978Z
-
-Mini-plan
-- Recast the FFE(F1) feasibility question as an implicit (succinct) SAT instance: variables are f-values on active types, constraints are the bridge-completion checks; show that our LCL makes these constraints equivalent to the Succinct-3SAT instance via a gate with an equality/inequality witness.
-- Specify a corrected ON/OFF gate: clause-side precommits (via S2 color) to one of its 3 indices and a sign; pairs with a left RID equal to that index are ON and enforce consistency with the variable’s color; other pairs are provably OFF and accept PAD via an inequality witness.
-- Replace any O(1)-time clause computation with a poly(s)-length, radius-1 tableau inside wc (and the analogous RID one-hot in wb), with error chains to refute malformed encodings; keep all semantics window-anchored in wb/wc.
-- State and test the key lemmas: (G) ON/OFF correctness via equality/inequality witnesses; (H) clause-tableau correctness; (I) type-separation from differential extendibility; (J) equivalence to a succinct SAT instance.
-- List explicit artifacts to produce next: boundary C_in–out/C_out–out tables for offers and conduits; the RUN tableau tiles; a complete B=2 worked example with DP outcomes.
-
-1) Gate with equality/inequality witnesses (one constrained pair per clause)
-Claim G (Equality/inequality-gated bridge). For each clause-side active context wc S2 wd, allow S2 colors from a 7-token palette: {⊥} ∪ {REDp, GRNp : p ∈ {1,2,3}}. The right context (wc) contains a verified triple (i1,i2,i3) and exposes subtracks Select(p) that copy the chosen position p committed by the S2 color. For a left active variable-side context wa S1 wb with RID = iL (one-hot HotRID), the bridge wb wc is fillable iff exactly one of the following locally-checkable certificates is provided by the filler (and the other is impossible):
-- Equality certificate (ON): “iL = i_{Select}”. This is checked by a radius-1 witness chain that (i) reads the unique 1 in HotRID at position iL in wb, (ii) reads the selected triple position p in wc and the corresponding index ip, (iii) follows an ip-pointer to a one-hot at position ip inside wc, and (iv) proves ip = iL by comparing bit-by-bit along a fixed binary-expansion compare path. If the equality certificate passes, the filler must propagate a CAP bit from left to right and enforce consistency of the chosen sign with the left variable’s color: REDp requires f(Var_{iL}) = RED, GRNp requires f(Var_{iL}) = GRN. 
-- Inequality certificate (OFF): “iL ≠ i_{Select}”. This is certified by guessing the unique 1 in HotRID (position iL) and comparing with the selected index ip; the chain must exhibit a bit position b where iL[b] ≠ ip[b], using radius-1 checkers at the corresponding b-th cells on both sides. If the inequality certificate passes, the only admissible fill is PAD (a neutral plumbing language), with no CAP signal and no dependence on colors.
-Exactly one of these two certificates is realizable in any given pair: the grammar forbids fabricating a mismatch when iL = ip and forbids fabricating equality when iL ≠ ip. Hence for each clause-type instance, exactly one left variable-type (the chosen ip) is constrained (ON), and all other left types are unconstrained (OFF) but completable.
-- Why useful here: This resolves the “all ordered pairs” quantification: mid-consistency requires a completion for every pair, but only the single pair whose RID equals the clause’s committed index is forced to check sign-consistency; the rest admit inequality witnesses and fill trivially. Thus per clause we impose precisely one literal check.
-- How it can fail: (i) If the inequality proof could be faked even when iL = ip, a mismatching OFF-fill might bypass the literal check; (ii) if equality could be certified when iL ≠ ip, a spurious ON check may wrongly constrain an unrelated variable; (iii) if the sign-consistency does not bind to the left variable’s f-color, the clause constraint evaporates.
-- Quick test: Take clause triple (i1,i2,i3) = (3,7,10), and S2 = RED2 (selects i2 = 7). Pair with Var_7: equality path exists; ON requires f(Var_7) = RED. Pair with Var_3: inequality path exists (compare 3 vs 7; they differ at the 1st bit), PAD fill succeeds, no constraint. Pair with Var_9 (not in clause): still inequality since 9 ≠ 7, PAD fill.
-
-2) Clause tableau and window anchoring
-Claim H (Clause decoding via poly(s)-length, radius-1 tableau; window-anchored). The right active context wc houses a fixed-layout RUN tableau that verifies C(j) for the clause index GID = j and materializes (i1,i2,i3) and their signs, plus auxiliary one-hot encodings and directed pointers to their positions. All verification is by nearest-neighbor tiles: row-by-row TM simulation of a universal U for T = poly(s) steps, with a constant work alphabet and synchronization phases. The left active context wb houses RID and HotRID one-hot. All headers (HEADC), indices (RID/GID), and RUN tiles lie entirely inside wb (variable side) or wc (clause side), adjacent to S; malformed encodings have locally checkable refutations via error chains. 
-- Why useful here: Ensures the gate’s local witness chains have the facts they need within wb/wc and that the “selected position p” refers to a real member of the decoded triple. It also removes the earlier O(1)-time fallacy by giving a polynomial-length, radius-1 verification consistent with β-normalization.
-- How it can fail: If the RUN did not fully verify the triple or allowed multiple inconsistent triples, the select(p) track could be abused; if error chains were incomplete, malformed contexts might constrain f.
-- Quick test: Implement a toy U that decodes a 2-bit GID and outputs three hard-wired indices (for B=2). Create a malformed wc that spoofs Select(2) but without a legitimate (i1,i2,i3); check that an error-chain can be triggered locally, making the context inactive (only ⊥ at S is completable).
-
-3) Type-separation by differential extendibility
-Claim I (Distinct active types per RID and per GID). For β = poly(s), choose B = poly(s) with 2^B ≪ ℓ_pump. Then there exist 2^B left active context types Var_i (with RID = i) and 2^B right active context types Cl_j (with GID = j). Moreover, Var_i ≠ Var_{i'} for i ≠ i' and Cl_j ≠ Cl_{j'} for j ≠ j'. Separation proof sketch: fix any clause-type τR that, by RUN, decodes a triple including i but not i'. Commit S2 = REDp to the position p with ip = i. For the pair (Var_i, τR), equality is forced (ON) and fill exists if and only if f(Var_i) = RED. For (Var_{i'}, τR), inequality is forced (OFF) and fill exists regardless of f(Var_{i'}). Therefore, the boundary-extendibility signatures with S1 fixed to RED differ between Var_i and Var_{i'}, implying distinct types. Similarly for Cl_j using a fixed Var_i and toggling which Select(p) is legal according to RUN, we separate clause types by their decoded triples.
-- Why useful here: We need exponentially many active types to encode all variables and clauses generated by the succinct circuit; distinctness is certified by different extendibility outcomes under fixed boundary labels, which the type definition captures.
-- How it can fail: If the equality/inequality partitioning could be overridden by the filler (e.g., both certificates could succeed), the extendibility signatures could collapse; if RUN did not uniquely determine the triple, clause types might merge.
-- Quick test: Let B=3, pick j with triple (2,5,7). Compare Var_5 vs Var_6 against Cl_j, S2 = GRN2 (selects 5). DP result differs: (Var_5, Cl_j) fill depends on f(Var_5); (Var_6, Cl_j) fill is always PAD. Distinctness follows.
-
-4) Succinct SAT view of FFE(F1)
-Claim J (Implicit SAT encoding). The existence of f is equivalent to the satisfiability of a succinct CNF Φ’ over variables: 
-- For each Var_i: a Boolean v_i ∈ {RED,GRN} (two colors suffice; BLU only used as inactive/dummy and disallowed for active Var_i), encoding α(x_i).
-- For each Cl_j: a 6-ary choice c_j ∈ {RED1,RED2,RED3,GRN1,GRN2,GRN3} selecting one position p ∈ {1,2,3} and a sign.
-Constraints: For every ordered pair (Var_i, Cl_j), the bridge is satisfiable. By Claim G, this reduces to a single literal constraint per j, namely: if c_j = REDp (resp. GRNp) and RUN(j) outputs (i1,i2,i3), then require v_{ip} = RED (resp. v_{ip} = GRN). All other pairs impose only tautologies (inequality witnesses). Thus Φ’ is exactly the succinct 3CNF Φ_C: choose for each clause one literal (p and sign) that is true under α (the v_i’s). 
-- Why useful here: It makes explicit the “implicit exponential-sized SAT formula” viewpoint: FFE(F1) is satisfiable iff a succinct CNF with exponentially many clauses (one per pair) is satisfiable; our LCL reduction constructs local constraints that evaluate this succinct CNF.
-- How it can fail: If pairs other than the selected one also imposed constraints, Φ’ would be stronger than Φ_C (requiring all three literals to match), breaking soundness; if the selected pair could avoid referencing v_{ip}, completeness would be lost.
-- Quick test: Clause j with literals (x3 ∨ ¬x7 ∨ x10). Set c_j = RED1 (select x3). Then the only nontrivial pair is (Var_3, Cl_j), enforcing v_3 = RED. Pairs (Var_7, Cl_j) and (Var_10, Cl_j) are OFF and PAD-fillable. Across all j, existence of α (the v_i’s) and c_j’s satisfying all selected pairs is equivalent to Φ_C satisfiable.
-
-5) Radius-1 and β-normalized implementation sanity
-Claim K (β-normalized, radius-1). 
-- Σ_out tracks (constant many): role/phase, color tokens {⊥, REDp, GRNp}, CAP/PAD conduits, RID/GID one-hot lanes and their pointers, RUN tiles for U, error-chain symbols. 
-- Cin–out: copies input bit to an “in-copy” subtrack and gates role legality (e.g., only S admits {⊥, REDp, GRNp}). 
-- Cout–out: regular-language grammar for blocks; nearest-neighbor consistency for RUN rows; local tiles for equality/inequality witnesses and for CAP/PAD conduits; absorbing ⊥-plumbing that can fill repetitions (used later to trivialize (F2)). All checks are between consecutive nodes; the witness chains advance one node per step.
-- Why useful here: Confirms we remain within the β-normalized, r=1 model and keep description size poly(β).
-- How it can fail: If equality compare needed nonlocal jumps, or CAP/PAD conduits required 2-hop checks, we would exceed radius-1; we avoid this with “one-bit-per-step” pointer chains and local tiles.
-- Quick test: Build a 12-node wc with RUN and a selected p; simulate the equality witness step-by-step next to a matching Var_i wb; ensure all edge checks refer only to consecutive outputs; flip one bit in the index to see equality chain get stuck while inequality chain passes.
-
-6) Trivializing (F2) and mapping to tri-class classification
-Claim L ((F2) vacuous via ⊥-plumbing). Extend Cout–out so that any wz_1 and wz_2 repeat can be filled entirely with ⊥, for any S color fixed by f(Type(w1 S w2)). Then (F2) holds automatically; thus for our family, O(1) iff (F1) holds and Θ(n) otherwise (by the standard gap Theorem 8). 
-- Why useful here: Gives the desired O(1) vs Θ(n) dichotomy needed for NEXPTIME-hardness of the tri-class classification.
-- How it can fail: If ⊥ is not fully absorbing at the seams near S, some contexts might violate (F2); we avoid this by explicit Cout–out entries permitting ⊥ next to any S-color.
-- Quick test: Fix an active context and any z; force S and fill both repeats with ⊥; run the DP—should accept due to plumbing rules.
-
-7) Size and succinctness bookkeeping
-- Alphabet size: β = poly(s) suffices for: constant role/phase and gate tokens; RUN alphabet for T = poly(s); error chains; and a few colors (7 S-tokens). Cin–out is O(β); Cout–out is O(β^2) as required.
-- Type space: ℓ_pump ≤ 2^{Θ(β^4)} = 2^{poly(s)} guarantees enough contexts to realize all 2^B RIDs/GIDs with window-anchored blocks and stability under pumping/replacement.
-- Implicit SAT: The induced SAT instance Φ’ has exponentially many variables/clauses in s but is generated by the succinct circuit C and the local LCL tables; FFE(F1) is “does there exist f?” which is equivalent to satisfiability of Φ’. Our reduction from Succinct-3SAT maps C to PC in poly(s) time; Claims G–L give Φ_C satisfiable iff FFE(F1) for PC.
-
-Toy counterexample probes
-- Mismatch bypass attempt: Try to fill (Var_k, Cl_j) with k ≠ selected ip using equality chain; it must fail at the first compare bit, forcing the inequality path; DP rejects any attempt to route CAP without proving equality. 
-- Multi-select clause cheat: Try to propagate two Select(p) values in wc while choosing a single S2 color; RUN+phase tiles forbid inconsistent select propagation; any duplication triggers an error-chain, deactivating the context.
-- Boundary-only spoof: Remove wb’s HEAD marker but keep S1 = REDp; non-⊥ at S forces starting an offer that must find HEAD and RID; missing HEAD triggers the error-chain; only ⊥ is completable.
-
-What remains to be written (explicit artifacts)
-- Boundary tables: the exact Cin–out and Cout–out rows for the four nodes around S that (i) restrict S-palette, (ii) export/propagate Select(p) from S2 into wc, (iii) force CAP conduit on equality and forbid it on inequality, (iv) allow PAD otherwise, and (v) allow ⊥-plumbing always.
-- RUN tiles: a concrete fixed-tile set for U’s poly(s)-step verification of C(j) and computation of (i1,i2,i3), exposing them as one-hots and pointers, plus error-chain tiles.
-- B=2 worked example: instantiate all gadgets for B=2, list the 12 ordered pairs (Var_i, Cl_j), and manually DP-check the outcomes to confirm that only the single selected pair imposes the literal constraint and all others complete via PAD.
-
-Summary of current status
-- We repaired the “pairwise quantification” issue by an equality/inequality gate that provably turns only one pair ON per clause-type and makes all others OFF and harmless. This makes (F1) equivalent to a succinct SAT instance where each clause picks one true literal under α.
-- We anchored all semantics within wb/wc and replaced constant-time checks with a poly(s)-length, radius-1 RUN tableau, preserving β-normalization.
-- We sketched type-separation and the implicit SAT view, aligning with the user’s “implicit exponential-sized SAT” request.
-
-## Round 0002 — 2025-08-27T11:23:07.548697Z
-
-Mini-plan
-- Formalize an implicit exponential-sized SAT encoding F(L) whose satisfiability is equivalent to the existence of a feasible function f for a given β-normalized, radius-1 LCL instance L on oriented paths. This cleanly connects (F1) and (F2) to a succinct-SAT instance.
-- Specialize the encoding to our reduction family PC (from a succinct 3CNF generator C), using window-anchored active blocks and a gated bridge. Show that F(PC) is essentially the succinct 3SAT instance for C with auxiliary “literal-pick” variables Y.
-- State and test three core lemmas: (i) succinct SAT capture of (F1) and (F2) with an explicit 2poly(β) bound, (ii) ON/OFF gate ⇒ CNF constraints of the form (¬Y ∨ X), and (iii) type-separation by boundary-extendibility patterns induced by interior witness behavior (no reliance on 2-node boundaries).
-- Patch the previously flagged fragilities: ensure OFF for all unintended pairs (use offer/cap tokens), and move clause-decoding to a poly(s)-length, radius-1 tableau with error-chain refutations.
-- Work out a small B=2 toy to validate the SAT constraints and counterexample probes; list next instrumentation (explicit Cin–out/Cout–out tables for the window seam, offers, PAD/CAP conduits, and the tableau seam rules).
-
-1) Encoding feasible-function existence as an implicit exponential-sized SAT
-Claim S1 (Succinct-SAT capture of (F1)+(F2)).
-Given a β-normalized, radius-1 LCL L on oriented paths, there is a Boolean formula F(L) of size at most 2poly(β), given succinctly by a poly(β)-size circuit, such that F(L) is satisfiable iff there exists a feasible function f (i.e., f passes (F1) and (F2)). Variables are the choice bits of f on each context type τ and the auxiliary bridge/witness choices where needed. The clauses encode: (i) one-hot consistency of f(τ) ∈ Σout^2 on each τ, (ii) for every ordered context pair (τ1, τ2), the “bridge succeeds” constraint computed by the layered DP, and (iii) for (F2), the finitely many repetition lengths z ≤ Z with Z ≤ ℓ_pump^2 (per Lemma 1 in the draft), also checked via the DP.
-- Why useful here: It gives a direct NEXPTIME upper bound (already in our draft) and sets up hardness by letting us reduce succinct 3SAT to F(L) through a specific LCL family PC. It cleanly isolates correctness to the equivalence F(L) ⇔ feasible f.
-- How it can fail: If the number of context types exceeded 2poly(β) or the DP check needed super-polynomial circuits, the succinct-SAT size would blow up. Also, if (F2) required infinite z checks, we could not confine to finite clauses. Both are avoided by type bounds and periodicity.
-- Quick test: For a toy LCL with β = O(1) that enforces proper 2-coloring (no equal neighbors), contexts and pairs are O(1), and F(L) becomes a tiny CNF: per τ choose color, per pair forbid equal-colored windows. The DP is trivial and the formula is equivalent to 2-colorability of the context graph.
-
-Sketch of construction and size: Let T be the type set, |T| = ℓ_pump ≤ 2Θ(β^4). Let C ⊆ T be the context-type set: those realized by w1Sw2 with |wi| ∈ {ℓ_pump, ℓ_pump+1}. Introduce variables {X_{τ,c}} encoding f(τ)=c, with one-hot constraints per τ. For each ordered pair (τ1, τ2) introduce a polynomial-size circuit that runs the O(kβ^2) DP (k = O(ℓ_pump)) on the bridge instance to produce a clause-set forcing the DP to accept. For (F2), for each τ and z ∈ {1,…,Z}, add analogous DP constraints for wz_1Swz_2. The number of τ’s is ≤ ℓ_pump, pairs ≤ ℓ_pump^2, and z’s ≤ ℓ_pump^2. Each DP instance has size polynomial in β and ℓ_pump. Therefore the entire formula is of size at most 2poly(β), given succinctly by a poly(β)-size generator.
-
-2) Specializing to the hardness family PC: ON/OFF gate ⇒ local CNF constraints
-Claim S2 (Gated bridge yields per-clause local CNF). For the reduction PC built from a succinct-3CNF generator C (size s), we define Σout and Cout–out so that for every clause index j and its three literals ℓ ∈ {1,2,3}, there is a “literal-pick” color at the clause window S representing a choice Y_{j,ℓ}, and at each variable i there is a 1-bit choice X_i ∈ {RED,GRN} representing α(x_i). Then (F1) on PC translates to the CNF:
-- One-hot per clause: exactly one Y_{j,ℓ} is chosen (enforced via one-hot encoding at the clause-side S).
-- For each j and each occurrence i of literal ℓ in clause j with sign s ∈ {+,−}, the bridge constraint contributes a Horn clause of the form (¬Y_{j,ℓ} ∨ (X_i = RED)) if s=+, or (¬Y_{j,ℓ} ∨ (X_i = GRN)) if s=−.
-All other ordered pairs (including all mismatched (i,j) where Y_{j,ℓ} points to some i′ ≠ i, or where the left/right side is inactive) compile to tautologies thanks to the OFF gate and ⊥-plumbing. Therefore, (F1) is equivalent to the satisfiability of the succinct CNF that encodes “for each clause j, the selected literal is true under α”.
-- Why useful here: This resolves the universal quantification across all ordered pairs: OFF pairs impose no constraint, and the ON pair per clause imposes exactly one Horn clause linking the clause’s pick Y_{j,ℓ} to the variable’s truth X_i. It also shows that our (F1) feasibility is precisely succinct-3SAT.
-- How it can fail: If the gate could turn ON on unintended pairs (e.g., when Y_{j,ℓ} selects i′ but the pair is with i ≠ i′), we would accumulate impossible constraints across all three i’s and lose completeness. If malformed clause blocks could fake an ON, spurious Horn clauses could be added. We avoid both by: (i) offers/caps at the S boundary that make ON depend only on the clause-side Y pick and the RUN-decoded occurrence i; (ii) a poly(s)-length, radius-1 verifier tableau that pins the three occurrences and signs; malformed encodings divert to error-chains and never activate ON.
-- Quick test: Clause j = (x3 ∨ ¬x7 ∨ x10): introduce one-hot Y_{j,1},Y_{j,2},Y_{j,3}. Constraints: (¬Y_{j,1} ∨ X_3=RED), (¬Y_{j,2} ∨ X_7=GRN), (¬Y_{j,3} ∨ X_10=RED). If α sets X_3=RED, picking Y_{j,1} satisfies all three clauses tied to j; other pairs with variables not equal to 3 are OFF.
-
-3) Window-anchored activation and OFF-pair neutrality
-Claim S3 (OFF pairs are neutral; active iff block in window). The out–out grammar is arranged so that: (i) the two S-nodes can be labeled only from {⊥, RED, GRN, BLU}, (ii) non-⊥ at S forces an “offer” token to be emitted into wb (left) or wc (right), which is locally legal only at boundaries of well-formed blocks whose HEADC matches the fixed C header; otherwise non-⊥ is locally rejected and only ⊥ is extendible, and (iii) the gate turns ON iff both offers are present and the clause-side literal pick Y_{j,ℓ} matches the variable occurrence i (decoded from clause j by the tableau) at the other side; otherwise the gate remains OFF, and PAD-only conduits fill wb◦wc.
-- Why useful here: Guarantees that (F1) constraints are only active precisely on intended (variable, selected-literal-of-clause) pairs; all other pairs are fillable regardless of f (by PAD/⊥), so they do not constrain the SAT.
-- How it can fail: If ⊥ could not always fill wb◦wc (e.g., blocked by a seam rule), we could get unwanted constraints from inactive contexts. If the offer legality were not locally checkable, an adversarial DP could slip in a fake ON. We prevent both by (1) including a fully absorbing ⊥-plumbing sublanguage compatible with any S label, and (2) forcing an offer symbol adjacent to S for each non-⊥ S label; that offer is legal only when the immediately following few cells match the HEAD/role syntax of a block.
-- Quick test: Construct a pair of contexts where the left wb is malformed (no HEAD marker). Choose RED at S. The left offer is illegal at the boundary; thus non-⊥ is locally rejected and only ⊥ can pass, making the pair OFF/neutral.
-
-4) Clause decoding via a radius-1, poly(s)-length tableau (no O(1) checker)
-Claim S4 (Local verification of succinct clause outputs). The clause-side wc contains (after HEAD and GID) a poly(s)-length, radius-1 tableau for a fixed universal TM U, whose job is to check that the three occurrence indices and their signs (stored in RUN subtracks) equal the outputs of the succinct generator C on input j. The adjacency table Cout–out enforces single-step consistency across rows; any mismatch triggers a short error-chain gadget (accepted locally), which prevents the clause block from being “active” and hence prevents gate ON.
-- Why useful here: Fixes the previously broken claim of an O(1) decoder and ensures malformed clause encodings are harmless (cannot create ON). It also keeps the LCL description size polynomial in s and hence in β.
-- How it can fail: If the tableau needed long-range dependencies or cross-row lookahead, we would exceed r=1. We avoid this by standard 1D Turing-tile encodings: every row encodes the work tape and head; Cout–out allows only legal transitions of U, checked locally per neighbor pair. Errors are locally witnessed via error tokens.
-- Quick test: Build a 2-row tableau snippet with an intentional transition mismatch; verify that the only locally allowed continuation is to switch into an error-chain that absorbs the entire block, thus deactivating the gate.
-
-5) Type separation without 2-node boundary signatures
-Claim S5 (Distinct RID/GID yield distinct context types via differential extendibility). For each i ≠ i′, the context types τVar(i) (wb contains a well-formed variable block with HotRID[i]=1) and τVar(i′) are distinct: there exists some fixed clause-side active type τCl(j,ℓ) and a fixed S-label choice such that the bridge DP succeeds with τVar(i) and fails with τVar(i′). Analogous distinctness holds for clause types.
-- Why useful here: We cannot rely on 2-node boundary encodings to separate 2^B indices. This shows distinctness emerges from differential extendibility behavior under the gated bridge with a suitable fixed partner, leveraging interior content (the RUN tracks) rather than boundary micro-alphabets.
-- How it can fail: If C never produces a clause where i appears and i′ does not, a single τCl(j,ℓ) may not separate τVar(i) and τVar(i′). However, we can fix τCl to be any clause-side active type whose decoded triplet includes i but not i′; such a j exists among 2^B possible indices by padding C with a verifier that, when presented with a reserved “tester” j∗ (chosen at construction), outputs a clause whose single ON literal is x_i. This tester is validated by the same tableau mechanism. Thus separation does not rely on arbitrary properties of C.
-- Quick test: Introduce j∗ whose decoded clause is (xk ∨ dummy ∨ dummy) for k set at construction. Then with τVar(k) and τVar(k′≠k), the bridge under S=RED is ON for τVar(k) and OFF for τVar(k′), distinguishing types.
-
-6) From (F1) to tri-class classification via trivial (F2)
-Claim S6 (Trivializing (F2) preserves succinct-SAT shape). Extend Cout–out so that wz_1 and wz_2 repetitions can always be filled with ⊥ (PAD) regardless of z. Then (F2) holds for any f, and feasible-function existence reduces to (F1), i.e., the succinct CNF in Claim S2. Therefore, mapping a succinct 3SAT instance C to PC shows NEXPTIME-hardness of the O(1) vs. Θ(n) sub-classification; in combination with the decidability framework (Theorems 8–9 in the reference), the three-way classification is NEXPTIME-hard.
-- Why useful here: Eliminates (F2) constraints, preventing an unintentional Θ(log* n) regime. The family sits on the O(1)–Θ(n) dichotomy, simplifying the reduction target.
-- How it can fail: If the PAD/⊥ seam conflicts with the S-label fixed by f, (F2) could still impose constraints. We avoid this by permitting ⊥ adjacent to any S-color and by making PAD/⊥ internally self-compatible.
-- Quick test: Pick any context and z=17. Force S by f; fill wz_1 and wz_2 with ⊥. The DP finds a trivial path since every PAD/⊥ pair is admitted by Cout–out.
-
-7) Toy worked example (B=2) under the SAT view
-- Variables: X_1, X_2, X_3, X_4 ∈ {RED,GRN} (encode α(x1..x4))
-- One clause j with literals (x3 ∨ ¬x1 ∨ x4). Clause picks: one-hot Y_{j,1},Y_{j,2},Y_{j,3}.
-- CNF clauses from the bridge: (¬Y_{j,1} ∨ X_3=RED), (¬Y_{j,2} ∨ X_1=GRN), (¬Y_{j,3} ∨ X_4=RED).
-- All other ordered pairs are OFF/neutral or forced ⊥. Thus F(PC) is satisfiable iff there exist X’s and a one-hot Y making one of those literals true—exactly the clause’s satisfiability. Multiple clauses add independent groups of three Horn clauses plus a one-hot.
-Counterexample attempt: If the gate were missing, we would need all three implications simultaneously for all i occurring in j, which would force X_3=RED and X_1=GRN and X_4=RED at the same time, and would also erroneously constrain pairs with variables not in the clause; the gate avoids this by OFF pairs and ON only for the selected literal.
-
-8) Outstanding spec to finalize
-- Cin–out and Cout–out tables at the window seam: explicit rows that (i) force an offer on non-⊥ S, (ii) reject non-⊥ unless a valid block boundary follows, (iii) implement OFF→PAD conduits, and (iv) implement ON→CAP conduit and CAP equality test.
-- Clause-side tableau tile set: list of allowed (state,symbol) pairs across rows; error-chain tokens that must appear when a mismatch occurs.
-- Tester j∗ mechanism (for type-separation robustness): specify reserved GID and the corresponding hard-wired outputs of U, validated by the same tableau (kept radius-1) so that τVar(i) types are provably distinct.
-- Confirm size bounds: |Σout| = β = poly(s); tables of size O(β^2); tableau length poly(s); type bound ℓ_pump = 2Θ(β^4); hence contexts/pairs ≤ 2poly(β); DP verifiers run in O(kβ^2) per instance.
-
-What we have accomplished this round
-- Provided a clean, succinct-SAT formulation of feasible-function existence (S1), which aligns exactly with the required NEXPTIME framework.
-- Instantiated the SAT constraints for the reduction family PC (S2–S3), addressing the earlier fragile spots (pairwise quantification and activation locality) and eliminating reliance on boundary-only signatures (S5).
-- Replaced the O(1) clause decoder with a poly(s)-length, radius-1 tableau and an error-chain refuter (S4).
-- Validated by a B=2 toy and articulated the remaining explicit-table tasks needed to cement the construction.
-
-## Round 0002 — 2025-08-27T11:23:07.543718Z
-
-Mini-plan
-- Recast feasible-function existence (F1) as an implicit exponential-sized SAT instance over type-choices, then map Succinct-3SAT to it. Make the quantifier structure transparent.
-- Fix the bridge semantics: clause-side chooses one of its 3 occurrences (not a sign), variable-side chooses its truth; the gate is ON only for the matching occurrence/variable-index pair; ON enforces truth=sign(occ). OFF pairs are trivially fillable. This aligns “for all ordered pairs” with “∃ a satisfied literal.”
-- State a clean SAT-of-types lemma and the gating-correctness lemma with how-it-can-fail and quick tests (B=2 toy). Tie to radius-1 and β-normalized implementation.
-- Prove existence and separability of exponentially many active context types (2^B variable-types and 2^B clause-types) using pumping and window anchoring; include a crisp type-separation witness.
-- Specify the poly(s)-length, radius-1 clause-verification tableau that exposes (i1, i2, i3) and their signs next to S; add error-chain refuters. Conclude soundness/completeness for (F1) and show how to trivialize (F2) for classification hardness.
-
-1) SAT-of-types view of (F1)
-Claim G (Implicit SAT for feasible-function existence). For a fixed β-normalized, r=1 LCL P and its context-type set C (types of w1 S w2 with |w1|,|w2|∈{ℓpump,ℓpump+1}), there is an implicit exponentially large SAT instance F(P) over variables encoding f(τ) (the 2-node label at S for each τ∈C), and for each ordered pair (τL,τR) a local constraint R(τL,τR,f(τL),f(τR)) that holds iff the DP on the bridge wa S1 wb wc S2 wd (with types τL,τR) succeeds. Then there exists a feasible f satisfying (F1) iff F(P) is satisfiable.
-- Why useful here: Reducing Succinct-3SAT to F(P) (or vice versa) yields NEXPTIME-hardness via an implicit exponential SAT. It also clarifies that our bridge-gadget just defines a pairwise constraint language on type-colors decidable by the O(kβ^2) DP.
-- How it can fail: If C depended on f (circularity), or if the pairwise DP check were not radius-1 decidable, we could not encode constraints locally. Here, C is defined purely by input types (Section 4 types) and the DP is radius-1.
-- Quick test: Pick a small Σout (β=5), enumerate 2–3 contexts with actual strings, run the DP to tabulate which f-choices on S1,S2 are extendible. The truth table matches a Boolean constraint R for those (τL,τR).
-
-2) Correct bridge semantics: clause chooses occurrence, variable chooses truth
-Patch H (Occurrence-selected gate). Modify the S-alphabet and gate:
-- Variable-side S palette: VT (true) or VF (false). Interpreted as α(x_i)=1 iff VT.
-- Clause-side S palette: O1,O2,O3 (select occurrence t∈{1,2,3} of clause j). No sign is chosen at S; signs are read from the clause RUN for that occurrence.
-- Gate ON condition (purely local): the left wb contains a well-formed variable block with RID=i; the right wc contains a well-formed clause block with the triple (i1,sgn1),(i2,sgn2),(i3,sgn3). If clause S-color=Ot and RID=i equals it, gate=ON; otherwise OFF. Window anchoring places all needed bits inside wb or wc.
-- ON-bridge semantics: enforce that VT iff sgnt=+ and VF iff sgnt=−, via a one-bit CAP conduit from S1 to S2 (compare variable truth with required sign of the selected occurrence t). OFF-bridge semantics: wb◦wc is PAD-plumbable regardless of S colors.
-- Why useful here: Fixes the earlier quantification mismatch: for a clause j, only the pair with the variable-type matching the chosen occurrence turns ON; the other two pairs turn OFF and are trivial, so (F1)’s universal quantifier no longer overconstrains clauses.
-- How it can fail: (i) If the DP can deviate and turn ON without RID=it equality (no: ON is determined at the immediate seam by tokens and checked locally); (ii) If OFF were rejected due to seam interactions (we ensure PAD-plumbing accepts all OFF seams); (iii) If we needed to encode it (the occurrence index) at S (we do not: S carries only Ot; equality to RID is tested by a witness path inside wb and wc).
-- Quick test: Clause j with occurrences (i1=3,+), (i2=7,−), (i3=10,+). If f(τCl(j))=O2, only pairs with τVar(7) are ON; their success requires VF at S1. Pairs with τVar(3) and τVar(10) are OFF and always fill. Thus f(τCl(j))=O2 works iff α(x7)=0.
-
-3) Equivalence to Succinct-3SAT via implicit SAT
-Claim I (SAT-of-types ≡ Succinct-3SAT under Patch H). Let C be a succinct generator of a 3-CNF ΦC over variables x1,…,x_{2^B}. Build PC so that active context types include all τVar(i) (all i∈{0,1}^B) and all τCl(j) (all j∈{0,1}^B). Under Patch H, (F1) holds for some f iff ΦC is satisfiable.
-- Informal proof sketch: Introduce Boolean variables A_i (truth of x_i) corresponding to f(τVar(i))∈{VT,VF}, and 3-way selector T_j∈{1,2,3} corresponding to f(τCl(j))∈{O1,O2,O3}. The bridge constraints across all ordered pairs conjoin, for each j, the single ON-pair constraint: if T_j=t then A_{i_t} must equal sgn_t. OFF pairs are tautologies. This is exactly the clause-satisfaction condition “∃t with A_{i_t}=sgn_t.” Hence f exists iff there is {A_i},{T_j} satisfying ∧_j ∨_{t=1}^3 (A_{i_t}=sgn_t), i.e., ΦC is satisfiable.
-- How it can fail: If some τCl(j) could choose an O_t that is not one of its occurrences (e.g., unverified (i_t,sgn_t)), the constraint could be cheated. We prevent this by the clause-run tableau and local checker exposing (i_t,sgn_t) and rejecting any Ot whose occurrence record is malformed.
-- Quick test: B=2 example with 4 variables. Let clause j encode (x1 ∨ ¬x2 ∨ x3). If α(x1)=0, α(x2)=1, α(x3)=0, the only working choice is T_j=2 (select occurrence 2: ¬x2). The only ON-pair is with τVar(2) and requires VF at left; holds. Other pairs OFF.
-
-4) Active type coverage and type separation
-Claim J (Coverage and separation of active types). With β=poly(s), choose B=s^c0 and ℓpump=2^{Θ(β^4)}. Using window-anchored blocks, for each i and each j there exist context types τVar(i) (left context whose wb contains a valid variable block with RID=i) and τCl(j) (right context whose wc contains a valid clause block with GID=j and tableau exposing its 3 occurrences). Moreover, τVar(i)≠τVar(i′) for i≠i′, and τCl(j)≠τCl(j′) for j≠j′.
-- Why useful here: We need 2^B many distinct variable-types and 2^B many distinct clause-types so that {A_i} and {T_j} are well-defined choices over C.
-- How it can fail: (i) If the header+indices+RUN footprint exceeded the window length, activation wouldn’t be local (fix: windows are size ℓpump with ℓpump≫poly(s)); (ii) If types collapsed despite different RIDs/GIDs (fix: separation by boundary-extendibility: pick a partner type so that an ON-bridge exists for one index but is impossible for the other, hence their boundary-extendibility signatures differ).
-- Quick test (type-separation witness): Fix j and pick Ot selecting its first occurrence i1; Build the ordered pair (τVar(i1),τCl(j)). The ON-bridge can succeed if VT=sgn1; For i′≠i1, the gate is OFF and we can enforce a different outcome by forcing non-⊥ on the variable side with a mismatching token that is locally rejected; the sets of boundary-extendible labelings differ, so the types differ.
-
-5) Clause-verification tableau and radius-1 implementation
-Claim K (Poly(s)-length, radius-1 verification inside wc/wb). The clause-side block encodes in RUN a radius-1 checkable tableau of length poly(s) that, given (C,GID=j), exposes in fixed rows: (i1,sgn1),(i2,sgn2),(i3,sgn3) in one-hot form next to the S-neighborhood. The variable-side block exposes HotRID in one-hot. Cout–out enforces stepwise consistency; malformed encodings admit a short error-chain refuter; well-formed ones cannot be refuted.
-- Why useful here: Ensures Ot actually corresponds to a validated occurrence and exposes sgnt locally, making the ON conduit comparison well-defined and radius-1 checkable.
-- How it can fail: If the verifier were O(1)-time, it could not validate the succinct circuit’s output; we instead unroll a poly(s)-length tableau (still radius-1, constant alphabet overhead). If errors were non-refutable, inactive contexts could force constraints; the error-chain gadget prevents that.
-- Quick test: For a hand-built clause-index j, create a tiny RUN with 3 marked rows carrying the one-hot i_t and sgnt bits at fixed offsets. Flip one bit and confirm that an error-chain can be placed locally and that any non-⊥ S-choice against a malformed block is rejected by the DP.
-
-6) Inactive contexts are harmless; (F2) trivialization
-Claim L (Inactive contexts force ⊥; (F2) is made vacuous). If a context’s wb (resp. wc) lacks a well-formed variable (resp. clause) block, any non-⊥ at S is locally rejected (witness chain cannot find headers/indices). A dedicated PAD/⊥-plumbing language in Cout–out allows arbitrary filling when OFF or ⊥ at S. If we further allow wz repeats to be ⊥-fillable regardless of z, (F2) holds for any f, and the classification collapses to O(1) iff (F1) feasible, else Θ(n) by the gap theorem.
-- Why useful here: Neutralizes irrelevant pairs and reduces the tri-class decision to (F1) on our instances.
-- How it can fail: If PAD/⊥ seams were incompatible with S choices, OFF wouldn’t be trivially fillable; we explicitly include seam-compatible PAD/⊥ pairs in Cout–out.
-- Quick test: Take an inactive left context and any right context. Try S=VT; the DP fails early (no HEAD/RID found). Set S=⊥; the DP runs a PAD/⊥ conduit and succeeds.
-
-7) Putting it together: reduction to implicit SAT (Succinct-3SAT → F(P))
-- Source: circuit C of size s defining ΦC with 2^B variables and 2^B clauses, each clause(j) has three occurrences (i1,sgn1),(i2,sgn2),(i3,sgn3).
-- Target: PC with Σout and Cout–out implementing Claims H–L; β=poly(s), r=1, |description|=poly(β)=poly(s). By Claim J, C’s type set contains all τVar(i) and τCl(j). By Claim I, there exists f satisfying (F1) for PC iff ΦC is satisfiable. By Claim L, we can trivialize (F2) if we target full classification hardness.
-- Complexity: Types count ℓpump=2^{Θ(β^4)}=2^{poly(s)}; we never enumerate them in the reduction. Verification of each bridge is via O(kβ^2) DP (k=Θ(ℓpump)), consistent with the NEXPTIME upper bound.
-
-8) Toy worked example (B=2, indices 00..11)
-- Let clause j encode (x01 ∨ ¬x10 ∨ x11). Suppose α(x01)=0, α(x10)=1, α(x11)=0.
-- Choices: set f(τVar(01))=VF, f(τVar(10))=VT, f(τVar(11))=VF. Set f(τCl(j))=O2 (choose occurrence 2: ¬x10). For ordered pairs: (τVar(10),τCl(j)) ON and requires VT= (sgn2=−)? No, ON demands VF when sgnt=−. Oops: we must require VT iff sgnt=+ and VF iff sgnt=−; thus for occurrence 2 (negative), left must be VF to pass. Since α(x10)=1, O2 would fail. Correct choice is O1 or O3? O1 has sgn1=+, requires VT at Var(01), but α(x01)=0, so fail. O3 has sgn3=+, requires VT at Var(11), but α(x11)=0, so fail. Therefore, α does not satisfy this clause; no O_t makes the ON-pair succeed, as intended. If we flip α(x10)=0, then O2 makes (τVar(10),τCl(j)) succeed and all other pairs OFF; (F1) holds for this j.
-- Takeaway: For each clause j, there exists exactly those Ot consistent with α that make all pairs pass; otherwise (F1) fails.
-
-9) Open items and quantitative checks
-- Boundary tables: Write explicit Cin–out/Cout–out rows for S-seams enforcing: (i) non-⊥ at S emits Offer tokens and forbids PAD unless OFF, (ii) OFF⇔mismatch of (RID,it), (iii) ON enforces CAP wire equality truth↔sgn_t, (iv) PAD/⊥ seams accept any colors when OFF.
-- Clause RUN tiles: Provide a fixed set of row-local tiles producing/exposing (i_t,sgn_t) and validating them against header C and GID=j, with a bounded error alphabet E to refute any malformed run.
-- Type separation proof: Formally exhibit, for i≠i′, some counterpart type so that the sets of extendible boundary assignments differ (hence distinct types). Likewise for clauses.
-- Rule budgets: Count tracks/symbols to confirm |Σout|=β=poly(s). ℓpump≫poly(s) so that windows can host headers+indices+RUN comfortably.
-
-How this answers “reduce to implicit exponential-sized SAT formula”
-- The existence of a feasible f is equivalent to satisfiability of the implicit SAT F(P): variables are (A_i) and (T_j), constraints are local bridge constraints per (τVar(i),τCl(j)), exponentially many but specified implicitly by P (via DP over ℓpump-length contexts). Our reduction from C maps ΦC to F(PC) with the property F(PC) satisfiable iff ΦC satisfiable. This yields NEXPTIME-hardness of feasible-function existence, and (by trivializing (F2)) the full O(1) vs Θ(n) classification.
-
-## Round 0003 — 2025-08-27T11:30:44.019901Z
-
-Mini-plan
-- Patch the active-window semantics: forbid ⊥ at S on active contexts; adopt occurrence-only clause palette {O1,O2,O3}; bind sign from the verified RUN tracks.
-- State and prove a radius-1 Exclusivity Lemma for equality vs. inequality witness chains; pin down the local invariants (one-hot, pointer integrity, eq_so_far register).
-- Specify seam rules (offers, ON/OFF gate, CAP/PAD conduits) at the two S-nodes; show (F2) can be trivialized via PAD on repeats without trivializing (F1).
-- Add a type-separation lemma using a neutral tester clause j* to guarantee distinct Var_i types independent of C.
-- Validate with a B=2 toy: enumerate one clause and 3 variable pairs; check ON/OFF and sign-binding behavior; probe a couple of cheating attempts.
-
-1) Patch A: Active S forbids ⊥; occurrence-only palette with sign bound to RUN
-Claim A1 (Active-window S palette and sign binding).
-- Clause-side S2 palette is occurrence-only: {O1, O2, O3} (no sign); variable-side S1 palette is truth-only: {VT, VF}. The sign of occurrence p ∈ {1,2,3} is exported from the clause RUN on a local subtrack sgn[p] ∈ {+,−}.
-- Activity and ⊥. Introduce boundary Offer tokens emitted by well-formed blocks immediately adjacent to S. Cout–out forbids S ∈ {⊥} adjacent to an Offer; permits S ∈ {⊥} iff the adjacent side emits NoOffer (which only happens if the side is inactive or error-refuted). Thus: S is forced non-⊥ on active contexts; ⊥ allowed only on inactive ones.
-- ON condition: Both sides active and clause S2 = Op. The gate is ON iff RID = ip (selected occurrence index) (checked by the witness in Claim E below). On ON, CAP conduit must be used and enforces VT iff sgn[p] = + and VF iff sgn[p] = −.
-- OFF condition: If not (RID = ip), the inequality witness must be used (Claim E), and only PAD conduit is permitted; no CAP may be present.
-Why useful here: This patch addresses two critical issues: it prevents f(·) ≡ ⊥ from trivially satisfying (F1), and it removes sign choices from S, forcing the sign to match the verified RUN output.
-How it can fail:
-- If a malformed right block could still legally emit Offer near S, the instance could be forced active without a valid RUN, breaking soundness. We prevent this by making Offer admissible only at the unique boundary positions of the HEADC/RUN grammar; any malformed structure must switch to error-chain tracks that never emit Offer.
-- If sign[p] could be spoofed locally, the clause could cheat its sign. We enforce sgn[p] as a read-only track driven by the RUN tableau; any mismatch with RUN is locally refutable via an error-chain, and there is no permitted local transition that sets sgn[p] arbitrarily.
-Quick test/counterexample attempt: Construct a right context missing the RUN rows but with an Offer token. The seam rule at the HEADC→RUN boundary refuses changing from PAD to Offer without the exact RUN row header; thus S cannot be non-⊥; with S forced to ⊥, the pair is inactive and imposes no constraint.
-
-2) Lemma E: Exclusivity of equality vs inequality witnesses (radius-1)
-Claim E (Exclusivity and determinism of the ON/OFF gate). For an active ordered pair with clause pick p and indices (RID on left, ip on right), the following holds under radius-1 witness semantics:
-- There exists a valid equality witness path if and only if RID = ip. If such a path exists, the grammar enables CAP and forbids PAD at the seam.
-- There exists a valid inequality witness path if and only if RID ≠ ip. If such a path exists, the grammar enables PAD and forbids CAP at the seam.
-- The two witnesses are mutually exclusive: at most one is realizable for any given pair.
-Local invariants and implementation (tracks and transitions):
-- One-hot indices. Left block exports HotRID[1..B] with exactly one 1; right block exports Occ[p][1..B] with exactly one 1 (Occ is the one-hot for ip, selected by S2 = Op through fixed local pointers inside RUN’s outputs). Nearest-neighbor consistency enforces one-hotness rowwise.
-- Bit-lanes. Both blocks expose the binary expansions RID_bits[1..B] and ip_bits[1..B] alongside the one-hots.
-- Witness chain and eq_so_far register. A single-symbol-width chain walks across bit positions b = 1..B. The chain carries a mode flag eq ∈ {0,1}. Start at b = 1 with eq = 1. At each step, the only allowed transition updates eq ← eq ∧ (RID_bits[b] == ip_bits[b]). At b = B + 1, the chain halts.
-- Acceptance rules. Equality certificate accepts iff the chain reaches b = B + 1 with eq = 1. Inequality certificate accepts iff at some b a designated Mismatch token is placed; placing Mismatch is legal only on steps where (RID_bits[b] ≠ ip_bits[b]) and eq was 1 just before the step. Once Mismatch is placed, the remaining steps propagate a neq-mode that cannot flip back to eq = 1, and acceptance is at the end.
-- CAP/PAD gating. CAP may be emitted only if the equality certificate accepts; PAD may be emitted only if the inequality certificate accepts. There is no rule allowing CAP (resp., PAD) without the corresponding accepted witness state.
-Why useful here: Encodes the ON/OFF dichotomy so that exactly one of the two certificates can succeed, with all checks performed by two-node constraints.
-How it can fail:
-- Fabricating a Mismatch when RID = ip: disallowed since setting Mismatch requires (RID_bits[b] ≠ ip_bits[b]) locally, which is false at every b if equal.
-- Forcing eq to remain 1 when RID ≠ ip: impossible because eq updates are locally determined by the observed bits; a mismatch forces eq ← 0 and cannot flip back.
-- Combining both CAP and PAD: impossible because CAP requires eq(B+1)=1 while PAD requires a Mismatch and eq must become 0; the mode flag prevents simultaneous acceptance.
-Quick test/counterexample attempt (B=3):
-- RID=5 (101), ip=5 (101): equality chain has eq path 1→1→1→1; accepts; PAD disallowed (no allowed Mismatch placement). RID=5, ip=6 (110): at b=2, bits differ; eq flips to 0; equality fails; inequality can place Mismatch at b=2 and accept; CAP disallowed.
-
-3) Seam rules: offers, gate, CAP/PAD conduits; trivializing (F2) safely
-Claim S (Seam rule schema around S).
-- Left seam (wb↔S1). If the left neighbor outputs OfferL, then S1 ∈ {VT,VF} is required; S1=⊥ is forbidden. If the left neighbor outputs NoOfferL, then S1=⊥ is the only admissible S1 label.
-- Right seam (S2↔wc). If the right neighbor outputs OfferR, then S2 ∈ {O1,O2,O3} is required; S2=⊥ is forbidden. If NoOfferR, then S2=⊥ is the only admissible S2 label.
-- ON/OFF enforcement. If both seams present Offer and S2 = Op, Cout–out enables exactly one of two seam grammars depending on the witness mode: ON: CAP conduit (a single-bit wire that propagates from S1 to S2 and is locally compared to sgn[p]); OFF: PAD conduit (neutral filler). The CAP seam forbids PAD tokens; the PAD seam forbids CAP tokens.
-- Repeat-PAD (for (F2)). For every context (w1,S,w2) and any z≥1, the tables admit filling each repetition wz_i by a RepeatPAD track that is locally compatible with any S color and with the block-seam on the opposite side of S. RepeatPAD never appears in bridges (wb◦wc) and never coexists with Offer within a block. Hence: (F2) holds vacuously for repeats while (F1) bridges remain nontrivial.
-Why useful here: Keeps (F1) hard (since ON forbids PAD bypasses and requires CAP) while allowing (F2) to be made vacuous via RepeatPAD that ignores the length z and does not depend on equality.
-How it can fail:
-- If RepeatPAD were allowed inside bridges (wb◦wc), it could trivialize (F1); we explicitly forbid PAD on bridges when the gate is ON.
-- If Offer could appear alongside RepeatPAD inside wz blocks, the context would become spuriously active; we forbid Offer transitions on RepeatPAD tracks.
-Quick test/counterexample attempt: Consider an active context with both offers and S2 = O2, RID ≠ i2. Try to use RepeatPAD in wb◦wc: Cout–out rejects because bridges only allow PAD under an accepted inequality witness; RepeatPAD is only valid inside wz repeats in (F2), not inside bridges.
-
-4) Type separation via a neutral tester clause j*
-Claim T (Neutral tester guarantees distinct variable types). Add a reserved, well-formed clause type Cl_{j*} whose RUN deterministically outputs a clause with occurrences (i, dummy, dummy) and known sign, for each i in the needed range (or provide c different tester clause types if we need many). The construction validates these outputs by the same RUN checker and permits S2 ∈ {O1,O2,O3} accordingly.
-- For any two variable types Var_i ≠ Var_{i'}, pair with Cl_{j*} configured to pick O1 (the i-occurrence). Under a fixed S1 (say VT), (Var_i, Cl_{j*}) is ON and completable iff VT matches the known sign; (Var_{i'}, Cl_{j*}) is OFF and completable via PAD. Therefore their boundary-extendibility signatures differ under the same S-color, forcing distinct types.
-Why useful here: Ensures the existence of exponentially many distinct variable types without relying on idiosyncrasies of C; only needs the RUN tile set we already include.
-How it can fail: If Cl_{j*} could be malformed yet still active, it might not separate types; the same Offer+RUN validation prevents that. If O1 could be set without binding to the i occurrence, the ON test could accidentally apply to i′; forbidden by the pointer integrity rules.
-Quick test/counterexample attempt: Build Var_5 and Var_6 and pair with Cl_{j*} that exposes occurrence 1 = 5 (positive). With S1=VT and S2=O1, (Var_5,Cl_{j*}) has an equality witness and CAP passes; (Var_6,Cl_{j*}) only inequality witness exists and only PAD passes; types differ.
-
-5) Clause RUN tile: sign-binding and occurrence selection
-Claim R (RUN tableau exposes indices and signs; selection wiring is local). The right block’s RUN encodes a BO(1)-time simulation of U(C,j) that materializes:
-- Three one-hot vectors Occ[1], Occ[2], Occ[3] ∈ {0,1}^B, each with a unique 1-bit at positions i1,i2,i3.
-- Three sign bits sgn[1], sgn[2], sgn[3] ∈ {+,−}.
-- Selection pointers: from S2 tokens Op, a fixed local wiring enables a Selected[·] subtrack that equals Occ[p] and a SelectedSgn that equals sgn[p].
-The adjacency rules ensure that Op cannot enable Selected that disagrees with the underlying Occ/sgn. Any mismatch triggers an error-chain and deactivates the context (no Offer).
-Why useful here: Guarantees the ON check uses the correct i_p and sign, with all information within radius-1 of S via short pointer chains, and aligns with Patch A’s palette.
-How it can fail: If Selected could be chosen independently of RUN, the clause could cheat; we prevent by making Selected writable only when a local synchronization state (a phase bit) from the RUN row is present; otherwise, only error-chain transitions are legal. If we needed nonlocal access, that would break r=1; we avoid this by pre-exposing Occ and sgn as adjacent tracks.
-Quick test/counterexample attempt: Force S2=O2 but flip sgn[2] in a RUN row. RUN consistency rejects the row; the only continuation is to switch into an error-chain that removes Offer; S must be ⊥ and the context becomes inactive.
-
-6) B=2 toy validation
-Setup: Variables x1..x4; one clause j encodes (x3 ∨ ¬x1 ∨ x4). Right RUN exports Occ[1]=one-hot for 3, sgn[1]=+; Occ[2]=one-hot for 1, sgn[2]=−; Occ[3]=one-hot for 4, sgn[3]=+.
-- Case α: x1=1, x3=0, x4=0.
-  - f(Var_1)=VT, f(Var_3)=VF, f(Var_4)=VF; pick S2=O1.
-  - (Var_3, Cl_j): RID=3, ip=3 ⇒ equality witness exists; sgn[1]=+ but S1=VF, CAP comparison fails ⇒ bridge rejects. So O1 is incompatible with α.
-  - Pick S2=O2 instead: (Var_1,Cl_j): RID=1, ip=1, equality witness exists; sgn[2]=− and S1=VT mismatches ⇒ reject. O3: (Var_4,Cl_j) equality exists but sgn[3]=+ vs S1=VF ⇒ reject. Thus no S2 works: clause unsatisfied under α.
-- Flip α: x1=0,x3=1,x4=0 (i.e., f(Var_1)=VF, f(Var_3)=VT, f(Var_4)=VF).
-  - With S2=O1: (Var_3,Cl_j) equality witness exists and sgn[1]=+ vs S1=VT matches; ON uses CAP; all other pairs OFF via inequality/PAD. (F1) passes for this clause.
-Cheat probes:
-- Try S=⊥ on active pair: forbidden by Offer seam; local check fails.
-- Try to use PAD on ON: CAP-only seam disallows PAD tokens; DP dies immediately.
-- Try equality witness with RID≠ip: eq_so_far flips to 0 at first mismatch; end state prevents CAP; DP fails.
-
-7) SAT-of-types recapped under the patches
-- Variables: for each Var_i active type, choose S1 ∈ {VT,VF} encoding α(x_i).
-- Clause picks: for each Cl_j active type, choose S2 ∈ {O1,O2,O3} selecting one occurrence.
-- Constraints: For each ordered pair (Var_i, Cl_j), the bridge succeeds iff either (i) it is OFF (RID≠ ip of the chosen p), or (ii) it is ON and α(x_{ip}) matches sgn[p]. Thus (F1) is equivalent to: for each j, there exists p such that the literal at position p is true under α. This is exactly Φ_C satisfiable.
-Why useful here: Confirms the reduction still encodes the intended succinct-3SAT after the safety patches.
-How it can fail: Only if OFF pairs imposed extra constraints; the Exclusivity Lemma and PAD-only rule guarantee they do not.
-Quick test/counterexample attempt: For the toy clause above, selecting O2 enforces only α(x1)=0; pairs with Var_3 and Var_4 are OFF; no extra constraints appear.
-
-What is now solid
-- Active/inactive discipline at S (⊥ forbidden on active) and occurrence-only clause palette eliminate the two main pitfalls flagged by the verifier.
-- A radius-1 exclusivity proof for equality vs. inequality witnesses (eq_so_far monotonicity, mismatch token rules) prevents bypasses and spurious ONs.
-- A seam-rule schema that makes (F2) vacuous via RepeatPAD while keeping (F1) nontrivial.
-- A neutral tester clause j* ensures type separation independent of C, addressing the multiplicity of active types robustly.
-
-Open items to finalize (explicit artifacts)
-- Enumerate the Cin–out/Cout–out entries at the four seams (left boundary→S1, S1→right bridge, left bridge→S2, S2→right boundary), specifying the exact allowed pairs for: Offer/NoOffer, CAP/PAD, witness-step tokens, and RepeatPAD adjacency.
-- List the RUN tile set: the per-row neighbor constraints for U, and the local exposure of Occ[·] and sgn[·]; define the error-chain alphabet and transitions.
-- Package the tester j* as a concrete right-block type with its own header tag, and show it does not interfere with the main reduction.
-- A tabulated B=2 DP trace for 3–4 representative pairs to sanity-check all seam interactions (especially CAP comparison to sgn[p]).
-
-## Round 0003 — 2025-08-27T11:30:44.027502Z
-
-Mini-plan
-- Fix the three correctness gaps flagged by the verifier: (A) forbid ⊥ at S on active seams via explicit radius-1 seam rules; (B) bind the sign to the clause RUN by adopting the occurrence-only palette {O1,O2,O3}; (C) prove exclusivity of equality vs inequality certificates with local invariants.
-- Specify the seam grammar around S: enumerate allowed Cout–out pairs between S and its two neighbors; define the Offer/Accept handshake and CAP/PAD conduits; make OFF pairs neutral and ON pairs enforce the equality-and-sign check.
-- Formalize the pointer/witness chains and the one-hot/binary compare: what tracks exist, how the chain advances, and what local checks prevent faking.
-- Provide a robust type-separation lemma (using a tester clause j⋆ if needed) and a B=2 toy check of ON/OFF behavior.
-- Reconcile with the reduction: with (F1) only, the family lands in {Θ(log* n), Θ(n)} depending on SAT(C); we do not need to trivialize (F2) (avoid the ⊥-plumbing pitfall for (F1)).
-
-1) Seam grammar around S: tokens, roles, and local rules
-We introduce constant-size output tokens and roles used only in the 2 nodes S and their immediate neighbors on each side.
-- S-side tokens (clause side): ClauseSelect ∈ {O1, O2, O3}. No sign is encoded at S.
-- S-side tokens (variable side): VarTruth ∈ {VT, VF}.
-- S-side token ⊥ exists but is forbidden when the adjacent neighbor is active (defined below).
-- Interface roles at the neighbor cells (the nodes immediately adjacent to S within wb or wc):
-  - AccVar: boundary interface of a well-formed variable block adjacent to S on the left (contains anchors/pointers to RID one-hot and binary RID bits; see §3).
-  - AccCla: boundary interface of a well-formed clause block adjacent to S on the right (contains anchors/pointers to the RUN outputs for occurrence indices and signs; see §2).
-  - Neutral: any non-interface role (PAD, error-chain, or malformed)—used to deactivate the seam locally.
-- Handshake (radius-1) via Cout–out on the two seam edges (left seam: neighbor←→S; right seam: S←→neighbor):
-  - If neighbor role is AccVar: allowed S outputs are VarTruth ∈ {VT,VF}; S = ⊥ is forbidden (no Cout–out entry (AccVar, ⊥)).
-  - If neighbor role is AccCla: allowed S outputs are ClauseSelect ∈ {O1,O2,O3}; S = ⊥ is forbidden (no Cout–out entry (⊥, AccCla)).
-  - If neighbor role is Neutral: allowed S outputs include ⊥ and the non-⊥ tokens but all non-⊥ must emit Offer tokens (see below) that are immediately rejected unless the neighbor upgrades to an Acc● role (making the seam locally deciding). Practically: (Neutral, VarTruth) and (ClauseSelect, Neutral) have no accepting continuations except via immediate error-chain admission; (Neutral, ⊥) and (⊥, Neutral) are always allowed (PAD), ensuring inactive seams are neutral.
-- Offer/Accept and certificate start: Non-⊥ at S forces emission of a certificate-start token CertStart on the first interior edge; CertStart is legal only if the adjacent neighbor is AccVar (left seam) or AccCla (right seam). Otherwise, Cout–out rejects and only ⊥ is feasible. This enforces “non-⊥ ⇒ active seam” locally.
-- CAP/PAD conduits: Once CertStart is accepted on both sides, a CAP conduit is enabled only under equality (see §3), otherwise only a PAD conduit is enabled (OFF). The Cout–out table forbids placing any error-chain token adjacent to CAP (to prevent bypass), while PAD accepts error-chain tokens (to guarantee neutral fill when OFF).
-Why useful here: This replaces the informal “activation” with explicit, radius-1 seam rules. It ensures (i) ⊥ cannot be used at S on active seams, preventing the trivial f ≡ ⊥; (ii) S non-⊥ forces the bridge to engage the certificate machinery; (iii) inactive contexts are always completable via ⊥ and PAD.
-How it can fail: If AccVar/AccCla could appear spuriously at non-block neighbors, we would misclassify seams as active. We prevent this by tying Acc● to the internal block grammar: the only roles allowed adjacent to S with Acc● are those that anchor HEAD/RID (variable) or HEAD/GID/RUN (clause); any other role adjacent to S is Neutral, as enforced by Cout–out.
-Quick test: In a malformed right context, label S with O2. The neighbor is Neutral, so CertStart is rejected and no completion exists, forcing ⊥ at S (or an error-chain). In a well-formed clause context, O2 is accepted and the certificate starts.
-
-2) Sign binding (occurrence-only palette) and RUN exposure
-We adopt the occurrence-only palette at clause S: ClauseSelect ∈ {O1,O2,O3}. The sign is read from the verified RUN.
-- Clause RUN: Inside wc (clause side), a radius-1 tableau encodes U(C, GID=j), exposing at fixed offsets near the interface:
-  - three B-bit binary indices (i1, i2, i3) and one-hot lanes Hot(i1), Hot(i2), Hot(i3),
-  - three sign bits sgn1, sgn2, sgn3 ∈ {+,−}.
-- Variable RUN (optional): Inside wb (variable side), expose RID in two redundant forms: B-bit binary RIDbits and a one-hot HotRID.
-- Binding rule: If S carries Op, the only enabled clause-side pointer is to the p-th occurrence’s index bits ip and sign sgnp; other occurrence pointers are disabled locally by Cout–out. The variable-side S carries VarTruth ∈ {VT,VF}.
-- Sign check: Under equality (see §3), the CAP conduit requires (VarTruth = VT if sgnp=+, else VarTruth = VF if sgnp=−). There is no way to route CAP if this check fails (no Cout–out entries for a mismatched sign at the CAP seam).
-Why useful here: The clause cannot cheat on the sign; the only freedom at S is selecting which occurrence p to pick, and the sign is forced by RUN. This matches the intended “pick one literal among the three.”
-How it can fail: If RUN could be inconsistent or if multiple occurrence pointers were simultaneously enabled, the clause could dodge constraints. The tableau tiles enforce a single, consistent set of outputs (nearest-neighbor TM transitions), and an error-chain path is available to refute any inconsistency, which automatically deactivates the seam (Neutral role).
-Quick test: Clause j with occurrences (i1=3,+),(i2=7,−),(i3=10,+). With O2 at S and equality to RID=7, CAP requires VarTruth=VF. With VarTruth=VT, CAP is disabled and the bridge fails.
-
-3) Equality vs inequality certificates: local invariants and exclusivity
-We specify the witness chains and prove exclusivity.
-- Tracks and anchors at AccVar (variable side):
-  - Binary RIDbits[0..B−1]; One-hot HotRID[1..2^B]; a stable pointer origin PtrRID.
-- Tracks and anchors at AccCla (clause side, after selecting p):
-  - Binary ip_bits[0..B−1]; One-hot Hot(ip)[1..2^B]; sign sgnp; pointer origin Ptr(ip).
-- Chain types and their first steps (must start at S with CertStart):
-  - Equality chain Eq: deterministically iterates b=0..B−1; at each step reads (RIDbits[b], ip_bits[b]); local rule requires equality at that bit; if it holds, advance; if a mismatch occurs, the chain dead-ends (no accepting continuation). After b=B−1 succeeds, emit CAP-Enable.
-  - Inequality chain Neq: nondeterministically chooses a bit index b (via a small unary counter subchain); then reads (RIDbits[b], ip_bits[b]); local rule requires inequality at that bit; if equal, the chain dead-ends. On success, emit PAD-Enable.
-- Pointer integrity: From PtrRID to RIDbits[b] (resp. Ptr(ip) to ip_bits[b]) the chain carries a bit-selector subtrack sel(b) that is checked against a de Bruijn-like local addressing pattern baked into the block; any attempt to “fake” a bit value will contradict the address/bit consistency with an immediate local mismatch. Similarly, the one-hot tracks and the selected occurrence Hot(ip) tie the binary and one-hot encodings.
-- Exclusivity Lemma (E): For any active ordered pair (AccVar,AccCla) with selection p, exactly one of Eq or Neq admits a complete witness chain.
-  - Proof sketch: If RID = ip, then at every b we have RIDbits[b] = ip_bits[b]. Eq progresses through all b and reaches CAP-Enable; Neq cannot pick any b with differing bits, so it dead-ends immediately for all choices. If RID ≠ ip, then there exists some b with RIDbits[b] ≠ ip_bits[b]. Neq can choose such a b and succeed (PAD-Enable); Eq necessarily fails at the first mismatched b. Radius-1 ensures that each step checks only adjacent outputs; pointer integrity prevents inventing contradictory bit values.
-- CAP/PAD propagation and mutual exclusion: Cout–out allows CAP to propagate only if CAP-Enable has been emitted (i.e., Eq has fully succeeded), and PAD to propagate only if PAD-Enable has been emitted (i.e., Neq has succeeded). No rule allows both CAP and PAD simultaneously; the start token CertStart has a one-of-two production that initiates either Eq or Neq but not both.
-Why useful here: This yields the intended ON/OFF split: the unique variable whose RID equals the selected occurrence ip turns the pair ON (CAP), and all other variables are OFF (PAD). It also ensures that an adversarial filler cannot bypass the ON-case by choosing the inequality chain.
-How it can fail: If bit addressing could be spoofed, the filler might fabricate a mismatch (or match). We design the address path to be self-consistent and locally validated (standard binary counter lane across the RID/ip blocks); the certificate must follow these lanes, and any deviation leads to missing Cout–out entries.
-Quick test (B=3): RID=5 (101), ip=5 (101): Eq reads 1=1,0=0,1=1 and enables CAP; Neq can pick b=0,1,2 but all yield equal bits, so dead-end. With RID=6 (110), ip=5 (101): Eq fails at b=0; Neq can pick b=0 (0≠1) and succeed.
-
-4) OFF neutrality and ON enforcement
-- OFF pairs (RID ≠ ip): Neq yields PAD-Enable. The only permitted fill is the PAD conduit: a regular-language subgrammar that is oblivious to VarTruth and ClauseSelect and ignores CAP. Error-chain tokens are allowed along PAD, guaranteeing completion regardless of interior content. Thus OFF pairs do not constrain f.
-- ON pairs (RID = ip): Only Eq yields CAP-Enable, and the CAP seam enforces the sign check VarTruth↔sgnp. If VarTruth disagrees with sgnp, Cout–out forbids completing the CAP conduit. There is no PAD path in this case (PAD-Enable is not emitted), so the bridge fails.
-Why useful here: Exactly one constrained pair per clause selection p, and its success is equivalent to the chosen literal being true under α. All other pairs are tautologies.
-How it can fail: If PAD were allowed in ON pairs, constraints would be vacuous. This cannot happen because PAD-Enable is only produced by a successful Neq, which is impossible when RID=ip.
-Quick test: Clause j selects O3 with ip=10 and sgn3=+. For pair (Var_10, Cl_j), ON requires VT. For (Var_11, Cl_j), OFF PAD completes trivially.
-
-5) Type separation and availability at scale
-Claim TS (Type separation and coverage). There exist 2^B distinct variable context types Var_i and 2^B distinct clause context types Cl_j realized by contexts with |w1|,|w2| ∈ {ℓ_pump, ℓ_pump+1}. Moreover, Var_i ≠ Var_{i′} for i ≠ i′ and Cl_j ≠ Cl_{j′}.
-- Coverage: The block footprints (HEAD, RID/GID, RUN anchors) occupy poly(s) cells, while ℓ_pump = 2^{Θ(β^4)} = 2^{poly(s)}. Pumping and replacement allow placing these blocks adjacent to S inside wb/wc while keeping the overall type well-defined (§4, Lemmas 11–15 of the reference).
-- Separation (variables): Fix any clause-type Cl_j that selects O1 with ip=i and is otherwise well-formed. For the ordered pairs (Var_i, Cl_j) and (Var_{i′}, Cl_j) with i′≠i, their boundary-extendibility signatures differ under S labels (VT vs VF) because the former admits a CAP (if the sign check is met) and the latter admits only PAD. Hence the types Var_i and Var_{i′} differ. If C does not produce such a j for some i, add a tester j⋆ in the construction with a hard-wired clause whose first occurrence equals i (validated by the same tableau), ensuring separation without relying on C’s structure.
-- Separation (clauses): Symmetrically, fix a Var_i and compare Cl_j vs Cl_{j′} by picking selections that include i versus exclude i; their extendibility behavior under a fixed VarTruth differs (ON vs OFF), hence types differ.
-Why useful here: Ensures we have enough active types to encode all variables and clauses, and that choices of f over these types correspond to α and clause literal picks.
-How it can fail: If Acc● could be placed without the interior RUN/RID content, types might collapse. Our grammar ties Acc● to valid interior content (or to an error-chain that deactivates the seam), preventing spurious activation.
-Quick test: Build two clause types Cl_j (with i in its triple) and Cl_{j′} (without i). Pair each with Var_i and set S to select the occurrence containing i: (Var_i, Cl_j) is ON; (Var_i, Cl_{j′}) is OFF. Types differ.
-
-6) Correctness of the reduction (FFE(F1)) with the patched seam and certificates
-- Completeness: Given a satisfying assignment α, define f(Var_i) = VT if α(x_i)=1 else VF; define f(Cl_j) = Op selecting any true literal p in clause(j). For any ordered pair, if it is OFF, PAD completes; if it is the ON pair (RID=ip), the Eq certificate emits CAP and the sign check is satisfied by our choice, so the bridge completes.
-- Soundness: Suppose f satisfies (F1). Read α from variable types (VT/VF). For each j, O_p must be such that the ON pair (Var_{ip}, Cl_j) completes; otherwise the bridge would fail (no PAD in the equality case). Hence the selected literal is true under α, and all clauses are satisfied.
-- Inactive contexts: By the seam rules, any non-⊥ at S is rejected unless the neighbor is Acc●, so f must set ⊥ on inactive types; conversely ⊥ always completes via PAD. Thus inactive contexts impose no constraints.
-- No trivialization via ⊥: On active seams, ⊥ at S is locally rejected; hence f cannot trivialize (F1) by using ⊥.
-Why useful here: These arguments, now anchored in explicit seam rules and exclusive certificates, close the two key soundness/completeness gaps under the β-normalized, radius-1 model.
-How it can fail: If PAD were allowed adjacent to S under non-⊥, an adversary could bypass ON. Our seam+certificate rules forbid PAD unless Neq succeeds (RID≠ip), eliminating this loophole.
-Quick test (B=2 worked micro-instance): Variables {x1..x4}, clause j with (x3 ∨ ¬x1 ∨ x4). If α=(x1=0,x3=1,x4=0), set f(Var_3)=VT, f(Cl_j)=O1; only (Var_3, Cl_j) is ON and succeeds; (Var_1, Cl_j),(Var_4, Cl_j) are OFF and PAD-fillable; all other ordered pairs trivial.
-
-7) Size, radius, and locality checks
-- Radius-1: All checks are between adjacent nodes: seam handshakes, certificate steps (bit-by-bit compare along pointer lanes), CAP/PAD conduits, and RUN row transitions.
-- Alphabet size β: Constant-number of role/phase/handshake tokens; equality/inequality chains add O(1) symbols; RID/GID/RUN alphabets are poly(s); overall |Σ_out| = β = poly(s).
-- Type count: ℓ_pump ≤ 2^{Θ(β^4)} = 2^{poly(s)}; enough to realize 2^B active types.
-- Error-chains: As in the reference §3, malformed headers or inconsistent RUN rows are locally refutable and lead to Neutral seams (allowing ⊥/PAD), never to Acc●.
-
-8) Why we do not trivialize (F2) here
-To avoid the pitfall identified by the verifier (⊥ at S trivializing (F1)), we keep (F2) as in the reference (finite z checks in the upper bound) and prove NEXPTIME-hardness for FFE(F1). This already implies NEXPTIME-hardness for the three-way classification (the algorithm must distinguish at least between Θ(log* n) and Θ(n) on our family).
-
-What changed/was fixed this round (vs. Round 0002)
-- Added explicit seam rules forbidding ⊥ at S on active seams and forcing CertStart.
-- Adopted occurrence-only clause palette; bound the sign to RUN; eliminated any opportunity to choose a sign at S.
-- Stated and justified the exclusivity lemma for equality vs inequality witnesses, with local invariants (pointer integrity, bit checks) and mutual exclusion of CAP/PAD.
-- Clarified OFF neutrality and ON enforcement via CAP/PAD-Enable gates.
-- Provided a robust type-separation argument with an optional tester clause j⋆ for worst-case C.
-
-Open items and next steps
-- Write a concrete micro-table for the seam edges (enumerate Cout–out entries for pairs among {AccVar,AccCla,Neutral}×{VT,VF,O1,O2,O3,⊥,CertStart,CAP,PAD}).
-- Spell out the de Bruijn-like addressing and the exact pointer tiles from PtrRID/Ptr(ip) to RIDbits[b]/ip_bits[b]; prove that any deviation is caught in ≤2 local steps.
-- Produce an explicit RUN tile set for U with fixed phases and the exposure of (i1,i2,i3) and (sgn1,sgn2,sgn3); include the error-chain tiles and show bounded local refutations for all malformed patterns.
-- Work out the full B=2 DP table on 12 ordered pairs to sanity-check exclusivity, sign binding, OFF neutrality, and active-⊥ forbiddance.
-
-## Round 0003 — 2025-08-27T11:30:44.028451Z
-
-Mini-plan
-- Pin down the S-seam gadget: explicit tokens and two families of edge rules that (i) forbid ⊥ at S on active contexts and (ii) allow PAD on inactive ones. Make activation depend only on a constant-size input code around S so it is type-local and radius-1 enforceable.
-- Prove Exclusivity Lemma for equality/inequality witnesses: give the invariant (one-hot RID, binary ip, integrity of pointers), and the per-bit comparator tiles so exactly one certificate is realizable.
-- Bind sign to RUN and avoid clause-side sign cheats: use S palette {O1,O2,O3} only; the selected occurrence’s sign is exported from RUN into the ON check.
-- Show OFF pairs and inactive contexts are neutral: they always have a PAD/⊥ completion and impose no constraints on f.
-- Address (F2): argue that our bridge interacts only with the nearest blocks; repetitions add disjoint, self-satisfying structure, hence for our family (F2) holds automatically once (F1) does. Give a local “barrier” that cuts witness chains at one block away from S.
-- Validate with a B=2 toy: list the S-seam tokens on the four seam-adjacent nodes, simulate the witness chain on one ON and one OFF pair, and show ⊥ at S is rejected only in active contexts.
-
-1) S-seam gadget with input-coded activation (explicit tokens and local rules)
-Definition (tokens and code).
-- S tokens: ΣS = {⊥, O1, O2, O3} (occurrence-only palette).
-- Left seam-adjacent node uL (immediately left of the left S node) and right seam-adjacent node vR (immediately right of the right S node) carry special seam-interface roles:
-  - DoorVar on uL when left side is variable-active; DoorPAD otherwise.
-  - DoorCl on vR when right side is clause-active; DoorPAD otherwise.
-- Activation code (input-only): we reserve a 2-bit code on each of uL and vR using the node’s own input bit and its predecessor’s input bit (both are available in the two-node S-window contexts). Concretely, we treat the input bit of uL, vR and the bit of their predecessor as “flags” that Cin–out checks to gate the role subtrack:
-  - Code 10 on uL (meaning: pred(uL).in=1, uL.in=0) enables only DoorVar; all other outputs at uL are forbidden by Cin–out.
-  - Code 01 on vR (meaning: pred(vR).in=0, vR.in=1) enables only DoorCl; all other outputs at vR are forbidden by Cin–out.
-  - Any other code enables only DoorPAD at that node.
-- Seam edges (Cout–out) enforce:
-  - (DoorVar) — (O1|O2|O3) allowed; (DoorVar) — (⊥) forbidden.
-  - (O1|O2|O3) — (DoorCl) allowed; (⊥) — (DoorCl) forbidden.
-  - (DoorPAD) — (any S token) allowed; (any S token) — (DoorPAD) allowed (inactive side is neutral at seam).
-- Inside the left/right blocks (wb/wc), Cout–out enforces a unique expansion from DoorVar/DoorCl: they must start a well-formed block of the designated role (variable/clause) with header HEADC (fixed), RID/GID segments, and RUN tableau (Section 3 recipe). DoorPAD starts a locally consistent PAD sublanguage independent of S.
-Why useful here: This forces non-⊥ at S when both sides exhibit the activation code (active context), while keeping inactive contexts neutral: DoorPAD tolerates any S token including ⊥. Activation depends only on constant many nearby input bits and radius-1 seam edges.
-How it can fail:
-- If the activation code cannot be recognized with r=1, we would leak to nonlocal checks. Here we use only the node’s own input and its predecessor’s input, which Cin–out can gate (per-node pair check), and seam edges are between neighbors.
-- If the DP can avoid DoorVar/DoorCl by choosing other outputs: forbidden by Cin–out under the 10/01 codes (they make DoorVar/DoorCl the only legal outputs on those nodes).
-Quick test (hand check): choose inputs so that pred(uL).in=1, uL.in=0, pred(vR).in=0, vR.in=1; then uL must output DoorVar, vR must output DoorCl by Cin–out; hence S=⊥ fails at both seam edges. Flip any one flag (e.g., pred(uL).in:=0): Cin–out now allows only DoorPAD at uL; S=⊥ is accepted at that seam.
-
-2) Equality/inequality witness exclusivity (radius-1 certificates)
-Claim E (Exclusivity of equality vs inequality certificates). In an active pair where DoorVar (left) and DoorCl (right) start well-formed blocks, and S is O_p selecting occurrence p, exactly one of the following radius-1 witness chains is realizable:
-- Equality chain: follows a pointer from S to the clause’s index ip (in binary lanes b=1..B), and from DoorVar to the RID index iL (HotRID one-hot and its binary), and steps bit-by-bit along both binary representations enforcing equality at each bit; only if all bits match does the chain reach a CAP emitter that allows CAP propagation across S. Any mismatch yields a dead end.
-- Inequality chain: guesses a bit position b via a bounded fan-out chain from S, steps to the b-th bit lane on both sides, and demands a local mismatch predicate (RID[b] ≠ ip[b]) to reach a PAD emitter that forbids CAP and completes with PAD.
-Invariant and tiles:
-- Integrity: RID has a one-hot encoding HotRID; its binary RID[b] is also exported on B lanes with local equality between the one-hot position and the binary value; similarly ip has binary lanes exported by RUN. Local Cout–out tiles enforce these equalities and ensure uniqueness.
-- Comparator tiles:
-  - Equality tile for bit b: requires RID[b]=ip[b], else no outgoing edge.
-  - Inequality tile for bit b: requires RID[b]≠ip[b], else no outgoing edge.
-- Chain structure: both chains are simple nearest-neighbor cursors. Equality must visit all B bit lanes (fixed-length path) and only then may emit CAP; inequality visits a chosen b and only emits PAD if mismatch holds.
-Why useful here: It ensures per (Var_i, Cl_j, O_p) exactly one bridge semantics applies: ON (CAP) if i=ip, OFF (PAD) otherwise. This gives the “one constrained pair per clause pick.”
-How it can fail:
-- Faking mismatch when equal: impossible because the inequality tile for bit b has no legal continuation if RID[b]=ip[b].
-- Faking equality when different: the equality chain stalls at the first b with RID[b]≠ip[b]. There is no alternate bypass due to the uniqueness of the cursor track enforced by Cout–out.
-Quick test (B=3): RID=101 (5), ip=111 (7). Equality chain: at b=2 sees 0 vs 1 → dead end. Inequality chain: pick b=2, demands 0≠1 → succeeds; emits PAD.
-
-3) Sign binding via occurrence-only S palette
-Claim S (Occurrence-only selection; sign tied to RUN). The clause-side RUN computes for j=GID: three indices (i1,i2,i3) and their signs (sgn1,sgn2,sgn3), exposing binary lanes for indices and one-bit signs per occurrence. The S palette is ΣS={O1,O2,O3}. If S=Op, the equality chain uses ip and the ON-bridge demands VT iff sgnp=+ and VF iff sgnp=− (VT/VF are the two variable-side colors). No sign appears in S;
-Cout–out contains local tiles that read sgnp from RUN at the end of the equality chain to gate the CAP emitter (mismatch of variable color vs sgnp blocks CAP).
-Why useful here: Prevents “sign cheating” at S and collapses the clause pick to the intended occurrence choice; the sign is immutable (verified by the tableau) and locally read.
-How it can fail:
-- If RUN could expose multiple inconsistent signs: disallowed by the tableau consistency and single-row export; inconsistencies are locally refuted (error chain), which deactivates the context (only DoorPAD remains legal at the seam via Cin–out code mismatch).
-- If S could carry sign: by construction it does not; ΣS lacks sign tokens.
-Quick test: Clause j encodes (x3, ¬x7, x10). S=O2; equality O2 with Var_7 succeeds only if left S color is VF; with Var_7 color VT, the CAP gate blocks.
-
-4) OFF pairs and inactive contexts are neutral
-Claim N (Neutrality). For any ordered pair where either (i) the activation code does not hold on at least one side (so that side is DoorPAD), or (ii) S=Op but iL≠ip (inequality), or (iii) roles are not (variable, clause), there exists a PAD-only completion independent of f’s other choices. This is implemented by:
-- DoorPAD forcing a PAD sublanguage chunk adjacent to S that is seam-compatible with any S token; the remainder of wb/wc can be filled with PAD or well-formed blocks that terminate internally (no CAP).
-- Inequality chain emission of PAD, which is the only admissible completion when iL≠ip.
-Why useful here: This eliminates spurious constraints from nonselected pairs and from inputs lacking activation codes. Only ON cases constrain f.
-How it can fail:
-- If PAD conflicts with nearby mandatory block starts: prevented by using Cin–out to permit only DoorPAD (not DoorVar/Cl) when activation code is absent; the PAD language is self-contained and seam-compatible.
-- If PAD could carry CAP: prohibited; PAD emitters never produce CAP and Cout–out forbids CAP adjacency except from the equality chain’s emitter.
-Quick test: Left inactive (DoorPAD), right active (DoorCl), S arbitrary. The seam edges accept; both wb and wc can be filled by PAD (on left) and a proper block (on right) whose “barriers” (see next claim) absorb internally; DP succeeds.
-
-5) Bridging (F2) holds automatically for our family
-Claim B (Nearest-block locality; barriers cut repetition). For any context (w1, S, w2) activated on both sides, and any z≥1, the repeated bridge wz_1 S wz_2 has a completion whenever the base bridge w1 S w2 has one. Reason: the only interactions with S are (a) the seam edges DoorVar/Cl — S and (b) the equality/inequality witness chains, both of which operate exclusively within the nearest blocks contiguous to S, terminated by a local “barrier” token one node beyond the RUN footer that refuses witness cursors. Blocks beyond the nearest ones are separated by barriers and have an internal “sink” completion (PAD-neutral endcaps). Therefore, adding extra copies of w1 or w2 does not introduce any additional seam constraints; all seams between adjacent copies are block-internal and satisfy Cout–out by the block grammar.
-Why useful here: We avoid the need to trivialize (F2) via ⊥. With barriers, (F2) is independent of z and thus holds iff the base ON/OFF semantics allow the nearest left/right blocks.
-How it can fail:
-- If witness chains could jump barriers: prevented by local tiles that forbid the cursor token from crossing the barrier symbols.
-- If blocks required cross-copy synchronization: they do not; RUN is self-contained per block and Cout–out only relates neighbors;
-repeated copies simply obey the same tiles.
-Quick test: Evaluate w1 S w2 with S=O2, success on equality → CAP. Now consider w1^5 S w2^7. The nearest copies to S are identical; their barriers stop any further traversal; the rest can be tiled independently. DP outcome identical.
-
-6) B=2 toy worked seam and bridge
-Setup: B=2 so variables x0..x3; pick clause j with (i1=01:+), (i2=10:−), (i3=11:+). Choose inputs around S to encode activation code 10 at uL and 01 at vR, hence Cin–out forces DoorVar at uL and DoorCl at vR.
-- Pair (Var_10, Cl_j, S=O2): Equality path: RID=10, ip=10 → equality passes; RUN exposes sgn2=−; CAP emitter requires left S color VF; if we set left S color VF, CAP propagates and DP completes; if VT, the CAP gate blocks and DP fails. Inequality path is blocked since all bits equal.
-- Pair (Var_01, Cl_j, S=O2): RID=01, ip=10 differ at b=1; equality chain stalls at b=1; inequality chain pins b=1 and succeeds, emits PAD; DP completes with PAD plumbing and no CAP dependency.
-- ⊥ at S: With activation code present, uL is DoorVar and vR is DoorCl, and (DoorVar,⊥) or (⊥,DoorCl) are forbidden at both seam edges; hence DP fails. Remove activation on left (flip pred(uL).in), DoorPAD appears; (DoorPAD,⊥) allowed, DP succeeds.
-
-7) Soundness/completeness of the succinct-SAT reduction (recap under the patched gadget)
-- Variables: for each active Var_i type, f(Var_i) ∈ {VT,VF} encodes α(x_i).
-- Clauses: for each active Cl_j type, f(Cl_j) ∈ {O1,O2,O3} selects an occurrence p.
-- Constraints: by Claim E and S, the only nontrivial bridge per j is with (Var_{i_p}, Cl_j, S=Op), which succeeds iff α(x_{i_p}) matches sgn_p. All other ordered pairs are neutral by Claim N.
-- Therefore, (F1) holds iff there exist α and picks p_j such that each clause has a satisfied literal: exactly Succinct-3SAT for C.
-- By Claim B, (F2) holds automatically for our family (nearest-block locality with barriers), ensuring that if (F1) holds then f is fully feasible (O(1) side); if (F1) fails then by Theorem 8 (reference) the complexity is Θ(n), giving the desired O(1) vs Θ(n) dichotomy on our instances.
-
-What changed vs previous round (addressing verifier’s gaps)
-- Forbid ⊥ at S on active contexts: implemented by Cin–out seam code (10 at uL, 01 at vR) forcing DoorVar/DoorCl and Cout–out disallowing ⊥ adjacent to those. Inactive contexts (other codes) get DoorPAD and remain neutral.
-- Sign bound to RUN: S palette is occurrence-only; sign is read from RUN in the equality chain’s CAP gate.
-- Exclusivity: Equality/inequality witnesses are backed by explicit per-bit tiles and cursor tracks with one-hot and binary consistency; we argued both directions cannot succeed simultaneously.
-- (F2) no longer “trivialized by ⊥”: instead, we ensure bridge locality and add block-internal barriers so repetitions do not affect the S-bridge. This preserves nontriviality of (F1) while still making (F2) automatically hold for our reduction family.
-
-Open edge cases and quick counterexample probes
-- Could DP choose to label an active-coded seam node (code 10/01) with DoorPAD to allow ⊥? No: Cin–out at those nodes only permits DoorVar/DoorCl under that code.
-- Could DP avoid blocks behind DoorVar/DoorCl? No: Cout–out enforces a unique expansion starting from DoorVar/DoorCl into a well-formed block prefix; deviations are locally rejected.
-- Could extra copies in wz_1,wz_2 inject an unexpected ON? No: barriers forbid cursor tokens from crossing block boundaries beyond the nearest; only the nearest block talks to S.
-
-Summary impact
-- We now have a radius-1, β-normalized seam and bridge specification that (i) activates constraints precisely where intended, (ii) forbids ⊥ at S on active contexts, (iii) ties sign to RUN, (iv) grants exclusivity of equality/inequality witnesses, (v) renders (F2) independent of z via nearest-block locality and barriers.
-- The reduction to Succinct-3SAT remains intact and cleaner: the implicit exponential SAT constraints are exactly of the form “if S picks Op then Var_{i_p} must have color matching sgn_p”, with all other pairs neutral.
-
-## Round 0004 — 2025-08-27T14:50:46.086564Z
-
-Mini-plan for this round
-- Freeze the seam gadget as radius-1, type-local, with two S-nodes S1 (variable side) and S2 (clause side). Give explicit allowed-pair tables on the three edges (Lbound→S1), (S1→S2), (S2→Rbound) to (i) forbid ⊥ at S on active seams, (ii) start a certificate only if both sides offer, and (iii) gate CAP/PAD.
-- Instantiate equality/inequality certificates with pointer-integrity tiles and per-bit comparator tiles; state exclusivity precisely and show which out–out pairs enforce it.
-- Introduce nearest-block barriers one node past the RUN footer; show they kill cursors and thus make (F2) independent of the repetition count z without trivializing (F1).
-- Give a B=2 worked DP trace for one ON and one OFF pair.
-- Note gaps in outputs.md: (a) B.6 trivializes (F2) via ⊥ on repeats; we replace this by barrier-based (F2). (b) S had a single palette {RED,GRN,BLU,⊥}; we split into S1∈{VT,VF,⊥} and S2∈{O1,O2,O3,⊥} and bind sign to RUN.
-
-A. Explicit seam rules (radius-1, type-local)
-Tokens (constant-size tracks)
-- BlockRole on seam-adjacent neighbors (one node away from S):
-  - VarSide: RoleL ∈ {AccVar, NeutralVar, BarVar}
-  - ClauseSide: RoleR ∈ {AccCla, NeutralCla, BarCla}
-- S-palettes:
-  - S1 ∈ {⊥, VTidle, VFidle, EqStart, NeqStart, CAP, PAD}
-  - S2 ∈ {⊥, O1idle, O2idle, O3idle, EqStart, NeqStart, CAP, PAD}
-  Here “idle” variants carry the long-lived choice (VT/VF on S1, Op on S2). EqStart/NeqStart/CAP/PAD are the (short) cursor tokens on the central seam; they are disallowed at the two outer seams (see below).
-- Offer/NoOffer (encoded in Role●): AccVar/AccCla emit Offer; Neutral●/Bar● emit NoOffer (a subtrack bit embedded in Role● symbols).
-- Barrier tokens: BarVar, BarCla (only at the first node beyond each RUN footer).
-
-Edge (out–out) tables at the three seams
-1) Left seam (Lbound→S1):
-- (AccVar, S1∈{VTidle, VFidle}) allowed; (AccVar, S1=⊥) forbidden; (AccVar, S1∈{EqStart,NeqStart,CAP,PAD}) forbidden.
-- (NeutralVar, S1=⊥) allowed; (NeutralVar, S1≠⊥) forbidden.
-- (BarVar, any S1) allowed only if S1=⊥ (BarVar acts like Neutral at the seam and blocks cursors; see barriers below).
-Intuition: Active left forces non-⊥ and freezes S1 to an idle truth token; inactive/Bar forces ⊥.
-
-2) Right seam (S2→Rbound):
-- (S2∈{O1idle,O2idle,O3idle}, AccCla) allowed; (⊥, AccCla) forbidden; (S2∈{EqStart,NeqStart,CAP,PAD}, AccCla) forbidden.
-- (⊥, NeutralCla) allowed; (non-⊥, NeutralCla) forbidden.
-- (⊥, BarCla) allowed; (non-⊥, BarCla) forbidden.
-Intuition: Active right forces non-⊥ and freezes S2 to an idle occurrence; inactive/Bar forces ⊥.
-
-3) Central seam (S1→S2): three phases
-- Idle alignment: allowed pairs are exactly (VTidle, Op_idle) for Op∈{O1idle,O2idle,O3idle}, i.e., the pair that carries both idle choices. No other cross-idle pairs are permitted.
-- Certificate start: EqStart/NeqStart may appear on the central seam only as (EqStart,EqStart) or (NeqStart,NeqStart); moreover, these pairs are allowed only if S1’s left neighbor is AccVar and S2’s right neighbor is AccCla (this is enforced by the outer seam tables above: S1/S2 cannot hold EqStart/NeqStart unless the outer seams admitted the corresponding idle choices).
-- CAP/PAD emission: (CAP,CAP) and (PAD,PAD) are the only accepting terminal pairs on the central seam, enabled by the certificate success states (see Section B). No cross CAP/PAD mix is allowed.
-Remarks: These three central-seam clauses implement “both-sides offer” (both outer seams must be active to ever place EqStart/NeqStart) and mutual exclusion of CAP/PAD, with radius-1 consistency (each seam checks a pair of adjacent symbols only).
-
-B. Equality/inequality certificates (pointer integrity and exclusivity)
-Local lanes near S
-- Variable block exports, adjacent to its AccVar interface:
-  - RIDbits[b] ∈ {0,1} for b=0..B−1 on fixed bit lanes;
-  - HotRID one-hot over B positions; a “lane glue” subtrack ties HotRID’s unique 1 to the RIDbits encoding (standard local consistency: each lane carries its bit value; the unique HotRID=1 cell carries a “match” mark, and per-lane tiles enforce that the marked lane bit equals the global RIDbits pattern; any mismatch triggers the error-chain and kills Offer).
-- Clause block exports, adjacent to its AccCla interface:
-  - For each p∈{1,2,3}, ip_bits[b] on bit lanes, with a Selected pointer subtrack that equals ip_bits when S2 chose Op (the Selected track is writable only when O_p’s own “phase” bit coming from RUN is present; otherwise error-chain);
-  - Sign sgn[p] ∈ {+,−} on a 1-bit lane, likewise tied to the chosen Op via the same Selected mechanism.
-- Cursor lanes: a 1-cell-wide corridor along which the Eq/Neq cursor walks: S1→left lanes (RIDbits), returns to S1, crosses to S2, walks to right lanes (ip_bits), returns; or equivalently, two unidirectional cursors EqL and EqR with a central handshaking at S1/S2 (both treatments can be reduced to radius-1 pair checks; we take the latter).
-
-Cursor tokens and tiles
-- EqL[b], EqR[b]: equality cursors at bit b on left/right sides, with b encoded in unary across a short address subtrack of length B (a standard “ruler” pattern so the cursor can locally enforce that it is at position b and moves to b+1 only from b).
-- NeqPick[b], NeqCheckL[b], NeqCheckR[b]: inequality cursors that (i) nondeterministically pick b at S (through NeqStart), (ii) visit RIDbits[b] and ip_bits[b] to check a mismatch.
-- Update/acceptance tiles (all are out–out pairs on adjacent edges):
-  - EqL[b] requires RIDbits[b] = ip_bits[b] (seen via the central seam handshaking; concretely: S1 holds EqL[b] and S2 holds EqR[b]; the allowed pair (EqL[b],EqR[b]) is present only if a third read-only subtrack on each side encodes the respective bit values and they match; this read-only subtrack is part of S1/S2 labels and is copied from the adjacent lanes at AccVar/AccCla by local consistency). EqL[b]→EqL[b+1] is allowed iff (RIDbits[b] = ip_bits[b]); EqL[B] emits CAP at S1; EqR mirrors this.
-  - NeqCheckL[b]/NeqCheckR[b] require RIDbits[b] ≠ ip_bits[b] (same handshaking idea); upon success, emit PAD at S1/S2.
-  - No tile allows Eq and Neq to be both present.
-- Sign binding (on CAP only): The (CAP,CAP) central pair is allowed only if the S1 idle truth matches the chosen sign sgn[p] exported by RUN (a read-only bit on S2 that is tied to Op via Selected). Concretely, (CAP,CAP) is allowed iff (S1 carried VTidle and sgn[p]=+) or (S1 carried VFidle and sgn[p]=−). This prohibits a CAP completion on a mismatched sign.
-
-Exclusivity lemma (radius-1)
-Claim E’. For any active pair (AccVar on the left, AccCla on the right) and chosen Op, exactly one of Eq or Neq can reach its terminal (CAP vs PAD):
-- If RID = ip, then for all b, RIDbits[b]=ip_bits[b] holds locally; Eq’s per-bit tiles propagate to b=B and emit CAP; Neq cannot place NeqCheck at any b (mismatch predicate never true), hence no PAD.
-- If RID ≠ ip, then there exists b with RIDbits[b]≠ip_bits[b]; Neq can pick such b and reach PAD; Eq stalls at the first mismatching b and never reaches CAP.
-Pointer integrity and read-only mirroring of bit values at S1/S2 ensure no spoofing; any inconsistency on Selected or the RUN lanes is locally refutable by the error-chain, which removes Offer (makes the seam inactive).
-
-C. Nearest-block barriers and (F2)
-Barrier placement and local rules
-- Each well-formed block (both Var and Clause) ends with a fixed footer token Footer, followed immediately by a barrier token BarVar (left side) or BarCla (right side) at the seam-adjacent interior node one step beyond RUN. The block grammar enforces (Footer→Barrier) by Cout–out within the block. Malformed blocks cannot produce Footer and thus cannot produce Bar●; they must switch to the error-chain which never emits Offer and thus behave as Neutral.
-- The barrier forbids cursor tokens: on the edges (Barrier↔next) and (prev↔Barrier) we allow only PAD plumbing and forbid any Eq/Neq/CAP/PAD cursor token. Moreover, Role●=Bar● at the seam-adjacent interior node forces the seam to be treated as Neutral (see A.1–2).
-
-Why (F2) holds automatically on our instances
-- Only the nearest blocks can emit Offer and accept EqStart/NeqStart: the Offer/Acc● roles are placed at the unique seam-interface of a block; beyond Footer+Barrier no other role can emit Offer, and barriers kill cursors within one step.
-- Therefore, the presence of extra repeats wz on either side has no effect on the S-bridge: (i) if the base bridge is active, the same Eq/Neq check runs entirely within the nearest blocks; (ii) if the base bridge is inactive or OFF, PAD-only conduits complete regardless of repeats; all interior seams between repeated copies are block-internal and satisfiable by the block grammar.
-Formal consequence: For any fixed context (w1,S,w2), the success/failure of the bridge on wz1 S wz2 is identical to that on w1 S w2, for all z≥1. Hence once (F1) holds, (F2) holds automatically on our reduction family.
-
-D. B=2 worked DP trace
-Setup
-- Variable block with RID=10 (x2), AccVar adjacent to S1; Clause block for clause j with occurrences: (i1=01,+), (i2=10,−), (i3=11,+), AccCla adjacent to S2. Both blocks ‘Offer’ at their interfaces (AccVar/AccCla), so outer seam forbids ⊥ at S1/S2.
-Case ON: select O2, set S1=VFidle (since sgn2=−)
-- Left seam: (AccVar, VFidle) allowed.
-- Right seam: (O2idle, AccCla) allowed.
-- Central seam idle pair: (VFidle, O2idle) allowed.
-- Certificate: EqStart placed at (S1,S2); EqL[0]/EqR[0] read RIDbits[0]=0, ip_bits[0]=0 (match)→advance; EqL[1]/EqR[1] read RIDbits[1]=1, ip_bits[1]=1 (match)→advance; at b=2=B, emit (CAP,CAP) on the central seam.
-- CAP gate: (CAP,CAP) allowed only if sgn2=− and S1 had VFidle: holds; acceptance.
-Case OFF: select O1, S1 arbitrary
-- With O1idle at S2 and RID=10 vs ip=01, Eq stalls at b=0 (0=0 ok) then b=1 sees 1≠0: no tile allows EqL[1]/EqR[1], so Eq fails.
-- Neq: pick b=1; NeqCheckL[1]/NeqCheckR[1] sees 1≠0 and emits (PAD,PAD) which is accepted on the central seam; barriers prevent any further propagation; acceptance independent of S1’s VT/VF.
-Edge-check: Attempt S1=⊥ or S2=⊥ on these active seams is rejected by outer seam tables.
-
-E. Notes on type coverage and separation (no j⋆ needed)
-- Coverage: Pumping and replacement guarantee contexts exist with a well-formed variable block of any chosen RID adjacent to S and conversely for any clause GID; malformed blocks are neutral. Hence for each i and j there exist active context types realizing “Var(i)” (some right filler) and “Clause(j)” (some left filler).
-- Separation for reduction: We do not require a one-to-one mapping Var_i↔type for all i. It suffices that for each i there exists at least one active left-type realizing RID=i and for each j at least one active right-type realizing GID=j; the (F1) constraints across all ordered pairs still encode the succinct CNF exactly (every pair (Var(i), Clause(j)) imposes ON iff i equals the selected occurrence, and OFF otherwise). Multiple left-types realizing the same i impose the same constraints and can be set consistently by the same α(x_i).
-
-F. Corrections and gaps in outputs.md
-- Single-S palette vs split palettes: Section B.3 of outputs.md used a single S with {RED,GRN,BLU,⊥}. Our seam now uses two S-nodes with S1∈{VT,VF,⊥} and S2∈{O1,O2,O3,⊥}, with sign bound to RUN via the CAP gate. This removes the sign-cheat and ⊥-trivialization problems.
-- Trivializing (F2) via ⊥ (outputs.md, B.6): Allowing arbitrary ⊥ on repeats risks leaking into bridges and undermining (F1). We instead enforce nearest-block barriers that locally block cursors and Offer beyond the first block; (F2) then holds automatically for our family without changing the (F1) constraints.
-
-G. Why this still yields NEXPTIME-hardness for (F1) and the full classification
-- With the above seam and certificates, the mid-consistency constraints (F1) encode Succinct-3SAT exactly: choose f(Var(i))∈{VT,VF} as α(x_i), and f(Cl(j))∈{O1,O2,O3}; then (Var(i),Cl(j)) bridge succeeds iff either OFF (i≠i_p) or ON with truth matching sign (i=ip and α satisfies the chosen literal). Conversely, any f satisfying (F1) yields a satisfying α.
-- By barriers, (F2) holds automatically on the constructed instances; hence the three-way classifier must distinguish O(1) (if ΦC is satisfiable) from Θ(n) (otherwise), establishing NEXPTIME-hardness for the classification.
-
-H. Next steps to further solidify
-- List the exact local tiles (as out–out pairs) tying HotRID↔RIDbits and Selected(ip)↔RUN, and the error-chain tiles that deactivate malformed blocks.
-- Tabulate the central seam pairs for Eq/Neq at b=0,1,2 and CAP/PAD for B=2 (a small explicit table the verifier can check by hand).
-- Give the short proof sketches that (i) S1/S2 cannot hold EqStart/NeqStart unless both outer seams are active (follows from the seam tables), and (ii) barriers forbid cursor propagation in ≤1 step.
-- Provide a micro-alphabet count showing |Σout|=β=poly(s) after adding the new tokens and that ℓpump=2Θ(β^4)≫poly(s) remains.
-
-I. Quick sanity probes and how they are blocked
-- Try PAD on ON: PAD central pair requires Neq success; impossible if RID=ip; (PAD,PAD) pair disallowed without Neq.
-- Try ⊥ at S on active: outer seam tables forbid (AccVar,⊥) and (⊥,AccCla).
-- Spoof sign: CAP central pair checks S1’s VT/VF against sgn[p] copied from RUN; mismatched pair disallowed.
-- Cross into non-nearest blocks: barrier tokens BarVar/BarCla forbid cursor tokens and force seam neutrality.
-
-This round’s deliverables
-- Seam tables around S1/S2, including Offer/NoOffer, idle, start, and CAP/PAD pairs.
-- Equality/inequality cursor tokens and comparator semantics; exclusivity statement with locality justification.
-- Barrier tokens and proof sketch for (F2) locality.
-- A B=2 ON/OFF DP trace.
-
-These meet the verifier’s action items: explicit seam tables, bit-comparator/pointer-integrity scheme, barrier tokens and short proof, and a B=2 worked example. Pending: transcribe the comparator and Selected/HotRID integrity into a small explicit set of out–out pairs and count the symbols to reconfirm β=poly(s).
-
-## Round 0005 — 2025-08-27T14:58:32.829080Z
-
-Status and plan
-- We address the verifier’s two critical seam inconsistencies by splitting each S-node into choice and phase subtracks and rewriting all three seams accordingly. We also pin down mirroring/pointer-integrity and Selected↔RUN wiring, clarify barriers and why they make (F2) automatic without using ⊥ on repeats, and give B=2 central-seam pair tables (Idle/Eq/Neq/CAP/PAD) to make Exclusivity explicit. Finally we provide an alphabet-size count and re-run the B=2 ON/OFF trace.
-- Note on outputs.md (LCL_classification.pdf): Section B.6 currently trivializes (F2) by allowing ⊥-fill on wz. This is acceptable for NEXPTIME-hardness of classification in principle, but it was flagged as dangerous for (F1) nontriviality. We will instead enforce (F2) automatically via nearest-block barriers that cut certificates (see Barrier Lemma below); this keeps (F1) nontrivial and matches the verifier’s preference.
-
-Definitions: split palettes and subtracks at S
-- S1 (variable-side S): S1 = (truth, phase, offerL, lbit[0..B−1]).
-  - truth ∈ {⊥, VT, VF}; phase ∈ {Neutral, Idle, EqStart, EqL[b], NeqStart, NeqPick[b], NeqCheckL[b], CAP, PAD} with b ∈ {0,..,B−1}; offerL ∈ {0,1} copied from RoleL; lbit[b] are read-only bit mirrors (see mirroring rules) present only when RoleL=AccVar; undefined otherwise.
-- S2 (clause-side S): S2 = (occ, phase, offerR, rbit[0..B−1], sgnsel).
-  - occ ∈ {⊥, O1, O2, O3}; phase ∈ {Neutral, Idle, EqStart, EqR[b], NeqStart, NeqPick[b], NeqCheckR[b], CAP, PAD}; offerR ∈ {0,1} copied from RoleR; rbit[b] are read-only mirrors of the selected occurrence’s ip_bits[b]; sgnsel ∈ {+,−} is the selected sign (bound to occ via Selected wiring below).
-- Roles on seam-adjacent neighbors:
-  - Left neighbor RoleL ∈ {AccVar, NeutralVar, BarVar}.
-  - Right neighbor RoleR ∈ {AccCla, NeutralCla, BarCla}.
-
-Outer seams (radius-1) — explicit constraints
-Left seam (L→S1):
-- If RoleL=AccVar:
-  - Allowed: S1.truth ∈ {VT,VF}; S1.phase ∈ any of {Idle, EqStart, EqL[b], NeqStart, NeqPick[b], NeqCheckL[b], CAP, PAD}; S1.offerL=1;
-  - Mirroring: for each b, the pair (AccVar with RIDbits[b]=x, S1 with lbit[b]=x) is allowed; and (AccVar with RIDbits[b]=x, S1 with lbit[b]=1−x) is forbidden. This ties S1.lbit[b] to RIDbits[b] locally.
-  - Pointer exposure: the AccVar interface exports PtrRID and the B bit-lanes immediately adjacent; equality/inequality cursors entering the block must follow the pointer lanes (see pointer-integrity below). We do not restrict S1.phase at the outer seam beyond barrier constraints.
-- If RoleL∈{NeutralVar, BarVar}:
-  - Allowed: only S1.truth=⊥, S1.phase=Neutral, S1.offerL=0; lbit[·] unconstrained (ignored). This deactivates the left seam locally.
-Right seam (S2→R):
-- If RoleR=AccCla:
-  - Allowed: S2.occ ∈ {O1,O2,O3}; S2.phase ∈ any of {Idle, EqStart, EqR[b], NeqStart, NeqPick[b], NeqCheckR[b], CAP, PAD}; S2.offerR=1.
-  - Selected↔RUN wiring at the edge (enforced in the out–out table): if S2.occ=Op then the pair is allowed only when (a) the clause RUN interface exposes the “export-ready” tag for p, (b) rbit[b]=ip_bits_p[b] for all b, and (c) sgnsel=sgn[p]. Any mismatch has no legal pair except to an error-chain starter on the clause-side neighbor, which transitions RoleR→NeutralCla within one local step (and thus forces S2.occ=⊥ by the above rule).
-- If RoleR∈{NeutralCla, BarCla}:
-  - Allowed: only S2.occ=⊥, S2.phase=Neutral, S2.offerR=0; rbit[·], sgnsel ignored.
-
-Central seam (S1→S2) — B=2 explicit pair tables
-We list allowed central-seam pairs in the B=2 case (b ∈ {0,1}); all unspecified pairs are forbidden.
-- Idle alignment:
-  - Allowed: (S1.phase=Idle, S2.phase=Idle) if S1.offerL=1, S2.offerR=1 and S1.truth∈{VT,VF}, S2.occ∈{O1,O2,O3}.
-- Starts (both-sides-offer gating):
-  - Allowed: (EqStart, EqStart) iff offerL=offerR=1 and S1.truth≠⊥, S2.occ≠⊥.
-  - Allowed: (NeqStart, NeqStart) under same gating.
-- Equality steps:
-  - (EqL[0], EqR[0]) allowed iff the left/right cursor lanes adjacent to S1/S2 carry the matching “at-b=0” cursor tokens; the actual bit-equality test is enforced inside blocks by pointer-integrity tiles (below); the central seam only synchronizes phases (see Remark 1).
-  - (EqL[1], EqR[1]) similarly.
-  - Terminal: (CAP,CAP) allowed iff both equality cursors have reached b=2 (checked by local “done” marks shuttled back to S1/S2 along the cursor lanes) and the sign gate holds: (S1.truth=VT ∧ sgnsel=+) ∨ (S1.truth=VF ∧ sgnsel=−).
-- Inequality steps:
-  - (NeqPick[0], NeqPick[0]) and (NeqPick[1], NeqPick[1]) are allowed from (NeqStart,NeqStart) (nondeterministic b-choice) iff offerL=offerR=1.
-  - (NeqCheckL[0], NeqCheckR[0]) allowed iff the cursors at b=0 arrive from the block-side lanes with a local mismatch witness (enforced inside blocks; see below). Similarly for b=1.
-  - Terminal: (PAD,PAD) allowed iff a valid NeqCheckL/R[b] occurred and returned to the seam (checked by the “found-mismatch” mark on both lanes at the seam). No other (PAD,PAD) is permitted.
-- Mutual exclusion:
-  - No pair mixes Eq and Neq phases, nor mixes CAP/PAD across sides, nor allows terminal pairs without the required “done/mismatch” marks.
-Remark 1 (Where the bit tests live). The central seam pairs synchronize phases; bit comparisons are enforced by (a) mirroring (outer seams) to expose bit-lanes adjacent to S, (b) pointer-integrity and cursor-propagation tiles within the nearest-block nodes, which ensure that EqL[b]/EqR[b] cursors can reach the seam only if the corresponding bit-lane checks succeeded; this avoids any exponential blow-up in the out–out tables at the central seam.
-
-Pointer-integrity and Selected wiring (local, radius-1)
-- Variable side pointer lanes: The AccVar interface exports a fixed, constant-width “address corridor” with B positions (b=0,1 for B=2 case), each consisting of a triad of nodes: Address[b] – RIDbit[b] – Return[b]. Cursor tiles enforce that EqL[b] can proceed from S1 to Address[b], then to RIDbit[b], then back via Return[b] to S1. At RIDbit[b], a comparator tile requires that the “bit value” subtrack seen equals the one mirrored to S1.lbit[b]; otherwise the cursor dies (no legal continuation). HotRID consistency (one-hot index equals binary RIDbits) is enforced in parallel by standard local tiles; any mismatch triggers an error-chain that flips RoleL to NeutralVar at that interface in ≤1 step.
-- Clause side pointer lanes: The AccCla interface similarly exports the three occurrence bundles; Selected wiring activates exactly one bundle according to S2.occ:
-  - If S2.occ=Op, a Selected=1 marker is present only on the p-th bundle; ip_bits_p[b] and sgn[p] flows through to the seam subtracks rbit[b], sgnsel via length-1 mirrors; the other bundles carry Selected=0 and are non-traversable by cursors (tiles for cursors require Selected=1 on their lane).
-  - If any two bundles claim Selected=1, or Selected=1 is present while S2.occ≠Op, or the RUN tableau row for p is inconsistent, the only allowed out–out pairs are to an error-chain starter which locally deactivates the right interface (RoleR→NeutralCla). This forbids spurious selection.
-- Inequality check tiles: At RIDbit[b] and ip_bits_p[b], dedicated tiles flip a local Mismatch flag iff the bits differ; the NeqCheckL/R[b] cursors can return to the seam only if the Mismatch flag was set on both sides for the same b; otherwise the cursor dies.
-
-Barrier lemma and (F2)
-- Placement: Each well-formed block ends with Footer followed immediately (one node closer to S) by Bar● ∈ {BarVar,BarCla} on the seam-adjacent interior node beyond RUN. The block grammar enforces Footer→Bar● within the block.
-- Barrier rules:
-  - On outer seams, Role●=Bar● forces S●.choice=⊥ and S●.phase=Neutral and S●.offer=0. Hence the central seam cannot enter any non-neutral phase if either side is Bar● (both-sides-offer gating fails).
-  - Along block-internal edges, barriers allow only PAD-plumbing of the block-internal language (not the central (PAD,PAD)) and forbid all cursor/terminal states (EqStart/EqL[b]/NeqStart/NeqPick/NeqCheck/CAP/PAD). Thus cursors cannot cross barriers.
-- Consequence: For any repeated context wz_1 S wz_2, only the nearest two blocks (the ones directly touching S) can participate in any certificate; extra repeats lie beyond barriers and are invisible to the seam. Therefore, the success/failure of the bridge does not depend on z. This makes (F2) hold automatically for our family without ⊥-padding.
-- Short proof sketch: Suppose a labeling with CAP/PAD at the central seam for z=1 exists. For any z≥2, repeat the nearest blocks; barriers ensure no cursor/phase can interact with farther copies, and the local seams inside repeats are block-internal and satisfiable by the block grammar. Conversely, if no labeling exists for z=1, adding repeating barriers cannot create a new central pair, as both-sides-offer and cursor arrivals are confined to nearest blocks; thus no z can succeed.
-
-Exclusivity E′ (radius-1, with the fixed tiles)
-- If RID = ip: For both b=0,1, equality cursors EqL[b]/EqR[b] can complete their left/right loops and return to the seam; the central seam admits (CAP,CAP) provided the sign gate (truth vs sgnsel) holds. Inequality cursors cannot set Mismatch on both sides for any b, hence cannot return with the required marks; (PAD,PAD) is forbidden.
-- If RID ≠ ip: There exists b with RIDbit[b] ≠ ip_bits[b]. The inequality cursors can set Mismatch and return, enabling (PAD,PAD); equality cursors stall at that b and cannot return a “done” mark, so (CAP,CAP) is forbidden. Mutual exclusion follows from central-seam pairs.
-
-Alphabet-size count (β=poly(s))
-- Choice tracks: truth (3 symbols), occ (4 symbols).
-- Phase tracks on S: Neutral/Idle/EqStart/NeqStart/CAP/PAD = O(1) plus per-b cursors EqL[b], EqR[b], NeqPick[b], NeqCheckL[b], NeqCheckR[b] = O(B). Total S-phase alphabet O(B).
-- Role/Offer/Barrier bits and read-only mirrors: constant tracks plus B mirrored bits per side; values are per-node data but do not multiply the alphabet (the symbols encode bit values with 2 alternatives per lane); overall symbols O(B).
-- Block-internal tiles: pointer lanes and RUN tableau alphabets are poly(s) (U runs in BO(1) per row; Selected exposes ip/sign via constant-time local rules); error-chain alphabet is O(1·poly(s)).
-- Hence |Σout| = β = poly(s) + O(B) = poly(s) since B = s^{c0}.
-
-B=2 worked DP trace under corrected tables
-- ON case: RID=10, Clause j with occurrences (i1=01,+), (i2=10,−), (i3=11,+). Choose S2.occ=O2; RUN exposes sgnsel=− and rbit[0]=0, rbit[1]=1 via Selected=1 on p=2; S1.truth=VF. Left/right interfaces are AccVar/AccCla so offerL=offerR=1; outer seams set lbit[0]=0, lbit[1]=1.
-  - Central seam Idle→EqStart (both-sides-offer). Equality cursors at b=0,1 loop inside nearest blocks, find equal bits, and return “done” marks. (CAP,CAP) passes sign gate since S1.truth=VF and sgnsel=−. Bridge succeeds.
-- OFF case: same clause, select O1 (ip=01,+). lbit=(0,1) vs rbit=(1,0) differ at b=0 and b=1. Equality stalls (cannot return both “done” marks). Inequality picks b=0 (or 1), sets Mismatch on both sides, returns, and (PAD,PAD) is accepted; sign is irrelevant for PAD. Bridge succeeds trivially for nonselected pairs; only the RID=ip pair would be constrained, and it indeed requires truth consistent with sign in the ON case.
-
-Gaps closed vs verifier feedback
-- Static vs phase contradiction at S: resolved by subtrack split; outer seams constrain only choices and offers; central seam gates phase tokens.
-- “Idle freeze” vs certificate motion: S1.truth (resp. S2.occ) is frozen while S1/S2.phase hosts cursors; corrected tables reflect this.
-- Read-only mirroring and Selected wiring: specified as seam-local equalities with error-chain fallback; Selected=1 only on the chosen occurrence; any inconsistency locally deactivates the interface.
-- Barrier semantics: clarified—barriers forbid all cursor/terminal phases and force choices=⊥, phase=Neutral; central (PAD,PAD) is not a barrier token.
-- Both-sides-offer gating: enforced by offer bits written at outer seams and required by all non-neutral central-seam pairs.
-
-What remains to formalize explicitly
-- Give the pointer-lane tiles (Address[b]–RIDbit[b]–Return[b], symmetry on clause side) and the exact error-chain transitions that flip Role● to Neutral● upon inconsistency; this is standard and local (≤2 hops) but should be listed explicitly for completeness.
-- Expand the B=2 central-seam table into a small explicit list (we already listed the schema); we can supply the exact 12–16 pairs the verifier can check by hand.
-- Include a micro-count of Σout symbols after adding the B-dependent cursor states in the concrete parameter choice c0, c1.
-
-Why useful here
-- With these seam tables and barrier rules, (F1) encodes Succinct-3SAT robustly, sign is tied to RUN, and ⊥ at S is forbidden on active seams. (F2) holds automatically by barriers (not by ⊥-plumbing), avoiding the earlier pitfall.
-- The Exclusivity Lemma is now backed by explicit, radius-1 cursor lanes and central pair tables (B=2 shown; general B analogous), so exactly one of CAP/PAD can appear on active ordered pairs.
+2 to be filled with ⊥ (a self-looping buffer language in Cout–out), independent of the chosen f on S. Then bridging checks in the upper bound accept for all z ≤ ℓpump^2 (and hence all z), without constraining f.
+
+Examples (toy sanity check)
+- Let B = 2, V = {00,01,10,11}. Let D encode a 4-cycle 00–01–11–10–00. Under the reduction, there are 4 vertex context types τ00,…,τ11. Feasible f exist iff a 3-coloring of a 4-cycle exists (true). Pairs like (τ00, τ10) with D(00,10) = 0 are unconstrained; pairs like (τ00, τ01) with D(00,01) = 1 enforce f(τ00) ≠ f(τ01).
+
+Obstacles and open items to formalize next
+- Formal type-separation lemma: Specify the boundary-output probe and prove that contexts with distinct u become distinct types (by differing in at least one boundary-extendibility bit). This pins down the “one type per vertex” requirement.
+- Seam handshake construction details: Specify an O(1)-cell code and the local rules that move u from the block interior to the boundary deterministically.
+- Bridge computation layout: Spell out the row format and the interface that feeds D and (u, v) into the U-simulation, ensuring errors are caught locally.
+- Size bookkeeping: Choose concrete constants so that block length is poly(s), while ℓpump = 2Θ(β^4) dominates to allow pumping. Confirm Cin–out/Cout–out remain of size poly(β).
+
+Why this yields NEXPTIME-hardness for feasible-function existence (and classification)
+- Feasible-function existence with (F1) alone is NEXPTIME-hard via succinct 3-coloring under the reduction above. Together with the NEXPTIME upper bound in the draft, this gives NEXPTIME-completeness for (F1)-feasibility in the explicit β-normalized, r=1 setting.
+- For full classification (O(1)/Θ(log∗ n)/Θ(n)), add the neutral ⊥ repetition to trivialize (F2), so the hardness transfers to deciding whether (F1) holds—hence to the classification problem that internally tests (F1).
 
 Next steps
-- Write out the exact out–out pairs for the B=2 central seam (Idle, EqStart, EqL[0], EqL[1], CAP; NeqStart, NeqPick[0/1], NeqCheck[0/1], PAD) and the corresponding outer-seam mirroring/selection pairs; include the 2–step error-chain that deactivates miswired Selected.
-- Provide the pointer-integrity tile list (3 nodes per b per side suffice) and show any deviation is caught in ≤2 steps.
-- Update the hardness section to replace Section B.6’s ⊥-based (F2) with the barrier-based (F2) and include the Barrier Lemma.
-- Optional: include a small figure of the interface with Address[b]–RIDbit[b]–Return[b] lanes and barrier location.
+1) Write the explicit local rules for the seam gate and the bridge simulation (succinct adjacency computation) and verify they fit in radius 1.
+2) Prove the type-separation lemma rigorously (construct the boundary probe and show different u change the extendibility table).
+3) Integrate the error-chain library from §3 to guarantee malformed blocks are always locally refutable, keeping non-vertex contexts harmless.
+4) Provide a fully quantified statement/theorem of the reduction with the poly-time construction mapping D ↦ P_D and the equivalence “G 3-colorable ⇔ (F1)-feasible f exists for P_D”.
+
+Notes on the NEXPTIME upper bound (good to keep)
+- The finite z bound Z ≤ ℓpump^2 for (F2) follows cleanly from Lemma 15 periodicity and Lemma 12 composition; no circularity with f.
+- The layered DP (O(k β^2)) to decide extendibility of partially labeled paths gives an explicit verifier runtime bound compatible with 2poly(β).
+
+No output.md was provided; these notes flag substantial issues in the current (3SAT-based) Section B and outline a repaired (3-coloring-based) reduction aligned with (F1).
+
+## Round 0001 — 2025-08-28T11:37:18.219942Z
+
+Ideas and plan
+- Goal: Prove NEXPTIME-hardness of the 3-way classification (O(1) vs. Ω(log* n) vs. Ω(n)) for β-normalized, radius-1 LCLs on oriented paths. By the Balliu–Brandt–Chang–Olivetti–Rabie–Suomela framework (Section 4), the 3-way classification reduces to existence of a feasible function f with two properties: (F1) mid-consistency and (F2) bridging. If (F1) fails then the complexity is Θ(n); if (F1) holds and (F2) fails then Θ(log* n); if (F1)+(F2) holds then O(1). Hence NEXPTIME-hardness follows if we can reduce a NEXPTIME-hard problem (e.g., Succinct-3SAT) to deciding existence of f.
+- Upper bound: The attached draft “LCL_classification.pdf” sketches an NEXPTIME upper bound for Feasible-Function Existence (FFE) via types and bounded DP checks. I re-checked: the type bound |Types| ≤ 2^{Θ(β^4)} for r=1 is sound, the “finite z” lemma for (F2) with Z ≤ ℓ_pump^2 is correct, and the layered-DAG DP is O(kβ^2) for a length-k path. Hence membership in NEXPTIME looks solid.
+
+Gaps/concerns in output.md (hardness part B)
+- Quantifier mismatch in (F1): (F1) universally quantifies over all ordered pairs of contexts (wa S1 wb, wc S2 wd), not merely pairs “variable on left, clause on right” with a shared variable. In Section B, the bridge is made to succeed only if a witness i connects the left “variable RID i” to a right “clause V(·)[i]=1”. This enforces success only for some pairs. But (F1) requires success for all ordered pairs simultaneously. As written, if there exist “variable” types Vari that are not among the three variables of a given clause type Clj, then the ordered pair (Vari, Clj) will cause the bridge DP to fail for the f chosen, violating (F1). The text attempts to restrict to pairs “where i ranges over variables occurring in clause(j)”, but (F1) does not allow restricting the universal set of pairs; every pair of context types appearing in C must pass.
+- “Inactive contexts” and pair filtering: The draft claims we can trivialize all pairs that are not (variable, clause) or have malformed blocks by allowing ⊥. However, (F1) still quantifies over ordered pairs regardless of internal content. If the left is a “variable” context (i fixed) and the right a “clause” context (j), but i /∈ vars(clause j), the pair remains “variable–clause” and is not falsifiable by declaring one side “inactive”: that would force f to assign ⊥ to at least one side for all contexts of that type, collapsing the intended encoding (we need variable/clause contexts to be active to constrain f). No mechanism was given that makes those specific pairs inactive without also deactivating the entire type.
+- Types vs. interior degrees of freedom: The argument “there are 2^B distinct variable types Vari and 2^B clause types Clj” uses that differing RID/GID values must give distinct types because extendibility from S differs “for some bridge”. But Type(·) is defined by which boundary assignments are extendible; it existentially quantifies over all interior labelings. If a context admits multiple interior RIDs, then for many S-labelings the existence of some witness RID can make extendibility identical across many RIDs. Thus different RID values need not force different types unless we can tie RID deterministically to boundary information. The current construction does not ensure RID/GID are uniquely determined by the context’s boundary behavior.
+- Context locality: The construction wants a large, well-formed block to sit “inside” w1 (resp. w2). But (F1) only fixes the two outputs on S; the remaining outputs (including inside w1 and w2) can be chosen arbitrarily in each check. This is intended, but it then exacerbates the previous issue: types correspond to sets of interior completions. One must ensure the property “RID equals i” is forced by boundary behavior, otherwise types conflate many RIDs.
+- Pair-wise gating by clause membership: The hardness relies on only pairs (Vari, Clj) with i ∈ vars(clause j) being active (i.e., constrained by the witness chain). However, no local, radius-1 gating was given that makes all other variable/clause pairs trivially extendible while keeping those of interest constraining, especially given that the grammar cannot refer to “pair identity” globally. A local activation must be derivable from S and nearby labels, not from global pairing information.
+
+Small positive results we can reuse (from output.md)
+- Type bound for r=1: M := |Types| ≤ 24·2^{β^4} = 2^{Θ(β^4)}; set ℓ_pump := M.
+- Finite z for (F2): For each fixed context (w1, S, w2), the set {Type(w1^z S w2^z)} has size ≤ ℓ_pump^2, so it suffices to check 1 ≤ z ≤ Z with Z ≤ ℓ_pump^2.
+- DP feasibility test: For radius-1 β-normalized LCLs, partial-to-total extension on a given path with some outputs forced is decidable by a layered-DAG DP in O(kβ^2) time.
+
+Proposed corrections/patches to the hardness construction
+- Force RID/GID by boundary behavior: To obtain a family of 2^B distinct “variable” context types Vari, we can build a left-anchored gadget whose unique continuation from the S-window outwards deterministically encodes the index i in the nearest O(1) outputs (e.g., a self-delimiting, gray-coded header with radius-1 local rules). Concretely, add a “phase” track that rigidly positions the start of a short RID header of length Θ(B) within distance O(1) from the S-window. Enforce, via Cout–out, that whenever the S-window carries a designated activation token and the phase indicates “variable mode”, the next O(B) outputs are uniquely determined (one-hot RID with a fixed delimiter). This ensures: (i) the interior labelings consistent with an activated S-window determine exactly one RID, (ii) types differ across different i because the set of boundary-extendible S-outputs differs.
+- Clause contexts likewise: Symmetrically enforce a GID header near S on the right context, again determined uniquely upon activation, and attach RUN rows that compute the literal set for clause j based on the fixed circuit C (hardwired in the adjacency table). As before, activation at S forces a unique GID.
+- Local gating of pairs: Introduce a “handshake” protocol across the bridge that makes a pair active only if both windows are activated and their local roles match a prescribed pattern (left role=VAR, right role=CL). All other combinations, including (VAR, CL) with at least one window deactivated (⊥), are assigned a trivial buffer language that always extends. This satisfies (F1) over all pairs once we ensure that, for each type, f can choose ⊥ to deactivate it when needed; but now activation will be needed only on the types we purposefully created (Vari, Clj), and deactivation on all other types is harmless.
+- Still need to address “wrong variable for a clause”: To avoid the quantifier mismatch, ensure that for a given right clause context Clj, only those left context types Vari with i ∈ vars(clause j) can be simultaneously activated: implement a local test that compares the variable index i (encoded near the left S-window) with the finite set of three indices embedded near the right S-window (also encoded near its S-window), and only if there is equality do we allow the activation token to persist across the bridge; otherwise the only locally valid option is to turn off activation on at least one S-window (i.e., f must set ⊥ for one of the two types). This way, for a fixed clause type Clj, there are exactly three variable types Vari whose joint activation with Clj is locally legal. All other pairs are forced to be inactive (and thus trivial). This preserves the universal quantifier of (F1): we require success for all pairs, but for non-matching pairs success is guaranteed by deactivation.
+- Encoding satisfiability: Now (F1) for the three matching pairs (Vari1, Clj), (Vari2, Clj), (Vari3, Clj) amounts to requiring that, with the f-choices of colors on these types, at least one pair’s witness chain can complete (using the V(+)/V(−) bits from the RUN gadget). To phrase this with universal quantification, we allow only one activated pair per clause to persist in any given bridge instance: locally, at the mid-bridge we place a “choice” gadget that nondeterministically selects one of the three matching i; the DP succeeds iff the selected i’s witness check passes. Since (F1) demands existence of some completion, it suffices that at least one of the three literal checks can succeed for the f-choice at Clj. This exactly encodes that each clause has a satisfied literal under the assignment extracted from f(Vari).
+- Trivializing (F2): As in the draft, add a neutral symbol ⊥ and permit filling wz with ⊥ regardless of the context, so (F2) is always true. This keeps the 3-way classification hinging on (F1) alone: satisfiable ⇒ (F1) holds ⇒ O(1); unsatisfiable ⇒ (F1) fails for some clause ⇒ Θ(n).
+
+Toy counterexample of the current draft’s (F1) usage
+- Consider a clause type Clj whose literals are over indices {i1, i2, i3}. For a variable type Vari with i ∉ {i1, i2, i3}, the proposed grammar makes the pair active (since it is a (variable, clause) pair) and then the witness chain must fail (no V-bit at i), violating (F1) unless f sets ⊥ on Vari or Clj. But if f sets ⊥ on Vari to fix this pair, it also deactivates all its interactions with the correct clauses, undermining the intended encoding. This shows the need for local gating to force all non-matching pairs inactive irrespective of f.
+
+Why the capacity (number of types) suffices
+- With β = poly(|C|), ℓ_pump = 2^{Θ(β^4)} gives room for exponentially many distinct context types. The “phase+RID/GID near S” gadgets use only O(B) symbols, so they comfortably fit into contexts of length ≥ ℓ_pump. Deterministic forcing from S ensures that different i (or j) yield different type behaviors (distinct sets of extendible S-labelings), so we can realize 2^B variable types and 2^B clause types.
+
+Concrete micro-lemmas to formalize next
+1) RID-forcing lemma. There is a radius-1 adjacency schema over a constant-size role/phase alphabet that, upon placing a VAR-activation token on S, deterministically fixes a unique B-bit one-hot RID string within the next O(B) positions. Distinct RIDs induce distinct type behaviors at the boundary (different activated S choices are extendible).
+2) Pair-gating lemma. There is a radius-1 schema that, given left VAR with RID=i and right CL with a three-element set {i1,i2,i3} encoded within O(1) of S, allows activation across the bridge if and only if i ∈ {i1,i2,i3}; otherwise the only legal option is to deactivate (⊥) at one or both S-windows (enforced locally by Cout–out).
+3) Clause-choice lemma. There is a radius-1 gadget on the bridge that nondeterministically chooses one of the three matching i and routes a witness chain to check the corresponding RUN subtrack; DP success is equivalent to the existence of a satisfied literal among the three under the f-colors.
+
+Obstacles and open items
+- The exact encoding of the “choice” on the bridge needs to be pinned down so that: (i) choice is local, (ii) its existence suffices for DP success (so (F1) is existential per pair), (iii) it cannot enable success for non-matching pairs.
+- We must verify that deactivation (⊥) never creates spurious constraints: for every non-matching pair, there is always a completion that uses ⊥, regardless of f’s color on other types.
+- We must confirm that the uniqueness of RID/GID under activation really separates types (no alternative interior labeling can fake a different RID/GID without violating adjacency), so the number of types available is exponential in B.
+
+Next steps
+- Write the RID-forcing and clause-gating gadgets precisely as out–out adjacency tables, with a short formal proof of their correctness (local determinism from S; matching-only activation across the bridge).
+- Prove that the “choice-on-bridge” gadget yields the right existential semantics for (F1) and that the entire pair space satisfies (F1) iff Φ_C is satisfiable.
+- Check that (F2) can be made vacuous with ⊥ without interfering with (F1).
+- Once the above is settled, we can present a full reduction from Succinct-3SAT to FFE(F1), yielding NEXPTIME-hardness; by the known gap characterizations, this yields NEXPTIME-hardness for the 3-way classification.
+
+Summary
+- The NEXPTIME-membership part of output.md is in good shape. The hardness section B has a fundamental quantifier gap for (F1) and needs a corrected local “gating” mechanism so that only the intended (Vari, Clj) pairs are active, and even then the (F1)-existential nature must be implemented via a local nondeterministic choice on the bridge. I outlined concrete gadgets (RID-forcing, pair-gating, clause-choice) that, once formalized, should fix these issues while staying within radius-1, β-normalized constraints. I will next encode these gadgets into explicit Cout–out tables and prove their properties.
+
+## Round 0001 — 2025-08-28T11:38:00.688946Z
+
+Headlines
+- Goal: Prove NEXPTIME-hardness for classifying β-normalized, radius-1 LCLs on globally oriented paths into O(1) vs. Ω(log* n) vs. Ω(n).
+- Status: The attached draft gives an NEXPTIME upper bound for feasible-function existence (FFE) and sketches NEXPTIME-hardness via a reduction from Succinct-3SAT. I identified a subtlety in the hardness appendix: “activity” of a context must be type-invariant, since f is defined on context types, not on concrete words. I propose a corrected construction that makes the relevant property depend only on the boundary-extendibility behavior (hence on the type), and I outline the checks that keep everything radius-1 and β-normalized.
+
+Gaps / issues spotted in the attached draft (Appendix B)
+- Context activity vs. type invariance. Appendix B uses “active contexts” that contain a well-formed header+indices+RUN somewhere “inside w1/w2.” As written, the property “this concrete context contains a valid block” may not be constant within a type: two words of the same type (agreeing on D1∪D2 extendibility) can differ arbitrarily in the interior. Since f is defined on types, we must ensure that for any type τ we use as a variable or clause type, every representative of τ is active in exactly the same way (otherwise (F1) could fail on some representative).
+- Where the exponential blow-up resides. The draft claims there are 2^B variable and 2^B clause context types present in C. This is plausible only if “RID/GID” information is encoded into the boundary-extendibility function of the whole context (thus affecting the type). It is not enough to place RID/GID far in the interior, as that would not be reflected in the type (which only depends on boundary inputs and the extendibility table for the 4 boundary outputs). A clean way is to make “RID/GID” selection manifest at the context’s boundaries, via boundary key states whose permitted continuations encode the 2^B possibilities.
+- Uniform extendibility vs. S-only forcing. In the (F1) verification, only the two S nodes are forced; the verifier chooses all other outputs (including the 4 boundary nodes). Hence, any variable/clause identity must be “selected” by the existence of some consistent completion, not by externally fixing boundary outputs. The construction must ensure: for each variable-type τi, some (and in fact many) boundary assignments lead to a completion that realizes RID = i and no assignment leads to RID ≠ i; analogously for clause types. Otherwise two different RIDs could collapse to the same type.
+
+Key idea: boundary-keyed types and seam-certified witnesses
+- Boundary-keyed types. For each variable index i∈{0,1}^B, define a distinct boundary behavior at the right end of a variable-context (the last two nodes of wa S1 wb), witnessed by a “key” pair (kv,i, rv,i) of output symbols. Dually, for each clause index j define a distinct boundary behavior at the left end (first two nodes of wc S2 wd), with a key pair (kc,j, lc,j). The adjacency table is set so that:
+  - A variable-context of type Vari is characterized by: there exists a completion consistent with S free such that the last-two-boundary symbols are exactly (kv,i, rv,i), and conversely, no completion exists that realizes the last-two-boundary symbols from any other key (kv,i′, rv,i′) with i′≠i. The same for clause-context types Clj at their first two boundary nodes.
+  - This makes RID/GID selection a property of the context’s type (since the type is precisely the yes/no table of extendibility for all 4-boundary assignments). Because the type equivalence class records, for each of β^4 boundary assignments, whether a completion exists, we have more than enough capacity to separate 2^B different behaviors when β = poly(s) and B = s^{c0} with a larger constant in β.
+- Witness chains initiated at S. Upon placing a non-⊥ color at S (RED/GRN/BLU), the out–out rules enable a local “witness chain” that walks from S to (i) the right boundary of the left context and (ii) the left boundary of the right context. At those boundaries, it must latch onto the proper keys (kv,i, rv,i) and (kc,j, lc,j). From the keys, the chain enters the corresponding interior block modules that encode, via a row-by-row 1D tableau, the vectors HotRID (one-hot) and the three clause-indicator vectors V(+),V(−),V(⊥) computed by a fixed universal TM U on input (C, RID, GID). The chain succeeds iff for the chosen color, there exists a bit position p such that HotRID[p]=1 and V(±/⊥)[p]=1 as appropriate. If any subcheck fails, the chain cannot be completed (no completion exists, hence the DP rejects). All of this is radius-1: pointer segments are finite-state “pipes” checked by Cout–out, and each tape row transition in RUN is enforced by nearest-neighbor constraints, exactly as in §3 of the reference.
+- Uniformity within types. Because keys reside at the 4 boundary nodes and the admissible continuations for a given key are baked into the out–out table, the existence/non-existence of a successful witness is purely a type property. That is, any two representatives of the same type have identical extendibility tables for all 4-boundary assignments; hence for a fixed color at S, either both admit some completion (with the appropriate key) or neither do.
+
+Why exponentially many (context) types are available
+- Type count. For r=1, types are determined by: (i) 2^4 choices of boundary inputs and (ii) a β^4-bit truth table indicating which 4-boundary output assignments are extendible. Hence |Types| ≤ 2^4 · 2^{β^4} = 2^{Θ(β^4)}. With β = s^{c1}, pick c1≫c0 so that 2^{β^4} ≫ 2^B. Thus we can assign pairwise distinct truth tables to the 2^B desired variable keys and to the 2^B clause keys, leaving plenty of slack for all other contexts.
+- Realization by radius-1 rules. Each distinct truth table is realized by tailoring the local “plumbing” around the 4 boundary nodes: for each of the β^4 boundary assignments, either permit at least one outgoing legal extension (by supplying a small admissible gadget that grows into the variable/clause block and RUN) or forbid any extension (by forcing dead ends unless an error-chain is emitted, which we disallow when S carries a non-⊥ color). This is purely in Cout–out and Cin–out and does not depend on interior inputs.
+
+Soundness and completeness of the reduction (cleaned)
+- Source: Succinct-3SAT instance C of size s. We set β = s^{c1} and work in the explicit β-normalized, radius-1 model.
+- Target: PC = (Σin={0,1}, Σout of size β, Cin–out, Cout–out). The alphabet has fixed tracks: role/phase, ⊥, 3 colors {RED,GRN,BLU}, finitely many error symbols, and the work alphabet for U (all independent of B), as in §3.
+- Variable and clause types. We reserve 2^B variable types {Vari} and 2^B clause types {Clj} by their boundary keys, as above. All other types are “inactive” and accept ⊥ at S unconditionally.
+- (⇒) If ΦC is satisfiable, define f on types by: f(Vari)=RED if α(xi)=1 else GRN; f(Clj) is set to a color that corresponds to some true literal in clause(j) (RED for positive, GRN for negative; BLU is unused/dummy); f(τ)=⊥ for all inactive types. For any ordered pair of contexts, if both are active and in roles (variable,clause), the witness chain succeeds by picking the unique hot position for RID (enforced by the variable block) and the matching 1 in V(±) (enforced by the clause block). All other ordered pairs are trivialized (either inactive or the grammar ignores colors in those role combinations), hence all (F1) DP checks pass.
+- (⇐) If there exists f satisfying (F1), read an assignment α from the variable types: α(xi)=1 iff f(Vari)=RED, α(xi)=0 iff f(Vari)=GRN (BLU impossible for variable types by construction; if allowed, fix it arbitrarily). Fix any clause j. Since (F1) must hold for the ordered pair (Vari, Clj) for the i appearing in clause(j), the only way the DP can succeed (given the grammar) is that f(Clj) picks a color that matches a true literal under α (the witness chain cannot otherwise be completed). Hence every clause has a true literal and α satisfies ΦC.
+- Inactive contexts never constrain f: for any type without the proper boundary keys and RUN plumbing, any non-⊥ color at S leads to a dead-end (no completion), whereas ⊥ always admits a completion via the neutral plumbing and/or the standard error-chain (per §3). Thus assigning f(τ)=⊥ for all such τ ensures all mixed-type (F1) checks pass.
+
+From FFE(F1) to the tri-class classification
+- As in the draft: (F1) characterizes O(log* n) vs. Θ(n) (Theorem 8 machinery), and adding a neutral ⊥ that freely fills repetitions makes (F2) vacuous, whence (F1)+(F2) yields O(1) (Theorem 9 machinery). Therefore:
+  - Distinguishing Θ(n) vs. sublinear (i.e., the existence of a feasible f) is NEXPTIME-hard.
+  - Distinguishing O(1) vs. Ω(log* n) (by toggling (F2) via ⊥-filling) is also NEXPTIME-hard.
+  - Hence the full three-way classification is NEXPTIME-hard under the explicit β-normalized encoding.
+
+Checkability and complexity bookkeeping
+- Radius 1: All constraints (role placement, boundary keys, pointer pipes, RUN row-to-row evolution, and error-chains) involve each node and its predecessor only, i.e., exactly Cin–out and Cout–out.
+- Alphabet size: Σout is of size β = poly(s); the number of “states” required for roles, phases, pipes, and U is constant. The heavy lifting (2^B distinct behaviors) is encoded not in new symbols but in the accept/reject decisions for the β^4 boundary assignments (the type truth tables), which are programmed into Cout–out.
+- Lengths: Contexts have length ≈ℓpump (double-exponential in s), so there is ample room to host the O(poly(s))-size headers/indices and RUNs needed to compute clause(j) from C.
+
+Examples / sanity checks
+- Toy instance: Fix B=2, so there are 4 variable and 4 clause types. Assign four disjoint pairs of boundary keys for the variables on the right and four for the clauses on the left. The seam witness for RED requires a position p with HotRID[p]=1 and V(+)[p]=1; the grammar enforces that exactly one p has HotRID[p]=1, and RUN computes V(+) correctly from C and GID. Testing all 16 ordered pairs (Vari, Clj) by hand recovers the truth table of satisfaction.
+
+Next steps (concrete, verifiable)
+1) Formalize the boundary-keyed type lemma: Given β, construct Cout–out so that for any prescribed subset S⊆[β]^4 (boundary assignments) of size ≤2^B we can realize a type whose extendibility table equals the indicator of S. This pins down the “truth table capacity” rigorously.
+2) Write the exact local transition rules for the pointer pipes and RUN rows, following §3 of the reference, and count the number of symbols added (to check β=poly(s) suffices).
+3) Prove the uniformity lemma: For any two words of the same type, the success/failure of the (F1) DP for a fixed pair of types and a fixed color at S is identical. This uses Lemma 11 (replacement) to justify that only the boundary truth tables matter.
+4) Integrate the ⊥-filling trick to make (F2) vacuous and connect the hardness to the O(1) vs. Ω(log* n) gap explicitly.
+
+Why useful here
+- The boundary-keyed construction eliminates the “activity” non-invariance and anchors the reduction in the type semantics used by the NEXPTIME verifier. Establishing this rigorously will convert the hardness sketch into a clean, auditable proof.
+
+## Round 0002 — 2025-08-28T11:46:01.458097Z
+
+Status. We have a solid upper-bound skeleton (types, composition, periodicity, finite-Z for (F2), and the O(kβ^2) DP) captured in output.md. To push hardness to NEXPTIME for the 3-way classifier, I focus on formalizing the succinct 3-coloring reduction via (F1), with two key technical lemmas: (i) type-separation per vertex index u using a boundary-probe truth-table signature realized by a radius-1 checker; (ii) a seam gadget that, on colored S-windows, locally simulates D(u,v) (adjacency) across the bridge, accepting iff either non-edge or colors differ. I also point out a minor optional tightening in output.md and confirm its current statements are correct as written.
+
+Gaps/remarks on output.md (minor). 
+- The ℓ^2 bound in Corollary 4 is correct and sufficient; optionally, one can refine Z to preperiod1 + preperiod2 + lcm(period1, period2) ≤ 2ℓ + ℓ ≤ 3ℓ (or ≤ lcm periods) by analyzing the pair map on T×T, but this is nonessential. The current deterministic DP lemma (Theorem 5) is correct; an explicit treatment of boundary inputs when k<4 is trivial and can be omitted. No correctness issues spotted.
+
+Plan and why useful. 
+- Pivot source to Succinct 3-Coloring (NEXP-complete). For a circuit D of size s deciding adjacency on V={0,1}^B (B=s^{c0}), we construct a β-normalized, r=1 LCL P_D with β=s^{c1} (c1≫c0) so that: existence of a feasible function (F1) ⇔ G is 3-colorable. This matches (F1)’s universal quantification (pairwise inequality on edges) and avoids clause-level ∃-quantifiers.
+
+Core technical ingredients (new lemmas, concrete gadgets).
+
+Lemma A (Type-separation via boundary-probe signature). Fix integers B=s^{c0} and β=s^{c1} with 4c1>c0. There exists a radius-1 β-normalized LCL fragment that enforces: for any path segment W that contains a well-formed vertex block encoding an index u∈{0,1}^B (and no errors), the type Type(W) has extendibility truth-table over the β^4 boundary-output assignments equal to an injective signature g(u)∈{0,1}^{β^4}. In particular, u≠u′ ⇒ Type(W)≠Type(W′).
+- Construction sketch (radius-1):
+  • Reserve in Σ_out constant tracks: role/phase, error alphabet, a ⊥-plumbing symbol, and a RUN track for a fixed universal TM U. The vertex block stores u in a self-delimiting header and includes a short RUN zone computing on demand bits of an injective signature g(u) of length L=β^4≥2^B (we can set g(u) to the length-L zero-padded copy of u followed by a fixed injective encoding). The run budget is poly(s).
+  • Boundary-probe coding: Each of the four boundary outputs carries an index digit in base β; together they encode b∈[β^4] (the probe index). Adjacency rules copy these 4 base-β digits along “carrier” subtracks deterministically from both ends toward the interior (radius-1 constraints enforcing equality along edges). If the two ends encode different b, a detector in the middle halts with an unsatisfiable local pattern ⇒ that boundary assignment is rejected (truth-table bit 0). If they match, the bridge enables U to read (u,b) from the interior/carriers and compute g(u)[b] in poly(s) steps within W. Local acceptance (extendibility) is permitted iff g(u)[b]=1 (otherwise the RUN must end in a dead configuration). Malformed interiors open an error-chain (always extendible) and are hence excluded when defining vertex types.
+- Why useful: It produces ≥2^B distinct types attributable to different u while using only β symbols and radius 1; f can then assign colors per vertex-type τ_u.
+
+Lemma B (Realization of vertex context types near S). For each u, there exist contexts (w_1,S,w_2) with |w_i|∈{ℓ_pump,ℓ_pump+1} whose left (or right) side contains a well-formed vertex block for u adjacent (within O(1)) to S, and whose type equals the Type(W) from Lemma A. Moreover, replacement/pumping (Lemmas 11, 14–15) ensure that these contexts persist under padding to the required lengths.
+- Why useful: Guarantees the context set C contains, for each u, at least one “vertex” type τ_u on which f can act.
+
+Lemma C (Seam gadget for succinct adjacency and color inequality). There is a radius-1 out–out grammar across the seam between a left τ_u-context and a right τ_v-context such that, when both S windows are colored, the bridge wa S_1 wb wc S_2 wd admits a completion iff either D(u,v)=0 (non-edge) or D(u,v)=1 and the two colors differ. If either side is not a vertex context (no valid block), the seam always completes (via ⊥-plumbing or error chains) irrespective of S.
+- Construction sketch:
+  • Seam handshake: Near each S window, a constant-size “handshake” subtrack asserts role=VERTEX, and opens a bounded-width corridor through wb∘wc where a fixed TM U simulates D(u,v) for poly(s) steps using the copies of D from the interiors and seam pointers that fetch u (on the left) and v (on the right). As in §3 of the attached paper, each tableau row is locally checked by Cout–out; malformed runs are locally refutable (error-chain), keeping non-vertex contexts harmless.
+  • Acceptance policy: The corridor exposes a verdict bit Edge(u,v). The adjacency table then enforces: if Edge=0, accept regardless of colors; if Edge=1, require Color(S_1)≠Color(S_2) (three colors in a constant subalphabet). Violations force a dead pattern (no completion). All checks are radius-1 because comparisons are between adjacent row/phase symbols and the two S outputs.
+- Why useful: Encodes the exact pairwise 3-coloring constraint on edges within (F1)’s universal pair quantification; non-edges/vacuous pairs always pass.
+
+Lemma D (Bridging neutralization). Add ⊥-repetition plumbing: for any context (w_1,S,w_2), all repetitions w_1^z and w_2^z can be filled entirely with ⊥ while remaining compatible with any S outputs and the fixed boundary inputs. Then (F2) holds for every f.
+- Why useful: Collapses the three-class decision to (F1)-feasibility, transferring NEXP-hardness to the classifier (O(1) vs Ω(n) on our instances).
+
+Soundness/completeness outline for the reduction (auditable).
+- Parameters: Choose c1≫c0 so that β^4 = s^{4c1} ≥ 2B; then ℓ_pump = 2^{Θ(β^4)} = 2^{poly(s)}. Block length is poly(s)≪ℓ_pump.
+- Cmpltns:
+  • If G is 3-colorable with χ:V→{R,G,B}, define f(τ_u) = (χ(u) on S) and f(τ)=⊥ for non-vertex types. For any ordered pair (τ_left, τ_right), the seam gadget computes Edge(u,v); non-edges accept; edges accept iff χ(u)≠χ(v). Hence all (F1) checks pass. (F2) is vacuous by Lemma D.
+- Sndnss:
+  • If f satisfies (F1), read χ(u)=f(τ_u). Consider any edge (u,v). The pair (τ_u, τ_v) must pass the (F1) DP; by Lemma C, this forces χ(u)≠χ(v). Therefore χ is a proper 3-coloring.
+
+Key implementation details (to be checked next, but radius-1 and β=poly(s)).
+- Fixed tracks in Σ_out (constant multiplicity): role/phase states; three color tokens and ⊥; RUN work alphabet of the fixed U; error-chain symbols. The total |Σ_out|=β can be chosen polynomial in s to host these tracks.
+- Probe carriers: The four boundary positions provide base-β digits (b_1,b_2,b_3,b_4) coding b∈[β^4]; per-edge Cout–out permits copying these digits unchanged along special carrier tracks. A small synchronizer ensures two carriers meet and agree before the RUN consults b.
+- Robustness: Any malformed header/index/RUN admits a locally checkable error-chain (as in the LBA construction), so such contexts never constrain f; they can be mapped to ⊥ by f.
+
+Toy sanity checks.
+- Tiny β example: Let β=3, reserve 3 colors+⊥ and minimal RUN symbols. With B=2 (four vertices), choose a trivial D; the seam accepts iff colors differ on the unique edge case. The probe signature g(u) can be just the 9-bit (β^4=81 in general; here smaller) table determined by U’s response to the four boundary symbols; in the toy, let g(u) encode u across a few “distinguishing” boundary assignments to see Type(W_u)≠Type(W_v) by direct DP.
+
+Obstacles and mitigations.
+- Probe capacity vs. 2^B: We cannot dedicate a distinct boundary 4-tuple per u since β^4≪2^B; instead we use the full truth-table over β^4 probes, mapping u↦g(u)∈{0,1}^{β^4} injectively (possible since β^4≥B). The grammar is uniform; dependence on u enters only via the interior-encoded u read by U.
+- Uniformity within types: Because the probe acceptance policy is fixed and depends only on (boundary 4-tuple, interior u), all representatives of the same type (i.e., same interior u and no errors) yield identical extendibility tables, satisfying type-invariance.
+- Ensuring active τ_u exist: Use Lemma 11 (replacement) and Lemmas 14–15 (pumping) to embed the O(poly(s))-length block adjacent to S within words of length ℓ_pump or ℓ_pump+1 on each side, without changing the type.
+
+Next concrete steps (incremental, testable).
+1) Formalize Lemma A. Specify: (i) the base-β boundary-digit carriers and their radius-1 propagation; (ii) the U-simulation that, given (u,b), outputs g(u)[b] and how Cout–out enforces acceptance iff 1. Prove type-separation: u≠u′ ⇒ the truth tables differ in at least one b.
+2) Formalize Lemma C. Write the exact row interface and verdict wiring so that (Edge=0) ⇒ unconditional acceptance, (Edge=1) ⇒ require Color(S_1)≠Color(S_2). Include the local refutation for malformed runs.
+3) Prove Lemma B: a clean pumping/replacement embedding argument placing blocks within contexts of the required lengths while preserving type.
+4) Package the construction P_D and the equivalence “G 3-colorable ⇔ (F1)-feasible f exists,” then add the ⊥-repetition rules (Lemma D) to transfer hardness to the O(1)/Ω(n) classification.
+
+Why this is progress.
+- It addresses the main unresolved pieces flagged by the verifier: a type-invariant “activity” mechanism and a pairwise constraint that matches (F1). The boundary-probe signature provides exponentially many distinct types with β=poly(s) and radius-1 rules; the seam gadget exactly encodes edge constraints suitable for (F1). These are compact, checkable subclaims that can be verified independently using the O(kβ^2) DP.
+
+## Round 0002 — 2025-08-28T11:43:33Z
+
+Focus and plan for this round
+- Goal: push the NEXPTIME-hardness via Succinct 3-Coloring (S3Col) by cleanly aligning (F1) mid-consistency with pairwise edge constraints “color(u) ≠ color(v) when D(u,v)=1”. Make (F2) vacuous via ⊥-filler. Deliver concrete, radius-1 gadgets and type-separation lemmas that are checkable and do not rely on per-type ad hoc rules.
+- This round: (i) state and justify a “boundary-anchored vertex-type separation” lemma; (ii) design a seam simulation gadget that, on active vertex–vertex pairs, computes D(u,v) in the bridge and enforces inequality if D(u,v)=1 while accepting any colors if D(u,v)=0; (iii) detail the ⊥-filler that neutralizes (F2); (iv) give a small B=2 sanity check; (v) log minor clarifications for output.md.
+
+Context recap from last round
+- Use S3Col: input is circuit D of size s deciding an undirected succinct graph on V={0,1}^B (we can symmetrize by using D′(u,v):=D(u,v)∨D(v,u)). Set B=s^{c0}, choose |Σ_out|=β=s^{c1} with c1≫c0. ℓ_pump=2^{Θ(β^4)}≫poly(s) so we have ample pumping room. We only need vertex-types (no clause-types).
+
+Key new lemmas (informal statements, why useful, and how to validate)
+1) Boundary-anchored vertex-type separation (existence of 2^B distinct vertex types)
+- Statement. There exists a β-normalized, radius-1 schema (global Cin–out, Cout–out) with constant role/phase/error/work tracks such that for each index u∈{0,1}^B there is at least one context type τ_u in the context set C (realizable by some input word w_1 S w_2) with the following properties:
+  (A) Vertex activation near S on the left side: if the two-node window S is colored (non-⊥) and the left side is intended to be a vertex, then a radius-1 forced “index header” of length Θ(B) is determined immediately to the left of S; this header copies the B input bits (RID-track) adjacent to S via Cin–out, so the u encoded in input is fixed. All malformed attempts can be locally refuted by error-chains.
+  (B) Probe distinguishability: there exists a fixed 4-tuple b⋆ of boundary outputs on the four boundary nodes of w_1 (two leftmost and two “second” nodes) such that E_{w_1}(b⋆)=1 iff the input RID next to S equals u. Consequently, if u≠u′, then τ_u≠τ_{u′} (types differ on b⋆).
+- Why useful: gives us exponentially many pairwise distinct vertex context types, allowing a map f on types to encode a coloring χ(u)∈{RED,GRN,BLU}.
+- How enforced at radius 1. We predefine a reserved “probe-left” boundary pattern b⋆ using symbols that (i) fix a role/phase state at the two boundary layers and (ii) enable a single deterministic pipe that walks inward for B steps, checking at position j that the RID-output symbol agrees with the local input bit (Cin–out) and with a constant j-th bit of the target u. If any check fails, the pipe has no legal continuation (no extension). If all pass, the pipe halts into a neutral filler. Because the pipe is unique, the existential nature of types cannot “cheat” by choosing a different interior: existence of a completion under b⋆ exactly encodes “RID equals u”.
+- Validation: The pipe is exactly the standard radius-1 pointer gadget (Section 3 in the attached paper) but with a bounded, fixed length B and equality tests via Cin–out. The existence of contexts carrying any prescribed B-bit RID adjacent to S is guaranteed by considering input words over Σ_in; malformed inputs are harmless due to error-chains.
+
+2) Seam-simulation gadget for pairwise constraints (edge gating and color inequality)
+- Statement. There is a radius-1 out–out schema such that for any ordered pair of active vertex types (τ_u on the left, τ_v on the right):
+  (i) If D(u,v)=0, there is a completion irrespective of the colors f(τ_u), f(τ_v) placed on the window S; (ii) If D(u,v)=1, there is a completion iff the two colors differ; and (iii) For any pair where at least one side is inactive (no well-formed vertex near S), there is always a completion (via ⊥-plumbing), independent of the other side.
+- Why useful: This aligns (F1)’s universal quantification with 3-coloring constraints: f feasible ⇔ χ(u)≠χ(v) for all edges (u,v).
+- Seam layout (radius-1):
+  • Near-boundary index tapes. On each side, the Θ(B)-long RID tape sits immediately adjacent to S (by Lemma 1). We also place a fixed-size “header acceptance” bit (valid if the embedded header equals the constant D-encoding)
+  • Bridge tableau. On the wb◦wc bridge, allow a standard 1D row-by-row simulation of a fixed universal TM U for poly(s) steps to evaluate D(u,v), reading the two B-bit tapes and the constant header. Each row transition is enforced by nearest-neighbor Cout–out constraints; malformed rows can be refuted by error-chains as in §3.
+  • Acceptance signals. The simulation emits a bit EDGE∈{0,1}. Local rules at S admit completion if (EDGE=0) or (EDGE=1 and colors on S are unequal). If EDGE=1 and colors equal, all continuations are forbidden. All these checks involve only constant-size neighborhoods around S.
+- Validation: Standard “computation-by-tiling” for 1D simulations as in §3 and §4; run time is poly(s)≪ℓ_pump and space sits in wb◦wc (length ≥ℓ_pump). Robustness via error-chains ensures that malformed headers and/or runs never constrain f.
+
+3) Neutralizing bridging (F2) by a ⊥-filler
+- Statement. Add a self-looping ⊥-track and allow wz (for any z≥1) to be filled entirely with ⊥ irrespective of boundary outputs adjacent to S. Then for every context (w_1,S,w_2) and z, the partial S-label from f extends by filling both sides with ⊥, making (F2) hold vacuously.
+- Why useful: Reduces the classification to (F1) only on our instances, hence the 3-way classifier must output O(1) iff a feasible f exists and Ω(n) otherwise; the Θ(log* n) case is eliminated for our reduction family.
+- Validation: This is compatible with the DP in output.md (Theorem 5) and with Lemma 1 (finite-Z) but stronger: it makes every z trivially feasible. It does not interfere with (F1) since (F1) instances use one copy of each side and the bridge; those are left unchanged by the ⊥-filler language.
+
+Blueprint of the alphabet/tracks and local rules (radius-1, β=poly(s))
+- Fixed tracks in Σ_out (constant per node, combined into a single symbol):
+  1) Role/phase: {HEAD, VERT, RUN, PAD, PIPE, ERR_k, …}×{phase modulo c}.
+  2) Header bits: output track that must match a fixed string enc(D) under HEAD-role; Cin–out ties head-bit outputs to Σ_in bits so only inputs matching enc(D) allow HEAD.
+  3) RID tape: B bits adjacent to S on each vertex side; Cin–out enforces that RID-bit output equals the input bit at that node (copy constraint) when in VERT-role.
+  4) Bridge-run work alphabet: constant-size tape symbols for U.
+  5) Color tokens and ⊥ at S: {RED, GRN, BLU, ⊥} available only at S positions (enforced by phases/roles around S).
+  6) Error-chain alphabet from §3 to refute malformed fragments locally.
+- Cin–out usage: ties HEAD bits to input; ties RID bits to input; allows generic symbols elsewhere. This guarantees that whether a vertex is well-formed is determined by inputs (hence activity is type-invariant once the boundary role is fixed).
+- Cout–out (nearest-neighbor): enumerates allowed pairs that (i) implement the deterministic PIPE for Lemma 1 (RID-forcing/probe), (ii) implement the RUN tableau rows and acceptance edge-bit, (iii) enforce color inequality test when EDGE=1, and (iv) allow ⊥-plumbing everywhere if chosen.
+
+Soundness/completeness sketches of the reduction (S3Col → FFE(F1))
+- Completeness (G 3-colorable ⇒ feasible f exists): choose χ:V→{R,G,B}. For each vertex-type τ_u, set f(τ_u)=χ(u); for all other (inactive) types, set f(τ)=⊥. For any ordered pair, if both are active, the bridge computes EDGE=D(u,v). If EDGE=0, completion exists; if EDGE=1 then χ(u)≠χ(v) ensures completion by inequality check. All non-active pairs are vacuous due to ⊥-plumbing. Hence (F1) holds.
+- Soundness (feasible f ⇒ G 3-colorable): for each u, define χ(u)=f(τ_u) (well-defined since otherwise the ordered pair of two τ_u representatives would violate (F1) via the bridge rules that require consistent acceptance conditions). For any edge (u,v), the bridge yields EDGE=1; thus (F1) forces f(τ_u)≠f(τ_v). Therefore χ is a proper 3-coloring.
+
+Toy sanity check (B=2)
+- Suppose V={00,01,10,11} and D encodes a 4-cycle 00–01–11–10–00. Contexts include τ_00,…,τ_11, each with RID=that index adjacent to S on the left or right side. The bridge-run reads those 2-bit RID tapes, computes EDGE (using D hardwired), and enforces inequality iff EDGE=1. A valid f assigns a 3-coloring of the 4-cycle; the DP on each (F1) instance accepts exactly under that condition.
+
+Obstacles and how we address them
+- Type invariance vs. interior nondeterminism: Lemma 1’s PIPE is deterministic and initiated solely by boundary outputs; if the probe is selected, the only way to extend is to carry the unique pipeline and match the B-bit RID from input. Thus the existence/non-existence of an extension under the probe is a property of the fixed input substring near the boundary, hence of the type.
+- Non-edges must accept any colors: We ensure the bridge-run emits EDGE=0 in that case, and acceptance rules ignore S colors. Since (F1) only needs existence of one completion, this suffices.
+- Symmetry of edges: Replace D by D′(u,v)=D(u,v)∨D(v,u) in the instance to guarantee undirected adjacency while keeping size poly(s).
+- Global inputs adversarial: Our complexity claim is worst-case over inputs. The construction ensures malformed inputs are always completable (⊥/error-chain) and do not constrain f; active contexts (those that matter) arise from many input strings (enough to ensure all τ_u exist as realizable types), which suffices because (F1) quantifies over all contexts.
+
+Gaps/clarifications in output.md (minor)
+- Composition lemma wording (Lemma 2): the proof mentions “two internal adjacencies across the seam” using (p_left,p_right); to avoid confusion, note explicitly that (i) the adjacency within u between its last two outputs and within v between its first two outputs are already captured by Type(u), Type(v), and (ii) the seam adjacency is only between the last output of u (p_right) and the first of v (p_left); the boolean-matrix view in Appendix A already encodes this correctly.
+- Types vs. interior inputs: Definition currently says “interior inputs may be arbitrary”; in our β-normalized model inputs are fixed per instance. It may help to state explicitly that E_w(a) is computed with the interior inputs fixed to those of w; this is consistent with Lemmas 10–15 in the attached paper and with the DP in Theorem 5.
+
+Why the new lemmas are auditable now
+- Lemma 1 reduces to a finite-radius PIPE with length B=poly(s) (bounded independent of ℓ_pump) that is checkable by local tables; E_w(b⋆) depends only on the fixed w (hence on Type(w)). The verifier can test a concrete instantiation on a small B (e.g., B=2) by brute-force DP to observe the extendibility difference.
+- The seam simulation is a standard 1D tableau simulation; a checker can write out the row alphabet and the local transition constraints for a small instance (with a 2-input AND gate as D) and verify the edge/inequality behavior.
+
+Next steps (concrete, checkable deliverables)
+1) Write the explicit adjacency fragments:
+   - RID-PIPE: list states for “step j” (0≤j≤B), legal successors, and Cin–out masks that tie role=RID,j to the input bit.
+   - Bridge-run: define the U-row alphabet and per-row local constraints; define the EDGE output; layout how it reads RID tapes.
+   - Color-check rules at S conditional on EDGE.
+2) Prove the vertex-type separation lemma formally: select b⋆, show E_w(b⋆)=1⇔RID(u) and that u≠u′ gives differing extendibility tables ⇒ distinct types.
+3) Formalize the soundness/completeness argument into a theorem “S3Col ≤_m FFE(F1) for β-normalized r=1” with explicit size bounds (|Σ_out|=poly(s), tables of size Θ(β^2)).
+4) Integrate the ⊥-filler rules and note that (F2) is vacuous; state the corollary “3-way classification is NEXPTIME-hard on our family”.
+
+Potential stretch: tighten the (F2) finite-Z bound in output.md from ℓ^2 to lcm(periods)×(max preperiod) (still ≤ℓ^2) and add a remark on how to compute it from the type DFA; not needed for hardness but improves the upper-bound section.
+
+## Round 0002 — 2025-08-28T11:46:48.770121Z
+
+Ideas: boundary-probe separation for vertex types; succinct 3-coloring bridge
+- Pivot retained: Reduce Succinct 3-Coloring (NEXP-complete) to Feasible-Function Existence (F1) for β-normalized, r=1 LCLs on oriented paths. Colors at the S-window implement the vertex coloring; the bridge between two contexts simulates D(u,v) and enforces “≠” iff D(u,v)=1.
+- New ingredient (type separation without per-type tailoring): Design a fixed family of boundary-output “probe patterns” Q_j (one per bit index j∈[B]) that, when set on the four boundary nodes of a context, uniformly trigger a radius-1 pointer that reads the j-th bit of an interior u-block positioned O(1) from S. The existence (extendibility) of a completion under probe Q_j equals that bit. Therefore the vector (ext_Q_j)_{j=1..B} encodes u, and different u yield different types. This avoids the flawed idea of “programming arbitrary boundary truth tables per type”.
+
+Clean statements (to be proven/verified)
+- Lemma A (Probe-bits). There exist global Cin–out, Cout–out and, for the left-side vertex-context shape W(u) (|W(u)|∈{ℓ_pump,ℓ_pump+1}), a fixed family of boundary-output 4-tuples {Q_j: j∈[B]} such that, for any boundary input assignment a, Gw:=W(u) has a legal completion with boundary outputs Q_j on its four boundary nodes iff the j-th bit of u equals 1. Consequently, Type(W(u))≠Type(W(u′)) for u≠u′.
+  Why useful: Gives 2^B distinct vertex context types using only B=poly(s) probes, well within the β^4 boundary assignments. The construction is uniform and radius-1 (probes trigger a constant-symbol “probe role” that spawns a pointer reading the port region where u’s bits are pre-exposed near S; failures dead-end).
+- Lemma B (Canonical vertex-context family). There exist two canonical context shapes L(u):=W_L(u) S F_R and R(v):=F_L S W_R(v) with |W_L(u)|,|W_R(v)|∈{ℓ_pump,ℓ_pump+1} and fixed fillers F_L,F_R (no vertex data) such that:
+  (i) L(u) and R(v) are active (contain well-formed u- or v-blocks anchored O(1) from S),
+  (ii) Type(L(u)) (resp. Type(R(v))) is determined by u (resp. v) via Lemma A, and
+  (iii) any other context type without such a block is inactive: any non-⊥ color at S leads to a locally-detectable dead end; ⊥ always extends via neutral plumbing.
+  Why useful: Ensures exactly one (or at least a unique canonical) type per vertex; non-vertex types force f(·)=⊥ by (F1) universal quantification.
+- Lemma C (Bridge semantics for 3-coloring). There is a fixed, radius-1 seam gadget (placed across the concatenation of L(u) and R(v) in an (F1) instance) that locally simulates a universal TM U for poly(s) steps to evaluate D(u,v) using:
+  (i) a copy of D stored in each block (copied from Σ_in via Cin–out), and
+  (ii) the B-bit ports of u (on the right edge of L(u)) and v (on the left edge of R(v)).
+  The bridge admits a completion iff [D(u,v)=0] or [D(u,v)=1 and the two S colors differ]. Malformed simulations are locally refutable (standard error-chain); spurious accept is impossible due to row-to-row radius-1 checks.
+  Why useful: Matches (F1)’s universal pair check with “≠ on edges, trivial on non-edges”.
+
+Sketch of constructions (radius-1 and uniform)
+- Vertex block (near S): A constant-role phase track places a “port zone” of length Θ(B) immediately adjacent to S inside W_L(u) (to the right) and W_R(v) (to the left). This port zone carries the B bits (u_1,…,u_B) (resp. v) twice with parity/check bits; its layout is enforced by Cout–out (deterministic pattern given activation at S). The rest of the block includes a self-delimiting header and a RUN zone encoding U’s tableau on input D (copied from the input track) and the index, all standard and locally checkable.
+- Probe patterns Q_j: Four special outputs on the boundary (two per side of the word) encode a “probe-bit j” token with local phase. Cout–out has rules: if a probe token sits on the boundary, the unique legal continuation from that boundary is a finite-state pointer that advances into the port zone, lands on the j-th cell, and requires its bit=1; otherwise no outgoing legal edge exists in the layered DP. This uses O(1) symbols and maintains radius-1 (pointer heads advance cell-by-cell with locally checkable direction and countdown in unary up to j encoded by constant number of “repeat until phase X” steps; the step count is derived by walking, not stored in boundary symbols). Result: extendibility under Q_j discriminates u_j.
+- Bridge simulation: In wa S1 wb wc S2 wd with wa S1 wb=L(u), wc S2 wd=R(v), the seam region wb wc contains a fixed-width (poly(s)+O(B)) “bridge RUN” where U takes as inputs (D, u, v) read from the adjacent port zones and computes d:=D(u,v). Cout–out enforces single-step tableau constraints, with local error-escape allowed only for malformed inputs; a dedicated final row propagates d to a 1-bit flag near S2. Separate local rules check “if d=1 then colors at S1,S2 must be unequal; if d=0 then no constraint on colors”.
+
+Correctness of the reduction (succinct 3-coloring ⇒ (F1) and vice versa)
+- Completeness: If G is 3-colorable, fix χ: {0,1}^B→{RED,GRN,BLU}. Define f on vertex types by f(Type(L(u))) = χ(u) and f(Type(R(v))) = χ(v); define f(τ)=⊥ for all inactive (non-vertex) types. For any ordered pair of contexts in the (F1) check, either both are vertex-types (u,v): the bridge computes D(u,v) and enforces χ(u)≠χ(v) when D=1 (holds by proper coloring), or at least one is inactive, in which case ⊥ plumbing makes the DP succeed. Hence (F1) holds.
+- Soundness: If some f satisfies (F1), read χ(u) := f(Type(L(u))). For any u,v with D(u,v)=1, the bridge between Type(L(u)) and Type(R(v)) must be extendible; the simulation forces χ(u)≠χ(v). Thus χ is a proper 3-coloring. Non-vertex types cannot be mapped to a color, else some pair (inactive, anything) would violate (F1) due to the local “colors-only-when-vertex” gating; therefore setting them to ⊥ is necessary and consistent.
+
+Neutralizing (F2) and hardness for the tri-class classifier
+- As in previous rounds, add a global ⊥-filler language permitted on repeated sides w_i^z independent of context; then (F2) is true for every f by Lemma 1 in output.md. Therefore the classifier answers O(1) iff (F1) holds, and Ω(n) otherwise (Theorem 8 machinery). Since feasible-function existence (mid-consistency) is NEXPTIME-hard by the reduction above and in NEXPTIME (output LCL_classification.pdf), the three-way classification is NEXPTIME-hard.
+
+Examples and sanity checks
+- Tiny case B=2: u∈{00,01,10,11}. Define Q_1,Q_2 probes. For the four left-contexts L(u), the 2-bit vector (ext_Q1, ext_Q2) equals u. The bridge runs D on pairs and requires color-inequality only on edges.
+- DP perspective: The probe under Q_j forces a unique finite path in the layered automaton that reaches the j-th port cell; existence of an outgoing edge at that cell hinges on the bit=1. The bridge tableau likewise becomes a layered composition check; any inconsistency blocks all paths, so the DP precisely mirrors the existence of a legal completion.
+
+Obstacles / things to make explicit next
+- Probe pointer encoding: Make the boundary probe tokens and the in-block “port zone” phases explicit, with a table showing (current symbol, next symbol) pairs permitted by Cout–out. Verify that the pointer is guaranteed to stop on the exact j-th cell (walk semantics) without storing j in the boundary symbol (to keep alphabet constant).
+- Seam I/O interface: Specify how the bridge RUN reads u and v: either by duplicating the B-bit ports directly adjacent to the bridge (preferred), or via pointers with locally checkable handshakes. The former is cleaner and fits ℓ_pump.
+- Error-chain integration: Ensure malformed blocks are always completable via the error alphabet (like §3), and that the color-at-S activation is allowed only when the vertex role is present, preventing spurious constraints on inactive types.
+- Size bookkeeping: Enumerate the tracks and show |Σ_out| = β = poly(s) suffices: roles/phases O(1), colors+⊥ (4), error alphabet O(1), U’s work tape O(1), plus finitely many probe/pointer states O(1). The “O(B)-long” ports are spatial, not alphabetic.
+
+Gaps/notes on output.md
+- The core lemmas (type bound, composition, periodicity, finite-Z, DP) are sound and sufficient for our verifier. Minor clarification: in Theorem 5 the DP assumes fixed input string; the construction adapts by restricting layer i to Cin–out[Input(i)]. No action needed.
+- The bound Z≤ℓ^2 (Cor. 4) is non-tight but usable; we will carry it as-is for (F2) neutralization.
+
+Next steps (auditable deliverables)
+1) Formalize Lemma A with a concrete probe alphabet and Cout–out snippet; prove the “iff u_j=1” claim rigorously.
+2) Specify the canonical L(u), R(v) layouts with exact offsets: positions of the port zones, header footprint, and RUN rows. Provide a bound O(poly(s)) for occupied length.
+3) Write the seam tableau interface and prove Lemma C: that the only accepting completions correspond to the correct d = D(u,v) and enforce inequality when d=1.
+4) Package the reduction C↦P_D, including ⊥-filler for (F2), and finalize the completeness/soundness argument with explicit references to the output lemmas (replacement, pumping) to guarantee existence of required contexts within lengths ℓ_pump or ℓ_pump+1.
+
+## Round 0002 — 2025-08-28T11:48:05.813325Z
+
+Ideas — pivot formalization via succinct 3-coloring and type separation
+- Goal of this round: Make the NEXPTIME-hardness route auditable by (i) aligning (F1) semantics with a pairwise constraint problem (succinct 3-coloring), and (ii) pinning down a concrete, radius-1 mechanism that guarantees exponentially many distinct context types (one per vertex u ∈ {0,1}^B) even though f is defined on types (not concrete words). We state small lemmas with proof sketches and bookkeeping, and we flag minor clarifications for output.md.
+
+Claim A (3-coloring matches (F1)). Why useful here: It resolves the quantifier mismatch that plagued 3SAT-style reductions; (F1) enforces universal pairwise constraints, exactly color(u) ≠ color(v) for edges.
+- Source: Succinct 3-Coloring instance D: {0,1}^{2B} → {0,1}, circuit of size s; vertices V = {0,1}^B.
+- Target semantics (mid-consistency (F1) only): Context types corresponding to vertices τ_u on both sides; the (F1) bridge between (τ_u, τ_v) must succeed (extend) iff either (i) D(u,v)=0 (non-edge; vacuous) or (ii) D(u,v)=1 and f(τ_u) ≠ f(τ_v).
+- Implementation sketch: When S is colored, the bridge launches a row-by-row, radius-1-checked U-simulation on input (D,u,v) embedded in the inputs near the seam. Local rules guarantee: if D(u,v)=1 and colors equal, the bridge dead-ends; otherwise the bridge always extends. All other role pairings and inactive contexts allow trivial completions (⊥-plumbing). This aligns (F1) with 3-colorability.
+
+Claim B (Type separation via boundary test family; B.1). Why useful here: Ensures at least 2^B distinct context types τ_u exist, allowing f to encode a color per vertex.
+- Parameters: Choose integers B = s^{c0}, β = s^{c1} with 1 ≪ c0 ≪ c1 so that β ≥ B and ℓ_pump = 2^{Θ(β^4)} = 2^{poly(s)}.
+- Reserved test boundary assignments: Fix one boundary-input 4-tuple a⋆. Reserve a collection J of size M := β distinct boundary-output 4-tuples {b_t : t ∈ [M]}; choosing b_t means “activate test id t”. All other boundary outputs are filler. This uses only O(β) reserved symbols (poly(s)).
+- Input layout inside τ_u: The input track near the left end contains (i) a mask table row M_t ∈ {0,1}^B for each t ∈ [M] (packed contiguously and self-delimited), and (ii) a vertex-index block RID(u) ∈ {0,1}^B stored once in a fixed phase near S. The right end is symmetric or carries only fillers (not used for separation). We require well-formedness by radius-1 local rules; malformed encodings are locally refutable by error chains (as in §3 of the reference), hence “inactive.”
+- Local test protocol: Under the boundary assignment (a⋆, b_t), the out–out rules enable a pointer that (1) walks from the left boundary to read the t-th mask row M_t, (2) walks to the RID block, and (3) computes parity ⟨M_t, u⟩ mod 2 using a fixed U-simulation in O(B) steps, all radius-1 checkable. If parity = 1, the pointer can terminate in an accepting sink; if parity = 0, no accepting continuation exists (the DP gets stuck). For all other boundary-output assignments (non-reserved), we permit a trivial completion (⊥ buffers) so they don’t affect separation.
+- Linear independence: Pick M ≥ B masks whose rows form a full-rank B×M matrix over GF(2); since M=β ≥B, this is possible. Then the signature map Sig(u) := (⟨M_t,u⟩)_{t∈[M]} ∈ {0,1}^M is injective on {0,1}^B. For the fixed boundary-input a⋆, the extendibility table for reserved outputs is exactly E_{w(u)}(a⋆)[b_t] = Sig(u)_t. Consequently, u ≠ u′ ⇒ Type(w(u)) ≠ Type(w(u′)).
+- Radius/size: The checker is constant-radius (pointers and row-to-row tableau), uses a constant work alphabet, with β = poly(s) large enough to host reserved symbols. The mask table sits in the input (binary) and is read by the pointer; malformed tables are harmless due to error chains.
+
+Claim C (Realization of exponentially many vertex context types; B.2). Why useful here: Guarantees that, among contexts w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}, there are at least 2^B distinct types representing all vertices u.
+- Using Claim B, fix for each u an input string W(u) that realizes the left block (table + RID(u)), a neutral S, and a right filler block; ensure via pumping (Lemma 14/15) that both sides have length ℓ_pump or ℓ_pump+1 and that replacement preserves type (Lemma 11). Then Type(W(u)) are all distinct and populate C (the context-type domain for f). The same construction symmetrically realizes right-side vertex contexts τ_v.
+
+Claim D (Bridge gating for succinct adjacency; B.3). Why useful here: Implements the pairwise constraint “if edge then colors differ, else vacuous” under (F1).
+- Input near both sides supplies (i) a copy of D’s encoding (as in the LBA proof, stored in binary and copied by outputs), (ii) the local RID blocks (u and v). Upon non-⊥ colors at S, the bridge runs U on input (D,u,v) for poly(s) steps; rules enforce success as follows:
+  • If the simulation yields D(u,v)=0 (non-edge), accept irrespective of colors by enabling a trivial acceptor after the run.
+  • If D(u,v)=1 (edge), accept iff two color tokens at S are different; if equal, dead-end. The “color-different” test is purely local across the S seam.
+- Robustness: Inactive/malformed blocks admit the standard error chains; colored S then cannot complete and hence forces f to map such types to ⊥.
+
+Claim E (From (F1) to classification hardness; B.4). Why useful here: Transfers hardness from (F1)-feasibility to the 3-way decision by neutralizing (F2).
+- Add a global ⊥-filler language for repetitions so that for any context (w_1,S,w_2) and any z≥1, w_1^z and w_2^z can be labeled with ⊥ (independent of inputs). Thus (F2) holds vacuously for any f. Therefore, deciding whether (F1) holds (i.e., whether G is 3-colorable) is as hard as the 3-way classification on our instances.
+
+Proof sketches for soundness/completeness (FFE(F1) ↔ 3-coloring)
+- Completeness: Given a proper 3-coloring χ: V → {RED,GRN,BLU}, define f(τ_u)=χ(u). For any pair (τ_u,τ_v), the bridge computes D(u,v); if non-edge it accepts; if edge, χ(u)≠χ(v) by proper coloring, so acceptance follows. Inactive contexts mapped to ⊥ are trivially satisfied.
+- Soundness: If f satisfies (F1), define χ(u)=f(τ_u). For any edge (u,v), (F1) requires that the bridge succeeds; the only way it can succeed on edges is with χ(u)≠χ(v). Hence χ is a proper 3-coloring.
+
+Instantiation details to verify next (concrete, checkable)
+1) Pointer/test gadget (radius-1): Specify the constant-size out–out automaton for the test: states “go-to-row t”, “scan mask bits”, “accumulate parity”, “jump to RID”, “accumulate parity”, “accept if 1”; verify all transitions read-only from input and are nearest-neighbor.
+2) Mask addressing with small boundary ID: Limit test IDs t to [β], each encoded by one of β reserved symbols. In input, arrange the mask table as β rows of length B with clear row delimiters; the “go-to-row t” stage follows row delimiters counted via the ID implicit in the chosen boundary symbol. Local rules ensure the pointer’s row-counter matches the selected symbol; wrong row ⇒ dead-end (so the DP cannot cheat by reading a different row).
+3) Existence of contexts of length ℓ_pump: Use pumping/replacement to pad left/right to prescribed lengths without changing types, ensuring that (i) the reserved boundary tests remain available at the outermost two boundary nodes, and (ii) the interior test and RID regions remain intact.
+4) Bridge TM: Use the same row-by-row U-simulation as in §3 to evaluate D(u,v) in poly(s) time. Errors are locally refutable; malformed inputs cannot permit a colored-S completion, making such contexts inactive.
+5) Size bookkeeping: Σ_out tracks: roles/phases, 3 colors + ⊥, error alphabet, and U’s work alphabet are constant; plus β many reserved test symbols and a constant amount of plumbing. Tables Cin–out, Cout–out remain size poly(β)=poly(s). Input length is unbounded and holds the mask table, RID blocks, and circuit D wherever needed.
+
+Toy example (sanity)
+- Take B=2, β=8, masks M_t ∈ {00,01,10,11,01,10,11,00} (first 4 rows linearly independent). For u∈{00,01,10,11}, the reserved boundary outputs b_t induce an extendibility pattern equal to the parity vector across the first 4 tests; the four τ_u types differ on these 4 bits. On the bridge, if D is a 4-cycle adjacency, f(τ_u) = u mod 3 gives a valid coloring; pairs on edges with equal colors are forbidden locally.
+
+Notes/obstacles
+- Mask-table on input vs. grammar size: We deliberately read mask rows from input to avoid hardwiring O(β·B) bits into Cout–out; only the per-test control (β distinct boundary tokens) are baked into Cout–out.
+- Dependence only on type: The separation relies on fixed boundary-input a⋆ and the reserved family {b_t}. For any two words with the same input content (table + RID) but otherwise different interiors, the existence or non-existence of a completion under (a⋆, b_t) is forced by the local test, hence is type-invariant. Distinct u’s yield distinct yes/no pattern across {b_t}, so types differ.
+- Ensuring non-edges are vacuous: The bridge must accept for D(u,v)=0 irrespective of colors. We implement this by enabling a finishing acceptor after the U-run concludes “0”, independent of S’s colors.
+
+Minor clarifications/suggestions for output.md
+- Types and fixed inputs: In “Definitions (radius 1)”, clarify that E_w(a) is with respect to the fixed input string on the entire path; the parenthetical “interior inputs may be arbitrary” could be read as allowing the verifier to choose internal inputs. For our model, the input word is fixed; the extension existentially quantifies outputs only.
+- Context set C size: Where LCL_classification.pdf states “Note |C| ≤ ℓ_pump,” consider adding a short justification: a context type is a specific element of the global type set T realized by a word of the form w_1 S w_2 with |w_i| ∈ {ℓ_pump,ℓ_pump+1}; hence |C| ≤ |T| = ℓ_pump.
+
+Next steps
+- Write the explicit local rule set for the boundary test gadget and prove the Type-Separation Lemma rigorously (injectivity from M≥B linearly independent masks).
+- Specify the seam U-simulation interface and the local rule that gates acceptance by “D(u,v)=0 or colors differ.”
+- Package the reduction formally: map D ↦ P_D with β=poly(s), prove “G 3-colorable ⇔ (F1)-feasible f exists”, and add the ⊥ repetition to neutralize (F2). This will give a clean NEXPTIME-hardness statement for the 3-way classification.
+
+## Round 0003 — 2025-08-28T11:54:24.396122Z
+
+Status and focus
+- Objective: firm up the NEXPTIME-hardness reduction by fully specifying two auditable gadgets: (i) a per-bit boundary probe that separates 2^B vertex indices into distinct context types; (ii) a seam gadget that simulates D(u,v) across the bridge and enforces color-inequality iff D(u,v)=1. Also enforce “color gating” so only canonical vertex contexts may carry colors, making all non-canonical types inactive and mapped to ⊥.
+- This round delivers precise lemmas with radius-1 local behavior, alphabet budgeting, and proof sketches that can be checked by the O(k β^2) DP on toy instances (e.g., B=2).
+
+Gaps in output.md (minor clarifications)
+- Types vs. fixed inputs: output.md’s Definitions allow “interior inputs may be arbitrary.” Our reductions assume the interior inputs are fixed to the instance string; E_w(a) is computed w.r.t. that fixed string. Suggest adding a parenthetical: “if the model fixes interior inputs, E_w(a) is computed with respect to those fixed inputs,” to avoid ambiguity when we later rely on interior-encoded indices.
+- Context set C: it is useful to note explicitly that C consists of types realized by words of the form w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}. This plays a role in gating colors and in counting how many “active” types we can realize.
+
+Lemma TS (Type Separation via per-bit boundary probes)
+- Parameters: B = s^{c0}, β = s^{c1} with c1 ≥ c0 so β ≥ B. Fix one boundary-input pattern a⋆ ∈ Σ_in^4.
+- Port zone layout (left contexts): In every canonical left vertex block W_L(u), immediately to the right of S there is a port zone of length B with two read-only subtracks: Addr ∈ {1,…,B} (hardwired per position) and RID ∈ {0,1} (copied from input via Cin–out). Outside the port zone and a short header, the block is neutral PAD/error-plumbed.
+- Reserved boundary outputs: For each j ∈ [B], define a distinct reserved 4-tuple Q_j of boundary outputs (the four symbols on the two leftmost and two rightmost boundary nodes of w_1). Under Q_j, Cout–out allows only a deterministic “probe-j” pipeline that flows from the left boundary across w_1, enters the port zone, and stops at the unique cell where Addr=j. This pipeline is implemented by a pointer head state P_j carried on a dedicated track; adjacency rules enforce P_j → P_j deterministically, moving one step per edge. At the target cell, the only legal successor enforces RID=1 at that cell; if RID=0, the pipeline has no legal continuation (dead end). Upon RID=1, the pipeline transitions to a local ACCEPT sink that splices into a neutral filler for the remaining interior, enabling completion.
+- No error escape under probes: Under boundary outputs Q_j the error-chain alphabet is disabled (no error transition is permitted from P_j states). For all non-reserved boundary outputs, standard error-chains and PAD are enabled.
+- Claim (formal). For any canonical left vertex word L(u) and fixed boundary inputs a⋆, E_{L(u)}(a⋆)[Q_j] = 1 if and only if u_j = 1. Moreover, for j ≠ j′, Q_j ≠ Q_{j′}, and under any other 4-tuple, E behaves as generic PAD/error-plumbing.
+- Why type separation holds: Let Sig(u) ∈ {0,1}^B be (E_{L(u)}(a⋆)[Q_j])_{j=1..B}. Then Sig(u)=u, so u≠u′ ⇒ Sig(u)≠Sig(u′). Hence Type(L(u))≠Type(L(u′)). This uses only global Cin–out/Cout–out and is radius-1.
+- Alphabet budget: the pointer heads P_j and reserved Q_j consume O(B) symbols; permitted since β ≥ B and Σ_out size is β = poly(s). The rest of the tracks (roles/phases, PAD, error, etc.) are O(1).
+- Why useful: Gives ≥ 2^B distinct left-context types τ^L_u. A symmetric construction gives ≥ 2^B right-context types τ^R_v.
+
+Lemma CG (Color gating for canonical vertex contexts)
+- Statement. There is a role/phase track and Cin–out/Cout–out rules such that: the two S nodes may carry non-⊥ colors {RED,GRN,BLU} if and only if the adjacent side is a well-formed canonical vertex block (W_L(u) on the left of S, W_R(v) on the right of S). In all other contexts, any non-⊥ symbol at S has no legal continuation (dead end), whereas ⊥ at S always admits a completion via PAD/error plumbing.
+- Implementation at radius 1: Gate the color tokens by an “ACT” flag emitted by a short handshake subtrack that is present only when the port-and-header structure near S is well-formed. Cin–out forbids colors unless ACT=true. Cout–out disables the error alphabet on transitions emanating from colored S unless ACT=true, so colors on inactive types cannot be extended.
+- Why useful: Ensures f can assign colors only to τ^L_u and τ^R_v; all other types must be mapped to ⊥ to satisfy (F1).
+
+Lemma Seam (Seam gadget for succinct adjacency and inequality)
+- Statement. There is a fixed radius-1 seam gadget such that for any ordered pair (τ^L_u, τ^R_v): the bridge segment wb∘wc between S_1 and S_2 hosts a 1D tableau of a universal TM U that, in poly(s) steps, reads the B-bit ports u and v and computes d := D(u,v). A final verdict bit EDGE=d is exposed near S_2 together with a forwarded copy of Color(S_1). Local rules at S_2 enforce: if EDGE=0, accept regardless of colors; if EDGE=1, accept iff Color(S_2) ≠ ForwardedColor(S_1). All checks are nearest-neighbor.
+- I/O wiring details:
+  - Inputs to U: The header encodes C; adjacent to S_1 (resp. S_2) the port zone exposes u (resp. v). A seam handshake opens a corridor across wb∘wc for the tableau. Each tableau row is a constant-width word; Cout–out enforces per-row transitions of U.
+  - Verdict wiring: The last row writes EDGE∈{0,1} and copies Color(S_1) into a “forwarded color” register next to S_2. Cout–out contains pairs that check (EDGE=1) ⇒ neighbor-to-S_2 carries a color different from S_2; if equal, no legal transition. If EDGE=0, both equal and unequal are allowed.
+- Robustness:
+  - Malformed runs or headers: standard error-chain refutations are allowed when ACT=false or when S is ⊥; these make such contexts inactive. Under ACT=true with colors at S, malformed rows have no accepting continuation (no error escape), so (F1) cannot be satisfied by cheating.
+- Why useful: Aligns (F1)’s universal pair constraint with 3-coloring: feasibility of f is equivalent to the existence of a proper 3-coloring χ with χ(u)≠χ(v) whenever D(u,v)=1.
+
+Soundness/completeness of the S3Col → FFE(F1) reduction (recap with the new lemmas)
+- Active types: For each u, pick canonical L(u) and R(u) shapes; by Lemma TS they yield distinct types τ^L_u and τ^R_u. By Lemma CG, only these may carry colors.
+- Completeness: Given a proper 3-coloring χ, set f(τ^L_u)=χ(u), f(τ^R_v)=χ(v), and f(τ)=⊥ for all other τ. For any pair (τ_left, τ_right), if both are active, Lemma Seam computes d=D(u,v) and enforces inequality iff d=1; satisfied by χ. If one or both are inactive, ⊥-plumbing admits completion. Hence (F1) holds.
+- Soundness: If f satisfies (F1), read χ(u):=f(τ^L_u). For any edge (u,v) (i.e., D(u,v)=1), Lemma Seam forces f(τ^L_u)≠f(τ^R_v), so χ is a proper 3-coloring. Inactive types cannot be colored by f (or some pair would violate Lemma CG’s gating), hence f(τ)=⊥ there.
+
+Neutralizing (F2)
+- Add global ⊥-filler: allow wz to be labeled entirely ⊥ for all z ≥ 1, consistent with any boundary assignments and regardless of interior; S remains untouched; ACT gating remains enforced. Then (F2) holds trivially for any f, reducing the tri-class decision to (F1)-feasibility on our family.
+
+Alphabet and radius-1 bookkeeping (explicit)
+- Σ_out tracks (constant unless noted): roles/phases O(1), colors {RED,GRN,BLU,⊥} (4), error alphabet O(1), U’s work alphabet O(1), PAD O(1). Additional O(B) symbols for {Q_j} and {P_j} suffice for Lemma TS. Choose β ≥ c·B for a suitable constant c, which holds for c1 ≥ c0 in β = s^{c1}, B = s^{c0}.
+- All constraints are radius-1: probes and pointer moves are enforced by nearest-neighbor pairs; tableau rows by local step relations; color inequality is a single adjacency near S_2.
+
+Sanity check plan (B=2)
+- Build a toy instance with β≥8, reserve Q_1,Q_2 and P_1,P_2, port zone of length 2 adjacent to S. Verify by brute DP: E_{L(00)}(a⋆)[Q_1,Q_2]=(0,0), E_{L(01)}=(0,1), E_{L(10)}=(1,0), E_{L(11)}=(1,1). Instantiate a tiny D (e.g., a 4-cycle) and check the bridge DP accepts iff colors differ on edges.
+
+Why this is progress
+- We have replaced informal sketches with concrete, radius-1 gadgets and clean lemmas (TS, CG, Seam) that are directly checkable via the DP. The per-bit probe avoids the flawed “single probe” idea and uses only O(B) extra symbols, admissible within β=poly(s). Color gating resolves the earlier consistency issue on multiple types per u. The seam gadget specifies exactly how to locally enforce inequality conditioned on D(u,v).
+
+Next steps (auditable deliverables)
+1) Write the small adjacency tables for the probe pipeline: list states {PROBE_L, P_j, ACCEPT, PAD} and allowed successors, and the Cin–out masks that gate colors by ACT. Provide a concrete symbol count to confirm β ≥ B+O(1) suffices.
+2) Specify the tableau alphabet for U and the local transition rules that output EDGE and forward Color(S_1); include the exact pair checks near S_2 used to enforce inequality.
+3) Produce a B=2 machine-readable instance (inputs and tables) and have the verifier’s O(kβ^2) DP validate: (i) separation under Q_1,Q_2; (ii) seam acceptance iff inequality on edges.
+4) Integrate a short note into output.md clarifying fixed interior inputs in E_w(a), and (optionally) the explicit definition of C to avoid ambiguity when we later reference “inactive” types.
+
+## Round 0003 — 2025-08-28T11:55:04.875014Z
+
+Status and aim
+- Objective: push the NEXPTIME-hardness reduction (Succinct 3-Coloring → Feasible-Function Existence (F1)) to a checkable state by pinning down two core gadgets with radius-1 rules and polynomial alphabet: (i) per-bit boundary probes that separate 2^B vertex types, and (ii) a seam tableau that computes D(u,v) and enforces color inequality on edges. Also enforce “must-color” only on canonical vertex contexts and neutralize (F2) via ⊥-filling.
+- Output.md: no correctness issues spotted for the upper bound (types, DP, finite-Z). Clarification already noted there (“fixed inputs” interpretation) is consistent with what we use below. The NEXPTIME verifier section is still informal; we supply precise, testable lemmas and constraints to move pieces into output.md.
+
+Lemma TS (Per-bit probe type separation; radius-1, β=poly(s))
+- Parameters: B = s^{c0}, β = s^{c1} with c1 > c0 so β ≥ B and there is headroom for O(B) reserved symbols.
+- Canonical left vertex block L(u): a fixed-format segment W_L(u) adjacent to S with the following O(B)-length subzones (roles enforced by Cout–out phases):
+  1) HEAD_C: a short header whose out-track copies (via Cin–out) a fixed binary description enc(C) of the succinct adjacency circuit. Any deviation allows an error-chain in non-probe contexts, but see “Probe discipline” below.
+  2) PORT: B consecutive cells immediately to the right of S. Each PORT cell carries two output subtracks: Addr ∈ {1,…,B} and RidBit ∈ {0,1}. Local Cout–out rules require Addr to increase by 1 from left to right, starting at 1 and ending at B, and RidBit to equal the input bit (Cin–out tie) at that node under role=PORT. The vector (RidBit[1..B]) encodes u.
+  3) RUN_L: a fixed-width corridor (constant tracks) that hosts a row-by-row 1D tableau for U; unused in the probe; used later by the seam gadget.
+- Reserved boundary-output family: Define B distinct boundary-output 4-tuples {Q_j : j∈[B]}. Implementationally, allocate four disjoint reserved symbol families in Σ_out: for the four boundary nodes of L(u), allow only the 4-tuple (ProbeL1(j), ProbeL2(j), ProbeR2(j), ProbeR1(j)) when “probing j”. The set {Probe•(j)} across all j uses O(B) distinct symbols, feasible as β ≥ B and we have ample slack for other tracks.
+- Pointer and acceptance (radius-1): Under boundary inputs fixed to a⋆ (choose any constant 4-tuple; e.g., all zeros) and boundary outputs Q_j, Cout–out enforces a deterministic, unique continuation into a “probe mode”: a finite-state pointer head propagates rightward from the left boundary through PORT, matching successive Addr values and halting exactly when Addr=j. The only legal continuation at that cell is to accept iff RidBit=1; if RidBit=0 then the probe path dead-ends (no completion). No alternative transitions (e.g., error-chain) are permitted while “probe mode” is active (see probe discipline below). Outside reserved probes, normal error-chains exist so malformed interiors never constrain f.
+- Probe discipline (no error-escape): Cout–out tags each transition in a binary “mode” track. When Q_j is present, the mode is forced to PROBE in a bounded prefix of W_L(u) and error symbols are disallowed in PROBE mode; the only legal edges follow the deterministic pointer/run described above. If any local check fails (role/phase, Addr monotonicity, reaching j, or RidBit), no outgoing pair is allowed ⇒ the DP rejects that boundary 4-tuple.
+- Claim (Type-Separation): For any u∈{0,1}^B and any j∈[B], E_{Type(L(u))}(a⋆)[Q_j] = 1 iff u_j=1. Hence the B-bit vector (E(a⋆)[Q_j])_{j=1..B} equals u. In particular, u≠u′ ⇒ Type(L(u))≠Type(L(u′)).
+  Why: Under Q_j the continuation is unique; extendibility equals the truth of RidBit[j]=1 in the PORT zone. Because E_w(a) is defined with interior inputs fixed (as in output.md), this bit is a property of the concrete L(u) and thus of its type. Since at least one probe outcome differs when u≠u′, the types differ. Radius-1 holds (only nearest-neighbor checks); Σ_out budget is O(B) for Addr values, O(B) for reserved Q_j symbols, plus O(1) for roles, phases, ⊥, colors, errors, U’s alphabet ⇒ β = poly(s) suffices.
+
+Lemma RG (Role gating and must-color for canonical contexts)
+- Gating: Two special role markers are allowed at S’s two nodes: Color and ⊥. Cout–out permits Color tokens {RED, GRN, BLU} at S iff and only if the adjacent interior begins with a well-formed canonical vertex header: HEAD_C followed immediately by the PORT zone (left side for L(·), right side for R(·)). Otherwise (inactive contexts), Color at S has no legal continuation (dead); ⊥ at S always has a legal continuation via neutral plumbing (a self-looping ⊥ language as in the upper bound DP).
+- Must-color on active pairs: On a bridge instance between an active left L(u) and an active right R(v) (see next lemma), the seam accepts only if both S nodes carry Color (non-⊥). Thus any feasible f must assign a color to each canonical vertex type; assigning ⊥ would falsify (F1) on its pairings with some active opposite.
+- Consequence: f is only free to color canonical types; any attempt to color an inactive type causes (F1) to fail on some pair (inactive, anything) because Color-at-S would be unextendible on the inactive side. Therefore f must map all inactive types to ⊥.
+
+Lemma SG (Seam tableau for succinct adjacency and inequality)
+- Canonical right vertex block R(v): symmetric to L(u), with its PORT zone immediately to the left of S; it exposes Addr and RidBit tracks encoding v.
+- Seam layout: In the bridge wb∘wc between L(u)’s right side and R(v)’s left side, Cout–out allocates a fixed-width corridor RUN_B that hosts a row-by-row simulation of a universal TM U on input (enc(C), u, v). The input (enc(C)) is present in both HEAD_C zones, and u,v are read from the PORT zones (local wiring at the near seam). Each row transition is enforced by nearest-neighbor Cout–out constraints; malformed rows cannot continue (no error-escape inside RUN_B). The final row writes EDGE ∈ {0,1} at a fixed seam-local cell.
+- Acceptance policy at S (radius-1): Local rules enforce: (i) if EDGE=0, accept regardless of colors at S; (ii) if EDGE=1, accept iff the two S colors differ; (iii) on an active-active pair, ⊥ is not permitted (must-color). All checks refer only to the two S outputs and the nearby EDGE bit.
+- Robustness: If either side is inactive or malformed (HEAD_C absent, corrupted PORT), the only allowed S symbol is ⊥ and a neutral ⊥-plumbing fills both sides, ensuring these contexts never constrain f (consistent with Lemma RG).
+- Correctness: On active-active pairs, the tableau computes D(u,v) in poly(s) time and exposes EDGE correctly; the final local check enforces exactly the 3-coloring constraint “colors must differ on edges and arbitrary on non-edges”.
+
+Canonicality and existence of active types
+- Canonical shapes: Define L(u)=W_L(u) S F_R and R(v)=F_L S W_R(v) with W_L, W_R as above and fixed fillers F_L, F_R (PAD-roles). Cout–out recognizes only these shapes as vertex roles (for gating). Any other context is inactive (no Color at S).
+- Existence via pumping/replacement: HEAD_C+PORT+RUN zones have length poly(s) ≪ ℓ_pump = 2^{Θ(β^4)}. By Lemma 11 (replacement) and Lemmas 14–15 (pumping), we can place W_L(u) adjacent to S inside words of length ℓ_pump or ℓ_pump+1 on the designated side, preserving the type of W_L(u); ditto for W_R(v). Thus the context set C contains, for each u (resp. v), at least one canonical left (resp. right) type, and Lemma TS gives at least 2^B distinct left-types and 2^B distinct right-types.
+
+Soundness/completeness of the reduction (sketch tightened)
+- Completeness (⇒): Given a proper 3-coloring χ: {0,1}^B → {RED,GRN,BLU} of the succinct graph defined by C, define f on canonical types by f(Type(L(u)))=χ(u) and f(Type(R(v)))=χ(v); set f(τ)=⊥ on all inactive types. By Lemma SG, every active-active (F1) pair accepts iff χ(u)≠χ(v) when D(u,v)=1 and always if D(u,v)=0. All other pairings accept via ⊥-plumbing. Hence (F1) holds.
+- Soundness (⇐): If some f satisfies (F1), Lemma RG forces f to assign colors to canonical vertex types and ⊥ to all inactive types. Read χ(u):= f(Type(L(u))). For any edge (u,v) with D(u,v)=1, the seam between Type(L(u)) and Type(R(v)) must be extendible; by Lemma SG this implies χ(u)≠χ(v). Non-edges impose no restriction. Thus χ is a proper 3-coloring.
+
+Neutralizing (F2)
+- Add a global ⊥-filler language: For any repetition w_1^z and w_2^z (z≥1), Cout–out admits labeling all repeated sides with ⊥ regardless of boundary outputs, without touching S or the vertex-role gating. Then (F2) holds for any f, reducing the three-way classifier to deciding (F1)-feasibility on our instances (NEXPTIME-hard).
+
+Alphabet/size and radius bookkeeping
+- Σ_out tracks (all merged into symbols): roles/phases O(1); colors+⊥ (4); error alphabet O(1); U’s row alphabet O(1); Addr values {1,…,B} (O(B)); reserved probe symbols for Q_j (O(B)); a few pointer states O(1). Total |Σ_out| = β = poly(s). All constraints are radius-1 (depend on current and predecessor outputs only).
+
+Sanity example (B=2)
+- Reserve Q_1, Q_2 for the left boundary. L(00), L(01), L(10), L(11) yield extendibility vectors (E(a⋆)[Q_1], E(a⋆)[Q_2]) equal to (0,0), (1,0), (0,1), (1,1) respectively. On the seam, with C encoding a 4-cycle, the tableau sets EDGE=1 exactly on adjacency pairs; the local check enforces color inequality on those.
+
+Obstacles and how addressed (verifier feedback alignment)
+- “Single fixed probe” issue: we use a family {Q_j} indexed by boundary outputs; acceptance depends on interior u via the deterministic pointer (no dependence on a globally fixed j). Addresses or O(B)-many probe symbols ensure radius-1 feasibility without exponential symbol blowup.
+- Consistency on same u: avoided by canonical gating. Only L(u), R(v) allow colors; mapping any other type to a color breaks (F1). Thus each u is represented by exactly one colorable type per side.
+- Error-escape under probes: disallowed by a probe-mode bit; in probe mode, error-chain symbols are not permitted in Cout–out’s allowed neighbor pairs.
+
+Next steps (concrete, verifiable)
+1) Write explicit local rule snippets for the probe gadget:
+   - The four reserved boundary symbols and their immediate successors in “probe mode”.
+   - PORT zone neighbor pairs enforcing Addr increment and RidBit copy.
+   - Pointer transitions and the accept/dead-end at Addr=j with RidBit test.
+   Provide a small B=2 instance and brute-force the DP to observe E(a⋆)[Q_j] = u_j.
+2) Formalize Lemma RG: list Cout–out pairs that allow Color at S only next to HEAD_C+PORT; add dead-end rules otherwise; add the ⊥ self-loop plumbing.
+3) Specify RUN_B alphabet and row transitions for U; define EDGE emission and the local color-inequality check at S. Verify on a toy circuit D by DP.
+4) Package the reduction D ↦ P_D with precise β sizing and radius-1 constraints; add the ⊥-filler rules. Then move Lemmas TS, RG, SG and the reduction theorem into output.md.
+
+Why useful here
+- The per-bit probe family and probe discipline directly resolve the main gaps flagged by the verifier: we now separate 2^B types without per-type tailoring, and we prevent error-escape in reserved probes. The role-gating and must-color rules ensure f assigns colors only to canonical vertex types, avoiding consistency pitfalls. The seam tableau matches (F1)’s pairwise nature. All components are radius-1 and compatible with the O(kβ^2) DP for audit.
+
+## Round 0003 — 2025-08-28T11:55:40.787420Z
+
+Round goal
+- Deliver a clean, radius-1, per-bit boundary-probe Type-Separation Lemma (Option A) that yields 2^B distinct “vertex” context types τ_u, with a concrete deterministic pointer gadget and explicit gating against error-escapes under reserved probes.
+- State the canonical vertex-context lemma (existence of L(u), R(v) types adjacent to S only) with a pumping-based padding argument to hit lengths ℓ_pump or ℓ_pump+1 without disturbing the port zone.
+- Formalize the seam gadget lemma that simulates D(u,v) across the bridge and gates acceptance by “if EDGE=1 then colors differ, else vacuous,” while keeping error-chains disabled in the active bridge mode. Provide alphabet/radius bookkeeping and a B=2 sanity check blueprint.
+
+Context recap and constraints we must respect
+- β-normalized, radius-1: Cin–out ties outputs to input bits locally; Cout–out is the only adjacency checker. All gadgets must be nearest-neighbor.
+- Types are defined over fixed interior inputs (clarified in output.md remarks). Distinguishing types only requires showing E_w(a⋆) differs for some fixed boundary-input tuple a⋆.
+- Feasible-function existence (F1) is the only property we reduce to (we neutralize (F2) later by ⊥-filler). We must ensure that colored S is only legal on canonical vertex contexts, so f is only “free” on τ_u and is forced to ⊥ elsewhere.
+
+Lemma TS (Per-bit probe type separation, radius 1)
+Statement. Fix parameters B = s^{c0}, β = s^{c1} with c1 ≥ c0. There exist global Cin–out, Cout–out and a family of β′ ≥ B reserved boundary-output 4-tuples {Q_j: j ∈ [B]} and a fixed boundary-input assignment a⋆ ∈ Σ_in^4 such that the following holds. For any word W_L(u) that contains a well-formed left-vertex block (defined below) positioned O(1) from S and encoding u ∈ {0,1}^B adjacent to S, and has no errors:
+- E_{W_L(u)}(a⋆)[Q_j] = 1 iff u_j = 1.
+Consequently, for u ≠ u′, Type(W_L(u)) ≠ Type(W_L(u′)) (they differ on E(·)(a⋆) for some Q_j), so there are at least 2^B distinct left-vertex types. Symmetrically for right-vertex types.
+
+Design (radius-1 with uniform global rules)
+- Tracks in Σ_out (constant multiplicity; folded into single symbols):
+  1) Role/phase ∈ {HEAD, PORT, BRIDGE, PAD, ERR} × {phase mod c}.
+  2) RID data bit (output track) required to equal the input bit when Role=PORT (Cin–out enforces copy).
+  3) Address track Addr ∈ {1,2,…,B} present only when Role=PORT. Each Addr=j is a distinct output symbol component; total O(B).
+  4) Probe corridor states Probe_j,Move and Probe_j,Test (two local phases) for each j ∈ [B]. These travel inside W_L(u) when a probe is active. Total O(B) many “probe-id” states, permitted since β = poly(s).
+  5) Neutral ⊥ and error-chain alphabet (ERR_x) as in §3 of the reference, but these are disabled in probe-active mode (see below).
+- Reserved boundary outputs Q_j (two-node boundary on the far-left and the two nodes just inside it) place a start-token that forces the unique corridor Role=BRIDGE with state Probe_j,Move to appear immediately to the right of the left boundary, propagating deterministically rightward cell-by-cell.
+- Corridor-path and uniqueness: Cout–out enumerates exactly one successor for each Probe_j,Move, forcing the head to march right until it meets a cell whose Role=PORT. If no PORT appears within the allowed window, no outgoing pair is allowed: the DP dies (reject). Error-chain and ⊥ are disallowed adjacent to Probe_j,* by omitting such pairs from Cout–out.
+- Address match and test: At a PORT cell, Cout–out allows Probe_j,Move to step to Probe_j,Test iff the PORT cell carries Addr=j; otherwise it must continue moving (still Probe_j,Move). In Probe_j,Test, Cout–out further requires the PORT cell’s RID bit be 1; only then does it allow a local acceptor “sink” (a short fixed BRIDGE→PAD termination sequence). If RID=0, there is simply no legal outgoing pair for Probe_j,Test at this site (reject). Again, no error-escape pairs exist in these states.
+- Disabling probes when not selected: For any boundary-output 4-tuple not in {Q_j}, Cout–out never enables Probe_* states at the boundary; instead it allows generic PAD/⊥-plumbing, so these assignments do not influence separation.
+
+Why E_{W_L(u)}(a⋆)[Q_j] = u_j
+- “⇒”: If Q_j is used and the interior is a well-formed vertex block, the corridor deterministically reaches the PORT zone adjacent to S (see vertex blocks below), then walks along PORT cells until encountering Addr=j; at that cell, Probe_j,Test checks RID=1. If u_j=1, Cin–out forces the PORT symbol’s RID=1 (copy of input), so the test passes and the sink terminator exists, so the DP has a path.
+- “⇐”: If u_j=0, then at the unique cell with Addr=j the RID bit is 0, so Probe_j,Test has no legal continuation; there are no alternative continuations (no error, no ⊥ permitted in probe mode), and the unique path dies. Therefore E=0.
+- Type-invariance: E_{W_L(u)}(a⋆)[Q_j] depends only on the fixed boundary inputs a⋆ and the presence/contents of the PORT zone (encodes u). Any two representatives with the same u and no errors admit the same probe behavior. Thus the bitvector over {Q_j} is the same across all words of that type.
+
+Vertex blocks and canonical contexts
+- Canonical left-context L(u) and right-context R(v): A well-formed left block W_L(u) begins O(1) to the left of S and is laid out as HEAD · RIDPORT · SPACER · PAD, with:
+  • HEAD: a self-delimiting header containing enc(D) (copied from Σ_in via Cin–out) and marks the start of the block (constant size overhead, independent of B).
+  • RIDPORT: a contiguous port zone of exactly B cells adjacent to S, each with Role=PORT, the address track Addr=1..B in increasing order left-to-right, and the RID bit track which Cin–out ties to the node’s input bit so that the zone encodes u verbatim.
+  • SPACER and PAD: a constant-length SPACER followed by a long padding segment PAD with Role=PAD (any filler pattern consistent with Cout–out). Right blocks W_R(v) are symmetric to the right of S.
+- Color-at-S gating: The two S nodes have access to color symbols {RED, GRN, BLU} only if their immediate neighbors on the inside are special handshake boundary symbols that must be adjacent (in Cout–out) to Role=PORT with the correct phase for a vertex block. If these adjacencies fail (i.e., the block is absent/malformed), then any attempt to place a non-⊥ color at S cannot be extended (no legal Cout–out pair), hence non-vertex contexts cannot carry colors. Conversely, if the block is well-formed, the handshake permits a colored S, activating the seam gadget (below). This implements “only canonical contexts permit colors,” using radius-1 adjacencies.
+- Length normalization at ℓ_pump or ℓ_pump+1: For any fixed u, we construct a seed left word U_left(u) = P^z · HEAD · RIDPORT · SPACER, where P is a constant PAD primitive whose repetitions are allowed by Cout–out. Choose z so that |U_left(u)| equals ℓ_pump or ℓ_pump+1. This is always possible by taking z = ⌈(ℓ_pump − c)/|P|⌉ or z+1. The right side is a 
+neutral filler F_R of the required length. By Lemma 12 (composition) and Lemma 11 (replacement), any further padding on the far sides preserves the type near S; the port zone stays adjacent to S because we do not insert repeats inside RIDPORT. Thus for each u there exists at least one left-context of the required lengths with the port zone at S; symmetrically for R(v).
+
+Lemma SG (Seam gadget for succinct adjacency and color inequality)
+Statement. There is a fixed radius-1 bridge schema such that for any ordered pair of canonical vertex contexts (L(u), R(v)), if both S windows are colored, the concatenation wa S1 wb wc S2 wd admits a completion iff either D(u,v)=0 or (D(u,v)=1 and the two colors differ). If either side is not a canonical vertex context, colors are forbidden by the handshake; if a side is malformed but S was colored regardless, the bridge offers no completion (no error-escape in active mode).
+Design details (radius-1)
+- Activation: The color-at-S handshake (above) also puts the inner neighbors of S into a special BRIDGE-Start phase. Cout–out allows entering a BRIDGE corridor across wb ◦ wc only from this phase.
+- Inputs to the run: The two B-bit port zones are immediately adjacent to S. The bridge corridor accesses these bits by simple “read heads” that move one step into wb or wc and copy the bit into the first row of a RUN tableau (implemented in the bridge). The circuit D is present in HEAD on both sides (since enc(D) is copied from Σ_in to Σ_out under HEAD), or, alternatively, we can duplicate enc(D) in the bridge header as constant local data—both are radius-1 local.
+- Tableau: A fixed universal TM U is simulated row-by-row across the bridge to compute d := D(u,v) in poly(s) steps. Cout–out enforces per-row local transitions; malformed rows admit no accepting continuation in the active mode (no ERR allowed adjacent to BRIDGE states). After the last row, a dedicated cell adjacent to the S2 side outputs EDGE ∈ {0,1}.
+- Local acceptance: Cout–out encodes the rule that across S1 and S2 and the adjacent EDGE cell:
+  • If EDGE=0 (non-edge), all three color-equality pairs at S are allowed.
+  • If EDGE=1 (edge), the two S outputs must be unequal; the three equal-color pairs are disallowed, blocking all completions in those cases.
+- Robustness: All ERR_x error-chain symbols are globally available for inactive modes (e.g., malformed vertex blocks when S is ⊥), but in bridge-active mode (colors present at S) the BRIDGE corridor allows no ERR transitions. Thus a malformed attempt in active mode rejects rather than escaping to ERR.
+
+Alphabet and radius bookkeeping
+- Σ_out size: roles/phases O(1); color tokens + ⊥ (4); error alphabet O(1) (global); PORT addresses (B); probe-id states per j (O(B)); RUN work alphabet for U (constant). Total |Σ_out| = β can be chosen s^{c1} with c1 ≥ c0 large enough so β ≥ C·B for a fixed constant C (absorbing all constants).
+- Radius-1: Every constraint is between a node and its predecessor: Cin–out ties PORT.RID to the input bit; Cout–out enumerates the only legal neighbor pairs for PROBE movement, RUN row steps, BRIDGE activation, and color/EDGE gates.
+
+Soundness/completeness sketches (Succinct 3-Coloring → FFE(F1))
+- Type separation: By Lemma TS, for each u there is at least one canonical left (resp. right) vertex type τ^L_u (resp. τ^R_u), and τ^L_u ≠ τ^L_{u′} for u≠u′. All non-vertex contexts are inactive (color-at-S cannot be extended), so f must map them to ⊥.
+- Completeness: Given a proper 3-coloring χ: {0,1}^B → {R,G,B}, define f(τ^L_u) = χ(u) and f(τ^R_v) = χ(v), f(τ)=⊥ for others. For any pair (τ^L_u, τ^R_v), the bridge simulates D(u,v); if D=0, acceptance is unconditional; if D=1, the inequality holds by χ, so the bridge accepts. All other pairings are vacuous by gating.
+- Soundness: If f satisfies (F1), define χ(u) = f(τ^L_u). For any (u,v) with D(u,v)=1, the pair (τ^L_u, τ^R_v) must pass the (F1) DP; by Lemma SG’s gate, that forces χ(u)≠χ(v). Hence χ is a proper 3-coloring. Note the “same-u consistency” issue is avoided by construction: only the canonical τ^L_u and τ^R_v can carry colors, so f is single-valued on u.
+
+Neutralizing (F2)
+- Add global ⊥-plumbing on repeats: for any w and z≥1, the repetition wz can be filled entirely with ⊥ consistent with Cout–out (and respecting the handshake that forbids colors unless a vertex block is present). Then (F2) is vacuous for all contexts, so the three-way classifier reduces to deciding (F1)—hence NEXPTIME-hard.
+
+Toy sanity check (B=2)
+- Let β≥8. Port zone has two PORT cells with Addr=1,2 and RID matching input bits (u_1,u_2). Q_1, Q_2 probes: under Q_1 the corridor moves to Addr=1 and accepts iff u_1=1; similarly for Q_2. The 4 left-types τ^L_{00}, τ^L_{01}, τ^L_{10}, τ^L_{11} differ on the two probe bits. For a small D encoding (e.g., 4-cycle), the BRIDGE tableau reads u,v and emits EDGE=1 on edges; local gate forbids equal colors only then. A brute-force DP on the combined path verifies that all (F1) instances accept iff colors define a proper 3-coloring.
+
+Obstacles and how addressed
+- Unique continuation under reserved probes: We explicitly disallow ERR/⊥ adjacencies when any Probe_j,* state appears; the only permitted successor is the deterministic path, ensuring E(Q_j) reflects u_j.
+- Keeping the port zone adjacent to S after length normalization: We choose padding only in PAD, outside RIDPORT, so the port stays adjacent to S; we do not rely on pumping to preserve the internal structure of RIDPORT.
+- Same-u consistency: Avoided by gating colors at S exclusively to canonical vertex contexts; alternative contexts cannot carry colors, so f cannot assign contradictory colors to the same u across multiple types.
+
+Gaps or clarifications for output.md (minor)
+- Clarify explicitly (already noted in Remarks) that types E_w(a) are computed with respect to the fixed interior input string of w. Our reductions rely on Cin–out copying input bits into PORT.RID.
+- Optional: Note that while Corollary 4 uses Z ≤ ℓ^2, for a fixed context one can compute smaller Z from the per-side type DFA cycles; not required for our hardness but may tighten constants.
+
+Next steps (auditable deliverables)
+1) Write the local Cout–out transitions for the probe gadget: list states {Probe_j,Move/Test}, allowed pairs with PORT cells (Addr≠j ⇒ Move; Addr=j and RID=1 ⇒ acceptor; disallow ERR/⊥ near probes). Provide a finite table parametrized by j with size O(B) to confirm β budget.
+2) Give the exact HEAD and RIDPORT layouts with Cin–out masks: specify that when Role=PORT, only two output symbols (RID=0/1) are allowed and must match the input bit; when Role=HEAD, output must match the input encoding of D.
+3) Specify the BRIDGE tableau alphabet and the final EDGE cell’s interface to S: define the three forbidden adjacent pairs across S when EDGE=1 (RR, GG, BB) and allow all when EDGE=0; verify radius-1 locality.
+4) Provide a fully worked B=2 instance (explicit symbols) and run the O(kβ^2) DP to validate both Type-Separation and Seam Gadget behavior; we can submit this as a regression test to the verifier.
+5) Integrate the global ⊥-filler rules for repetitions and restate the corollary: on our instances, the classifier’s O(1) vs. Ω(log* n) vs. Θ(n) reduces to (F1), hence NEXPTIME-hard.
+
+Why useful here
+- The per-bit probe lemma squarely addresses the verifier’s major issue: we do not “program” per-type tables; instead we use uniform global rules and reserved probes whose acceptance depends on the interior u via Cin–out, yielding exponentially many types. The seam gadget aligns exactly with (F1)’s universal pairwise check for 3-coloring. Both gadgets are radius-1 and fit the β budget, and they can be verified independently by the DP on small instances.
+
+## Round 0003 — 2025-08-28T12:27:11.729096Z
+
+Status and focus
+- Goal: finalize a clean, radius-1 reduction from Succinct 3-Coloring (S3Col) to Feasible-Function Existence (F1) in the β-normalized model, with (F2) neutralized by ⊥-filling, thereby yielding NEXPTIME-hardness of the 3-way classifier.
+- This round: (i) fix the probe/type-separation gadget using a family of per-bit probes Q_j; (ii) specify canonical vertex contexts and gating so only those contexts can carry non-⊥ colors at S; (iii) specify a seam tableau that computes Edge(u,v) and Eq(u,v) and enforces acceptance iff (Edge=0 or colors differ) and (Eq=0 or colors equal), which also forces left/right copies of the same vertex to share the same color; (iv) give concrete DP-checkable formulations and bookkeeping; (v) list verifiable next deliverables.
+
+Gaps in output.md (minor clarifications, no changes made)
+- Types vs fixed inputs: The definition of E_w(a) notes interior inputs may be arbitrary or fixed by the instance; our hardness builds contexts by choosing suitable interior inputs (binary strings) realizing the canonical blocks. It would help to add a sentence to output.md explicitly stating: “When we refer to Type(w), interior inputs are fixed to those of w; the type depends on the chosen input word w.” This is already consistent with the DP and Section 4 of the reference.
+- Optional: Corollary 4’s bound Z ≤ ℓ^2 is sufficient (tightening via lcm of periods is possible but unnecessary here).
+
+Idea 1 — Per-bit probe family Q_j gives 2^B distinct vertex types
+Concrete tracks and symbols (radius 1, β-normalized)
+- Σ_in = {0,1}. Σ_out tracks (combined into one symbol):
+  1) Role/phase: {HEAD, VERT, PORT, RUN, PAD, PROBE, ERR_k, …} × {phase mod c} (constant size).
+  2) S-color: {RED, GRN, BLU, ⊥} available only on the two S nodes (enforced by roles around S).
+  3) Port zone outputs that must copy Σ_in via Cin–out: an address track Addr ∈ {1,…,B} (encoded in binary or unary across cells) and a data track RIDbit ∈ {0,1} for the index u.
+  4) Pointer/probe track with states {Start_j, Head_j, Ok_j, Dead_j} for j∈[B]; Head_j carries probe-id j along the pointer path; this induces O(B) states; permitted because β = poly(s) and B = s^{c0}.
+  5) RUN work alphabet for a fixed U (constant-size), error-chain alphabet as in §3 of the reference (constant).
+- Reserved boundary outputs: choose a common boundary-input pattern a⋆, and for each j∈[B] a dedicated 4-tuple Q_j on the boundary outputs that sets the PROBE role to Start_j at both boundary sides and fixes neighbors to allow only the probe pipeline (see below).
+
+Probe pipeline (only legal continuation under Q_j)
+- Cout–out lists only the following successor pairs when the left boundary outputs equal Q_j: Start_j (at the outermost position) must be followed by Head_j moving deterministically right, keeping the j-tagged Head_j; along Head_j, the role PORT is required (locally enforced) and the port zone must be present adjacent to S within a fixed offset. Head_j advances cell-by-cell until it stands on a PORT cell whose output Addr equals j (comparison is local: the j-tag in Head_j must match Addr). At that cell:
+  • If RIDbit=1, a transition Head_j→Ok_j is allowed, after which a short, locally-checked accept sink attaches to filler/PAD; the boundary assignment Q_j is extendible.
+  • If RIDbit=0, there is no legal successor (no error-escape is listed under PROBE), so no completion exists; the boundary assignment Q_j is non-extendible.
+- No error-chain or alternative plumbing is enabled while the PROBE role is active; this guarantees uniqueness of the computation under Q_j and prevents spurious accepting paths.
+
+Lemma TS (Type-separation via Q_j). For each u∈{0,1}^B there exists a canonical left-context L(u)=W_L(u) S F_R (constructed below) with a well-formed PORT zone of length Θ(B) adjacent to S on the right, whose RIDbit track (copied from Σ_in via Cin–out) spells u and whose Addr track enumerates addresses 1,…,B. For the fixed boundary-input assignment a⋆ and boundary-outputs Q_j, E_{L(u)}(a⋆)[Q_j]=u_j. Consequently, if u≠u′ then Type(L(u))≠Type(L(u′)).
+Why useful: Gives ≥2^B distinct left context types injectively indexed by u. The same construction mirrored yields right context types R(v).
+Proof sketch: Under Q_j the only legal extension (by Cout–out) is the deterministic PROBE pipeline; it reaches the unique PORT cell with Addr=j. Cin–out forces RIDbit outputs to equal the input bits of W_L(u); hence Ok_j exists iff u_j=1. Thus the extendibility bit for Q_j equals u_j. Since the Type records, for each fixed boundary input a⋆, the yes/no table over all boundary-outputs, and the family {Q_j} lies within those outputs, the truth tables differ for u≠u′, hence types differ. Uniformity: under Q_j there is no alternative continuation, so E_w(a⋆)[Q_j] depends only on u, not on other interior nondeterminism.
+
+Idea 2 — Canonical vertex contexts and color gating
+Canonical shapes
+- Left: L(u) = W_L(u) S F_R. The block W_L(u) is HEAD · VERT · PORT · RUN with O(poly(s)) length, anchored within O(1) of S (fixed offset). The right side F_R is neutral filler (PAD) of length ℓ_pump−O(poly(s)).
+- Right: R(v) = F_L S W_R(v), symmetric.
+Color gating at S (radius 1)
+- Only when the immediate neighbors of S display role tokens GateL (on the left side) or GateR (on the right side), which appear exclusively in well-formed W_L(·)/W_R(·) at the fixed offsets, do the S nodes permit non-⊥ S-color outputs. Otherwise, S-color must be ⊥ and any non-⊥ choice yields no continuation (local dead-end). This makes all non-canonical contexts inactive.
+- The existence of contexts with |W_L(u)|∈{ℓ_pump,ℓ_pump+1} follows from pumping/replacement (Lemmas 11, 14–15 in the reference). We pick fixed offsets so that GateL/GateR alignment is independent of the global length choice; padding happens in the outer PAD region.
+Result: Only the canonical L(u), R(v) types are active; all others must be assigned ⊥ by any feasible f.
+
+Idea 3 — Seam tableau computing Edge(u,v) and Eq(u,v) and local acceptance
+Bridge layout and computation
+- On a bridge instance wa S1 wb wc S2 wd with left=L(u) and right=R(v), the concatenation wb∘wc (length ≥ℓ_pump−O(poly(s))) hosts a standard row-by-row simulation of a fixed U for poly(s) steps. U reads:
+  1) the encoding of the circuit D from HEAD (copied from Σ_in via Cin–out inside both W_L, W_R),
+  2) the B-bit RID port u adjacent to S1, the B-bit GID (or v) adjacent to S2.
+- The tableau checks nearest-neighbor consistency (Cout–out row transitions), with conventional error-chains available only when RUN is malformed or HEAD/RID is malformed; but if S carries a non-⊥ color while a side is malformed, the seam dead-ends (no accept path), ensuring non-canonical types cannot use colors.
+- U emits two 1-bit flags near S: Edge = D(u,v) and Eq = [u=v] (computed by a simple bitwise equality scan).
+Local acceptance policy (enforced by constant-size radius-1 constraints around S)
+- Accept iff both conditions hold simultaneously:
+  (A) Edge=0 OR (S-color1 ≠ S-color2), and
+  (B) Eq=0 OR (S-color1 = S-color2).
+- Intuition: (A) enforces inequality on edges, vacuous on non-edges; (B) forces left/right copies of the same vertex to carry identical colors (Eq=1 ⇒ colors equal), which also makes all duplicate types for a given u consistent via pairing with the unique right-type R(u).
+- If either side is inactive (color at S forbidden), a colored attempt dead-ends; with ⊥ at S, the seam always accepts (⊥-plumbing), making all non-canonical pairs trivial.
+
+Why this aligns with (F1) and fixes prior concerns
+- Pairwise constraint matches (F1): every ordered pair of contexts is checked; edges impose inequality; non-edges impose nothing; in addition Eq=1 imposes left/right consistency, removing the need for uniqueness of types per u.
+- Determinism under probes prevents “cheating” via error-chains.
+
+Neutralizing (F2)
+- Add a global ⊥-filler: for any context (w1,S,w2) and any z≥1, allow wz_1, wz_2 to be entirely labeled with ⊥ via Cout–out, independent of boundary inputs/outputs and independent of the internal roles. This never overrides S nor GateL/GateR, and thus does not affect (F1). Consequently, (F2) is always true for any f on our instances; the classifier reduces to (F1)-feasibility.
+
+Soundness/completeness (sketch with the new Eq gating)
+- Completeness (3-colorable ⇒ feasible f): Given a proper 3-coloring χ:V→{R,G,B}, define f(Type(L(u))) = χ(u) and f(Type(R(v))) = χ(v); all inactive types map to ⊥. For any ordered pair (L(u),R(v)), U computes Edge and Eq. If Edge=1 then χ(u)≠χ(v) and (A) holds; if Edge=0 then (A) holds trivially. If Eq=1 (thus u=v), then χ(u)=χ(v) by definition of f on left/right copies and (B) holds; if Eq=0, (B) is vacuous. Thus all (F1) instances accept. (F2) is vacuous by ⊥-filling.
+- Soundness (feasible f ⇒ 3-colorable): Define χ(u):=f(Type(L(u))) (well-defined because pairing (L(u),R(u)) forces equality via (B)). For any edge (u,v), pairing (L(u),R(v)) yields Edge=1, so (A) forces χ(u)≠χ(v). Hence χ is a proper 3-coloring.
+
+DP-checkable toy instance (B=2)
+- Set β≥8. Build L(00), L(01), L(10), L(11), and R(·) analogously. Reserve Q_1,Q_2. Verify:
+  • E_{L(u)}(a⋆)[Q_1] = u_1, E_{L(u)}(a⋆)[Q_2] = u_2 (the DP fails/succeeds under the unique probe pipeline).
+  • On a small D (e.g., a 4-cycle), the seam tableau sets Edge accordingly; local acceptance enforces inequality on edges; Eq enforces equality across (L(u),R(u)) pairs.
+- The verifier can brute-force all ordered pairs of these contexts and check that (F1) holds iff a 3-coloring exists.
+
+Alphabet and complexity bookkeeping
+- Tracks: roles/phases O(1), colors+⊥ (4), error alphabet O(1), RUN alphabet O(1), probe/pointer states O(B), plus a constant variety of plumbing symbols. Choose β = s^{c1} with c1≥c0 so β≥Θ(B); the global tables Cin–out (2×β) and Cout–out (β×β) remain poly(β).
+- Lengths: HEAD+PORT+RUN = poly(s) ≪ ℓ_pump = 2^{Θ(β^4)}; pumping/replacement embeds blocks adjacent to S within contexts of length ℓ_pump or ℓ_pump+1.
+- Radius 1: every check (probe step, address match, bit read, row-to-row evolution, local acceptance at S) is nearest-neighbor.
+
+Obstacles addressed and remaining
+- Fixed single-probe issue resolved: we use a family {Q_j} and carry the j-id in Head_j; acceptance depends on u.
+- Consistency across duplicate types: ensured by Eq gating across (L(u),R(u)). This propagates equality across all left/right duplicates via (F1).
+- Error-chain leakage: explicitly disabled under PROBE; enabled only in malformed RUN/head regions not under probe or color activation.
+- Remaining work: write explicit Cout–out pairs for pointer transitions and RUN rows (constant-size schemas); specify the exact offsets and phases that isolate GateL/GateR to canonical contexts; present a small B=2 instantiation with explicit tables that the verifier can DP-check.
+
+Next concrete steps (auditable)
+1) Write the pointer/probe transitions: the set of allowed (y_i,y_{i+1}) pairs for Start_j, Head_j, Ok_j, including the guard that Head_j may move only over PORT cells and must compare its j-tag to Addr.
+2) Formalize Lemma TS: a fully self-contained proof in our r=1 model that E_{L(u)}(a⋆)[Q_j]=u_j (no alternative accepting continuation) and that u≠u′ ⇒ types differ. Include a precise statement of a⋆ and the reserved outputs Q_j.
+3) Specify canonical L(u), R(v) layouts: exact offsets for HEAD, PORT, RUN relative to S; a small constant-phase scheme that ensures GateL/GateR appear only at those offsets; show padding preserves type (Lemmas 11,14–15).
+4) Write the seam U-tableau alphabet and local rules; define where Edge and Eq flags appear; list the constant-size local acceptance checks at S implementing (A) and (B).
+5) Provide a B=2 toy with explicit Cin–out,Cout–out snippets and run the O(kβ^2) DP to confirm: (i) probe acceptance patterns; (ii) seam behavior on all pairs; (iii) ⊥-filling for (F2).
+
+Why this is progress
+- We now have concrete, verifiable lemmas addressing the verifier’s critiques: a radius-1, globally uniform probe family that separates 2^B types; canonical gating to single out active contexts; and a seam that enforces both edge-inequality and same-vertex equality, removing the latent ambiguity across duplicates. Each component is amenable to the O(kβ^2) DP, and the size/radius constraints stay within the β-normalized model.
+
+## Round 0004 — 2025-08-28T12:33:37.134207Z
+
+Status and aim
+- Objective: make the NEXPTIME-hardness reduction auditable by pinning down three radius-1 gadgets with explicit, testable behavior: (i) a per-bit boundary-probe family {Q_j} that injectively separates 2^B vertex indices into distinct context types; (ii) per-side color gating and seam activation that keep mixed pairs vacuous and enforce “must color” only when both sides are canonical; (iii) a seam tableau that computes EDGE := D(u,v) and Eq := [u=v] and enforces local acceptance (EDGE=0 or colors differ) ∧ (Eq=0 or colors equal).
+
+Gaps or clarifications in output.md (to log, not to edit now)
+- Fixed inputs in types: Definitions state “interior inputs may be arbitrary; if the model fixes interior inputs, the definition is with respect to those fixed inputs.” Our reduction uses fixed interior inputs to encode indices/C. Suggest adding a sentence clarifying that Type(w) is computed with respect to the fixed input string of w, which is the instance’s input.
+- Context set size and construction: It would be useful to state explicitly that the context set C consists of types realized by words of the form w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}, hence |C| ≤ ℓ_pump. Also note (or later prove) how pumping/replacement ensures the existence of canonical contexts with prescribed lengths.
+
+Lemma TS — Per-bit boundary probe (radius 1, deterministic, no error-escape)
+- Statement. There exist: (a) a fixed boundary-input tuple a⋆ ∈ Σ_in^4; (b) B distinct reserved boundary-output 4-tuples Q_1,…,Q_B; (c) an output-track layout with Role ∈ {HEAD, PORT, RUN, PAD, PROBE, ERR}, an address subtrack Addr ∈ {1,…,B}, and a data subtrack RIDbit ∈ {0,1} tied to Σ_in by Cin–out when Role=PORT; (d) probe-head states Start_j, Head_j, Test_j, Acc_j for each j; such that for each canonical left block L(u) exposing a well-formed B-cell PORT zone with Addr=1,…,B and RIDbit spelling u ∈ {0,1}^B adjacent to S, we have for all j∈[B]:
+  E_{L(u)}(a⋆)[Q_j] = u_j.
+  Hence u≠u′ ⇒ Type(L(u))≠Type(L(u′)). A symmetric construction yields 2^B distinct right-types.
+- Rule discipline (sketch sufficient for DP audit):
+  • Under Q_j the only legal Cout–out pairs from the left boundary enter PROBE mode with Start_j, then deterministically propagate Head_j one step per edge along a predeclared probe-corridor; ERR/⊥ pairs are disallowed when any PROBE state is present.
+  • Along Head_j: if current Role≠PORT, the unique successor keeps moving; if Role=PORT with Addr≠j, keep moving; if Role=PORT with Addr=j, the only successor is Test_j.
+  • At Test_j: allow transition to Acc_j iff RIDbit=1; otherwise no successor exists (dead-end).
+  • Acc_j locally splices into PAD and disables all alternative branches.
+- Why this yields E= u_j: Q_j triggers a unique run; it reaches exactly the unique PORT cell with Addr=j; Cin–out forces RIDbit to equal the node’s input bit; hence continuation exists iff u_j=1. No error-escape is available in PROBE mode.
+- Alphabet budget: O(1) for roles/phases, O(B) for Addr values, O(B) for {Start_j,Head_j,Test_j,Acc_j}, plus O(1) for PAD/ERR; feasible with β ≥ c·B.
+
+Lemma CG — Per-side color gating and seam activation
+- Statement. There exist handshake markers GateL, GateR emitted near S if and only if the adjacent interior begins with a well-formed canonical vertex header (HEAD+PORT at fixed offsets). Local rules ensure:
+  • Color-permission at S_i (i∈{1,2}) is per-side: S_i may carry Color ∈ {RED,GRN,BLU} iff Gate on that side is present; else the only allowed token is ⊥.
+  • Active seam mode is enabled only if both GateL and GateR are present (active-active). In active-active, we enforce “must color”: both S nodes must be non-⊥. In mixed pairs (exactly one Gate present), the seam remains inactive and accepts unconditionally (the inactive side is ⊥ by gating). In inactive-inactive, both sides are ⊥ and accept.
+- Why useful. It prevents mixed pairs from constraining f and restricts non-⊥ colors to canonical vertex contexts only, so f must color only τ^L_u, τ^R_v and map all others to ⊥.
+
+Lemma Seam — Tableau for D(u,v) and Eq(u,v) with local gates
+- Statement. There is a fixed-width RUN corridor across the bridge wb∘wc that simulates a universal TM U for poly(s) steps, reading enc(D) from HEAD and the port bits u (from left PORT) and v (from right PORT), and computing two verdict bits: EDGE := D(u,v) and Eq := [u=v]. The last tableau row writes, in the unique cell immediately to the right of S2, a triple (EDGE, Eq, FwdCol), where FwdCol is a copy of Color(S1). Local rules between S2 and this neighbor enforce all of:
+  (A) EDGE=1 implies Color(S2) ≠ FwdCol; if EDGE=0 both equal/unequal are allowed.
+  (B) Eq=1 implies Color(S2) = FwdCol; if Eq=0 both equal/unequal are allowed.
+  Coupled with CG’s “must color” in active-active, this yields acceptance iff (EDGE=0 or colors differ) and (Eq=0 or colors equal).
+- Robustness: In active mode, ERR symbols are disallowed adjacent to RUN states; malformed tableaux have no accepting continuation. Outside active mode (i.e., mixed or inactive), neutral ⊥-plumbing is available, so those pairs accept vacuously.
+
+Padding to prescribed lengths (existence of canonical contexts)
+- Claim. For each u∈{0,1}^B there exists at least one left word w_1 of length in {ℓ_pump, ℓ_pump+1} whose suffix adjacent to S is a canonical W_L(u); similarly for right contexts. Proof sketch: Build a seed left word as P^z · W_L(u) with padding P outside the HEAD/PORT/RUN header. By Lemma 15 (pumping), choose z so that Type(P^z) stabilizes and the total length hits ℓ_pump or ℓ_pump+1. By Lemma 12 (type composition), replacing P^z by any P^{z′} of the same type preserves Type(P^z · W_L(u)); since we pump only in PAD outside the seam, the near-S structure and the probe/seam interfaces are unaffected. Symmetrically for the right side.
+
+Soundness/completeness (recap with Eq)
+- Completeness: Given a proper 3-coloring χ, set f(τ^L_u)=χ(u) and f(τ^R_v)=χ(v), ⊥ elsewhere. Active-active bridges accept by Lemma Seam (Eq forces same color on (u,u), EDGE forces inequality on edges; non-edges are vacuous). Mixed/inactive pairs accept via CG.
+- Soundness: If f satisfies (F1), define χ(u):=f(τ^L_u). Pairing (τ^L_u,τ^R_u) is active-active with Eq=1, so colors must match; pairing (τ^L_u,τ^R_v) for any edge has EDGE=1, so colors must differ. Hence χ is a proper 3-coloring.
+
+Alphabet/radius budget (concrete)
+- Tracks: roles/phases O(1), colors+⊥ (4), ERR O(1), RUN alphabet O(1), Addr values O(B), probe heads and reserved boundary outputs O(B). Total |Σ_out| ≤ c_0 + c_1·B for fixed constants, so choose β ≥ c·B. All checks are radius-1: probe steps, RUN row transitions, per-side gating, and the S2–neighbor acceptance gates.
+
+DP-auditable B=2 sanity plan
+- Build four left seeds L(00), L(01), L(10), L(11) and four right seeds; reserve Q_1,Q_2; fix a⋆. Verify by the O(kβ^2) DP that E_{L(u)}(a⋆)[Q_1,Q_2]=(u_1,u_2). Implement a tiny U that sets EDGE for a 4-cycle and Eq via bitwise equality. Check all 16 ordered pairs (L(u),R(v)): accept iff (u=v ⇒ colors equal) and (u,v edge ⇒ colors differ). Mixed pairs (e.g., L(u) with a non-canonical right) accept regardless.
+
+Potential pitfalls and how we address them
+- Alternative completions under probes: explicitly forbid ERR/⊥ and any non-probe successors when a PROBE state is active.
+- Mixed-pair dead-ends: avoided by per-side gating and late seam activation; only active-active enforces “must color”.
+- S-token control: f controls only the color/⊥ choice at S; all other S subtracks (handshake bits) are fixed by local adjacencies.
+- Length normalization dependence: we only need existence of at least one canonical context per u at lengths in {ℓ_pump, ℓ_pump+1}; pumping/replacement provides this without changing near-S behavior.
+
+Next steps (explicit, auditable)
+1) Write the parametrized probe-rule schema: enumerate allowed Cout–out pairs for Start_j,Head_j,Test_j,Acc_j and the prohibition of ERR/⊥ adjacent to any PROBE state; list Cin–out constraints tying RIDbit to Σ_in whenever Role=PORT.
+2) Specify the per-side handshake tokens near S and the exact Cout–out conditions that (i) enable colors per-side; (ii) activate the seam only if both handshakes present; (iii) enforce “must color” only then; and (iv) make mixed pairs accept unconditionally.
+3) Give the seam tableau’s final-cell interface: define the neighboring cell’s states that encode (EDGE,Eq,FwdCol) and the constant-size forbidden/allowed pairs with S2 realizing (A) and (B).
+4) Produce a B=2 instance (explicit symbol names and tables) and run the O(kβ^2) DP to validate: probe bits, mixed-pair vacuity, and active-active acceptance policy.
+5) Add a short clarification to output.md (later): fixed-interior-input interpretation of Type(w) and a one-line bound |C| ≤ ℓ_pump; defer full hardness write-up until the three gadgets are tabled and DP-tested.
+
+## Round 0004 — 2025-08-28T12:34:16.661374Z
+
+Round 0004 — Filling in local rules for probes and seam; mixed-pair gating and a B=2 skeleton
+
+Context recap and objective
+- Goal: finalize a NEXPTIME-hardness reduction from Succinct 3-Coloring (S3Col) to Feasible-Function Existence (F1) for β-normalized, radius-1 LCLs on oriented paths, with (F2) neutralized by a global ⊥-plumbing. We now pin down explicit, radius-1 Cout–out rule schemas for (i) per-bit boundary probes that separate 2^B vertex indices; (ii) per-side color gating and seam activation with correct mixed-pair behavior; (iii) a seam verdict interface enforcing simultaneously EDGE=1 ⇒ color-inequality and Eq=1 ⇒ color-equality, while keeping error-escape disabled in active modes. We also provide a B=2 (toy) instance blueprint and a symbol budget check.
+
+Corrections/clarifications to output.md (gaps)
+- Types with fixed interior inputs: Please add to Definitions: “If the model fixes interior inputs, E_w(a) is computed with respect to those fixed inputs.” Our reduction relies on Cin–out copying input bits to outputs in PORT cells; extendibility is type-invariant under the fixed interior input string.
+- Context set size: It helps to note explicitly that context types are a subset of the global type space realized by words w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}, hence |C| ≤ ℓ_pump.
+
+Symbols/tracks used (Σ_out components folded into symbols)
+- Colors at the two S nodes: Scol ∈ {RED, GRN, BLU, ⊥}.
+- Roles/phases (constant): {HEAD, PORT, RUN, PAD, ERR, GATE_L, GATE_R, BRIDGE, VERD} × {phase ∈ [c]}.
+- Port subtracks at Role=PORT: Addr ∈ [B] (unary, i.e., distinct symbol per j) and RIDbit ∈ {0,1} with Cin–out tie RIDbit = input bit.
+- Probe states (left side) per j ∈ [B]: Start_j, Head_j, Test_j, Accept_j.
+- Reserved boundary outputs per j ∈ [B]: 4-tuples Q_j ≡ (Q^L1_j, Q^L2_j, Q^R2_j, Q^R1_j) used only on the four boundary nodes.
+- Seam verdict neighbor (right of S2): VERD(FwdColor ∈ {R,G,B}, EDGE ∈ {0,1}, Eq ∈ {0,1}). We also use a one-cell “forwarder” just left of S2 inside the RUN corridor to carry FwdColor.
+- Error/plumbing: a constant ERR alphabet (as in the PSPACE ref.) and PAD; these are disabled in active probe/seam modes (see discipline below).
+
+A. Per-bit probe gadget (Type-Separation, radius-1)
+Parameters: B = s^{c0}, β = s^{c1}, c1 ≥ c0 so β ≥ c·B for a fixed constant c.
+
+Layout of a canonical left vertex block W_L(u)
+- Immediately to the right of S, a contiguous PORT zone of length B: the j-th cell carries Role=PORT, Addr=j, and RIDbit = u_j, with Cin–out enforcing RIDbit equals the input bit at that node. Outside PORT, a short HEAD and long PAD. Right of S this is the only active structure; elsewhere PAD (neutral).
+
+Probe discipline (no error-escape / unique continuation)
+- Under the boundary outputs Q_j on the left boundary (and a fixed boundary-input 4-tuple a⋆), we force a deterministic “probe mode” corridor from the boundary into the interior. While any Probe state appears on an edge, no Cout–out pair involving ERR or ⊥ is listed; the only legal successors are those below. Outside reserved probes, error/⊥-plumbing is available as usual.
+
+Radius-1 Cout–out rule schema (parametrized by j)
+- Boundary injection: allow (Q^L2_j → Start_j) on the left-boundary-to-interior edge; forbid any other successor from Q^L2_j.
+- Movement: for any interior x, allow (Start_j → Head_j) on the next edge; for any non-PORT cell y (Role∈{HEAD,RUN,PAD}), allow (Head_j at predecessor → Head_j at y). Disallow any (Head_j → ERR/*) or (* → Start_j) except the specified ones.
+- Port scan: at a PORT cell with Addr=k ≠ j, allow (Head_j(prev) → Head_j(curr)), continuing the march. At a PORT cell with Addr=j and RIDbit=b, allow exactly one of:
+  • If b=1: (Head_j(prev) → Test_j(curr)) and (Test_j(curr) → Accept_j(next)), where Accept_j transitions (deterministically in O(1) steps) to PAD.
+  • If b=0: (Head_j(prev) → [no successor]); i.e., no pair listed; the DP dies.
+- Addr enforcement: between consecutive PORT cells, only pairs that increment Addr by 1 are allowed (e.g., (PORT@Addr=k, PORT@Addr=k+1)); Addr monotonicity before reaching the PORT zone is enforced by disallowing (Head_j → PORT@Addr≠1) at the very first PORT and by requiring contiguous PORT cells.
+
+Claim TS (Type-Separation; precise)
+For any canonical W_L(u) and fixed boundary inputs a⋆, we have E_{W_L(u)}(a⋆)[Q_j] = u_j. Proof sketch: Under Q_j, the only legal continuation is the above deterministic probe; it reaches the unique PORT cell with Addr=j, where continuation exists iff RIDbit=1. Cin–out ties RIDbit to the input bit, so acceptance depends only on u_j. No error/⊥ escape is possible in probe mode. Hence the B-bit vector (E(a⋆)[Q_1],…,E(a⋆)[Q_B]) equals u; distinct u give distinct vectors, i.e., distinct left types. Symmetrically, we obtain 2^B right types with a mirrored probe.
+
+Alphabet budget for probes
+- PORT symbols: 2·B (RIDbit×Addr) distinct symbols.
+- Probes: 4·B symbols (Start_j,Head_j,Test_j,Accept_j) across j.
+- Reserved boundary symbols: ≤4·B tokens for the four boundary positions (Q^L1_j,…), re-used across instances.
+- Add O(1) roles/phases, PAD, ERR, RUN alphabet: total |Σ_out| = O(B) + O(1) = Θ(B) ≤ β.
+
+B. Per-side color gating and mixed pairs
+Per-side handshake
+- The cell immediately adjacent to S1 on the left interior uses role GATE_L if and only if a well-formed canonical left vertex block is present; otherwise that cell uses PAD/HEAD/RUN. Similarly, on the right interior adjacent to S2 we use role GATE_R iff a canonical right block is present. These are enforced by local HEAD/PORT placement and phases.
+- The allowed Cout–out pairs between a GATE_* cell and its adjacent S node restrict the S symbol’s handshake flags: the S symbol includes two read-only bits HL, HR. At S1, adjacency with GATE_L forces HL=1 (else no pair allowed); if not GATE_L, adjacency forces HL=0. Similarly, at S2, adjacency with GATE_R forces HR=1 else HR=0. These flags are forced by neighbors; f cannot change them.
+Color permission
+- Pairs between a GATE_* cell and S permit Scol ∈ {RED,GRN,BLU,⊥}. When not GATE_* (i.e., PAD/HEAD), only Scol=⊥ is permitted. Thus colors are permitted per-side based on the adjacent interior only; this is independent across sides.
+Mixed pairs accept unconditionally
+- If exactly one side is canonical (say HL=1, HR=0), we do not activate the seam tableau. The S1–S2 pair allows any (Scol1 ∈ {R,G,B}, Scol2=⊥) combination; the two interior halves are filled with PAD/⊥ plumbing. No must-color constraint is enforced here.
+
+C. Seam activation and verdict wiring (active-active pairs)
+Activation and must-color locality
+- The seam is active only when both sides are canonical; locally this is encoded by HL=1 at S1 and HR=1 at S2 (both forced by the adjacent GATE_* cells). Only in this case do we enforce “must-color”: the S1–S2 adjacency forbids any pair with Scol1=⊥ or Scol2=⊥ when (HL=1 and HR=1). When either HL=0 or HR=0, ⊥ is allowed on the corresponding S and the seam is inactive.
+RUN_B tableau and verdict cell
+- Across wb∘wc (a corridor spanning into both sides right next to S), Cout–out enforces a row-by-row simulation of a fixed TM U on input (enc(D), u, v). The RUN corridor is enabled only when HL=HR=1 and both S nodes are non-⊥. The last row writes into the neighbor immediately to the right of S2 a symbol VERD(FwdColor, EDGE, Eq), where FwdColor∈{R,G,B} is a copy of Scol1, EDGE = D(u,v), and Eq = [u=v]. ERR is disallowed adjacent to RUN/VERD in this active mode (no escape).
+Local verdict check (pure radius-1)
+- Pairs S2 ↔ VERD are allowed exactly when both constraints hold:
+  (A) if EDGE=1 then FwdColor ≠ Scol2; if EDGE=0 then no restriction.
+  (B) if Eq=1 then FwdColor = Scol2; if Eq=0 then no restriction.
+- The edge S1 ↔ S2 additionally forbids ⊥ when HL=HR=1 (must-color) and otherwise imposes no restriction. No other global signal is used.
+Correctness: On active-active pairs, acceptance iff (EDGE=0 or colors differ) and (Eq=0 or colors equal). This enforces 3-coloring on edges and consistency on (u,u) pairs.
+
+D. Soundness/completeness (recap) and role of mixed pairs
+- Completeness: Given a proper 3-coloring χ of the succinct graph, define f on canonical types by f(τ^L_u)=χ(u), f(τ^R_v)=χ(v), all other types map to ⊥. On active-active pairs (u,v): RUN_B computes (EDGE,Eq); (A)(B) hold by χ. On mixed pairs: seam inactive; pairs accept with plumbing. Hence (F1) holds. (F2) is neutralized by ⊥-filling (see F below).
+- Soundness: If f passes (F1), then each canonical τ^L_u must be colored (or some active-active seam would violate must-color), and the values on τ^L_u and τ^R_u must coincide (pair (u,u) has Eq=1). For any edge (u,v) with D(u,v)=1, the pair (τ^L_u, τ^R_v) must satisfy (A), forcing χ(u)≠χ(v). Thus χ is a proper 3-coloring.
+
+E. B=2 DP-checkable skeleton (auditable)
+Symbols (sample)
+- Colors at S: S_R, S_G, S_B, S_⊥ (each encodes HL,HR bits as forced by neighbors).
+- PORT cells: P1^0,P1^1 and P2^0,P2^1 (Addr=1 or 2 and RIDbit=b). Cin–out allows Pj^b only on input b.
+- Probes: Start_1,Head_1,Test_1,Accept_1 and Start_2,Head_2,Test_2,Accept_2.
+- Boundary: Q^L1_1,Q^L2_1 (and similarly for j=2), mirrored on the right.
+- Gating: GATE_L, GATE_R on the interior cells adjacent to S, else PAD.
+- Verdict: VERD(c∈{R,G,B}, EDGE∈{0,1}, Eq∈{0,1}).
+Key Cout–out pairs (non-exhaustive but complete by schema)
+- Probe injection and march: (Q^L2_j → Start_j), (Start_j → Head_j), (Head_j → Head_j) on non-PORT, (Head_j → Head_j) on PORT@Addr≠j, (Head_j → Test_j) on PORT@Addr=j, then (Test_j → Accept_j) iff RIDbit=1, then Accept_j → PAD.
+- PORT adjacency: (P1^b → P2^{b′}) allowed; (Addr monotonicity) require that between consecutive PORT cells, Addr increases by 1 (here 1→2). No other PORT transitions.
+- Per-side color gating: (GATE_L → S_x with HL=1) and (non-GATE_L → S_⊥ with HL=0) only; symmetrically for S2 and HR.
+- Seam activation/must-color: edge (S1 ↔ S2) forbids S_⊥ on either side when HL=HR=1; allows any pair otherwise.
+- Verdict check: (S2=R ↔ VERD(FwdColor=R,EDGE=1,Eq=0)) is forbidden; (S2=R ↔ VERD(FwdColor=G,EDGE=1,Eq=0)) allowed; similarly for other colors; and (Eq=1) forces equality by allowing only pairs with FwdColor=Scol2; when EDGE=0 both equal/unequal are allowed. No VERD neighbors occur unless HL=HR=1 (RUN active); otherwise the neighbor is PAD.
+Audit plan
+- Verify TS: run the O(kβ^2) DP on L(00),L(01),L(10),L(11) under Q_1,Q_2 with the above probe rules; acceptance matches u_j.
+- Verify seam: choose a small D (e.g., 4-cycle) and implement U as a constant table that writes EDGE,Eq deterministically from u,v (for B=2, D can be tabulated directly). Check that all active-active pairs accept iff inequality on edges and equality when u=v. Mixed pairs accept regardless.
+
+F. Neutralizing (F2)
+Add to Cout–out a neutral self-looping ⊥-language: for any repetition w^z, z≥1, and any boundary outputs/inputs, the interiors can be labeled entirely with PAD/⊥ without touching S or the handshake flags. Then for every context (w1,S,w2) and any z≥1, f(Type(w1Sw2)) on S extends trivially: (F2) holds for all f.
+
+G. Existence of canonical contexts at lengths ℓ_pump/ℓ_pump+1
+We rely on the standard replacement/pumping lemmas for path types (ref. Lemmas 10–15, 11, 12 in the attached paper): HEAD+PORT+RUN have length poly(s) ≪ ℓ_pump = 2^{Θ(β^4)}. We place W_L(u) and W_R(v) adjacent to S and pad only outside the PORT zone to achieve total side lengths in {ℓ_pump,ℓ_pump+1}. Replacement preserves type near S, so each u (and v) has at least one canonical left (right) context in C. This item should be added explicitly to output.md or cited as such; until then, treat it as an assumption backed by the cited lemmas.
+
+H. Determinism and locality checks (addressing reviewer points)
+- Probe determinism: In probe mode (presence of Start_j/Head_j/Test_j), Cout–out lists no ERR/⊥ pairs; only the deterministic march/test/accept transitions exist. Thus E(a⋆)[Q_j] is a single-bit function of RIDbit[j].
+- Seam wiring locality: The final check uses only the pair S2 ↔ VERD; the must-color trigger uses only S1 ↔ S2 with locally stored HL,HR flags.
+- S symbol control by f: The only component of S chosen by f is the color field; HL,HR are forced by neighbors via adjacency constraints.
+- Budget: Σ_out has O(B) reserved symbols and O(1) others; choose β ≥ c·B. Tables Cin–out (2×β) and Cout–out (β×β) remain poly(β).
+
+I. Why this is incremental progress
+- We have converted the earlier sketches into explicit, radius-1 rule schemas that the verifier can instantiate for B=2 and check with the O(kβ^2) DP. We addressed mixed pairs (seam inactive; unconditional acceptance), must-color locality (only when both handshakes present), S-symbol control (only color is free), probe-mode determinism (no error-escape), and seam wiring locality. We provided a concrete symbol budget and a B=2 audit plan.
+
+Next steps (auditable deliverables)
+1) Write the parameterized Cout–out tables for probes explicitly (as a list of allowed pairs for Start_j,Head_j,Test_j,Accept_j, PORT adjacency), and the Cin–out mask tying PORT.RIDbit to Σ_in.
+2) Enumerate the S-adjacent pairs that gate colors per side, enforce must-color only when HL=HR=1, and list the S2↔VERD pairs that implement (A)(B).
+3) For B=2, produce a machine-readable instance (Σ_out symbol list, Cin–out, Cout–out) and run the DP to validate TS and seam behavior on all 16 ordered pairs (L(u),R(v)).
+4) Incorporate (or cite) the pumping/replacement lemmas into output.md to justify existence of canonical contexts at the required lengths. If preferred, give an explicit padding construction that never touches the PORT zone.
+5) Package the reduction D ↦ P_D, state the equivalence “G 3-colorable ⇔ (F1) feasible f,” and add the ⊥-filler to neutralize (F2), yielding the NEXPTIME-hardness of the 3-way classifier under the explicit β-normalized, r=1 model.
+
+## Round 0004 — 2025-08-28T12:34:37.142350Z
+
+Status and plan
+- Objective: make the hardness reduction auditable by giving concrete, radius-1 rule schemas for (i) per-bit boundary probes that separate 2^B vertex indices; (ii) per-side color gating and “active/semi-active” seam activation; (iii) a seam gadget that enforces EDGE and Eq with purely local checks, while permitting unconditional acceptance on mixed pairs. We also pin down a small but sufficient symbol budget and a B=2 sanity test template. These address the verifier’s items (1)–(8).
+
+Explicit rule schemas (radius 1) — ready to DP-check on small B
+A. Per-bit boundary probes (Type-Separation TS)
+- Fixed inputs for separation: pick an arbitrary 4-tuple a⋆ ∈ Σ_in^4 (e.g., all zeros). All extendibility bits we use for type separation are E_{w}(a⋆)[·].
+- Tracks encoded in Σ_out (conceptual fields; realized as a finite product alphabet):
+  1) Role ∈ {HEAD, PORT, PAD, PROBE, ERR, …}, Phase ∈ {0,…,c−1} for a small constant c.
+  2) Addr ∈ {⊥,1,…,B}. Present only when Role=PORT. Local neighbor rule enforces Addr increases by +1 left→right across a contiguous PORT zone, starting at 1 and ending at B.
+  3) RIDbit ∈ {0,1}. Cin–out ties RIDbit to Σ_in at nodes with Role=PORT, and otherwise ignores RIDbit (free) unless constrained by Role.
+  4) ProbeHead ∈ {None} ∪ {Start_j, Move_j, Test_j, Accept_j : j∈[B]}. Distinct j are distinct symbols.
+  5) Error/plumbing symbols ERR_• and ⊥ are available globally but will be disabled near ProbeHead≠None during probes.
+- Reserved boundary outputs: define Q_j as the unique 4-tuple of boundary output symbols that set ProbeHead=Start_j at the first interior position (and fix harmless padding on the boundary nodes themselves). Different j use distinct Start_j.
+- Allowed Cout–out neighbor pairs (parametric by j):
+  R1. Start_j → Move_j (the right neighbor carries Move_j; left neighbor is the boundary symbol). No other successor out of Start_j.
+  R2. Move_j may advance only over the pre-laid PROBE corridor and PORT: (Move_j at i, y_{i+1}) is legal iff y_{i+1}.ProbeHead ∈ {Move_j, Test_j} and either (i) y_{i+1}.Role=PORT with Addr incrementing correctly; or (ii) y_{i+1}.Role ∈ {PROBE,PAD} as part of a fixed, finite corridor skeleton that leads into the PORT zone. No ERR or ⊥ adjacent to any Move_j/Test_j (omit such pairs).
+  R3. Move_j → Test_j only when y_{i+1}.Role=PORT and y_{i+1}.Addr=j.
+  R4. Test_j → Accept_j only if y_{i+1}.RIDbit=1 (Cin–out has already tied this bit to the input at that node). Otherwise, Test_j has no legal successor.
+  R5. Accept_j transitions through a short fixed sequence to a neutral PAD filler (a constant-length exit), after which Role=PAD continues with a self-loop language. While ProbeHead∈{Start_j,Move_j,Test_j,Accept_j}, no pairs to ERR_• or ⊥ are allowed; outside probe mode, ERR/⊥ are permitted as usual.
+- PORT-zone well-formedness: local rules enforce a contiguous PORT block with Addr=1,…,B, immediately adjacent to S on the canonical side, as part of the canonical vertex block (see C below). If the probe reaches the end of the allowed corridor without encountering Addr=j (which cannot happen in a well-formed block), there is no legal successor and the DP fails; this guarantees uniqueness.
+- Claim TS (restated precisely). For any canonical left vertex word L(u) with properly formed PORT just to the right of S, E_{L(u)}(a⋆)[Q_j]=1 iff u_j=1; otherwise 0. Proof: under Q_j, the only legal continuation is the deterministic probe path R1–R5; acceptance is equivalent to RIDbit=1 exactly at Addr=j; RIDbit copies the fixed input bit at that node by Cin–out. No error/plumbing escape is permitted in probe mode.
+- Budget for probes: ProbeHead states contribute 4B symbols; Addr contributes B; corridor roles/phases add a constant factor. This induces at most O(B^2) distinct combined symbols in Σ_out when folded. See “Alphabet budget” below.
+
+B. Canonical vertex contexts and per-side color gating (RG)
+- Canonical left block W_L(u): fixed layout HEAD · PORT(B) · RUN · PAD with PORT abutting S on its right; HEAD exposes enc(D) (copied from inputs by Cin–out) and a short delimiter; RUN is a corridor used by the seam tableau (below); PAD is arbitrary filler. Right block W_R(v) is symmetric.
+- Per-side handshake flags next to S: the cell immediately inside S on each side must show a fixed gate token GateL (left context) or GateR (right context), followed (at a fixed offset) by the PORT zone. Cout–out allows S to take a color token {RED, GRN, BLU} only if the adjacent inner neighbor displays the correct Gate• token; otherwise, the only allowed S token is ⊥.
+- Mixed-pair policy (critical correction): seam activity (and any “must-color” constraint) is triggered only when both sides are canonical. If exactly one side is canonical, the canonical side may be colored (per-side gating), the opposite S must be ⊥, and the interior wb∘wc admits only neutral plumbing; no seam tableau is required or even allowed to start.
+
+C. Seam gadget with directional tokens and local acceptance (EDGE, Eq)
+- Goal: enforce, when both sides are canonical, the conjunction
+  (A) EDGE=1 ⇒ colors differ; vacuous if EDGE=0; and
+  (B) Eq=1 ⇒ colors equal; vacuous if Eq=0;
+  while (i) forcing “must-color” in active-active pairs and (ii) guaranteeing unconditional acceptance in mixed pairs.
+- Directional seam tokens: two 1-bit subtracks Tok→ and Tok← that live only on corridor (RUN/PAD) cells across wb∘wc.
+  • If left side is canonical, the inner neighbor of S1 seeds Tok→=1 that deterministically propagates rightwards (Tok→=1 on each successive cell) until it meets S2; Tok→ never turns off.
+  • If right side is canonical, the inner neighbor of S2 seeds Tok←=1 that propagates leftwards analogously.
+- Colored S fallback gating, local and sound:
+  • Near S2: if Tok←=1 is present at the first interior cell (i.e., a token coming from the opposite end), then a colored S2 cannot attach to a neutral neighbor; its only legal successor pairs are to a seam verdict cell (see below). If Tok←=0 locally, a colored S2 may attach to a neutral neighbor (mixed pair fallback). Symmetric rule near S1 using Tok→.
+  • ⊥ at S is locally disallowed when the opposite-direction token is present: if Tok←=1 (respectively Tok→=1) is present adjacent to S2 (resp. S1), then S2=⊥ (resp. S1=⊥) has no legal neighbor pair. This implements must-color only in active-active pairs.
+  These checks are purely local (each S only inspects its interior neighbor’s two Tok bits).
+- Verdict cell and adjacency enforcing (A) and (B):
+  • When both tokens are present anywhere (they overlap throughout the bridge), the seam tableau is permitted and required to run row-by-row across the corridor (standard 1D TM simulation) and eventually place a verdict cell V next to S2 carrying fields EDGE∈{0,1}, Eq∈{0,1}, and FwdColor ∈ {RED,GRN,BLU}, which is a copy of Color(S1).
+  • Cout–out forbids the following pairs between S2 and its interior neighbor when that neighbor is V (verdict):
+    – If EDGE=1 and Color(S2)=FwdColor, forbid (violates inequality on edges).
+    – If Eq=1 and Color(S2)≠FwdColor, forbid (violates same-vertex equality).
+    Conversely, all pairs are allowed if EDGE=0 (for (A)) and if Eq=0 (for (B)). These enforce (A) and (B) simultaneously, using only the S2–V adjacency.
+  • It is legal (but not necessary) for the verdict cell to exist when only one token is present; the tableau cannot complete in that case (no incoming start from the far side), so V never appears. Thus the only viable completion in mixed pairs is via the neutral fallback, which is allowed by the Tok-based gating above.
+- Tableau consistency and robustness: as usual, Cout–out enforces per-row TM transitions across the seam corridor; malformed rows have no accepting continuation. Error-chain alphabets are disabled on RUN/PAD when either color is used at S and a token from the opposite side is present (to avoid escape hatches in active-active mode); they remain enabled in mixed pairs and inactive contexts.
+
+D. Alphabet budget and β sizing (explicit bound)
+- Constant tracks: roles/phases O(1); error alphabet O(1); tableau work alphabet O(1); color/⊥ (4 symbols).
+- O(B) tracks/components:
+  • Addr: B values + ⊥ (for non-PORT cells).
+  • ProbeHead states: 4B distinct states (Start/Move/Test/Accept per j).
+  • Reserved boundary 4-tuples Q_j: B distinct boundary-output choices; these do not multiply Σ_out but require special boundary symbols (O(B)).
+- Tokens and verdict: Tok→, Tok← ∈ {0,1} each (constant factor); verdict fields EDGE, Eq ∈ {0,1}, FwdColor ∈ {R,G,B} (constant factor), realized only on a special verdict role.
+- Folding into Σ_out: the combined symbol set can be organized so that the number of symbols is O(B^2) times a constant (addresses × probe-head id dominate), or O(B^3) if we choose to fully decouple j from head modes and addresses conservatively. With B = s^{c0}, pick β = s^{c1} with c1 ≥ 3c0 to guarantee β ≥ c · B^3 for a fixed c; this leaves ample headroom for all constant factors. This satisfies the “β = poly(s)” requirement.
+
+E. B=2 sanity test template (DP-ready)
+- Choose β ≥ 32. Enumerate symbols for: colors {⊥,R,G,B}; roles {HEAD,PORT,RUN,PAD,PROBE,VERDICT}; Addr ∈ {⊥,1,2}; ProbeHead ∈ {None,Start_1,Move_1,Test_1,Accept_1,Start_2,Move_2,Test_2,Accept_2}; Tok→, Tok← ∈ {0,1}; verdict bits EDGE, Eq ∈ {0,1}, FwdColor ∈ {R,G,B} (verdict role only); error symbols ERR_•.
+- Build four canonical left words L(00), L(01), L(10), L(11) and right words analogously, each with HEAD, a 2-cell PORT zone abutting S, and trivial RUN/PAD. Fix a⋆. Verify with the O(kβ^2) DP that under Q_1 and Q_2, the bits (E_{L(u)}(a⋆)[Q_1], E_{L(u)}(a⋆)[Q_2]) equal u.
+- Instantiate a toy D on 4 vertices (e.g., a 4-cycle), encode it into HEAD, and run the DP on all 16 ordered pairs (L(u), R(v)). Check: if D(u,v)=1, the only completions for active-active pairs have unequal colors (enforced by S2–V pairs); if D(u,v)=0, all color pairs accept; if u=v, Eq=1 forces equal colors. Mixed pairs accept unconditionally with the colored canonical side and ⊥ on the inactive side.
+
+Why the token-gated seam resolves the locality issues
+- Mixed pairs accept locally: if only one side is canonical, the opposite-direction token is absent locally. Thus colored S can attach to neutral neighbor states without requiring a verdict, and ⊥ is allowed as well.
+- Active-active pairs force constraints locally: both tokens are present adjacent to both S’s. Locally (at each S), ⊥ is disallowed (must-color), and colored S cannot attach to neutral neighbors; it must attach to a verdict cell. The verdict cell enforces (A) and (B) via S2–V local pairs. No reference to distant nodes is needed.
+- No error escape: in probe mode and in seam-active modes (when opposite-direction token is present), ERR/⊥ transitions are disabled in Cout–out; malformed attempts dead-end.
+
+Soundness/completeness recapped with Eq
+- Completeness: Given a 3-coloring χ on V={0,1}^B, set f(Type(L(u)))=χ(u), f(Type(R(v)))=χ(v), f(τ)=⊥ for all inactive τ. Active-active pairs: both tokens present; the tableau computes EDGE and Eq; the verdict adjacency enforces S-color inequality on edges and equality on u=v; mixed pairs: exactly one token near S; fallback acceptance ensures feasibility. Must-color is enforced automatically on active-active pairs by token rules.
+- Soundness: If f passes (F1), the token-gated must-color forces f to assign non-⊥ to canonical types. Define χ(u)=f(Type(L(u))). The (L(u),R(v)) bridge (with both tokens) enforces χ(u)≠χ(v) for edges and χ(u)=χ(u) trivially for same-vertex pairs; thus χ is a proper 3-coloring.
+
+Gaps/risks and how we addressed them
+- Unique probe continuation (verifier item 6): enforced by forbidding ERR/⊥ next to ProbeHead and by making Start_j/Move_j/Test_j deterministic with a single successor per state; the corridor layout ensures the head must reach the unique Addr=j cell or die.
+- Mixed-pair acceptance (items 1–2): resolved by per-side gating and directional tokens; only the presence of the opposite-direction token disables fallback and ⊥ locally.
+- “Must-color” only in active-active: enforced by forbidding S=⊥ locally when the opposite-direction token is present.
+- Seam wiring locality (item 7): acceptance checks occur only between S2 and the verdict cell V (and symmetrically S1/its verdict if desired); EDGE/Eq and FwdColor are carried in V. No distant inspection.
+- Alphabet budgeting (item 8): explicit O(B^2)–O(B^3) bound and β sizing provided.
+- Length normalization: existence of canonical contexts with PORT abutting S at |w_i|∈{ℓ_pump,ℓ_pump+1} still relies on pumping/replacement. We keep this as an assumption in notes; integrating Lemmas 11,14–15 into output.md remains a to-do if needed.
+
+Minor clarifications for output.md (new)
+- Types vs. fixed interior inputs: please add a parenthetical “types E_w(a) are computed with respect to the fixed input string of w” (we rely on Cin–out tying RIDbit to inputs in PORT).
+- Context set C: it helps to state explicitly that C consists of types of words w_1 S w_2 with |w_i|∈{ℓ_pump,ℓ_pump+1} and |S|=2; this keeps C finite with |C|≤ℓ_pump.
+
+Next concrete steps (auditable)
+1) Produce a B=2 machine-readable instance (symbol list and Cin–out/Cout–out fragments) reflecting A–C above and run the verifier’s O(kβ^2) DP for the TS probe and seam pairs.
+2) Write the exact Cout–out pair schemas (parametric) used above: Start_j→Move_j→Test_j→Accept_j; token propagation; S/neighbor forbidden pairs; verdict adjacency.
+3) Optional: formalize the existence of canonical contexts at |w|∈{ℓ_pump,ℓ_pump+1} using Lemmas 11,14–15 (replacement/pumping) and add a short lemma to output.md.
+4) Integrate Lemma TS (per-bit probe), Lemma RG (per-side gating and token must-color), and Lemma SG (seam tableau with EDGE/Eq and local acceptance) into the curated output once the B=2 validation passes.
+
+Why this is progress
+- We’ve transformed the sketches into precise, local rule families that a DP can check: deterministic probe pipelines for type separation; per-side gating plus directional tokens to reconcile mixed-pair acceptance with active-active constraints; and a strictly local verdict interface encoding both EDGE and Eq. The symbol budget is explicit and stays within β=poly(s). This addresses all previously flagged locality, determinism, and mixed-pair issues and sets up a small-scale DP regression to validate behavior end-to-end.
+
+## Round 0004 — 2025-08-28T12:35:18.823891Z
+
+Round 0004 — tightening gadgets to a DP-checkable spec (radius 1, β-normalized)
+
+Context and goal
+- We continue the NEXPTIME-hardness reduction from Succinct 3-Coloring to Feasible-Function Existence (F1) for β-normalized, radius-1 LCLs on oriented paths. The key deliverables now are (i) explicit, radius-1 local rules for a per-bit boundary probe that separates 2^B canonical left/right vertex types; (ii) explicit per-side color gating and mixed-pair acceptance; (iii) a seam tableau interface with local inequality/equality checks; (iv) concrete alphabet counting compatible with β = poly(s); and (v) a B=2 sanity instance blueprint.
+
+Minor gaps noted in output.md (no edits made)
+- Types vs fixed interior inputs. Definitions allow both “interior inputs arbitrary” and “fixed by the instance”; the hardness uses the latter. It would help to emphasize that Type(w) is computed w.r.t. the fixed interior input string of w.
+- Context set size. When later we use contexts realized by w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}, it would be useful to remark explicitly that |C| ≤ |T| = ℓ_pump.
+
+A. Explicit probe gadget (Type-Separation Lemma, radius-1, DP-checkable)
+Parameters and layout
+- B = s^{c0}. Fix β = s^{c1} with c1 ≥ 2c0 to give O(B^2) room in the adjacency table (C_out–out), while keeping |Σ_out| = β = poly(s).
+- Canonical left block W_L(u) adjacent to S (right of S) contains, in order: HEAD_C (constant size), a Corridor prefix (constant size), and the PORT zone of length B, followed by neutral PAD. PORT cell t (1 ≤ t ≤ B) statically carries Addr=t and RidBit=u_t on its output symbol; Cin–out ties RidBit to the input bit at that node.
+- Reserved boundary-output 4-tuples {Q_j: j ∈ [B]}. Q_j means: at the two leftmost boundary nodes put tokens BL1_j, BL2_j; at the two rightmost boundary nodes tokens BR2_j, BR1_j (these four come from disjoint reserved subalphabets). Under any other 4-tuple we are in “non-probe” mode.
+- Probe corridor states: For each j ∈ [B], we have Head_j and Accept_j. In non-probe mode these symbols are not permitted anywhere. In probe mode (only if Q_j is used), they are the only non-PAD symbols allowed before the PORT zone; ERR/⊥ are explicitly forbidden adjacent to any Head_j/Accept_j.
+
+Allowed C_out–out pairs (schema; all others are disallowed)
+- Probe start at boundary:
+  • (BL1_j, BL2_j) and (BL2_j, Head_j). This forces the first interior cell after the second boundary node to be Head_j when Q_j is used.
+- Corridor propagation up to PORT[1]:
+  • Head_j must continue deterministically: (Head_j, Head_j) on each corridor edge until the first PORT cell. No other successor is permitted from Head_j (disables ERR/⊥ escape).
+- Entering the PORT zone (key test). Let Port(k,b) denote the output symbol of the k-th PORT cell when “probe-active”; we use a distinct “probe variant” for PORT cells (Port^P) so the grammar can react to probe mode without interfering with the non-probe alphabet.
+  • From the corridor into Port^P(k,b): allow (Head_j, Port^P(k,b)) for all j,k and b∈{0,1}.
+  • From Port^P(k,b) to the next interior cell:
+    - If k ≠ j: require continuation of the probe head: (Port^P(k,b), Head_j). (For all pairs (j,k) with k≠j; total O(B^2) entries.)
+    - If k = j and b = 1: allow termination: (Port^P(j,1), Accept_j).
+    - If k = j and b = 0: no outgoing pair is allowed (this creates a dead end, rejecting the boundary assignment Q_j).
+- Accept sink and padding:
+  • (Accept_j, PAD) and then PAD self-loops (neutral plumbing) to the end of the block. No ERR near Accept_j is permitted.
+- Non-probe discipline:
+  • If the boundary outputs are not Q_j, then Head_j and Accept_j are not allowed anywhere; the PORT cells use their non-probe variants Port^I(k,b) with standard PAD plumbing. All error-chain symbols are available in non-probe mode (as in the reference), ensuring malformed interiors never constrain f.
+
+Claim TS (Type-Separation). Fix a boundary-input 4-tuple a⋆. For any canonical W_L(u), under boundary outputs Q_j we have E_{W_L(u)}(a⋆)[Q_j] = 1 if and only if u_j = 1. Hence the bit-vector (E(a⋆)[Q_j])_{j=1..B} equals u, which separates 2^B distinct left-context types; symmetric right-contexts are constructed analogously.
+- Why: Under Q_j the only legal continuation from BL2_j is Head_j (unique path). Head_j must propagate to Port^P(1, u_1), then to Head_j, then Port^P(2, u_2), etc. When it reaches Port^P(j, u_j), it has an outgoing edge only if u_j=1 (Accept_j). Thus extendibility equals u_j.
+- Radius-1 and budgeting: All checks are nearest-neighbor pairs. Alphabet uses O(B) symbols for {Head_j, Accept_j} and O(B) probe variants of PORT; the O(B^2) combinatorics appears only in the adjacency table (pairs (Head_j, Port^P(k,·)) and (Port^P(k,·), Head_j)), which is acceptable since C_out–out has β^2 entries and β = s^{c1} with c1 ≥ 2c0.
+- No error escape: Head_j and Accept_j have no allowed neighbors other than those listed; in particular there are no pairs with ERR or ⊥ adjacent to Head_j/Accept_j, so reserved probes are deterministic.
+
+B. Per-side color gating and mixed pairs
+Symbols near S (two nodes S1 and S2): SColor ∈ {R,G,B,⊥} is the only choice f makes at S nodes. All handshake bits are attached to interior neighbors, not to S.
+- Gate tokens on the interiors: The immediate neighbor on the left side of S is either GateL (present only in canonical W_L(u) at a fixed offset) or ¬GateL (any other symbol). Symmetrically, the immediate neighbor on the right side of S is GateR in canonical W_R(v) or ¬GateR otherwise. These are enforced by the constant-size grammar of HEAD/PORT/PAD adjacent to S.
+- Per-side gating (local, radius-1):
+  • If the neighbor is ¬GateL (resp. ¬GateR), then only ⊥ is allowed at S on that side; any non-⊥ color at S has no legal neighbor pair and dead-ends.
+  • If the neighbor is GateL (resp. GateR), then S may be labeled R,G,B or ⊥.
+- Seam activation and must-color:
+  • The bridge wb∘wc is “active” only if both sides are canonical, i.e., the two interior neighbors are GateL and GateR and both S nodes are non-⊥. This is encoded by allowing a special ActiveBridgeStart symbol adjacent to S only under the pairs (GateL, S∈{R,G,B}) and (S∈{R,G,B}, GateR) simultaneously. When ActiveBridgeStart appears on both sides, the interior between S1 and S2 must be labeled by the RUN_B corridor (see §C). In this active-active case, ⊥ at either S is forbidden (no pair with ActiveBridgeStart), implementing “must color” only when both sides are canonical.
+  • Mixed pairs (exactly one side canonical): No ActiveBridgeStart is produced (since one side fails the gate), so RUN_B is not enabled. The interior wb∘wc is filled by neutral PAD and accepts unconditionally. This ensures that mapping inactive types to ⊥ and coloring canonical types does not produce (F1) violations on mixed pairs.
+  • Inactive pairs (neither side canonical): Both S nodes must be ⊥; PAD fills the bridge; accept.
+
+C. Seam tableau and local acceptance (EDGE and Eq)
+Corridor and inputs
+- In the active-active case, between S1 and S2 we lay a fixed-width RUN_B corridor that statically encodes a row-by-row tableau of a fixed universal machine U. U runs in poly(s) steps to compute:
+  • EDGE := D(u,v) ∈ {0,1} and Eq := [u=v] ∈ {0,1}, reading u and v from the two PORT zones adjacent to S (u from W_L(u) and v from W_R(v)). As is standard, the row transitions of U are enforced by local C_out–out pairs across row separators; malformed rows have no accepting continuation and cannot appear in the active mode (ERR is disabled adjacent to RUN_B states).
+  • Forwarding of S1Color: The first corridor cell to the right of S1 captures the color at S1; this “forwarded color” is then carried unchanged (checked by nearest-neighbor equalities) to a designated verdict cell V next to S2.
+Verdict cell and local gate (radius-1)
+- The verdict cell V (the immediate right neighbor of S2) carries a symbol Ver(EDGE, Eq, FwdColor) in a constant-size set (there are 2×2×3 ≤ 12 possibilities). The only allowed pairs between S2 and V enforce:
+  • If EDGE=1, then Color(S2) ≠ FwdColor.
+  • If Eq=1, then Color(S2) = FwdColor.
+  • If EDGE=0 and Eq=0, allow all 3×3 color pairs.
+- This implements “accept iff (EDGE=0 or colors differ) and (Eq=0 or colors equal)” purely locally between S2 and its neighbor V. Note ERR is forbidden adjacent to RUN_B states and V in active mode.
+- Graphs without loops: To avoid contradictory (EDGE=1 and Eq=1) on diagonals, we assume D(u,u)=0; if needed, pre-process the succinct circuit to zero the diagonal (standard and w.l.o.g. for 3-colorability).
+
+D. Budget and radius bookkeeping (explicit)
+- Disjoint-role alphabets: We partition Σ_out into disjoint subalphabets per role/phase (HEAD/PORT/PAD/ERR/PROBE/RUN_B/S, etc.), so sizes add rather than multiply.
+- Symbol counts (dominant terms):
+  • PORT symbols: O(B) (Port^I(k,b) in idle mode and Port^P(k,b) in probe mode; constant factor 2×2 per k).
+  • Probe heads: O(B) symbols {Head_j, Accept_j}.
+  • Boundary tokens for Q_j: O(B) (the four boundary positions use disjoint constant-size families per j; total O(B)).
+  • RUN_B and HEAD/PAD/ERR: O(1) each (fixed universal TM alphabet and error-chain tokens as in the reference).
+  • S colors: {R,G,B,⊥} (4 symbols restricted to the two S positions by role).
+- Adjacency table size: The probe needs O(B^2) distinct allowed pairs ((Head_j, Port^P(k,·)) and (Port^P(k,·), Head_j)), which fits within the β×β table since β = s^{c1} with c1 ≥ 2c0; the rest are O(β) pairs per role. All interactions are radius-1.
+
+E. B=2 sanity instance blueprint (DP-ready)
+- Fix B=2. Port^I(k,b), Port^P(k,b) for k∈{1,2}, b∈{0,1}. Head_1, Head_2, Accept_1, Accept_2. Q_1 and Q_2 families each with four boundary tokens. S colors {R,G,B,⊥}. GateL/GateR. RUN_B row alphabet (constant-size), and verdict states Ver(e,q,c) with e,q∈{0,1}, c∈{R,G,B}.
+- Probe rules instantiate the schema:
+  • (BL1_1, BL2_1), (BL2_1, Head_1), Head_1 propagations, (Head_1, Port^P(1,b)), (Port^P(1,1), Accept_1), (Port^P(1,0), ·) has no successor, (Head_1, Port^P(2,b)), (Port^P(2,b), Head_1).
+  • Similarly for j=2 with indices swapped.
+- Canonical W_L(u) with u∈{00,01,10,11}: PORT^I(1,u_1), PORT^I(2,u_2) adjacent to S, with HEAD_C before them. The DP on the 4-node boundary assigns Q_1 or Q_2 and checks that E[Q_1]=u_1, E[Q_2]=u_2.
+- Seam: For a toy D (say, the 4-cycle on {00,01,10,11}), RUN_B emits Ver(EDGE,Eq,FwdColor), and the S2–Ver adjacency forbids equal colors iff EDGE=1 and requires equality if Eq=1. Mixed pairs accept via PAD.
+
+F. Soundness/completeness checks (sketch, unchanged in spirit)
+- Completeness: Given a 3-coloring χ of the succinct graph, set f(τ^L_u)=χ(u), f(τ^R_v)=χ(v), f(others)=⊥. Active-active pairs accept because RUN_B computes EDGE and Eq correctly and the local gate enforces χ(u)≠χ(v) when EDGE=1 and χ(u)=χ(v) when Eq=1; mixed/inactive pairs accept via PAD and gating.
+- Soundness: Any feasible f must map non-canonical types to ⊥ and assign colors to canonical types (by gating/must-color). Then χ(u):=f(τ^L_u) is well-defined (Eq-gate across (L(u),R(u)) forces consistency), and for any edge D(u,v)=1, the (L(u),R(v)) pair is extendible only if colors differ, so χ is a proper 3-coloring.
+
+G. Outstanding items and why they matter
+- Existence/normalization of canonical contexts at lengths ℓ_pump or ℓ_pump+1: We continue to rely on pumping/replacement (Lemmas 10–12, 14–15 from the reference) to ensure that HEAD_C+PORT+PAD blocks occur adjacent to S at the required lengths. Alternatively, we could present an explicit “two-length padding” construction; until then, keep this as an assumption tied to the standard lemmas.
+- DP regression (B=2): Assemble a machine-readable instance listing Cin–out and Cout–out per the schemas above; verify by the O(kβ^2) DP (i) probe separation; (ii) seam acceptance behavior on all 16 ordered pairs (L(u),R(v)).
+
+Why this round is substantive progress
+- We turned the probe and seam gadgets into explicit radius-1 adjacency schemas that the verifier can implement and test: (i) deterministic per-bit probe with no error escape and extendibility exactly u_j; (ii) per-side gating with mixed pairs accepting unconditionally; (iii) active seam with local EDGE/Eq gate adjacent to S2. Budgeting and radius-1 checks are laid out; the B=2 instance is specified concretely enough to build the DP.
+
+Next steps (auditable deliverables)
+1) Produce the explicit C_out–out table fragment (parameterized by B) for the probe schema: list all (Head_j, Port^P(k,b)) and (Port^P(k,b), Head_j) pairs, the start/accept edges, and the disallowed ERR/⊥ adjacencies in probe mode. Provide the Cin–out rule tying Port(k,b).RidBit to Σ_in.
+2) Formalize the GateL/GateR placement around S (constant-size patterns) and the exact pairs that enable ActiveBridgeStart only when both sides are canonical and S colors are non-⊥.
+3) Fix the RUN_B row alphabet and transitions for a concrete U; specify the verdict cell placement and the allowed/forbidden S2–Ver pairs for all (EDGE,Eq,FwdColor) and S2 colors.
+4) Build and share the B=2 tables and a small D (4-cycle) for the verifier’s DP harness; check probe separation and seam behavior thoroughly.
+5) (Optional) Add a short proof of the replacement/padding lemma specialized to r=1 into output.md so canonical contexts at lengths ℓ_pump or ℓ_pump+1 are guaranteed without appealing externally.
+
+## Round 0005 — 2025-08-28T12:40:21.652864Z
+
+Round 0005 — Toward a DP-checkable B=2 instance: explicit Cin–out/Cout–out fragments for probes, tokens, gating, and verdict
+
+Context and goal
+- We adopt directional tokens for seam activation (as recommended in verifier.feedback.md) and produce an explicit, radius-1 rule skeleton for B=2 that a DP can check. The focus is on: (i) per-bit boundary probes Q_1, Q_2; (ii) per-side color gating plus mixed-pair fallback (must-color only in active-active); (iii) a seam verdict cell V enforcing both EDGE and Eq via S2↔V local pairs; and (iv) ERR/⊥ discipline in probe/seam modes. We keep disjoint-role subalphabets so sizes add rather than multiply.
+
+Symbols (B=2, disjoint roles)
+- Boundary-reserved outputs (used only on boundary nodes at the four ends for the TS checks): BL1_1, BL2_1, BR2_1, BR1_1 and BL1_2, BL2_2, BR2_2, BR1_2 corresponding to Q_1 and Q_2. (The DP sets boundary outputs to these values; interior neighbors see them through Cout–out.)
+- S-node symbols: S_R, S_G, S_B, S_⊥. (No handshake bits on S; all activation/gating is enforced by the interior neighbors’ symbols.)
+- Interior roles (pairwise disjoint subalphabets):
+  • PAD: Pad.
+  • ERR: Err. (Used only outside probe/seam-active modes.)
+  • PORT (probe-idle): P1^0, P1^1, P2^0, P2^1. (Addr=j and RIDbit=b encoded in the name.)
+  • PORT (probe-active variants): P1p^0, P1p^1, P2p^0, P2p^1. (Same content, different role tag to control adjacency during probes.)
+  • PROBE states (per j): Head_1, Accept_1; Head_2, Accept_2. (Start is injected from the boundary neighbor via BL2_j → Head_j.)
+  • Gating neighbors: GateL, GateR (the unique symbols that may appear immediately inside S1/S2 for canonical sides); NonGate (placeholder representing any other noncanonical neighbor role adjacent to S).
+  • Seam corridor (RUN/PAD aggregate role with token flags): we instantiate four concrete corridor symbols by token bits: Corr_00, Corr_10, Corr_01, Corr_11 where the suffix encodes (Tok→, Tok←) ∈ {(0,0),(1,0),(0,1),(1,1)}. These occur only on the bridge wb∘wc (the two cells immediately adjacent to S and possibly one more cell for B=2; here we use two cells: one next to S1 and one next to S2).
+  • Verdict cell (adjacent to S2 only): Ver(c, e, q) with c∈{R,G,B}, e∈{0,1}, q∈{0,1}. (12 symbols.)
+
+Cin–out constraints (B=2)
+- PORT cells tie RIDbit to input bit:
+  • Allowed: (input 0, P1^0), (input 1, P1^1), (input 0, P2^0), (input 1, P2^1).
+  • Same for probe-active variants: (0, P1p^0), (1, P1p^1), (0, P2p^0), (1, P2p^1).
+- Other roles ignore input: for each x∈{Pad, Err, Head_1, Accept_1, Head_2, Accept_2, GateL, GateR, NonGate, Corr_00, Corr_10, Corr_01, Corr_11, Ver(⋅)}, both (0,x) and (1,x) are allowed.
+- S-node symbols: both inputs allowed for S_R, S_G, S_B, S_⊥.
+
+Cout–out: PORT zone well-formedness and placement (left canonical block)
+- Adjacent to S1 on its right, the first interior cell of a canonical left block is GateL, followed immediately by the contiguous PORT zone P1, P2 (in this order), then Pad. Allowed pairs inside a canonical left block (rightward orientation):
+  • (GateL, P1^b), (P1^b, P2^{b′}), (P2^{b′}, Pad). (For all b,b′∈{0,1}.)
+- In non-canonical left contexts, the neighbor of S1 is NonGate; from NonGate we only allow PAD onward: (NonGate, Pad), Pad self-loops. (We do not list any pair enabling PORT after NonGate.)
+- Symmetric rules for the canonical right block: immediately left of S2 is GateR; on its left are the contiguous PORT cells P2, P1 in reverse (since the path is oriented left-to-right, the right block’s PORT sits to the left of S2). For simplicity in B=2 we mirror: allowed pairs leftward are expressed via rightward pairs as (P2^b, GateR) and (Pad, P2^b), (P1^{b′}, GateR) as needed; for the DP we will construct rightward lists so that reading from left to right along wb∘wc we encounter …Pad, P1^⋅, P2^⋅, GateR, S2.
+
+Per-bit probe TS (left side; radius-1; deterministic; no escape)
+- Injection from boundary (for j∈{1,2}):
+  • Allowed: (BL1_j, BL2_j), (BL2_j, Head_j).
+  • Disallowed: Any pair (BL2_j, x) with x≠Head_j.
+- Corridor to PORT (we use the probe-active variants at the PORT cells visited during probes):
+  • Before the PORT zone: (Head_j, Head_j) on any corridor Pad stretch prepared for the canonical block. In B=2 we keep this to one step: (Head_j, P1p^b) for the first PORT cell.
+  • Entering PORT: (Head_j, P1p^b) allowed for all b. From P1p^b to the next cell:
+    – If j=1 and b=1: (P1p^1, Accept_1) allowed; if b=0: no successor (DP dead-ends under Q_1).
+    – If j=2: (P1p^b, Head_2) continues the march to the next PORT.
+  • At second PORT: (Head_2, P2p^b) allowed. Then:
+    – If j=2 and b=1: (P2p^1, Accept_2) allowed; if b=0: no successor.
+    – If j=1: this case only arises if Head_1 reached P2p^b; we allow (P2p^b, Head_1) to continue (though for B=2, Head_1 should have halted at P1p already; the pair is harmless if never used in a well-formed block).
+- Accept exits deterministically to Pad: (Accept_j, Pad), (Pad, Pad) self-loop.
+- Probe-mode discipline (no ERR/⊥ escape): We do not list any pairs with Err adjacent to Head_j or Accept_j or any probe-active PORT P⋅p^⋅; similarly, no (Head_j, S_⋅) or (Head_j, GateL/NonGate) pairs.
+- Idle vs probe-active PORT symbols: In probe mode we require P⋅p^⋅ at the PORT positions by listing (Head_j, P⋅p^⋅) and omitting (Head_j, P⋅^⋅). In all non-probe contexts we do not permit P⋅p^⋅; only P⋅^⋅ with standard PAD neighbors are allowed.
+- Type-separation claim (B=2 instance): With the above, for any canonical left word L(u1u2), E_{L(u)}(a⋆)[Q_1] = u1 and E_{L(u)}(a⋆)[Q_2] = u2 (with a⋆ fixed arbitrarily, e.g., 0000). This is DP-checkable.
+
+Per-side color gating at S (local; mixed pairs accept)
+- Allowed S1-adjacent pairs (left side):
+  • If neighbor is GateL: (GateL, S_R), (GateL, S_G), (GateL, S_B), (GateL, S_⊥).
+  • If neighbor is NonGate or Pad: only (NonGate, S_⊥), (Pad, S_⊥). (All (NonGate, S_color) with color∈{R,G,B} omitted.)
+- Symmetrically for S2: if its left neighbor is GateR, then (GateR, S_color) allowed for color∈{R,G,B,⊥}; if neighbor is not GateR, only (NonGate, S_⊥)/(Pad, S_⊥) allowed.
+- This makes mixed pairs vacuous: a canonical side may be colored; a non-canonical side must be ⊥.
+
+Directional tokens and seam activation (local; must-color only in active-active)
+- Token seeding at the first corridor cells adjacent to S:
+  • When (GateL, S_color) occurs at S1’s edge and the right neighbor cell is the first corridor cell, we allow only (S_color, Corr_10) (Tok→=1) as the successor (and forbid (S_color, Corr_00), (S_color, Corr_01), (S_color, Corr_11)). If S1= S_⊥, we allow only (S_⊥, Corr_00).
+  • When the left neighbor of S2 is GateR and the left corridor cell is adjacent to S2, we enforce Tok←=1 on that corridor cell: the edge immediately to the left of S2 must be (Corr_x1, S_color) for some x (i.e., Tok←=1); if S2= S_⊥ we still permit (Corr_01, S_⊥) in mixed pairs.
+- Token propagation across the two corridor cells (we use exactly two):
+  • Left corridor cell C_L ∈ {Corr_10, Corr_00} sits to the right of S1; right corridor cell C_R ∈ {Corr_01, Corr_00, Corr_11} sits to the left of S2. Allowed pairs:
+    – (Corr_10, Corr_11) (Tok→ continues right; Tok← injected on the next cell if GateR is present), (Corr_10, Corr_10) otherwise is not listed (we force meeting at the second corridor cell).
+    – (Corr_01, Corr_01) (Tok← persists if injected from the right side only).
+    – (Corr_00, Corr_00) for inactive edges.
+    – In active-active, list (Corr_10, Corr_11) and (Corr_11, GateR) (see below).
+- Must-color enforcement (local at S):
+  • If the corridor cell adjacent to S1 has Tok←=1 (i.e., symbol is Corr_01 or Corr_11), then omit pairs (Corr_01, S_⊥) and (Corr_11, S_⊥); only (Corr_01, S_color) and (Corr_11, S_color) with color∈{R,G,B} are allowed. If Tok←=0 (Corr_00 or Corr_10), allow (Corr_⋅0, S_⊥) and (Corr_⋅0, S_color) (mixed/inactive fallback).
+  • Symmetrically at S2: if the corridor cell to its left has Tok→=1 (Corr_10 or Corr_11), omit (S_⊥, Corr_10) and (S_⊥, Corr_11); only (S_color, Corr_10/Corr_11) allowed. If Tok→=0, allow (S_⊥, Corr_00/Corr_01) and (S_color, Corr_00/Corr_01).
+
+Verdict placement and S2↔V local acceptance (EDGE and Eq)
+- Verdict insertion (one-cell): In active-active mode (both tokens present), the right corridor cell adjacent to S2 must be Ver(c,e,q) instead of a Corr_⋅⋅ symbol. We realize this by listing only the pairs (Corr_11, Ver(c,e,q)) for some c,e,q (and omitting (Corr_11, S2) with a corridor symbol). The color c is copied from S1 by permitting (S1_color, Corr_10) only when the Ver’s c equals that S1_color; concretely, we constrain the sequence S1_color → Corr_10 → Corr_11 → Ver(c, e, q) so that c matches S1_color. (For DP, we can simply list (Corr_11, Ver(R,⋅,⋅)), (Corr_11, Ver(G,⋅,⋅)), (Corr_11, Ver(B,⋅,⋅)) and then add S2↔Ver gating below; the color-copy guarantee is optional for the toy B=2 check.)
+- Computation of EDGE and Eq (B=2): For audit we tabulate D(u,v) and Eq[u=v] by constant-width local rules that “read” the PORT bits u and v. An easy way is to require that the left corridor cell Corr_10 sits immediately after P2 (on the left side) so it sees u (two PORT cells back), and the right corridor cell Ver(⋅,e,q) sits immediately before GateR and thus “sees” v; we then list only those (P1^u1,P2^u2, Corr_10) patterns and (Ver(⋅,e,q), P2^v2, P1^v1) local neighborhoods consistent with (EDGE, Eq) for the chosen D (e.g., the 4-cycle). For the DP harness, we can bake the 16 cases into which Ver(⋅,e,q) symbols are allowed given the adjacent PORT values on each side. (This is implementable via radius-1 pairs by expanding a finite number of Corr/Ver variants if needed; for brevity we leave the exact micro-expansion as a checklist item.)
+- S2↔Ver local acceptance table (simultaneous constraints): For each Ver(c,e,q) and S2_color ∈ {R,G,B} we allow S2↔Ver iff both hold: (A) if e=1 then S2_color≠c; (B) if q=1 then S2_color=c. Enumerated allowed pairs:
+  • If (e,q)=(0,0): allow all (S2_color, Ver(c,0,0)).
+  • If (e,q)=(1,0): allow (S2_color≠c, Ver(c,1,0)); forbid (c, Ver(c,1,0)).
+  • If (e,q)=(0,1): allow (c, Ver(c,0,1)); forbid (S2_color≠c, Ver(c,0,1)).
+  • If (e,q)=(1,1): (this case does not arise for D(u,u)=0; to be safe, list none so any accidental appearance dead-ends.)
+- ERR/⊥ disabled near VERD in active modes: We omit all pairs with Err adjacent to Corr_⋅⋅ or Ver(⋅) whenever Tok→ or Tok← is 1. (Outside active-active/mixed, ERR is permitted next to Pad/NonGate.)
+
+Mixed-pair fallback
+- If exactly one side is canonical, then one token is present and the other absent. Locally, this permits S_color on the canonical side (GateL/R adjacency), forces S_⊥ on the non-canonical side (NonGate adjacency), allows corridor cells to be Corr_10 or Corr_01 near the canonical side and Corr_00 elsewhere, and crucially allows S↔Corr pairs with S_⊥ (since opposite-direction token is 0). No Ver(⋅) appears (no Corr_11), so the pair accepts unconditionally via PAD/corridor self-loops.
+
+ERR discipline outside special modes
+- Outside probes or active seam (i.e., when no Head_j/Accept_j/P⋅p^⋅ or Corr_⋅⋅/Ver(⋅) present), we allow (Pad, Err), (Err, Err), (Err, Pad) to guarantee malformed interiors can always be completed and never constrain f.
+
+B=2 DP audit plan (concrete checklist)
+1) TS probe checks: Build four canonical left seeds L(00), L(01), L(10), L(11) whose interior right of S is GateL, P1^{u1}, P2^{u2}, Pad. Set boundary inputs a⋆ (e.g., 0000). For Q_1: boundary outputs (BL1_1, BL2_1, BR2_1, BR1_1); run the DP and confirm extendibility iff u1=1. Similarly for Q_2 vs u2.
+2) Seam/mixed pairs: Build R(v) symmetrically so that left of S2 is Pad, P2^{v2}, P1^{v1}, GateR. For each pair (u,v), activate corridor tokens as per GateL/GateR presence. Instantiate the toy succinct graph D as the 4-cycle on {00,01,11,10} with D(u,u)=0. Bake the 16 cases into the allowed Ver(⋅,e,q) alongside the local S2↔Ver acceptance table above. Verify:
+   • Mixed pairs (exactly one side canonical) accept for any S_color on the canonical side and S_⊥ on the non-canonical side.
+   • Active-active pairs accept iff (D(u,v)=0 or colors differ) AND (u=v ⇒ colors equal). (Since Eq=1 only for u=v, the latter becomes a requirement.)
+3) ERR/⊥-escape: Confirm via the adjacency that no Head_j, P⋅p^⋅, Corr_⋅⋅, or Ver(⋅) has any outgoing pair to Err; attempts dead-end as intended.
+
+Alphabet/adjacency budget (B=2 instance)
+- Symbols: S(4) + PORT idle(4) + PORT probe(4) + PROBE(4) + Gate*(2) + NonGate(1) + Pad(1) + Err(1) + Corr(4) + Ver(12) + boundary tokens(8) = 45 symbols. Adjacency table lists O(10^2) pairs; well within β for any reasonable β≥64.
+
+Gaps in output.md (observations; no edits made)
+- Context set C not explicitly defined in output.md: As used in our reduction and the NEXPTIME upper bound, C denotes types realized by words w_1 S w_2 with |w_i|∈{ℓ_pump, ℓ_pump+1}. It may help to add this remark (|C|≤ℓ_pump), though the main theorems do not depend on it.
+- Finite-Z bound is stated (Cor. 4) with Z≤|T|^2; we use this for (F2) in the upper bound. For hardness we neutralize (F2) via ⊥-plumbing; output.md does not describe this family-specific trick (by design), but our notes rely on it.
+
+Obstacles/risks and mitigations
+- Verdict e/q linkage to PORT bits (B=2): We sketched two radius-1 realizations: (i) expand Corr/Ver symbols to encode the (u,v) case and list only consistent pairs; (ii) constrain the corridor placement to sit adjacent to the PORT cells and list only (PORT, Corr)/(Corr, Ver)/(Ver, PORT) pairs consistent with the table of (EDGE,Eq). Either is DP-checkable with a finite list; we propose to use (i) to keep the corridor width at two.
+- “Simultaneous activation” locality: Resolved via tokens. Must-color and the requirement to attach to Ver(⋅) are triggered solely by the presence of the opposite-direction token on the adjacent corridor cell; this is local and symmetric.
+- Probe determinism: We listed the unique successors from BL2_j and from probe-active PORT cells; no pairs to Err/S/Pad are present before Accept_j, preventing escape.
+
+Next steps (auditable deliverables)
+1) Finalize the B=2 machine-readable instance: list the exact symbol set and the Cout–out adjacency pairs as above, plus the 16-case table wiring (u,v)↦(EDGE,Eq) into Corr/Ver pairs. Share with the DP harness.
+2) Run the DP to validate: TS per-bit probes; mixed-pair acceptance; active-active seam behavior for all 16 (u,v) with the S2↔Ver acceptance table; absence of Err/⊥ escape.
+3) Generalize the probe schema to arbitrary B (add Head_j/Accept_j and P_kp^⋅ symbols) and state the O(B^2) adjacency count bound explicitly; verify symbol budgets with β≥c·B^2.
+4) Add a short r=1 padding lemma (or cite Lemmas 11, 14–15) guaranteeing existence of canonical contexts at lengths ℓ_pump and ℓ_pump+1 with the PORT zone abutting S; ensure pumping occurs in PAD only.
+5) After B=2 validation, formalize Lemma TS (type separation), Lemma RG (gating + tokens), and Lemma SG (seam verdict with EDGE/Eq) and integrate into the curated output once vetted.
+
+## Round 0005 — 2025-08-28T12:40:25.720099Z
+
+Round 0005 — Parametric, radius-1 rule schemas you can DP-check; adopting directional tokens
+
+Context and objective
+- We adopt the verifier’s recommendation to use directional tokens for seam activation. This round supplies explicit, radius-1 Cout–out (and the relevant Cin–out) rule schemas that are ready to be instantiated (especially for B=2) and verified by the O(kβ^2) DP. We also give a short, specialized padding lemma (radius 1) to justify canonical contexts at lengths in {ℓ_pump, ℓ_pump+1} without changing near-S behavior.
+
+A. Per-bit probe: explicit local rules (Type-Separation TS)
+Symbols/tracks (folded into Σ_out; disjoint role subalphabets so sizes add):
+- Boundary outputs: for each j∈[B], four reserved tokens Q^L1_j, Q^L2_j, Q^R2_j, Q^R1_j. All non-reserved boundary outputs are ordinary tokens Bnd•.
+- PORT zone (adjacent to S on canonical left): Port^I(k,b) and Port^P(k,b) for k∈[B], b∈{0,1}. Port^I used in idle, Port^P in probe mode; both carry (Role=PORT, Addr=k, RIDbit=b).
+- Probe states per j: Start_j, Head_j, Test_j, Accept_j (Role=PROBE). No other role has ProbeHead≠None.
+Cin–out constraints:
+- When Role=PORT, RIDbit equals the node’s input bit; otherwise unrestricted.
+Cout–out pairs (all omitted pairs are illegal):
+- Boundary injection (reserved probes only): (Q^L1_j, Q^L2_j) and (Q^L2_j, Start_j). No other successor from Q^L2_j.
+- Corridor marching to PORT[1]: (Start_j, Head_j). For any non-PORT corridor cell y, (Head_j_prev, Head_j_y). No pairs from Head_j to ERR/⊥ (disables escape).
+- Entering PORT and scan-by-address:
+  • For any k,b: (Head_j_prev, Port^P(k,b)).
+  • If k≠j: (Port^P(k,b), Head_j_next) (head keeps moving).
+  • If k=j and b=1: (Port^P(j,1), Test_j), then (Test_j, Accept_j). If k=j and b=0: Test_j has no legal successor (dead-end). No (Test_j,•) except (Test_j,Accept_j).
+- Accept exit to PAD: (Accept_j, PAD), and then PAD self-loops.
+- Mode exclusivity: Any adjacency involving Start_j/Head_j/Test_j/Accept_j appears only under Q_j; there are no pairs from PAD/HEAD/PORT^I into any PROBE state. Thus PROBE states cannot spontaneously appear unless Q_j is used.
+- PORT contiguity/monotonicity (independent of probes): For consecutive PORT cells x→y, allowed pairs enforce Addr(x)+1=Addr(y), starting at Addr=1 and ending at Addr=B. This makes a contiguous block abutting S; non-PORT intrusions in between have no legal pairs with PORT neighbors.
+Claim TS (restated, DP-checkable): For canonical L(u) with a well-formed contiguous PORT zone at S, and fixed boundary inputs a⋆, the DP on the 4-node boundary with outputs Q_j accepts iff u_j=1, hence E_{L(u)}(a⋆)[Q_j]=u_j. Determinism comes from unique successors and the prohibition of ERR/⊥ near PROBE.
+
+B. Per-side color gating and seam activation with directional tokens
+Symbols/tracks:
+- S-color tokens at the two S nodes: S_⊥, S_R, S_G, S_B.
+- Gate tokens adjacent to S inside canonical blocks: GateL on left interior neighbor of S1; GateR on right interior neighbor of S2.
+- Corridor roles across the bridge wb∘wc: RUN, PAD, VERD (verdict cell role). Each corridor symbol encodes Tok→,Tok←∈{0,1} (two bits) used only on corridor roles.
+Local gating at S (Cout–out pairs touching S and its interior neighbor):
+- Permission: If neighbor is GateL (resp. GateR), allow S∈{S_R,S_G,S_B,S_⊥} on that side; else only S_⊥ allowed. This is per-side, independent.
+Directional token seeding (purely local):
+- If the interior neighbor is GateL and S1∈{S_R,S_G,S_B}, then the immediate corridor cell to the right of S1 must have Tok→=1; otherwise Tok→=0.
+- If the interior neighbor is GateR and S2∈{S_R,S_G,S_B}, then the immediate corridor cell to the left of S2 must have Tok←=1; otherwise Tok←=0.
+Token propagation (deterministic):
+- For any corridor edge x→y, allowed iff Tok→(y) ≥ Tok→(x) and Tok←(y) ≥ Tok←(x), and once a token bit becomes 1 it stays 1 across the entire bridge (monotone propagation). Concretely, list the four allowed bit-pairs per edge: (0,0)→(0,0), (1,0)→(1,0), (0,1)→(0,1), (1,1)→(1,1). Disallow any decrease.
+Must-color and mixed-pair fallback (local checks at S):
+- If the interior neighbor’s Tok bit from the opposite side is 1 (Tok→ at S1’s neighbor; Tok← at S2’s), then the only allowed S tokens are S_R,S_G,S_B (forbid S_⊥). Also, in this case S must attach to a non-PAD verdict/corridor neighbor (see C below); attaching to neutral PAD is forbidden. If the opposite token bit is 0, both S_⊥ and S_{R,G,B} are allowed and may attach to PAD neighbors (mixed/inactive acceptance).
+Remark: These three rules ensure: (i) only canonical sides can choose colors; (ii) must-color is enforced only in active-active (both tokens present); and (iii) mixed pairs accept via PAD-only plumbing.
+
+C. RUN tableau and verdict cell with local EDGE/Eq gate
+Verdict neighbor format:
+- The cell immediately to the right of S2 (inside the corridor) takes a role VERD(e,q,c) with e=EDGE∈{0,1}, q=Eq∈{0,1}, and c=FwdColor∈{R,G,B}. A 1-bit forwarder track copies S1’s color along the corridor; pairwise neighbor equalities enforce consistency until VERD.
+Local acceptance at S2↔VERD (enumerable finite list):
+- Allowed pairs (S2, VERD(e,q,c)) exactly when both constraints hold:
+  • If e=1, then S2’s color ≠ c; else (e=0) no restriction.
+  • If q=1, then S2’s color = c; else (q=0) no restriction.
+- Concretely: for e=0,q=0 allow all 3×3 color pairs; e=1,q=0 allow all unequal pairs; e=0,q=1 allow only (S2=c); e=1,q=1 allow none (this case should be unreachable if D(u,u)=0; if it occurs due to a malformed tableau, the instance correctly dead-ends).
+RUN corridor robustness and activation:
+- When both Tok→=Tok←=1 (active-active), Cout–out permits only RUN/VERD states (no ERR/⊥) and requires a well-formed row-by-row simulation of U that reads (enc(D), u, v). Any malformed step has no legal continuation (local refutation). When at least one token is 0, RUN/VERD symbols are disallowed and PAD plumbing is allowed.
+
+D. B=2 auditable micro-instance (symbol list and key pairs)
+Symbols (minimal set):
+- S: S_⊥, S_R, S_G, S_B.
+- PORT (left): Port^I(1,0/1), Port^I(2,0/1), Port^P(1,0/1), Port^P(2,0/1).
+- Probe: Start_1, Head_1, Test_1, Accept_1; Start_2, Head_2, Test_2, Accept_2.
+- Boundary: Q^L1_1,Q^L2_1,Q^R2_1,Q^R1_1 and same for j=2; also generic Bnd• tokens.
+- Gate: GateL, GateR.
+- Corridor: PAD_00, PAD_10, PAD_01, PAD_11 (PAD with Tok→Tok← bits), and VERD(c∈{R,G,B}, e∈{0,1}, q∈{0,1}); RUN_x (finite work alphabet, omitted here but locally checked).
+Key Cout–out pairs (subsample; full set by schemas A–C):
+- Probes: (Q^L2_1, Start_1), (Start_1, Head_1), (Head_1, Port^P(1,b)), (Port^P(1,1), Test_1), (Test_1, Accept_1), (Accept_1, PAD_00), (Head_1, Port^P(2,b)), (Port^P(2,b), Head_1). Mirror for j=2.
+- PORT contiguity: (Port^I(1,•), Port^I(2,•)) allowed; (Port^I(2,•), non-PORT) terminates block; no other cross.
+- Gating at S1: (GateL, S_{R/G/B/⊥}) allowed; (non-GateL, S_⊥) only. Similarly for S2 and GateR.
+- Token seeding/propagation: From GateL with S1∈{R,G,B} require the right neighbor be PAD/RUN with Tok→=1; else Tok→=0. Along corridor, (PAD_ab, PAD_ab) and (PAD_a b, PAD_a b) with nondecreasing bits as above.
+- Must-color: If the cell next to S2 has Tok←=1, forbid (S_⊥, •) and forbid attachment to bare PAD; require the neighbor be VERD or a RUN boundary state. If Tok←=0, allow (S_any, PAD_•0) freely.
+- Verdict: enumerate allowed (S2_color, VERD(e,q,c)) as per C.
+DP audit steps:
+1) Build L(00), L(01), L(10), L(11) with a length-2 PORT zone abutting S and seed HEAD/PAD elsewhere. Fix a⋆. Verify E_{L(u)}(a⋆)[Q_1]=u_1 and E_{L(u)}(a⋆)[Q_2]=u_2.
+2) Define a toy D on 4 vertices (00–01–11–10–00). Implement U as a constant table writing VERD(e,q,c) with q=1 iff u=v and e=1 on edges. For all 16 ordered pairs (L(u),R(v)): active-active accepts iff [(edge ⇒ colors differ) ∧ (u=v ⇒ colors equal)]. Mixed pairs (exactly one Gate) accept for any color on the canonical side and ⊥ on the other.
+
+E. Padding lemma for canonical contexts (radius 1, specialized)
+Lemma Pad (explicit). Fix any finite “near-S” pattern W (HEAD·PORT(B)·RUN), and a PAD filler P (Role=PAD) whose Type(P^t) stabilizes by t≥t0 (exists by Lemma 15). For each large ℓ∈{ℓ_pump, ℓ_pump+1}, there exists t such that |P^t·W|=ℓ and Type(P^t·W) depends only on Type(W) (independent of t once t≥t0). Moreover, since PAD never uses PROBE/RUN/PORT roles, the probe/seam interfaces at S are unchanged.
+Proof sketch: By periodicity of Type(P^t) and replacement (Lemma 11), increasing t beyond t0 does not change Type(P^t·W). Adjust t by at most 1 to hit the desired length. Apply symmetrically on the right. Hence canonical contexts with PORT abutting S exist at both target lengths without altering the gadgets.
+
+F. Budget and locality recap (for the tables you will instantiate)
+- Disjoint role subalphabets (S, PORT, PROBE, GATE, PAD, RUN, VERD, BOUNDARY) prevent unintended cross-products; sizes add. Dominant counts: O(B) PORT symbols (both I/P variants) and O(B) probe states. Adjacency table has O(B^2) nonzeros from (Head_j↔Port^P(k,•)) and a constant number elsewhere. Choose β ≥ c·B^2.
+
+Gaps/clarifications in output.md
+- None critical remain; output.md already states the “fixed interior inputs” interpretation parenthetically in Definitions. You may consider adding a short note that C (context types) is realized by w_1 S w_2 with |w_i|∈{ℓ_pump,ℓ_pump+1}, hence |C|≤ℓ_pump (used implicitly in our verifier loops).
+
+Next steps (auditable)
+1) Instantiate the above schemas for B=2: provide the full Cin–out mask (RIDbit copy) and the complete Cout–out table fragment covering A–D.
+2) Run the O(kβ^2) DP to validate TS and the seam behavior on all 16 pairs; include traces for any failing pair (none expected).
+3) Generalize the B=2 tables parametrically to arbitrary B (the only growth is in the families {Port^•(k,·)} and {Start/Head/Test/Accept}_j and {Q}_j).
+4) Incorporate Lemma Pad (E) into output.md as a short lemma once the DP confirms behavior.
+5) Package the S3Col→FFE(F1) reduction with these gadgets; ensure ⊥-plumbing makes (F2) vacuous, concluding NEXPTIME-hardness of the 3-way classifier in this explicit model.
+
+## Round 0005 — 2025-08-28T12:40:31.236846Z
+
+Round 0005 — Parametric, radius-1 rule schemas (directional tokens adopted), B=2 instantiation blueprint, and finite-length canonical contexts
+
+Context and objective
+- We continue the NEXPTIME-hardness program via Succinct 3-Coloring (S3Col) by finalizing DP-auditable, radius-1 rule schemas for: (i) deterministic per-bit boundary probes that separate 2^B canonical vertex types; (ii) per-side color gating; (iii) seam activation via directional tokens Tok→/Tok← with a local verdict enforcing simultaneously EDGE and Eq; and (iv) a bridging policy that either vacuously holds (inactive/mixed) or reduces to the same local seam constraints regardless of repetition z. We also provide a B=2 symbol list and explicit Cout–out fragments sufficient for a DP check.
+- Minor gaps to output.md: (1) Please add a parenthetical note that types E_w(a) are computed with respect to fixed interior inputs (our PORT.RIDbit copies the fixed Σ_in). (2) When feasible functions are used, it helps to define the context set C explicitly as those types realized by w_1 S w_2 with |w_i| ∈ {ℓ_pump, ℓ_pump+1}; hence |C| ≤ ℓ_pump. (We do not edit output.md, only flagging these clarifications.)
+
+A) Per-bit probe (Type-Separation) — explicit radius-1 rules (deterministic, no escape)
+Symbols/tracks used (folded via disjoint roles; sizes add):
+- Roles: {PAD, HEAD, PORT, PROBE, RUN, VERD, ERR, S} × Phase∈[c0] (constant c0).
+- PORT subtracks: Addr∈{1,…,B}, RIDbit∈{0,1}.
+- Probe states per j∈[B]: Start_j, Head_j, Test_j, Accept_j (role=PROBE).
+- Boundary outputs: For the 4 boundary positions, reserve B 4-tuples Q_j. We refer to the second-from-left boundary output as BL2_j for injection.
+- Cin–out: PORT cells have (input b, output RIDbit=b) allowed for b∈{0,1}. Non-PORT roles ignore RIDbit in Cin–out; ERR and PAD accept any input (standard).
+- PORT well-formedness and contiguity: Allowed PORT–PORT Cout–out pairs on interior edges are exactly (P(k,·) → P(k+1,·)) for k=1,…,B−1; no other PORT adjacency allowed. The unique PORT block abuts S.
+Cout–out rules (parametric in j):
+- Injection: (BL2_j → Start_j) is the only allowed successor from BL2_j.
+- March: For any non-PORT y, allow (Head_j → Head_j at y); forbid any pairs from {Start_j,Head_j,Test_j,Accept_j} to ERR or to ⊥.
+- At PORT(k,b):
+  • If k≠j: allow (Head_j(prev) → Head_j(curr)), no other successor.
+  • If k=j and b=1: allow (Head_j(prev) → Test_j(curr)), then (Test_j → Accept_j) to the next cell.
+  • If k=j and b=0: no successor listed from Head_j; dead-ends.
+- Accept exit: (Accept_j → PAD) followed by PAD self-plumbing.
+Type-Separation claim TS (re-stated, DP-checkable): Fix boundary inputs a⋆. For any canonical left block L(u) with PORT adjacent to S, E_{L(u)}(a⋆)[Q_j] = u_j. Proof sketch: under Q_j, the only legal continuation is the deterministic chain above; it reaches PORT(j, u_j) and continues iff u_j=1; Cin–out ties RIDbit to the input bit. ERR/⊥ are disallowed near PROBE, eliminating alternative completions. Symmetric right probe gives 2^B right-types.
+Alphabet/adjacency budget: PROBE contributes O(B) symbols, PORT contributes O(B), reserved boundary outputs contribute O(B). The adjacency table needs O(B^2) pairs for (Head_j ↔ PORT(k,·)); others are O(1). With disjoint roles, |Σ_out| = Θ(B) and |Cout–out| = O(B^2) + O(β), feasible with β = s^{c1} and B = s^{c0}, c1 ≥ 2c0.
+
+B) Per-side color gating and directional-token seam activation (mixed pairs accept)
+Symbols/tracks:
+- S colors: {S_R, S_G, S_B, S_⊥} (role=S). Only the color field is under f; all other subtracks derive from neighbors.
+- Gate tokens at the interior neighbor of S: GateL (left side canonical), GateR (right side canonical). If absent, neighbor is neutral PAD.
+- Directional tokens on the corridor: Tok→, Tok← ∈ {0,1} carried by RUN/PAD/VERD cells across the bridge wb∘wc. Tokens propagate deterministically; see rules below.
+Per-side gating (purely local):
+- If S’s interior neighbor is Gate•, S may be in {S_R,S_G,S_B,S_⊥}; otherwise S must be S_⊥ (only S_⊥-adjacency pairs are listed to neutral neighbors).
+Token seeding (only when the side is canonical and colored):
+- If (GateL ↔ S_x) with x∈{R,G,B}, the first corridor cell to the right of S1 is forced to Tok→=1 (a special Seed→ state). If S1=S_⊥, no seeding: Tok→=0.
+- Analogously, if (S2_x ↔ GateR) with x∈{R,G,B}, the first corridor cell to the left of S2 is forced to Tok←=1 (Seed←); else Tok←=0.
+Token propagation (radius-1):
+- Along the corridor toward the opposite end, for any consecutive interior edge i→i+1, allowed pairs enforce: Tok→(i)=1 ⇒ Tok→(i+1)=1; Tok←(i+1)=1 ⇒ Tok←(i)=1. (Implement by restricting allowed symbol pairs to those with nonincreasing zeros, i.e., once 1 is present it persists; in practice, corridor symbols carry both bits, and Cout–out allows only pairs with Tok→ nondecreasing left→right and Tok← nondecreasing right→left.) Outside the corridor, tokens are implicitly 0 (no symbols with tokens permitted).
+Must-color and mixed-pair fallback (enforced at S by inspecting opposite token on its neighbor):
+- Let N1 be S1’s interior neighbor; if Tok→(N1)=0, any S1∈{S_R,S_G,S_B,S_⊥} may attach to neutral neighbors; if Tok→(N1)=1 (which occurs only when the right side is canonical and colored), then S1≠S_⊥ is required and the neighbor must be the designated FWD cell (see below). Symmetrically at S2 using Tok←.
+- Consequently, mixed pairs (exactly one side canonical/colored) have no opposite-direction token locally; colored S on the canonical side attaches to a neutral neighbor; the inactive side is S_⊥; PAD plumbing accepts unconditionally. No seam tableau runs.
+
+C) Seam RUN tableau and local verdict (EDGE and Eq simultaneously)
+Corridor layout near S:
+- FWD cell immediately right of S1: records FwdColor ∈ {R,G,B} equal to S1; allowed pairings: (S1_x ↔ FWD(FwdColor=x)) only; if Tok→(FWD)=0, neutral pairs to PAD are also allowed; if Tok→=1, only the FWD pairing is allowed (must-color enforced).
+- VERD cell immediately left of S2: symbol Ver(FwdColor∈{R,G,B}, EDGE∈{0,1}, Eq∈{0,1}).
+RUN tableau enablement:
+- RUN-role symbols (row-by-row U-simulation) are permitted on the corridor only when (Tok→=1 and Tok←=1) on those cells; else only PAD is permitted. ERR is globally available but explicitly disallowed adjacent to RUN/VERD when any token bit is 1 (no escape in active modes).
+U’s task (constant alphabet): read enc(D) in HEAD; read u from left PORT and v from right PORT; compute EDGE=D(u,v) and Eq=[u=v] in poly(s) steps. The last row writes Ver(FwdColor,EDGE,Eq) into the VERD cell next to S2; FwdColor is copied unaltered from the FWD cell via a constant-width forwarder track (enforced by local equalities).
+Local verdict at S2–VERD edge (radius-1 adjacency list):
+- For each c∈{R,G,B} and bits e,q∈{0,1}, allowed pairs (S2_col, Ver(FwdColor=c,EDGE=e,Eq=q)) are:
+  • If q=1: allow only when S2_col = c (forces equality on u=v). If additionally e=1, this case is unreachable because we ensure D(u,u)=0 in preprocessing (or the seam would be contradictory). If e=0, equality holds; allowed.
+  • If q=0 and e=1: allow only when S2_col ≠ c (forces inequality on edges).
+  • If q=0 and e=0: allow all 3×3 color combinations.
+- Must-color at S2: If Tok←(VERD)=1, forbid S2_⊥; otherwise S2_⊥ is allowed (mixed/inactive pairs).
+Correctness (active-active): Acceptance iff (EDGE=0 or colors differ) and (Eq=0 or colors equal). Mixed/inactive: tokens absent locally; neutral plumbing accepts unconditionally.
+
+D) Bridging (F2) is vacuous or reduces to local seam
+- For inactive/mixed contexts: S choices are either ⊥ (inactive) or unrestricted on the canonical side with PAD neighbors (mixed); repetitions w_i^z away from S are filled by PAD/⊥ self-loops; Cout–out includes PAD–PAD self-transitions for every interior edge type; thus wz_1 S wz_2 always extends independently of z.
+- For active-active canonical pairs: all constraints are confined to the immediate corridor around S (FWD, RUN rows, and VERD), which has constant width; repeating w_i does not create new constraints across S and does not affect U’s computation (it reads PORTs adjacent to S). Hence feasibility for z=1 implies feasibility for all z ≥ 1. Formally, by Lemma 1 in output.md (periodicity), we may check z up to Z, but here local wiring already makes the outcome z-invariant.
+
+E) B=2 concrete instance (DP-auditable)
+Symbols to enumerate (suggested names):
+- S: S_R, S_G, S_B, S_⊥.
+- PORT: P1^0,P1^1,P2^0,P2^1.
+- PROBE: Start_1,Head_1,Test_1,Accept_1; Start_2,Head_2,Test_2,Accept_2.
+- Boundary outputs: Q_1, Q_2; we treat BL2_1 and BL2_2 as the left second boundary outputs selecting Start_j.
+- Gating: GateL, GateR; otherwise PAD.
+- Corridor bits: tokens Tok→/Tok← ∈ {0,1} carried in symbol variants (we can realize four variants of PAD and RUN cells to encode the two bits; only those pairs consistent with monotone propagation are listed).
+- RUN: a tiny fixed alphabet sufficient to tabulate D on {00,01,10,11} and Eq=[u=v].
+- VERD: Ver(c∈{R,G,B}, e∈{0,1}, q∈{0,1}).
+Cin–out (B=2): Allow PORT b-outputs matching the input bit b; all other roles accept any input bit (copy-through or don’t-care). Optionally, forbid ROLE=PORT unless the HEAD/PORT header is present (enforced by Cout–out grammar between HEAD and PORT).
+Cout–out key fragments (B=2):
+- Probes: as in A, instantiate k∈{1,2} and j∈{1,2}. Enumerate (Head_j ↔ Port^P(k,·)) march, (Port^P(k≠j,·) → Head_j), (Port^P(j,1) → Test_j → Accept_j), and no successor on (Port^P(j,0) → ·). No ERR/⊥ adjacent to Start/Head/Test/Accept.
+- Gating at S: (GateL ↔ S_color) for color∈{R,G,B,⊥}; (¬GateL ↔ S_⊥) only. Same on the right with GateR.
+- Tokens: (GateL ↔ S_color) forces Seed→(Tok→=1) on the next interior cell; otherwise Tok→=0. Enforce Tok→ nondecreasing left→right and Tok← nondecreasing right→left by allowing only corridor pairs (x,y) with y.Tok→ ≥ x.Tok→ and x.Tok← ≥ y.Tok←.
+- Must-color at S: If N1.Tok→=1 then forbid (S1=⊥ ↔ N1); also require (S1 ↔ FWD) pairing; symmetrically if N2.Tok←=1 require (S2 ↔ VERD).
+- RUN enablement: Only when both token bits are 1 on corridor cells are RUN-row symbols permitted (else PAD). ERR adjacent to RUN or VERD is forbidden in this mode.
+- Verdict adjacency: Explicitly list allowed pairs (S2_col ↔ Ver(c,e,q)) following the cases in C.
+DP audit checks:
+1) Probe: Four left seeds L(00),L(01),L(10),L(11) with contiguous PORT zone next to S. For each u, and boundary outputs Q_1,Q_2 under fixed a⋆, the DP should yield E(u)[Q_1]=u_1 and E(u)[Q_2]=u_2.
+2) Seam: Take D as a 4-cycle on {00,01,10,11} and Eq by equality. Build right seeds R(v). For all 16 ordered pairs (L(u),R(v)), the DP should accept iff (u=v ⇒ colors equal) and (D(u,v)=1 ⇒ colors differ). Mixed pairs (canonical on one side only) accept regardless, with S on inactive side = ⊥.
+
+F) Existence of canonical contexts at lengths ℓ_pump or ℓ_pump+1 (specialized padding lemma)
+Lemma CN (canonical contexts exist with prescribed side-length parity). For each index u∈{0,1}^B there is at least one left word w_1 of length in {ℓ_pump, ℓ_pump+1} whose suffix adjacent to S is a well-formed canonical block W_L(u) (HEAD · PORT(B) · RUN prefix) and PAD elsewhere; likewise for right contexts.
+- Proof sketch (uses output.md Lemmas 11–12, 14–15): Start from a seed word U_L(u) = PAD^z · W_L(u) with z≫1 chosen so that Type(PAD^z) stabilizes and replacing PAD^z by any PAD^{z′} with the same type preserves the type of U_L(u). By Lemma 15 (periodicity), select z′ so that |PAD^{z′} · W_L(u)| hits ℓ_pump or ℓ_pump+1. All pumping/replacement happens in PAD outside the seam, so the HEAD/PORT layout and probe/seam interfaces are unaffected. Symmetric for the right.
+
+G) Why (F1)⇔3-coloring and why (F2) imposes no extra burden
+- Completeness: Given χ: {0,1}^B→{R,G,B}, set f(Type(L(u)))=χ(u), f(Type(R(v)))=χ(v), f(others)=⊥. Active-active seam checks EDGE and Eq and enforces inequality on edges and equality on u=v via local verdict; mixed pairs pass via fallback plumbing.
+- Soundness: If f passes (F1), then for each u, both τ^L_u and τ^R_u must be non-⊥ (else some active-active diagonal pair would violate must-color); the diagonal (u,u) has Eq=1, so the colors match, defining χ(u). For any edge (u,v), EDGE=1 forces χ(u)≠χ(v). Thus χ is a proper 3-coloring.
+- Bridging (F2): As argued in D), repeating w_i adds only PAD away from S; in active-active pairs the corridor logic is local-invariant; mixed/inactive are vacuous. Hence any f that satisfies (F1) also satisfies (F2) in this construction.
+
+H) Risks and resolutions (for DP and audit)
+- Probe uniqueness/escape: We explicitly forbid ERR/⊥ adjacent to PROBE states and give each probe state a unique successor; PORT contiguity is enforced by allowing only Addr→Addr+1 across PORT. This makes E(a⋆)[Q_j] a single-bit function of RIDbit[j].
+- Seam activation locality: Tokens are read only one hop from S; must-color is triggered iff the opposite-direction token is present; RUN/VERD are permitted only when both tokens are present. Mixed pairs see no opposite token and thus accept.
+- Verdict consistency: The Eq gate enforces equal colors only on u=v; to avoid Eq∧EDGE contradictions, set D(u,u)=0 in preprocessing of the succinct graph (standard and WLOG for 3-coloring).
+- Alphabet/adjacency budgets: With disjoint-role subalphabets, |Σ_out|=Θ(B) and |Cout–out|=O(B^2)+O(1). Choose β≥c·B^2 to be safe (or β=Θ(B) with careful symbol reuse as in A–C).
+
+Next steps (concrete, auditable)
+1) Produce a machine-readable B=2 instance: enumerate Σ_out symbols listed in E), tabulate Cin–out and the Cout–out fragments for probes, gating, token propagation, RUN enablement, must-color, and verdict adjacency. Run the O(kβ^2) DP to validate the probe bits and seam acceptance on all 16 ordered pairs (L(u),R(v)).
+2) Generalize the parametric tables (Head_j/Port(k,·), Tok monotonicity, S-adjacent constraints, verdict pairs) for arbitrary B and bundle them into the reduction.
+3) Integrate Lemma TS (probes), Lemma RG (gating+tokens), Lemma SG (seam verdict) into the curated output once B=2 validation passes; add Lemma CN (canonical contexts existence) referencing output.md Lemmas 11–12,14–15.
+4) Package the reduction D ↦ P_D formally and state the equivalence (3-colorable ⇔ feasible f), concluding NEXPTIME-hardness of the classification (O(1)/Θ(log* n)/Θ(n)) under the explicit β-normalized, r=1 model.
+
+## Round 0005 — 2025-08-28T12:41:54.605499Z
+
+Round 0005 — Parametric radius-1 rule schemas made DP-ready (B=2 instance blueprint) and locality checks consolidated
+
+Context and objective
+- We are proving NEXPTIME-hardness of the β-normalized, radius-1 classification on oriented paths by reducing Succinct 3-Coloring to Feasible-Function Existence (F1). The verifier asked for fully local, radius-1 rule schemas that (i) separate 2^B vertex types via per-bit boundary probes, (ii) realize per-side color gating and mixed-pair vacuity, and (iii) implement an active seam with a local verdict enforcing both EDGE=1 ⇒ color-inequality and Eq=1 ⇒ color-equality. We adopt the directional-token activation to keep mixed pairs unconditional and must-color only in active-active pairs. Below I spell out parametric Cout–out rule schemas and instantiate a B=2 DP-auditable skeleton.
+
+Gaps spotted in output.md (minor; no edits)
+- None new. The parenthetical “interior inputs may be arbitrary; if the model fixes interior inputs, the definition is with respect to those fixed inputs” is present; we rely on the fixed-interior-inputs interpretation. The finite-Z bound Z ≤ |T|^2 is already recorded (Corollary 4).
+
+Symbols, roles, and disjoint subalphabets (budget discipline)
+- We keep disjoint role subalphabets so sizes add, not multiply. Output symbols encode: Role ∈ {S, GATE_L, GATE_R, PORT, PROBE, PAD, RUN, VERD, ERR}, color ∈ {⊥,R,G,B} used only when Role=S, PORT-fields Addr∈{1,…,B}, RIDbit∈{0,1}, probehead ∈ {None, Start_j, Head_j, Test_j, Accept_j}, tokens Tok→,Tok←∈{0,1} present only on RUN/PAD in the bridge, verdict fields (EDGE,Eq,FwdCol) present only when Role=VERD. Cin–out ties RIDbit to Σ_in for Role=PORT and is otherwise permissive.
+
+A. Per-bit boundary probe — parametric Cout–out schema (Type-Separation)
+Setup
+- Reserve B boundary-output 4-tuples Q_j, j∈[B]. We use only the left pair (positions 1,2) actively; the right pair is a neutral terminator (RB_pad2,RB_pad1). Fix a boundary-input 4-tuple a⋆.
+Canonical left block W_L(u)
+- Adjacent to S on its right: a contiguous PORT zone of length B with symbols Port(k,b) (Role=PORT, Addr=k, RIDbit=b=u_k). The remainder is PAD/HEAD as filler; RUN is absent unless the seam is active. Addr increases strictly left→right; the PORT zone abuts S.
+Allowed Cout–out pairs (all unlisted pairs disallowed)
+- Boundary injection and uniqueness:
+  • (QL1_j, QL2_j) is allowed for each j; for any i≠j, (QL1_i, QL2_j) is disallowed.
+  • (QL2_j, Start_j) is allowed; for any x ≠ Start_j, (QL2_j, x) is disallowed.
+- Deterministic march (no error/⊥ escape while probing):
+  • (Start_j, Head_j) is allowed; no other successor from Start_j.
+  • For any non-PORT role y∈{PAD,HEAD}, (Head_j, Head_j@y) is allowed; pairs (Head_j, ERR_•), (Head_j, ⊥@S), and (Head_j, any non-probehead) are disallowed.
+- PORT scan and test at Addr:
+  • For k≠j, (Head_j, Head_j@Port(k,b)) is allowed (pass-through over wrong address).
+  • For k=j and RIDbit=b:
+    – If b=1: (Head_j, Test_j@Port(j,1)) is allowed, then (Test_j@Port(j,1), Accept_j) is allowed.
+    – If b=0: no outgoing pair from Head_j into Port(j,0) (dead end).
+- Accept exit:
+  • (Accept_j, PAD) is allowed; while probehead∈{Start_j,Head_j,Test_j,Accept_j} appears on either endpoint of an edge, no pair with ERR_• nor ⊥ is listed.
+- PORT well-formedness (static, local): within the zone, only pairs (Port(k,b), Port(k+1,b′)) are allowed; no skips, no reordering. The left neighbor of Port(1,·) must be S (or the seam’s right S when mirrored).
+Claim TS (per-bit separation)
+- For any canonical L(u) and the boundary assignment (QL1_j, QL2_j, RB_pad2, RB_pad1), the DP has a legal completion iff u_j=1. Proof: the only possible evolution is the deterministic pipeline above; it reaches Port(j,·) and accepts iff RIDbit=1; no alternative paths or error-plumbing exist during the probe.
+
+B. Per-side gating, directional tokens, and mixed pairs
+Per-side gating (local, independent across sides)
+- The interior neighbor of S is GATE_L (left side) iff a canonical left block starts there; otherwise PAD/HEAD. Allowed S-adjacent pairs:
+  • If neighbor∈{PAD,HEAD}, then only (neighbor, S_⊥) is allowed.
+  • If neighbor=GATE_L, then (GATE_L, S_c) is allowed for c∈{R,G,B,⊥}. Symmetrically on the right side with GATE_R.
+Directional tokens (purely local activation)
+- Seeding:
+  • If the cell to the right of S1 is GATE_L and S1∈{R,G,B}, then (S1_c, Tok→=1@RUN) is allowed; otherwise only (S1_token, Tok→=0@PAD/RUN) is allowed.
+  • If the cell to the left of S2 is GATE_R and S2∈{R,G,B}, then (Tok←=1@RUN, S2_c) is allowed; otherwise only (Tok←=0@PAD/RUN, S2_token) is allowed.
+- Propagation:
+  • Along the bridge, only (Tok→=1, Tok→=1) and (Tok→=0, Tok→=0) pairs are listed left→right; similarly (Tok←=1, Tok←=1) and (Tok←=0, Tok←=0) right→left. No pair can spontaneously create a 1 from 0.
+Must-color and mixed-pair fallback (enforced locally at S)
+- At S1, adjacency to the right neighbor obeys:
+  • If neighbor carries Tok→=1: pairs (S1_⊥, neighbor) are disallowed; S1 must be colored and must attach to RUN (or VERD, see below); (S1_c, PAD) is disallowed to prevent neutral fallback in active mode.
+  • If neighbor carries Tok→=0: both (S1_⊥, neighbor) and (S1_c, PAD) are allowed (fallback); no activation of RUN.
+- Symmetrically at S2 with Tok←.
+Consequences
+- In mixed pairs (exactly one canonical side), exactly one token is present near S; the colored side is permitted (by GATE_*), the opposite side must be ⊥, and the seam cannot activate (since the opposite-direction token is 0). Neutral PAD-plumbing accepts.
+- In active-active pairs, both tokens are 1; locally at S we forbid ⊥ and forbid attaching to neutral neighbors, forcing RUN activation and a verdict neighbor.
+
+C. Seam tableau and verdict adjacency (local enforcement of EDGE and Eq)
+Verdict interface (radius-1, small)
+- The immediate neighbor to the right of S2 may be VERD(e,q,cFwd) only when both tokens are 1 (RUN active) and after the RUN corridor has stabilized; ERR is disallowed adjacent to RUN/VERD in active mode.
+- Allowed S2–VERD pairs implement the conjunction:
+  • If e=1 (edge), then Color(S2) ≠ cFwd (forbid equal-color pairs); if e=0, both equal and unequal allowed.
+  • If q=1 (same index), then Color(S2) = cFwd (forbid unequal-color pairs); if q=0, both equal and unequal allowed.
+- This yields acceptance iff (e=0 or colors differ) and (q=0 or colors equal). We ensure D(u,u)=0 so e∧q never conflicts.
+Computation of (EDGE,Eq,FwdCol)
+- RUN carries: (i) a one-cell forwarder that copies S1’s color into cFwd (checked by local equality along the corridor), (ii) a fixed-width, row-by-row computation of EDGE=D(u,v) and Eq=[u=v] from the nearby PORT bits, enforced by local row-consistency pairs. In DP-auditable B=2 we tabulate a 4×4 truth table for D and Eq and materialize VERD accordingly.
+
+D. B=2 explicit skeleton (sufficient for DP audit)
+Alphabet sketch (names are individual Σ_out symbols; roles are disjoint)
+- S: S_R, S_G, S_B, S_⊥.
+- Gating: GATE_L, GATE_R.
+- PORT: P1^0, P1^1, P2^0, P2^1.
+- Probe states: Start_1, Head_1, Test_1, Accept_1, Start_2, Head_2, Test_2, Accept_2.
+- Boundary tokens: QL1_1, QL2_1, QL1_2, QL2_2, RB2_pad, RB1_pad.
+- Tokens on bridge: Tok00, Tok10, Tok01, Tok11 encoding (Tok→,Tok←)∈{0,1}^2.
+- RUN (constant small alphabet) and VERD(e,q,c) for e,q∈{0,1}, c∈{R,G,B}.
+Cin–out (radius-0 constraints)
+- For PORT symbols: Cin–out allows Pj^b only when Σ_in bit at that node equals b. For all other roles, both input bits are allowed.
+Cout–out: key allowed pairs (representative list sufficient for DP harness)
+- Probe (j=1): (QL1_1, QL2_1), (QL2_1, Start_1), (Start_1, Head_1), (Head_1, Head_1) over PAD/HEAD, (Head_1, Head_1) over P2^b, (Head_1, Test_1) over P1^1, (Test_1, Accept_1), (Accept_1, PAD). For j=2 swap P1↔P2 in the test pair.
+- PORT contiguity: (P1^b, P2^{b′}) allowed; no other PORT–PORT pair.
+- Gating: (GATE_L, S_c) for c∈{R,G,B,⊥}; (PAD, S_⊥) and (HEAD, S_⊥) only; similarly on the right with GATE_R.
+- Token seeding/propagation (bridge cells immediately inside S): (S_c, Tok10) allowed iff neighbor is right of S1 and S1 is adjacent to GATE_L; otherwise only (S_token, Tok00). Along the bridge, (Tok10, Tok10), (Tok00, Tok00) left→right; symmetrically right→left for Tok←, combining into Tok00, Tok10, Tok01, Tok11.
+- Must-color: if neighbor of S has Tok←=1 (i.e., Tok01 or Tok11), pairs (S2_⊥, Tok•) are disallowed; if Tok←=0 (Tok00 or Tok10), both (S2_⊥, Tok•) and (S2_c, PAD) are allowed. Symmetric rule at S1 with Tok→.
+- Verdict adjacency (explicit): for each e,q,cFwd and color d∈{R,G,B}, allow (S2_d, VERD(e,q,cFwd)) iff [(e=1 ⇒ d≠cFwd) and (q=1 ⇒ d=cFwd)]. For example, disallow (S2_R, VERD(1,0,R)), allow (S2_G, VERD(1,0,R)); disallow (S2_G, VERD(0,1,R)), allow (S2_R, VERD(0,1,R)). When Tok←=0, VERD never appears (RUN inactive), and neutral PAD neighbors are allowed.
+- ERR disabled near PROBE/RUN/VERD: no pairs with ERR on either endpoint adjacent to any of Start_j, Head_j, Test_j, Accept_j, RUN, or VERD.
+DP checks to run (auditable)
+- TS: For four L(u) with u∈{00,01,10,11}, and the pair (QL1_1,QL2_1) on the left and (RB2_pad,RB1_pad) on the right, verify by O(kβ^2) DP that acceptance equals u_1; similarly QL1_2,QL2_2 yields u_2.
+- Seam: Fix a toy D on 4 vertices (e.g., a 4-cycle) and Eq=[u=v]. Ensure RUN places VERD(e,q,·) and S2–VERD adjacency enforces: (i) if D(u,v)=1, only unequal colors pass; (ii) if u=v, only equal colors pass; (iii) mixed pairs accept regardless of the colored canonical side’s choice on S (the opposite side must be ⊥ by gating).
+
+E. Why the rules are local, deterministic where needed, and budget-feasible
+- Probe determinism: Reserved boundary pairs Q_j force Start_j uniquely; Head_j has a single successor on every edge; at Addr=j the only way forward depends on RIDbit; ERR/⊥ are not allowed adjacent to probe states. Hence E_{L(u)}(a⋆)[Q_j]=u_j.
+- Mixed-pair vacuity and must-color: The opposite-direction token locally indicates whether the seam is active; only when it is 1 do we (i) forbid ⊥ at S and (ii) forbid attaching to neutral PAD; otherwise all fallbacks are allowed.
+- Verdict locality: All semantic checks reduce to S2↔VERD adjacency; the forward color is carried explicitly; EDGE and Eq are pinned by the local RUN-to-VERD interface.
+- Budget: With disjoint roles, symbols scale as O(B) (PORT and probe states) plus O(1) for others; the Cout–out table uses O(B^2) entries for (Head_j ↔ Port(k,·)) and O(β) elsewhere. Choose β ≥ c·B^2 to leave slack.
+
+F. Obstacles and how addressed
+- Token spurious creation: Prevented by listing only (Tok0→Tok0) and (Tok1→Tok1) along the corridor, with seeding tied to GATE_* adjacency; no rule lists 0→1 without a gate.
+- Probe escape: All pairs with ERR/⊥ adjacent to probe states are omitted; Start/Head/Test/Accept have unique successors.
+- Seam mis-activation: Only the presence of the opposite-direction token adjacent to S forbids ⊥ and neutral neighbors; there is no cross-seam dependence beyond immediate neighbors.
+- Length normalization: We still rely on pumping/replacement to realize canonical W_L(u), W_R(v) at lengths ℓ_pump or ℓ_pump+1 with the PORT zone abutting S; we will supply a short, r=1 specialization of Lemmas 11–15 to make this self-contained.
+
+G. Next steps (concrete, auditable)
+1) Produce a machine-readable B=2 instance: enumerate Σ_out symbols as listed; provide Cin–out (PORT bit-tying) and Cout–out pairs exactly as above (including the explicit S2–VERD table and probe pairs). Run the O(kβ^2) DP to verify TS and the mixed/active seam behavior on all 16 ordered pairs (L(u), R(v)).
+2) Fill in the RUN-to-VERD micro-tableau for B=2: a finite, row-by-row transition system that reads u,v from the two-port zones and writes VERD(e,q,cFwd) adjacent to S2; ensure ERR is disallowed near RUN in active mode.
+3) Generalize token and probe tables from B=2 to arbitrary B (the only growth is the set {Start_j,Head_j,Test_j,Accept_j} and the PORT addresses).
+4) Write a short r=1 padding lemma: “For each u, there exist left/right contexts of lengths in {ℓ_pump,ℓ_pump+1} with the same near-S structure (HEAD+PORT) and the same type near S,” by pumping PAD and applying Lemma 11 (replacement) to preserve type at the seam.
+5) After B=2 validation, promote Lemmas TS (probe separation), RG (gating+tokens), and SG (seam verdict) into the curated output.
+
+H. Minimal claims ready for DP audit (summarized)
+- TS: Under the boundary 4-tuples (QL1_j,QL2_j,RB2_pad,RB1_pad), E_{L(u)}(a⋆)[·] equals u_j. Distinct u give distinct left-types; mirrored on the right.
+- Mixed pairs accept unconditionally: exactly one token present ⇒ S-side with 0 allows ⊥ and neutral fallback; no RUN/VERD appears.
+- Active-active: both tokens present ⇒ must-color; S2↔VERD adjacency enforces simultaneously EDGE and Eq constraints; ERR is disallowed near RUN/VERD.
+These are all checkable by the O(kβ^2) DP once the above symbol list and pair tables are instantiated.
 

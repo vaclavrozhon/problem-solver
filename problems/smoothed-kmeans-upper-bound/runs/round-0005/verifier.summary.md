@@ -1,0 +1,1 @@
+Both prover reports are consistent with the current plateau calculus and aggregation framework, and the proposed additions are largely clean aggregations or instantiations of already proven per-plateau statements. I verified the following points carefully:

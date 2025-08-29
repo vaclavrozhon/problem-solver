@@ -1,0 +1,207 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+Round 0012 — Completing Stage‑2: a rigorous O(1) partition on oriented paths and a singly‑exponential Stage‑2 certificate based on types (not words), plus audits and verifiable lemmas
+
+Overview
+- Goal this round: close the remaining Stage‑2 gap (O(1) vs Θ(log* n)) for β‑normalized radius‑1 LCLs on globally oriented paths by (i) stating a self‑contained, deterministic O(1) partition lemma tailored to oriented paths and (ii) proposing a singly‑exponential Stage‑2 certificate and verifier that avoids the doubly‑exponential blow‑up inherent in word‑based certificates.
+- High‑level plan: specialize the paper’s Lemma 20/21/22 path partition to our oriented path setting with explicit constants linked to ℓ_pump=|T|, and replace the word‑indexed f0 by a type‑indexed path‑feasible function f_type on short types (length ≤ ℓ_pump). This keeps verification within 2^{poly(β)}.
+- Audit: output.md currently contains a complete Stage‑1 (S1‑path) including endpoint coupling, and the tiny‑path fallback (Lemma TP). Stage‑2 is not yet included; this note supplies a ready‑to‑integrate Stage‑2 section.
+
+A. Oriented‑path partition lemma in O(1) rounds (self‑contained)
+Parameters
+- Set ℓ_pattern := ℓ_pump and ℓ_width := ℓ_pump and ℓ_count := 2ℓ_pump + 2. These are constants depending only on β.
+- Primitive word means a period w ∈ {0,1}^k with 1 ≤ k ≤ ℓ_pattern that is not a proper power.
+
+Statement (P‑Partition‑Path)
+Let G be a globally oriented path. In O(1) LOCAL rounds we can compute a partition P = P_long ∪ P_short of G such that:
+1) Direction and minimum length: each P ∈ P has nodes oriented the same way and |P| ≥ ℓ_width.
+2) Long periodic segments (P_long): each P ∈ P_long is a maximal subpath contained in a run w^K for some primitive w with |w| ≤ ℓ_pattern and K ≥ ℓ_count; each node in P learns the canonical primitive w.
+3) Short/irregular segments (P_short): the remaining subpaths form P_short; each P ∈ P_short has |P| ≤ 2ℓ_width, and each node in P learns its rank in P and the types of the adjacent long neighbors (if any).
+
+Algorithm (constant‑round, oriented)
+- Step A (detect deep interiors of long runs): For each primitive w with 1 ≤ |w| ≤ ℓ_pattern, each node v checks in radius R_w := (ℓ_count + 2ℓ_width)|w| that there exists an aligned block centered near v of the form w^{ℓ_count+2ℓ_width}. If yes, label v ∈ Deep(w). (Alignment uses the global orientation and |w|.) Prioritize conflicts by a fixed total order on primitive words (first by |w|, then lexicographically) and assign each node to the first w for which it is in Deep(w).
+- Step B (form P_long): For each w, let L(w) be the maximal connected subpaths consisting of nodes assigned to w. Each such L ∈ L(w) is contained in a w‑periodic run of length ≥ (ℓ_count + 2ℓ_width)|w|, and by construction each end of the run is at least ℓ_width|w| from the boundary of L. Set P_long := ⋃_w L(w). Each L ∈ P_long is a directed path, and each node knows its w.
+- Step C (form P_short): Define P_short as the connected components of G \ P_long. By construction, each P ∈ P_short has |P| ≤ 2ℓ_width: any longer segment would contain a subpath w^{ℓ_count+2ℓ_width} for some w, contradicting Step A’s maximality and conflict resolution. Each node in P can determine its rank and the adjacent long neighbors (if any) in O(1) rounds.
+
+Correctness and complexity (sketch, auditable)
+- Completeness of long detection: If a primitive run w^K has K ≥ ℓ_count + 2ℓ_width, its internal nodes at distance ≥ ℓ_width|w| from both ends satisfy the Deep(w) test and are captured into P_long. The fixed priority on primitive words yields a disjoint assignment.
+- Boundedness of the remainder: Let H be any component of G \ P_long. If |H| > 2ℓ_width, its interior contains a subpath w^{ℓ_count+2ℓ_width} (for some primitive w with |w| ≤ ℓ_pattern), which would have produced Deep(w) nodes in Step A, contradiction.
+- Round complexity: All pattern detections and conflict resolutions use a constant number of fixed‑length windows bounded by (ℓ_count+2ℓ_width)·ℓ_pattern = O(ℓ_pump^2), hence O(1) rounds. Ranking within short segments and learning adjacent long types are constant‑radius tasks.
+
+Remark (optional, strengthens Step C)
+On each irregular component H of G \ P_long with |H| ≥ ℓ_width, the string has no subpath of the form w^x with |w| ≤ ℓ_pattern and |w^x| ≥ ℓ_count+2ℓ_width. Hence the paper’s (γ,2γ) independent‑set lemma (with γ=ℓ_pattern) applies; combining it with a local cut procedure yields an alternative derivation of |H| ≤ 2ℓ_width and a decomposition into blocks of lengths in [ℓ_pattern,2ℓ_pattern]. We keep the simpler trimming‑based bound ≤ 2ℓ_width above.
+
+B. A singly‑exponential Stage‑2 certificate based on short types (not words)
+Motivation
+- The word‑indexed f0 (mapping each w with |w| ≤ ℓ_pump to f0(w)) risks a doubly exponential verification because the number of words is 2^{Θ(ℓ_pump)} and ℓ_pump itself is exponential in β.
+- Resolution: collapse w to its short type τ_w (Type(w) with |w| ≤ ℓ_pump). The number of short types is ≤ |T| = 4·2^{β^4}, so guessing and verifying a type‑indexed function remains singly exponential in β.
+
+Certificate objects
+- T_short := { τ ∈ T : τ is realized by some word w with 1 ≤ |w| ≤ ℓ_pump }.
+- For each τ ∈ T_short, fix any canonical representative w_τ with |w_τ| ≤ ℓ_pump.
+- The certificate provides f_type: T_short → Σ_out^{|w_τ|}, i.e., an output string f_type(τ) of length |w_τ| for each τ.
+
+Feasibility conditions (typed analogue of (F1)–(F2))
+- (F1‑T) For each τ ∈ T_short, define G_{τ,1} to be the path w_τ^r · w_τ · w_τ^r labeled by f_type(τ)^{2r+1}. Require: the labeling is locally consistent on the mid block w_τ.
+- (F2‑T) For each τ_1, τ_2 ∈ T_short and each τ_S ∈ T (any type, short or long), define G_{τ_1,τ_2,τ_S} as w_{τ_1}^{ℓ_pump+2r} · S · w_{τ_2}^{ℓ_pump+2r}, with the first 2r|w_{τ_1}| outputs fixed to f_type(τ_1)^{2r} and the last 2r|w_{τ_2}| outputs fixed to f_type(τ_2)^{2r}. Require: there exists a completion that is locally consistent on the middle block w_{τ_1}^{ℓ_pump+r} · S · w_{τ_2}^{ℓ_pump+r}.
+
+Why this is enough (intuition)
+- (F1‑T) anchors a 2r‑window per period type τ so that repeating anchors do not conflict.
+- (F2‑T) ensures any finite irregular subpath S flanked by long pumped contexts with anchored mid‑windows can be completed locally.
+
+Verification in NEXPTIME (single‑exponential)
+- Enumerate T and T_short (Proposition 9). For each τ ∈ T_short fix a representative w_τ of length ≤ ℓ_pump.
+- Check (F1‑T): for each τ ∈ T_short, G_{τ,1} mid‑block consistency is a finite Ext‑membership test (at most |T_short| many instances; each reduces to a constant number of seam checks via Ext of Type(w_τ^3)).
+- Check (F2‑T): For each triple (τ_1, τ_S, τ_2), pick any representative S of τ_S with |S| ≤ ℓ_pump (Lemma 14) and test existence of a mid‑consistent completion. This reduces to a boolean check expressible through Ext_{τ_S} and the seam adjacency constraints to the anchored windows. Total checks: |T_short|^2·|T|, each a constant‑size table lookup against precomputed Ext; overall time 2^{poly(β)}.
+
+C. S2‑path (oriented paths; certificate ⇔ O(1))
+Statement (S2‑path)
+A β‑normalized radius‑1 LCL on globally oriented paths has deterministic LOCAL complexity O(1) iff there exists f_type satisfying (F1‑T) and (F2‑T). Otherwise, if S1‑path holds but no such f_type exists, the complexity is Θ(log* n).
+
+(⇒) Given an O(1) algorithm A, construct f_type
+- For each τ ∈ T_short (|w_τ| ≤ ℓ_pump), simulate A on G_{τ,1} with IDs chosen so that the radius‑R (constant) halos of the three copies of w_τ are disjoint and isomorphic (as in the paper’s Lemma 24). Set f_type(τ) to be A’s output string on the mid w_τ. This defines f_type(τ) of correct length and satisfies (F1‑T). For (F2‑T), simulate A on G_{τ_1,τ_2,τ_S} with pumped contexts w_{τ_i}^{ℓ_pump+2r} so that the halos around the two anchors are disjoint; by correctness of A a completion exists.
+
+(⇐) Given f_type, construct an O(1) algorithm
+- Compute the partition P = P_long ∪ P_short in O(1) (P‑Partition‑Path). For each P_long component with primitive w and |w| ≤ ℓ_pattern, each node learns w and |w|.
+- On each P_long, anchor mid‑windows: on every occurrence of the period w, fix the outputs on a 2r window to f_type(τ_w), where τ_w := Type(w) (|w| ≤ ℓ_pump). Each node in that 2r window gathers the |w| input bits (≤ ℓ_pump) to compute τ_w and f_type(τ_w) in O(1) rounds. Repeat this in every period; anchors are disjoint and 2r‑spaced.
+- On each P_short (|P_short| ≤ 2ℓ_width), and on the gaps between adjacent anchors (all of length O(ℓ_pump)), use (F2‑T) to complete the labeling locally: each gap is an instance of some G_{τ_1,τ_2,τ_S} with τ_S being the type of the gap; completeness follows from (F2‑T). End segments (if any) are handled the same way with one anchor missing on one side; this is a special case of (F2‑T) where one anchored context is truncated, admitted by the local check since no seam constraint is required at the path boundary.
+- All steps are constant‑radius table lookups; hence O(1) LOCAL time.
+
+D. Auxiliary check matrices for Stage‑2 verification
+- For τ_S ∈ T, precompute Bridging[τ_S][α_L][α_R] := true iff ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1) and E(o4,α_R). This is exactly the two‑sided seam matrix; computable via Lemma 11 and 3D slices in O(β^4Δ^2). Then (F2‑T) reduces to checking that for each (τ_1,τ_S,τ_2), Bridging[τ_S][L1(τ_1,anchor)→?][?←R1(τ_2,anchor)] is true for each anchored seam color pair read from f_type(τ_1), f_type(τ_2) at the anchor windows.
+- For endpoints, if one uses the specialization where S sits at a boundary, precompute RightAllow(τ_S):={o4:∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}} and LeftAllow(τ_S):={o1:∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}, and then check single‑seam adjacency via E.
+
+E. Audits of output.md (minor issues and alignment)
+- Stage‑2 missing: output.md currently lacks S2‑path and the partition lemma. The P‑Partition‑Path and S2‑path presented here are compatible with the machinery already in output.md (Ext, types, pumping, and seam matrices) and can be integrated.
+- Endpoint handling in S2: With the f_type anchors, endpoint short segments are completed via the same (F2‑T) rule (one anchor missing); no special endpoint tables are needed beyond Ext.
+- MIS mention: Stage‑2 does not rely on MIS; all steps are O(1) owing to the partition and anchors.
+
+F. Testable subclaims and sanity
+- Partition lemma: unit tests on random inputs verifying that P_long obeys periodicity and that all P_short lengths are ≤ 2ℓ_pump.
+- Typed anchoring (F1‑T): for random τ ∈ T_short, construct G_{τ,1} and assert mid‑block consistency from f_type(τ).
+- Bridging (F2‑T): for random triples (τ_1,τ_S,τ_2), verify Bridging[τ_S][·][·] includes all seam pairs induced by the anchor windows of f_type(τ_1) and f_type(τ_2).
+- Endpoints: verify that single‑seam completions exist via RightAllow/LeftAllow + E.
+
+G. Complexity summary (verifier)
+- Enumerating T and T_short takes 2^{poly(β)} (Prop. 9 with Prop. 19). Building Ext tables and slices is 2^{poly(β)} (Props. 5, 19). The certificate f_type has |T_short| entries. Checking (F1‑T) needs |T_short| instances, (F2‑T) needs |T_short|^2·|T| instances; each reduces to constant‑time lookups in precomputed Ext and Bridging matrices. Total nondeterministic time: 2^{poly(β)}.
+
+H. Why type‑indexed f_type avoids the Q_τ tiling gap
+- The earlier Q_τ certificate requires the algorithm to produce an interior labeling of long blocks from boundary quadruples alone; while Ext_τ guarantees existence, it does not supply a constructive constant‑round filler. The f_type anchors provide explicit periodic interior labels (a short block per period), and the remaining gaps are filled by (F2‑T), which is a finite Ext‑check. This is exactly the construct used in the paper’s Section 4.4 but expressed over types to keep verification singly‑exponential.
+
+I. Integration plan for output.md
+1) Add Lemma (P‑Partition‑Path) with parameters ℓ_pattern=ℓ_width=ℓ_pump and ℓ_count=2ℓ_pump+2, algorithm and proof sketch (as above).
+2) Add the S2‑path theorem with the type‑indexed f_type certificate, the (⇒) extraction from an O(1) algorithm, the (⇐) O(1) construction via anchors and (F2‑T) fills, and the NEXPTIME verification argument.
+3) Add Bridging[τ_S] matrices and endpoint allow sets RightAllow/LeftAllow (optional) as implementation aids; all precomputable from Ext.
+4) Cross‑reference existing Ext machinery (Lemmas 11, 12; Props. 5, 19, 21) and the tiny‑path fallback (Lemma TP) for the very small‑n cases.
+
+J. Potential objections and how we address them
+- Do nodes need to know the type of a long block? No: they only need to know the type τ_w of the period w (|w| ≤ ℓ_pump) to read f_type(τ_w) for anchors; gathering |w| inputs is O(ℓ_pump)=O(1).
+- Does irregular segmentation require symmetry breaking? No: the partition is computed solely from input windows and the fixed global orientation (Step A); no MIS is used here.
+- Is (F2‑T) “typed” formulation sufficient? Yes: by Lemma 11, feasibility depends only on the middle type τ_S and the anchored seam colors, which are determined by f_type(τ_1), f_type(τ_2) and Ext_{τ_S}.
+
+K. Closing note
+- With P‑Partition‑Path and the typed Stage‑2 certificate, we now have a clean, singly‑exponential NEXPTIME pipeline for the full trichotomy on globally oriented paths: (i) S1‑path (endpoint‑coupled) separates Ω(n) vs o(n); (ii) S2‑path (typed anchors) separates O(1) vs Θ(log* n). The constructions reduce to precomputed Ext tables, type enumeration, and constant‑radius decisions.
+
+
+=== prover-02.out.json (progress_md) ===
+Round 0012 — Completing Stage‑2 on oriented paths: a fully specified O(1) partition, certificate, and NEXPTIME verifier; small audits and auxiliary lemmas
+
+Summary of this round
+- Main contribution: a complete, self‑contained oriented‑path partition lemma in O(1) rounds (constant in n) suitable for Stage‑2 on globally oriented paths, with an explicit finite‑state algorithm and a Fine–Wilf–style periodicity argument that guarantees correctness. This closes the remaining conceptual gap flagged in the verifier feedback.
+- With the partition in place, I give a precise Stage‑2 theorem (S2‑path) using the per‑type interfaces Q_τ with a one‑sided endpoint clause, and both directions of the equivalence. I also spell out a single‑exponential (in β) nondeterministic verification procedure. This completes the trichotomy decision method (Ω(n) vs Θ(log* n) vs O(1)) in NEXPTIME for β‑normalized, r=1 LCLs on globally oriented paths.
+- Minor audits: confirm S1‑path interior‑separator seam conventions are now clarified; suggest adding the allow‑set identities L_allow/R_allow; propose early filters for Stage‑2; note that all added checks use already defined Ext machinery.
+
+What may be added to output.md (clean, auditable pieces)
+
+A) Oriented‑path partition lemma (constant rounds)
+- Statement (P‑Partition‑Path). Let ℓ_width, ℓ_pattern, ℓ_count be positive integers with ℓ_pattern ≥ ℓ_width. There is a deterministic LOCAL algorithm that, in O(1) rounds (constant in n), partitions any globally oriented path G into directed subpaths P satisfying:
+  • Direction and minimum length: each P is directed (global orientation) and |P| ≥ ℓ_width.
+  • Long periodic segments (Plong): P ∈ Plong iff the input of P equals w^k for some primitive w with |w| ≤ ℓ_pattern and k ≥ ℓ_count; all nodes in P know this w.
+  • Short/irregular segments (Pshort): P ∈ Pshort otherwise; every P ∈ Pshort has ℓ_width ≤ |P| ≤ 2ℓ_width, and each node in P knows its rank in P.
+  Recommended parameters for Stage‑2: ℓ_width = ℓ_pattern = ℓ_pump and ℓ_count = 2ℓ_pump + 2.
+
+- Algorithm (finite‑state; constant in n)
+  1) Detect long periodic runs: For each primitive w with 1 ≤ |w| ≤ ℓ_pattern (finitely many), every node checks (in O(|w|·ℓ_count) rounds, a constant) whether it lies in a maximal w‑run, i.e., a maximal subpath equal to w^k with k ≥ ℓ_count + 2ℓ_width. This is local because ℓ_count,ℓ_width,ℓ_pattern depend only on β. For each such run, trim ℓ_width·|w| nodes from each side; the trimmed interior becomes a member of Plong labeled by w; the trimmed margins are left undecided for now.
+  2) Irregular remainder Pirreg: Let Pirreg be the set of nodes not assigned to any trimmed w‑run interior. By construction, Pirreg contains no subpath of the form w^x with |w| ≤ ℓ_pattern and x ≥ ℓ_count (since any such run would have a length‑ℓ_count interior captured in step 1). Define the big window length Lbig := ℓ_count · ℓ_pattern.
+  3) Color Pirreg by windows: For each node v ∈ Pirreg that has at least Lbig succeeding nodes (handle endpoints by the tiny‑path fallback), define c(v) to be the length‑Lbig binary window starting at v (a symbol in {0,1}^{Lbig}). This is computable in O(Lbig) rounds, a constant.
+  4) Fine–Wilf uniqueness within radius ℓ_pattern: If u,v ∈ Pirreg and 0 < dist(u,v) ≤ ℓ_pattern with c(u) = c(v), then the substring from u to v+Lbig−1 is p‑periodic with p = dist(u,v) ≤ ℓ_pattern, hence contains a run w^x with |w| = p ≤ ℓ_pattern and length ≥ Lbig + p ≥ ℓ_count · ℓ_pattern + 1, i.e., x ≥ ℓ_count. This contradicts the definition of Pirreg. Therefore, in Pirreg, the mapping v ↦ c(v) is injective within distance ℓ_pattern.
+  5) (ℓ_pattern, 2ℓ_pattern)‑independent set on Pirreg in O(1): Process color classes in any fixed total order on {0,1}^{Lbig} (there are 2^{Lbig} classes, a constant). In the phase for color α, a node v with c(v)=α joins I if no node within distance ℓ_pattern has already joined I. Correctness: the injectivity from step 4 implies that no two conflicting nodes share the same color within distance ℓ_pattern, so the greedy per‑color process yields an MIS on the ℓ_pattern‑th power. Consequently, the components of Pirreg \\ I have sizes in [ℓ_pattern, 2ℓ_pattern].
+  6) Output the partition: Plong are the trimmed periodic blocks from step 1; Pshort are the components of Pirreg \\ I; ranks in Pshort are computed by oriented BFS within distance ≤ 2ℓ_pattern = O(1).
+
+- Proof notes (why each claim holds)
+  • Periodic detection is local since |w| and ℓ_count are constants; trimming by ℓ_width·|w| preserves |P| ≥ ℓ_width.
+  • Fine–Wilf variant: if two length‑L windows at shift p < L are equal, the concatenation of them is p‑periodic on length L+p; choosing Lbig = ℓ_count·ℓ_pattern ensures the periodic run length ≥ ℓ_count·p, hence x ≥ ℓ_count for some primitive divisor of p ≤ ℓ_pattern. This contradicts the remainder’s definition.
+  • The per‑color greedy MIS uses a constant number of phases (2^{Lbig}) and a constant‑radius conflict test at each phase, hence O(1) rounds. It produces spacing ≥ ℓ_pattern and gaps ≤ 2ℓ_pattern by maximality on the ℓ_pattern‑power.
+  • Endpoint and tiny segments with fewer than Lbig successors are handled by the tiny‑path fallback (already in output.md) without affecting asymptotics.
+
+- Why this integrates with the attached paper: This is the path analogue of Section 4.3’s cycle partition (Lemmas 19–22), with two changes: (i) use global orientation directly (no re‑orientation needed), (ii) adopt a slightly larger window length Lbig to obtain the necessary local injectivity in Pirreg via a Fine–Wilf argument.
+
+B) Stage‑2 certificate and theorem on oriented paths (S2‑path)
+- Certificate (as in prior rounds, now self‑contained with the partition lemma): For each τ ∈ T_long, supply Q_τ = (L1_τ,L2_τ,R2_τ,R1_τ) ∈ Ext_τ satisfying
+  (1) Local tiling and wrap within τ: E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+  (2) Two‑sided bridging (interior short segments): For all τ_L, τ_R ∈ T_long and τ_S ∈ T (τ_S may be short or empty), ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_{τ_L},o1) and E(o4,L1_{τ_R}); for τ_S empty, reduce to E(R1_{τ_L},L1_{τ_R}).
+  (3) One‑sided endpoint bridging: For all τ ∈ T_long and τ_S ∈ T, require ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(o4,L1_τ) (left endpoint case) and ∃(o1,o2,o3,o4) ∈ Ext_{τ_S} with E(R1_τ,o1) (right endpoint case).
+
+- Theorem (S2‑path). A β‑normalized r=1 LCL on globally oriented paths has deterministic LOCAL complexity O(1) iff there exists {Q_τ}_{τ∈T_long} satisfying (1)–(3). If Theorem S1‑path holds but no such family exists, the deterministic complexity is Θ(log* n).
+
+- Proof (⇐): Given {Q_τ}, choose ℓ_width = ℓ_pattern = ℓ_pump, ℓ_count = 2ℓ_pump + 2 and compute the partition by P‑Partition‑Path in O(1) rounds. Then:
+  • For each Plong with type τ, tile by repeating Q_τ; E(R1_τ,L1_τ) closes tiles; Ext_τ ensures interior legality.
+  • For each Pshort between long neighbors with types τ_L, τ_R, clause (2) furnishes (o1,o2,o3,o4)∈Ext_{Type(Pshort)} matching both seams; fill Pshort accordingly.
+  • For each endpoint short segment S adjacent to a single long neighbor τ, clause (3) supplies a one‑sided seam quadruple in Ext_{Type(S)}; fill S by using the single required seam (the boundary beyond the path imposes no constraint). The tiny‑path fallback covers degenerate small cases.
+  All choices are local lookups in precomputed Ext tables; runtime is O(1) rounds.
+
+- Proof (⇒): From any O(1) algorithm A, extract Q_τ as follows. For each τ ∈ T_long, take a canonical long representative P_τ of type τ (periodic pumping) and run A on P_τ (and on constant‑size canonical concatenations with a middle τ_S) to define Q_τ and to witness (1)–(3). Correctness follows by restricting A’s legal outputs and using Ext‑concatenation (Lemma 11) to move between canonical representatives and arbitrary types τ_S.
+
+- NEXPTIME verification (single‑exponential in β): Precompute T, T_long (Prop. 9) and Ext_τ for τ∈T as in output.md. Then verify:
+  • (1) For each τ ∈ T_long, check membership Q_τ ∈ Ext_τ and E(L1_τ,L2_τ), E(R2_τ,R1_τ), E(R1_τ,L1_τ).
+  • (2) For all τ_L, τ_R ∈ T_long and τ_S ∈ T, check existence of (o1,o2,o3,o4) ∈ Ext_{τ_S} with the two seam adjacencies (precompute for each τ_S the β×β mask M_{τ_S}[α_L][α_R] := ∃(o1,o2,o3,o4)∈Ext_{τ_S} with E(α_L,o1), E(o4,α_R)). Then require M_{τ_S}[R1_{τ_L}][L1_{τ_R}] = true.
+  • (3) For all τ,τ_S, check that L1_τ ∈ N_E(RightAllow(τ_S)) and R1_τ ∈ N_E^{-1}(LeftAllow(τ_S)), where RightAllow(τ_S):={o4 : ∃o1,o2,o3 (o1,o2,o3,o4)∈Ext_{τ_S}} and LeftAllow(τ_S):={o1 : ∃o2,o3,o4 (o1,o2,o3,o4)∈Ext_{τ_S}}.
+  These are all finite table checks over |T_long|·β^O(1), |T_long|^2·|T|·β^O(1), and |T_long|·|T|·β^O(1) cases respectively, hence 2^{poly(β)} overall.
+
+C) Small auxiliary lemmas and filters (easy to add)
+- Fine–Wilf window lemma (Path version). Let s be a binary string. If s[i..i+L−1] = s[i+p..i+p+L−1] for some 0 < p < L, then s[i..i+p+L−1] is p‑periodic. Proof: classic; the overlapped equality propagates p‑periodicity over the union interval.
+- Allow‑set identities (Stage‑1 hygiene). Define L_allow(τ):={α : V_left[τ][α]} and R_allow(τ):={α : V_right[α][τ]}. Then L_allow(τ)=N_E(RightColors(τ)) and R_allow(τ)=N_E^{-1}(LeftColors(τ)). Use: quick checks for g_L/g_R.
+- Stage‑2 early filters. If there exist τ∈T_long, τ_S∈T with N_E(RightAllow(τ_S)) not covering any L1 candidate (or symmetrically for R1), no certificate can exist; reject early. Also, if Ext_τ is empty for some τ ∈ T_long, reject immediately.
+
+Audits of output.md (gaps and clarifications)
+- S1‑path: The “Clarification for Theorem S1‑path (Interior vs endpoint seams)” block correctly fixes the earlier ambiguity; α_L/α_R and the neighboring long types (τ_b,τ_c) are clearly defined. Good.
+- Δ definition and Lemma TP are in place and consistent with Prop. 19 and 21.
+- Suggestion: add the allow‑set identities for V_left/V_right (they’re immediate but useful in implementations/tests). Also consider renumbering base cases (6,6B,7,6A) to avoid confusion.
+
+Examples and sanity checks
+- Equality LCL: choose Q_τ=(c,c,c,c) for all τ ∈ T_long; (1)–(3) trivially hold; O(1).
+- Proper 2‑coloring: (1) fails (cannot have E(R1_τ,L1_τ) wrap); S1‑path still passes with feasible f_mid; trichotomy returns Θ(log* n).
+- Endpoint stress: choose τ_S with RightAllow(τ_S) disjoint from N_E(L1_τ) for some τ; clause (3) fails and the certificate is rightly rejected.
+
+Next steps (edits to output.md)
+1) Insert P‑Partition‑Path with Lbig := ℓ_count·ℓ_pattern and the short Fine–Wilf proof of injectivity on Pirreg.
+2) Add Theorem S2‑path with certificate (1)–(3), both directions, and the NEXPTIME verification outlined above.
+3) Optionally add the allow‑set identity lemma and the Stage‑2 early filters.
+4) Keep the existing S1‑path, V_left/V_right, W‑matrices, and tiny‑path fallback unchanged; they integrate seamlessly with S2.
+
+Why this is incremental and auditable
+- Each new component (partition lemma, S2‑path, Fine–Wilf window lemma) uses only finite‑state, constant‑radius constructions and the Ext tables already present. All verifications reduce to finite boolean matrix checks.
+- The partition algorithm is explicit (color by length‑Lbig windows; greedy per‑color MIS on the ℓ_pattern‑th power) and its correctness hinges on a standard periodicity argument that we spelled out.
+- NEXPTIME bounds remain single‑exponential in β; no doubly‑exponential blowups are introduced.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+partial success
+

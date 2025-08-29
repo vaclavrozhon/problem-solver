@@ -1,0 +1,232 @@
+--- SYSTEM ---
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "highlights": [],
+  "next_questions": []
+}
+
+--- USER ---
+=== prover-01.out.json (progress_md) ===
+Round 0007 — Focus: sharpen O5-membership testing and prune local tables with rigorous tools; refine the |A|=4 search
+
+Summary of what is rigorous in output.md and remaining gaps
+- Proposition 1, Lemma 2, Proposition 3, Corollary 4, Fact 5, Lemma 6, Corollary 7, Lemma 8, Corollary 9, Lemma 10, Proposition 11 (conditional), Proposition 12, Lemma 13, Proposition 14, Proposition 15, Lemma 16, Corollary 16.1, Lemma 17 are internally consistent and correctly stated.
+- Remaining gap to settle AP: We still need the two base local tables F(+,+), F(+,-) and, consequently, a resolution of the |A|=4 one‑point CSP across the realized profiles. Proposition 11 remains conditional; Corollary 16.1 offers an unconditional route if both complements are ≤1, but this awaits the tiny computation.
+- A useful characterization of O5 membership (the “Hamming‑1” criterion; see Lemma H1 below) is not yet recorded in output.md. It reduces orbit membership to a radius‑1 Hamming neighborhood test around the set E={ε(τ):τ∈S5}. This should be added later for transparency (do not edit output.md now).
+
+New micro‑lemma (rigorous) — Hamming‑1 characterization of the O5 orbit (implementation aid)
+Lemma H1 (O5 as Hamming distance 1 from E).
+- Let e_O=(+,-,-,-,-) and E:={ε(τ):τ∈S_5} with ε(τ) as in Lemma 6. Then for p∈{±1}^5,
+  p∈O5 if and only if there exist ε∈E and i0∈{1,…,5} such that, writing q:=-p, one has Hamming(q,ε)=1 with the unique discrepancy at i0.
+- Equivalently, O5 = { flip_all_but_one(ε,i0) : ε∈E, i0∈[5] }, where flip_all_but_one(ε,i0) is the 5‑vector v with v_{i0}=ε_{i0} and v_i=−ε_i for i≠i0.
+Proof. By the specialization of the action to e_O: R_τ(e_O) has coordinates p′_i = ε_i(τ)·(e_O)_{τ^{-1}(i)}; if j=τ^{-1}(i) equals the unique + position of e_O, then p′_i=ε_i(τ), and otherwise p′_i=−ε_i(τ). Writing i0:=τ(1), we obtain exactly p′=flip_all_but_one(ε(τ),i0). Conversely, any vector of this form is R_τ(e_O) for the corresponding τ. Rewriting as q:=-p yields the Hamming‑1 characterization. ∎
+Why useful. For an IsO5 oracle, it suffices to precompute E (120 evaluations via Lemma 6) and then test membership of −p in the radius‑1 Hamming neighborhood of E. This is faster and more robust than building the full O5 orbit, and supports hand checks.
+
+Concrete consequences and hand checks (auditable)
+- Sanity: For p=(+,-,+,+,+), q=(−,+,−,−,−). If ε=all − were known to occur with i0=2, then Hamming(q,ε)=1 at 2 and p∈O5. We cannot assert “ε=all − with τ(1)=2” without computation (see Obstacles), so we keep this as a tiny check for the IsO5 implementation, not as a claim.
+- Verified exclusions retained: (x,y,z)=(−,−,−) is forbidden for (α,β)=(+,-) (Lemma 13). By sign symmetry (Cor. 9), (+++) is forbidden for (α,β)=(−,+).
+- Verified inclusions (from |A|=3 constructive witnesses, Proposition 14): (+++)∈F(+,+); (−−−)∈F(−,−); (+,−,+)∈F(+,-); (−,+,−)∈F(−,+). These serve as base unit tests for the F‑table computation.
+
+Refined computational blueprint (minimal, decisive)
+A) Precompute E and implement IsO5 via Lemma H1.
+- Enumerate all τ∈S5; compute ε(τ) via Lemma 6; store E as a set of 5‑vectors.
+- IsO5(p): compute q=−p; return true iff ∃ε∈E with Hamming(q,ε)=1. Archive |E| and, optionally, the multiset of sums Σε_i (useful for diagnostics).
+- Unit checks: classify (+,+,+,+,+) as non‑O5; (+,−,−,−,−) as O5; (+,−,+,−,+) as non‑O5. Also verify sample ε(τ) vectors from notes (id, (12), (123), (12)(34), (13)).
+
+B) Populate the base local tables under the fixed coordinate order.
+- Compute F(+,+) and F(+,-) completely by evaluating the 8 triples each against IsO5 on p=(α,β,x,y,z). Derive F(−,−) and F(−,+) by triplewise negation (Cor. 9). Archive explicit lists and complements; report sizes.
+- Immediate validations: (+++)∈F(+,+), (−−−)∉F(+,-) as above. Keep an eye on the number of forbidden triples per table (Cor. 16.1 route).
+
+C) Decide |A|=4 one‑point amalgamation via two small routes.
+- If |{±1}^3\F(+,+)| ≤ 1 and |{±1}^3\F(+,-)| ≤ 1, invoke Lemma 16 + Cor. 16.1 to conclude the |A|=4 step and hence AP (Lemma 2).
+- Otherwise, run the 6‑variable CSP per realized profile (brute force over x_{ij}∈{±1}): for each assignment, build the four p(Y_k) and test IsO5; archive a SAT witness or an UNSAT certificate if found. Use Lemma 17 (parity) to prune: an odd number of triangles demanding triple product −1 is impossible.
+
+D) Optional but efficient: a backtracking solver with small branching.
+- Choose a triangle (say Y_4) and fix its triple (x_{12},x_{13},x_{23}) to one of the |F(p^B_4,p^C_4)| allowed patterns (at most 8 choices). Propagate to constraints on Y_1,Y_2,Y_3 via shared edges; backtrack when hitting an O5. With at most 8 initial branches and shallow propagation, this is typically faster than the naive 2^6 loop.
+
+Implications for the 2+2 vertex‑sign ansatz
+- The conditional Proposition 11 cannot be used until we certify memberships of all three permutations of (+,−,−) in each F(α,β). The Hamming‑1 criterion (Lemma H1) provides a crisp way to test the key instances; in particular, the four 5‑vectors listed in notes for P1–P3 should be tested immediately (they are built from permutations of (+,−,−) on the last three coordinates with (α,β)=(+,+) and (+,−)).
+- If any of those four classifies as O5, the uniform 2+2 ansatz fails for that profile (which is fine; Proposition 12 already solves the fully aligned (++++) case by a constant assignment). We then proceed with the general CSP or the backtracking solver.
+
+Examples to feed IsO5 (relisted for convenience; same coordinate order as output.md)
+- P1 (C vs C, aligned): check (+,+,−,−,+) and (+,+,+,−,−).
+- P2 (C vs C, opposed): check (+,−,−,−,+) and (+,−,+,−,−).
+- P3 (C vs H, mixed): check (+,−,−,−,+) and (+,−,+,−,−) (same as P2).
+Outcome of these four evaluations will immediately confirm or refute the 2+2 ansatz on these central profiles and guide the subsequent global search.
+
+Why these steps are concrete, incremental progress
+- Lemma H1 gives a simple, exact O5‑membership test in terms of a precomputed set E and Hamming distance. It streamlines the IsO5 routine and enables hand checks in small instances.
+- The plan B/C/D consolidates earlier ideas into a minimal, decisive pipeline that either resolves |A|=4 via the small‑table criterion (Cor. 16.1) or via a tiny brute force/backtracking with parity pruning. This is auditable and easily implementable.
+- The explicit test vectors from P1–P3 remain the quickest sanity checks; their classification directly informs whether the 2+2 ansatz is viable anywhere beyond the equal‑constant subcase.
+
+Obstacles and open items
+- We still lack an analytic description of E and, as a result, of the O5 orbit; computing E (120 entries) is the appropriate step.
+- Without the F‑tables, we cannot confirm or deny the “product +1” conjecture (Conjecture P+) or the stronger condition in Proposition 11.
+- Attempts to hand‑prove (+++)∉F(+,-) or to classify (+,−,−) in F(+,+) stumbled on the constraint i0=τ(1) in the O5‑image formula; these are best left to the IsO5 oracle.
+
+Notes on output.md (gaps/clarifications; do not edit now)
+- It would be helpful to add, after Lemma 6 or near the definition of O5, the Hamming‑1 characterization (Lemma H1) as a corollary specialized to the O5 seed e_O. This is already established in notes and will aid future readers.
+- The coordinate convention for p(Y_k) is clearly stated near Proposition 15; when the F‑tables are finalized, repeating that convention next to their definition will avoid confusion in reproducing the data.
+
+Next steps for the verifier (minimal, checkable)
+1) Build E via Lemma 6 and implement IsO5 using Lemma H1; run the unit tests and report |E|.
+2) Evaluate the four P1–P3 vectors; report their O5 status.
+3) Populate F(+,+) and F(+,-); derive the others via Cor. 9; report complements and confirm Proposition 14’s witness triples.
+4) If both complements are ≤1, conclude |A|=4 via Lemma 16 and AP via Lemma 2. Else, run the 6‑variable CSP (or the backtracking variant) on realized profiles; archive SAT witnesses or an UNSAT certificate if found.
+
+This round’s deliverables
+- New Lemma H1 (O5=Hamming‑1 from E), with proof and implementation guidance.
+- A clarified, minimal computational plan prioritizing E and the two base F‑tables, and a compact backtracking alternative to the 2^6 brute force.
+- Retained and emphasized concrete test vectors (P1–P3) and parity‑based pruning for the |A|=4 search.
+
+=== prover-02.out.json (progress_md) ===
+# Round 0007 — Inner‑product characterization of O5 and immediate consequences for local F‑tables
+
+## Quick recap and current bottleneck
+- Goal: Decide AP for H (finite 4‑hypertournaments omitting O5) via the one‑point step. The hard minimal base is |A|=4, a 6‑variable CSP with four local 5‑set constraints Y_k (output.md Prop. 3).
+- Missing data: The local tables F(α,β)⊆{±1}^3 (especially for (α,β)∈{(+,+),(+,-)}), which determine whether the 2+2 vertex‑sign ansatz or a small brute‑force search suffices. We previously left open whether (+++)∈F(+,-).
+
+## New lemma (rigorous, implementation‑ready)
+Lemma 18 (Inner‑product characterization of O5).
+- Statement. Let E={ε(τ):τ∈S5} be the ε‑set from Lemma 6. For p∈{±1}^5, one has p∈O5 if and only if there exists ε∈E with Σ_{i=1}^5 p_i ε_i = −3.
+- Proof. O5 is the orbit of e_O=(+,-,-,-,-). For τ∈S5, the image has the form p=φ(ε,i0) where ε=ε(τ), i0=τ(1), and p_i=ε_i if i=i0 and p_i=−ε_i otherwise (notes: “O5‑image formula”). Hence Σ p_i ε_i = ε_{i0}^2 + Σ_{i≠i0}(−ε_i^2)=1−4=−3. Conversely, if Σ p_i ε_i = −3 with ε∈E, then exactly one coordinate satisfies p_i ε_i=+1 (the others are −1). Let i0 be this index. Then p=φ(ε,i0), hence p∈O5. ∎
+- Why useful: Reduces IsO5 to a 120‑element check over E with a single scalar test; in particular, special ε∈E yield immediate hand‑classifications for families of 5‑vectors p.
+
+## Immediate corollaries for F(α,β) (hard exclusions now settled)
+Using Lemma 8 (ε≡−1∈E) and that ε≡(+1)∈E (τ=id), Lemma 18 yields:
+- C1. F(+,-): (+++) is forbidden. Indeed, p=(+,-,+,+,+) has Σ p_i=+3, and with ε≡−1 we get Σ p_i ε_i=−3 ⇒ O5. Together with output.md Lemma 13 ((---) forbidden), we now fully classify the all‑equal triples in the opposite‑fixed case: both (+++) and (---) are O5 (forbidden).
+- C2. F(+,+): Every triple with exactly two “+” and one “−” is forbidden. For p=(+,+,x,y,z), Σ p_i = 2 + (x+y+z). When the triple has two + and one −, x+y+z=+1 ⇒ Σ p_i=+3, hence O5 by ε≡−1. Thus all three permutations of (++−) are excluded in F(+,+).
+- C3. F(−,−): Every triple with exactly one “+” and two “−” is forbidden. Symmetric to C2 via flipping all signs (Cor. 9).
+These are strict consequences; there may be further forbidden triples (we do not claim exclusivity without enumerating E).
+
+Why this matters now:
+- The long‑standing ambiguity “(+++)∈F(+,-)?” is resolved (it is forbidden). This tightens the local tables and provides immediate unit tests for IsO5 and F‑table population.
+- C2 implies the union‑bound route (Lemma 16) cannot settle the |A|=4 step: for (α,β)=(+,+), at least three triples are forbidden, so |{±1}^3\F(+,+)| ≥ 3 (>1). The union‑bound lemma remains valid but is not applicable here.
+
+## Compatibility with the 2+2 vertex‑sign ansatz (sanity checks)
+- The 2+2 ansatz only produces triangle‑triples of product +1, namely the three permutations of (+,−,−) and (+++). Lemma 10 (and its refinement in notes) shows that with 2+2, exactly the two ordered shapes (+,−,−) and (−,−,+) occur across k (under our fixed coordinate convention), never (−,+,−) and never (+++).
+- The new exclusions C1–C3 do not rule out (+,−,−) or (−,−,+) for either (α,β)=(+,+) or (+,−). Thus the central feasibility question for the 2+2 method remains: do these two ordered shapes lie in F(+,+) and F(+,-)? If yes, Proposition 11 applies and the |A|=4 step follows uniformly.
+
+## Examples and unit tests (for the verifier)
+- All‑equal in the opposite‑fixed case:
+  • (α,β)=(+,-), (x,y,z)=(+,+,+) ⇒ p=(+,-,+,+,+) ⇒ Σ p=+3 ⇒ O5 by ε≡−1.
+  • (α,β)=(+,-), (x,y,z)=(−,−,−) ⇒ canonical O5 representative.
+  These should both fail IsO5 (i.e., classify as O5) and be excluded from F(+,-).
+- Mixed in the equal‑fixed case:
+  • (α,β)=(+,+), (x,y,z) a permutation of (++−) ⇒ Σ p=+3 ⇒ O5 by ε≡−1. All three such ordered triples must be excluded from F(+,+).
+- Sanity checks for the 2+2 test vectors (from notes P1–P3):
+  • (+,+,−,−,+), (+,+,+,−,−), (+,−,−,−,+), (+,−,+,−,−) all have Σ p∈{+1,−1}. Lemma 18 gives no automatic O5 verdict with ε≡±1, which is consistent with the expectation that these might be non‑O5 (to be confirmed by IsO5).
+
+## Implementation aids (to speed E and IsO5)
+- Cocycle identity. For σ,τ∈S5 and i∈[5]: ε_i(σ τ) = ε_i(σ)·ε_{σ^{-1}(i)}(τ). Proof: Compose the two signed actions (output.md Lemma 6) and compare with the one‑step action of σ τ; coordinate‑wise equality follows from the definition of the induced signs on 4‑element complements. This identity enables generating E from the ε of adjacent transpositions.
+- Minimal generator data. Compute ε for the four adjacent transpositions s_k=(k,k+1) (k=1,…,4) once (via Lemma 6), and generate E by the cocycle identity using any standard S5 word. Archive |E| and its list; then:
+  • p∈O5 iff min_{ε∈E} Σ p_i ε_i = −3 (Lemma 18).
+  • F(α,β) is the complement in {±1}^3 of those triples whose 5‑vector hits −3 against some ε.
+
+## Obstacles and limits of the new facts
+- C1–C3 are only necessary exclusions. Without a full enumeration of E (or equivalently, the O5 orbit), we cannot decide the status of the key ordered shapes (+,−,−) and (−,−,+) in F(+,+) and F(+,-), which control the 2+2 method.
+- The union‑bound feasibility (Lemma 16) is now known inapplicable due to C2. We keep it as a general tool, but it will not conclude the |A|=4 step here.
+
+## Next steps (minimal, decisive)
+1) Compute E via the cocycle identity (or directly via Lemma 6) and report |E|.
+2) Implement IsO5 using Lemma 18 (inner product −3 against E). Run unit tests including: C1/C2/C3 exclusions, and the four P1–P3 vectors from notes.
+3) Populate F(+,+) and F(+,-) fully; derive the other two via Cor. 9. Explicitly confirm (or refute) that (+,−,−) and (−,−,+) are allowed in both tables.
+4) If both shapes are allowed in both tables, apply Proposition 11 (uniform 2+2) to conclude the |A|=4 step and AP (via Lemma 2). Otherwise, run the 2^6 CSP per realized macro‑profile, using the parity invariant (Lemma 17) for pruning, and archive SAT/UNSAT witnesses.
+
+## Notes on output.md (gaps/corrections to add later)
+- Suggest adding Lemma 18 (inner‑product characterization of O5) to output.md; it streamlines IsO5 and underpins the new corollaries.
+- With Lemma 18 in place, the status of (+++) in F(+,-) is settled (forbidden), refining the earlier caution in notes. Output.md currently proves only the (---) half (Lemma 13).
+- Record in output.md the strict necessary exclusions C2 and C3 for F(+,+) and F(−,−) respectively. These clarify why the union‑bound lemma (Lemma 16) cannot close the |A|=4 case here.
+
+## Summary of this round’s progress
+- Established a sharp, general IsO5 criterion (Lemma 18): p∈O5 iff Σ p_i ε_i = −3 for some ε∈E. This yields immediate, rigorous exclusions in the local F‑tables.
+- Resolved the open question (+++)∈F(+,-) (it is forbidden) and derived further necessary exclusions for F(+,+) and F(−,−), strengthening the local picture.
+- Refined the computational plan: generate E via a cocycle identity and complete F(+,+),F(+,-); then either certify the 2+2 method or finish with a tiny 2^6 CSP per profile.
+- Provided concrete unit tests and clarified why the union‑bound tool does not apply in this setting.
+
+
+=== prover-03.out.json (progress_md) ===
+Round 0007 — Focus: tightening IsO5 and the local F-tables; cocycle and generator analysis; implementable criteria
+
+Status recap
+- The reduction to one-point amalgamation and the |A|=4 CSP is sound (output.md Props. 1–3). The small cases |A|≤2 and |A|=3 are closed (Cor. 4, Prop. 14). We have two key tools now recorded: central symmetry (Lemma 8) and the global parity invariant across the four triangles (Lemma 17). The union-bound feasibility criterion (Lemma 16) gives a decisive small-table condition.
+- The remaining bottleneck is to populate F(+,+) and F(+,-) (and derive the other two by Cor. 9), and then either apply Lemma 16 or the 2+2 construction (Prop. 11) to finish |A|=4.
+
+New micro-lemmas (auditable) — structure of ε(τ) and a cocycle
+1) Lemma 18 (ε-cocycle for composition).
+- Statement: For τ,σ∈S5 and i∈{1,…,5}, one has ε_i(τσ) = ε_i(τ)·ε_{τ^{-1}(i)}(σ).
+- Proof: For p′ = A_τ(p) with (A_τp)_i = ε_i(τ)·p_{τ^{-1}(i)}, we have (A_τA_σ p)_i = ε_i(τ)·(A_σ p)_{τ^{-1}(i)} = ε_i(τ)·ε_{τ^{-1}(i)}(σ)·p_{σ^{-1}(τ^{-1}(i))}. Since A_{τσ}p has i-th coordinate ε_i(τσ)·p_{(τσ)^{-1}(i)}, uniqueness of the action implies ε_i(τσ) = ε_i(τ)·ε_{τ^{-1}(i)}(σ). ∎
+- Why useful: Enables computation of all ε(τ) from the generators without recomputing c-counts; critical for a robust, fast IsO5 oracle.
+
+2) Lemma 19 (ε for adjacent transpositions).
+- Statement: For s_k=(k k+1) (k=1,2,3,4), ε(s_k) has + at positions k,k+1 and − elsewhere, i.e., ε(s_k)=(−,…,−, + at k, + at k+1, −,…,−).
+- Proof: s_k has exactly one inversion (between k and k+1). Its restriction to [5]\{j} has odd sign iff j∈{k,k+1}, hence ε_i(s_k)=sgn(s_k)·(−1)^{c_j} equals + at i=k,k+1 and − otherwise. This matches direct c_j counts (as checked in notes earlier). ∎
+- Why useful: Supplies base ε-vectors on generators; combined with Lemma 18 yields all ε(τ) by multiplying generators.
+
+3) Corollary (parity of the number of + in ε(τ)).
+- By Corollary 7, ∏_i ε_i(τ)=sgn(τ). Let m(ε) be the number of + entries. Then (−1)^{5−m(ε)}=sgn(τ), so m(ε) is odd if τ is even and even if τ is odd. Useful as a sanity check for ε enumeration.
+
+Corrected and implementable IsO5 criterion (pair-set S)
+- O5-image formula (from notes) says: for e_O=(+,-,-,-,-), the image under τ is p with p_i = −ε_i(τ) for i≠i0 and p_{i0} = ε_{i0}(τ) where i0:=τ(1). Equivalently, for a given p, there exists τ with (ε,i0)=(ε(τ),τ(1)) such that p⊙ε equals h(i0), the vector with exactly one + at i0 and − elsewhere.
+- Crucial correction: It is not enough to find i0 with p⊙h(i0) ∈ E={ε(τ)}; the pair (ε,i0) must be realized by the same τ (i.e., i0=τ(1) for ε=ε(τ)). This invalidates the naive “ε-only” test and explains the earlier false positive for p=(+,+,+,+,+) with ε=h(5).
+- Implementation blueprint: Precompute the pair-set S = { (ε(τ), i0=τ(1)) : τ∈S5 } using Lemma 18 and generators s_k (Lemma 19), tracking i0 under right-multiplication: if τ′=τ s_k then ε(τ′)_i = ε_i(τ)·ε_{τ^{-1}(i)}(s_k) and i0′=τ(s_k(1)). Then IsO5(p) is true iff ∃(ε,i0)∈S with p_i=−ε_i for i≠i0 and p_{i0}=ε_{i0}. This avoids orbit-building and uses only a 120-pair membership test per query.
+
+Hand checks and unit data (partial, to aid verification)
+- ε on generators (confirmed):
+  • ε((12))=(+,+,−,−,−),
+  • ε((23))=(−,+,+,−,−),
+  • ε((34))=(−,−,+,+,−),
+  • ε((45))=(−,−,−,+,+).
+- Quick “non-O5 by partial exclusion” for two of the profile vectors using these ε-samples:
+  • p1=(+,+,−,−,+): For the above ε and also ε(id) and ε((13))=(−,−,−,−,−), the match count |{i: p1_i=ε_i}| is 4,2,0,2,3 respectively (never 1). This is not a proof of non-O5 (other τ could still work), but serves as a debugging checklist for IsO5. Please use the S-based oracle to decide decisively.
+  • p2=(+,+,+,−,−) similarly has match-counts 3,2,2,0,1 under the above ε; again ambiguous and needs a full S-check.
+
+Consequences for F(α,β) computation
+- With the S-oracle in place, F(+,+) and F(+,-) are obtained by the 8 tests on p=(α,β,x,y,z). By Cor. 9, F(−,−) and F(−,+) follow by triplewise negation. Unit constraints to verify:
+  • (+++)∈F(+,+) and (−,−,−)∈F(−,−) (constant 5-vectors are ±C5, non-O5).
+  • (−,−,−)∉F(+,-) (output.md Lemma 13); by symmetry (+++)∉F(−,+).
+- Two decisive targets (carry-over from last round): check whether (+−−)∈F(+,+) and (+−−)∈F(+,-). If both hold (for all three permutations under our fixed coordinate order), Prop. 11 resolves |A|=4 uniformly via the 2+2 ansatz.
+
+Implementation blueprint (refined, minimal)
+1) Build S via the cocycle:
+  - Start with τ=id: ε=+++++, i0=1.
+  - BFS over right-multiplication by s_k (k=1..4) using Lemma 18 to update ε and i0.
+  - Store S as a set of 120 pairs (ε,i0). Sanity checks: parity of plus-count in ε matches sgn(τ); S has size 120; sample ε above are present with their correct i0.
+2) Implement IsO5(p): return true iff ∃(ε,i0)∈S with p_i=−ε_i for i≠i0 and p_{i0}=ε_{i0}. Unit tests: (+,−,−,−,−) true; (+,+,+,+,+) false; (+,−,+,−,+) false.
+3) Compute F(+,+) and F(+,-) (8 entries each) under the fixed coordinate convention (notes/output). Derive the other two via Cor. 9. Report complements and sizes. If both complements have size ≤1, conclude |A|=4 by Lemma 16.
+4) If, stronger, all three permutations of (+,−,−) lie in both F(+,+) and F(+,-), apply Prop. 11 to conclude |A|=4 by the 2+2 ansatz x_{ij}=w_i w_j.
+5) If either condition fails, brute-force the 2^6 CSP on the realized (B,C) profiles; use Lemma 17 to prune.
+
+Gaps and clarifications in output.md (to address later; do not modify now)
+- It would be helpful to add Lemma 18 (ε-cocycle) in output.md as an implementation lemma; currently Lemma 6 suffices but the cocycle substantially simplifies and stabilizes code.
+- The O5-image formula specialized to e_O and the necessity to track the pair (ε(τ), i0=τ(1)) is only in notes; incorporating it in output.md would prevent misuse of “ε-only” tests. We flagged the earlier incorrect simplification explicitly here.
+- Coordinate ordering for the last three entries of p(Y_k) is correctly fixed near Prop. 15; when F-tables appear, restating that ordering there will improve reproducibility.
+
+Obstacles
+- A purely analytic classification of E={ε(τ)} (or of the O5 orbit) appears cumbersome; the cocycle+generator method is the right small computation.
+- Without the F-tables, we cannot certify the 2+2 ansatz or the union-bound criterion. These remain the decisive next computations.
+
+Next steps (concrete, minimal)
+- Verifier: Implement S via Lemma 18 and ε(s_k) from Lemma 19; build IsO5 as above and run the standard unit tests.
+- Populate F(+,+), F(+,-); confirm the already-proved exclusions and record sizes of complements. If both complements ≤1, invoke Lemma 16 to conclude |A|=4 and AP. If, stronger, (+−−)-permutations are allowed in both, apply Prop. 11 to conclude AP via the 2+2 construction.
+- Independently, evaluate IsO5 on the four concrete 5-vectors from profiles P1–P3 listed in notes/output; archive their classifications and, if non-O5, keep these as explicit witnesses for representative one-point instances.
+
+Why this is incremental, auditable progress
+- We introduced two precise, easy-to-check lemmas (ε-cocycle and ε on generators) that drastically simplify the O5 oracle and remove ambiguity in the ε-factors.
+- We corrected a subtle but important pitfall (the necessity of tracking i0 alongside ε in O5 membership), providing a rigorous criterion based on the pair-set S.
+- We supplied partial hand checks and a concrete, minimal computation plan that will decisively settle the small F-tables and hence the |A|=4 step via Lemma 16 or Prop. 11.
+
+
+=== Verifier (summary_md) ===
+
+=== Verifier (verdict) ===
+partial success
+

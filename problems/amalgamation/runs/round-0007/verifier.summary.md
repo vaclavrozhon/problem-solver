@@ -1,0 +1,3 @@
+High-level assessment and triage
+- The core bottleneck remains the |A|=4 one‑point CSP. The right way to unblock it is to finalize a correct IsO5 oracle and then compute the two base local tables F(+,+) and F(+,-).
+- The most useful rigor this round is the pair‑set S criterion and the ε‑cocycle/generator data (Prover 03). These are fully compatible with the action already recorded in output.md (Lemma 6) and give a clean, exact, and implementable IsO5 oracle without enumerating the entire orbit explicitly.

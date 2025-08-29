@@ -1,0 +1,304 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "Round 0009 \u2014 incremental, auditable progress\n\n### Quick audit of output.md (minor issues; no fatal gaps)\n- Theorem 11, last paragraph: notation \u201cv(\u03b2)=1\u201d is imprecise. It should read \u201cthere is a unique column \u03b1 with (\u03b1,\u03b2)\u2208U and v_\u03b1(\u03b2)=1, hence T_3(\u03b2)=1.\u201d This is purely cosmetic; the argument is correct because in that subcase every row has exactly one point, so exactly one column \u03b1 has (\u03b1,\u03b2) and that column has exactly one point above \u03b2.\n- Duplication: The \u201cSetup and notation\u201d and Theorems 1\u201311 appear twice in the curated output segment. This is editorial only; no logical conflict.\n- Theorems 12\u201314: I rechecked each against Theorems 1, 3, 7, 9\u201310, O1 and UM1. All are sound as stated.\n\n### New, rigorously stated micro-lemmas (safe, immediate from multiplicity formulas)\n\n- Lemma S4gen (generalized row-base uniqueness for type 4).\n  Statement. Fix \u03b1. If there exists a row \u03b20 with (\u03b1,\u03b20)\u2208U and h_{\u03b20}(\u03b1)=1, and for every \u03b2\u2260\u03b20 with (\u03b1,\u03b2)\u2208U we have h_\u03b2(\u03b1)=0, then T_4(\u03b1)=1 and (4,\u03b1) is unique.\n  Proof. By Theorem 1 (type 4), T_4(\u03b1)=\u2211_\u03b2 1_{(\u03b1,\u03b2)}\u00b7h_\u03b2(\u03b1)=h_{\u03b20}(\u03b1)=1.\n  Why useful. A direct generalization of R4; it allows multiple occurrences of (\u03b1,\u00b7) provided only one row contributes and that contribution equals 1.\n\n- Lemma S3gen (generalized column-base uniqueness for type 3; dual of S4gen).\n  Statement. Fix \u03b2. If there exists a column \u03b10 with (\u03b10,\u03b2)\u2208U and v_{\u03b10}(\u03b2)=1, and for every \u03b1\u2260\u03b10 with (\u03b1,\u03b2)\u2208U we have v_\u03b1(\u03b2)=0, then T_3(\u03b2)=1 and (3,\u03b2) is unique.\n  Proof. By Theorem 1 (type 3), T_3(\u03b2)=\u2211_\u03b1 1_{(\u03b1,\u03b2)}\u00b7v_\u03b1(\u03b2)=v_{\u03b10}(\u03b2)=1.\n  Why useful. A direct generalization of R3; it tolerates multiple occurrences of the base row \u03b2 as long as only one column contributes and contributes 1.\n\n- Lemma RLclean+ (two 2-point rows with shared left endpoint and clean shared column \u21d2 unique type 2, robust to extra points off the shared column).\n  Statement. Suppose U contains two distinct rows \u03b2_1<\u03b2_2 with points {(\u03b1,\u03b2_i),(\u03b3_i,\u03b2_i)} and \u03b1<\u03b3_i (i=1,2); assume further that column \u03b1 contains exactly the two points (\u03b1,\u03b2_1),(\u03b1,\u03b2_2). Then color (2,\u03b1,\u03b2_1) is unique.\n  Proof. On column \u03b1, the only point above \u03b2_1 is (\u03b1,\u03b2_2), so r_U(\u03b1,\u03b2_1)=1. On row \u03b2_1, the only point to the right of \u03b1 is (\u03b3_1,\u03b2_1), so s_U(\u03b1,\u03b2_1)=1. Theorem 1 (type 2) gives uniqueness.\n  Why useful. This packages a frequent 2+2 pattern and is stable under arbitrary extra points off column \u03b1.\n\n### Partial classification for |U|=5 (curatable subcases with complete proofs)\nWe advance the small-case frontier by handling three row-occupancy patterns. Let |U|=5.\n\n- Pattern 4+1 (some row has 4 points). Let that row be y0 with x_1<x_2<x_3<x_4. Within the row, (4,x_3) occurs exactly once. Any additional occurrence of (4,x_3) would require another row \u03b2 to contain both (x_3,\u03b2) and some (x> x_3,\u03b2). But only one point lies off y0, so no such \u03b2 exists. Hence T_4(x_3)=1 (unique type 4).\n\n- Pattern 3+1+1 (some row has 3 points; the other two rows are singletons). Let the 3-point row be y0 with x_1<x_2<x_3. Within that row, (4,x_2) occurs exactly once. Any other row \u03b2 with (x_2,\u03b2) is a singleton, so h_\u03b2(x_2)=0 and contributes nothing to T_4(x_2). Therefore T_4(x_2)=1 (unique type 4) by Theorem 1.\n\n- Pattern 3+2 (two rows, one with 3 points, the other with 2). Let the 3-point row be y0 with x_1<x_2<x_3, and the 2-point row be y1 with points (\u03b1, y1),(\u03b3, y1), \u03b1<\u03b3. If \u03b1\u2260x_2, then as in 3+1+1, (4,x_2) is unique: the only potential duplicator row would need two off-row points with left base x_2; but both off-row points lie on y1, and by assumption y1\u2019s left base is \u03b1\u2260x_2. If \u03b1=x_2, then column \u03b1 contains exactly (\u03b1,y0),(\u03b1,y1) and on row y1 there is exactly one point to the right of \u03b1, namely (\u03b3,y1). Hence r_U(\u03b1,y1)=s_U(\u03b1,y1)=1, and (2,\u03b1,y1) is unique by Theorem 1 (type 2). Thus, in all 3+2 configurations, a unique color exists.\n\nRemarks. The 3+2 resolution is robust: in the \u201cshared left endpoint\u201d subcase it is exactly the robust L-corner at (\u03b1,y1); in the other subcase, the unique type-4 on the 3-point row survives because two off-row points cannot assemble an additional (4,x_2) color with only one row available.\n\n### Examples and sanity checks\n- S4gen in action. U has (\u03b1,\u03b20),(\u03b1,\u03b21),(\u03b1,\u03b22) with h_{\u03b20}(\u03b1)=1 and h_{\u03b21}(\u03b1)=h_{\u03b22}(\u03b1)=0. Then T_4(\u03b1)=1 by S4gen; the unique edge is horizontal on row \u03b20 with left endpoint \u03b1.\n- 3+2 shared-left example. U contains y0: (2,5),(5,5),(7,5) and y1: (5,2),(9,2). Column 5 has exactly (5,5),(5,2); on row 2 the only right neighbor of 5 is 9. Hence (2,5,2) is unique.\n- 3+2 non-shared-left example. U contains y0: (2,5),(5,5),(7,5) and y1: (3,2),(9,2). Then (4,5) is unique: on row 5 it occurs once; no other row has left base 5 with a right neighbor, as y1\u2019s left base is 3.\n\n### Obstacles and why some attempts fail\n- Extending 2+2+1 fully. If two 2-point rows share a left endpoint \u03b1 and the 5th point also lies in column \u03b1, the clean-column hypothesis of RLclean+ fails (r_U(\u03b1,\u03b2_low)\u22652). Neither Theorem 7 nor S4gen/S3gen applies automatically. A different trigger (e.g., a boundary-local type-2 at \u03b1\u2082 or \u03b2\u2082, or a singleton+extension on a different row/column) must be extracted. This motivates the nearest-interloper analysis in the unique\u2013maximal regime and a refined 2+2(+1) pattern lemma.\n- Crossing subcase under unique\u2013maximality. When both T2\u03b1 and T2\u03b2 fail (h_{\u03b2_c}(\u03b1\u2082)\u22652 and v_{\u03b1_r}(\u03b2\u2082)\u22652), a na\u00efve choice of the crossing corner c=(x(s_g),y(s_{g+1})) need not satisfy D\u2032 (there may be interlopers on both rays), and neither type-3/4 triggers fire without additional global control. A nearest-interloper lemma is needed to convert the closest vertical/horizontal interlopers into a safe R3/R4 or Theorem 3 witness; I will prove this next.\n\n### Next steps (concrete and auditable)\n1) Curate S4gen and S3gen into the auxiliary lemmas section (they are direct corollaries of Theorem 1) and RLclean+ as a robust instance of Theorem 7; these strengthen the pattern library without new prerequisites.\n2) Complete the |U|=5 classification by handling the remaining patterns 2+2+1, 2+1+1+1, and 1+1+1+1+1. The 2+1+1+1 and 1+1+1+1+1 patterns should follow quickly from existing tools (Theorems 4, 7, 11-style arguments); 2+2+1 requires careful treatment when the extra point lies in a shared column.\n3) Prove a nearest-interloper lemma for the unique\u2013maximal crossing subcase: with s_g,s_{g+1} and c=(x(s_g),y(s_{g+1})), define the nearest vertical interloper y_v and nearest horizontal interloper x_h. Show that if both exist, then either (i) c is a robust L-corner (Theorem 7) or (ii) one of rows y_v / columns x_h satisfies S4gen/S3gen (hence a unique type-4/3), or (iii) a boundary-local type-2 (Lemma 14) fires at (\u03b1\u2082,\u03b2_c) or (\u03b1_r,\u03b2\u2082). This will close the unique\u2013maximal regime.\n4) Editorial: de-duplicate repeated sections in output.md and fix the \u201cv(\u03b2)=1\u201d notation in Theorem 11.\n\n### Why this is progress\n- The new lemmas S4gen/S3gen broaden the applicability of type-3/4 certificates in global settings and will be useful when interlopers prevent D\u2032 but contributions aggregate to a single base.\n- The 3+2 and 3+1+1 patterns for |U|=5 are now settled with short, verifiable proofs; the 4+1 pattern is also covered. This materially advances small-case verification and stress-tests the trigger library.\n- The identified hard subcases and the stated nearest-interloper plan provide a clear, checkable path to finish both the unique\u2013maximal crossing regime and the remaining 2+2+1 pattern."}, {"prover_id": "02", "progress_md": "Round 0009 \u2014 incremental, auditable progress\n\nAudit of output.md (gaps or issues)\n- Minor notation: In Theorem 11\u2019s last paragraph, the phrase \u201cv(\u03b2)=1\u201d is ambiguous; it should read \u201cT_3(\u03b2)=1\u201d (or explicitly \u201cv_\u03b1(\u03b2)=1 for the unique contributing \u03b1\u201d). The subsequent \u201cso T_3(\u03b2)=1\u201d makes the intended meaning clear; still, a cosmetic fix is recommended.\n- D\u2032 (the \u201cexplicit consecutive-maxima L-corner\u201d formulated via emptiness of open segments) does not appear in output.md; this is good. As noted earlier in notes.md, an emptiness-only condition between consecutive maxima is not sufficient to guarantee r_U=s_U=1, because top-row/right-column contributions can inflate counts. Any curated specialization should be stated directly in terms of the global counts R_i and S_i (Theorem 5) or via Theorem 7\u2019s exact r=s=1 hypotheses.\n- Newly curated Theorems 12\u201314 (UM2\u2032, UM-single, and the boundary-local type\u20132 triggers) are correct and strengthen the unique\u2013maximal toolkit. No logical gaps detected.\n\nNew, rigorously stated result (small-case milestone)\nProposition P5 (Every |U|=5 admits a uniquely colored edge).\nStatement. If U\u2286[n]\u00d7[n] has |U|=5, then G[U] contains an edge whose color appears exactly once in G[U].\nProof (complete case analysis by row occupancy).\nLet the multiset of row-occupancies be one of: 5; 4+1; 3+2; 3+1+1; 2+2+1; 2+1+1+1; 1+1+1+1+1.\n- Case 5 (single row). By Theorem 2 (single-line), the rightmost edge has unique color (4,x_{4}).\n- Case 4+1. On the 4-point row with x_1<x_2<x_3<x_4, the color (4,x_3) occurs once on that row. Any second occurrence elsewhere would require some other row to contain both (x_3,\u00b7) and a point to its right. With only one point off the 4-point row, this is impossible. Hence (4,x_3) is unique.\n- Case 3+2. Let row \u03b2 have three points at x_1<x_2<x_3, and row \u03b2\u2032 have two points at \u03b1<\u03b3.\n  \u2022 If \u03b1\u2260x_2, then only row \u03b2 contains (x_2,\u00b7) together with a right neighbor, so T_4(x_2)=1 and (4,x_2) is unique (Theorem 1, type 4).\n  \u2022 If \u03b1=x_2, the two rows share the same left endpoint x_2. Let \u03b2_low be the smaller of {\u03b2,\u03b2\u2032}. Then on row \u03b2_low there is exactly one point to the right of \u03b1 (it is a 2-point row), and in column \u03b1 there is exactly one point above \u03b2_low (the other row\u2019s point at \u03b1). By Theorem 7 (robust L-corner), r_U(\u03b1,\u03b2_low)=s_U(\u03b1,\u03b2_low)=1 and the color (2,\u03b1,\u03b2_low) is unique.\n- Case 3+1+1. On the 3-point row with x_1<x_2<x_3, color (4,x_2) occurs once on that row. Any other row is a singleton, so no other row contributes to T_4(x_2). Thus T_4(x_2)=1 and (4,x_2) is unique.\n- Case 2+2+1. Let the 2-point rows be \u03b2_1,\u03b2_2 with left endpoints \u03b1_1<\u03b3_1 on \u03b2_1 and \u03b1_2<\u03b3_2 on \u03b2_2.\n  \u2022 If \u03b1_1=\u03b1_2=:\u03b1, then column \u03b1 contains exactly the two points on \u03b2_1,\u03b2_2, and the lower row \u03b2_low is a 2-point row. Hence r_U(\u03b1,\u03b2_low)=s_U(\u03b1,\u03b2_low)=1 and (2,\u03b1,\u03b2_low) is unique by Theorem 7.\n  \u2022 If \u03b1_1\u2260\u03b1_2, pick \u03b1 among {\u03b1_1,\u03b1_2}. Only its own row contains (\u03b1,\u00b7) together with a right neighbor; the other 2-point row has different left endpoint, and the remaining row is a singleton. Therefore T_4(\u03b1)=1 (Theorem 1, type 4), yielding a unique (4,\u03b1).\n- Case 2+1+1+1. Let the 2-point row have left endpoint \u03b1. No other row has two points, so no other row contributes to T_4(\u03b1). Therefore T_4(\u03b1)=1 and (4,\u03b1) is unique.\n- Case 1+1+1+1+1. If some column contains two points with lower y=\u03b2, then that column is the only one meeting row \u03b2 (all rows are singletons), so T_3(\u03b2)=1 by Theorem 1 (type 3) and (3,\u03b2) is unique. If no column contains two points either, U is an antichain and Theorem 4 gives a unique type-2 color.\nThese cases are exhaustive; in all cases a uniquely colored edge exists. \u220e\nWhy useful here. P5 is a curated, verifiable milestone extending the |U|=4 result. It stress-tests the global triggers (Theorems 1\u20134,7) and the \u201cshared-left-endpoint \u21d2 robust L-corner\u201d pattern used at |U|=4, now with an extra point.\n\nNearest-interloper strategy for the unique\u2013maximal crossing (refinement and caution)\n- Context. In the unique\u2013maximal regime, with S={p: p_x<X, p_y<Y} and Max(S)={s_1,\u2026,s_k} (x increasing, y decreasing), the unresolved subcase is when both boundary sets T,R are nonempty, both pivots (Theorems 10 and 3) fail, and no single s_i meets both thresholds \u03b1\u2082,\u03b2\u2082 (so we have a crossing). The plan is to examine the crossing corner c=(x(s_g), y(s_{g+1})).\n- Refinement target. Define y_v as the least y\u2208(y(s_{g+1}),Y) with (x(s_g),y)\u2208U (if any), and x_h as the least x\u2208(x(s_g),X) with (x,y(s_{g+1}))\u2208U (if any). We seek a lemma: either both rays at c are clean up to their boundary supports (then Theorem 7 yields a unique type-2 at c), or at least one of the nearest interlopers yields a safe uniqueness via Theorem 3 or the global R3/R4 triggers.\n- Caution (why a na\u00efve D\u2032 fails): Emptiness only on the open segments (x=x(s_g), y\u2208(y(s_{g+1}),y(s_g))) and (y=y(s_{g+1}), x\u2208(x(s_g),x(s_{g+1}))) does not ensure r_U=s_U=1, because top-row points at x=x(s_g) or right-column points at y=y(s_{g+1}) may still contribute. Any usable lemma must quantify r_U and s_U globally or explicitly incorporate boundary contributions (cf. Theorem 5, Lemma 14).\n- Next-step formulation (to be proved next round): Nearest-interloper lemma (NIL). In the crossing subcase, if both T2\u03b1 and T2\u03b2 fail (i.e., h_{\u03b2_c}(\u03b1\u2082)\u22652 and v_{\u03b1_r}(\u03b2\u2082)\u22652), then at the crossing pair (s_g,s_{g+1}) at least one of the nearest interlopers y_v or x_h forces either (i) a robust L-corner witness (Theorem 7) at some base (\u03b1,\u03b2) among { (x(s_g),y(s_{g+1})), (x_h,y(s_{g+1})), (x(s_g),y_v) }, or (ii) a singleton+extension witness (Theorem 3) or a global row/column-of-two uniqueness (R3/R4). The proof will rely on the disjointness of rows {y(s_{i+1})} and columns {x(s_i)} across i to isolate a globally unique base.\n\nExamples and checks\n- P5, 3+2 with shared left endpoint. U={(1,1),(3,1),(5,1)}\u222a{(3,3),(7,3)}. The two rows with left endpoint 3 produce a robust L-corner at (3,1): r_U(3,1)=1 (only (3,3) above), s_U(3,1)=1 (only (5,1) to the right), so (2,3,1) is unique.\n- P5, 2+2+1 with distinct left endpoints. U={(2,1),(5,1)}\u222a{(3,4),(6,4)}\u222a{(4,7)}. Row y=1 has left endpoint \u03b1=2. No other row contains both (2,\u00b7) and a right neighbor; hence T_4(2)=1 and (4,2) is unique.\n\nObstacles and why simple attempts fail\n- Attempting to force uniqueness at a crossing corner using only \u201cno interlopers between consecutive maxima\u201d fails because boundary points at the top row/right column can inflate r_U/s_U. This is precisely why Theorem 5 uses the global counts R_i and S_i, and why Lemma 14 targets the first subrow/last left column anchored to \u03b1\u2082,\u03b2\u2082.\n\nNext steps (concrete and auditable)\n1) Curate Proposition P5 into output.md (|U|=5 classification), with the subcase split \u201cshared left endpoint \u21d2 robust L-corner (Theorem 7)\u201d made explicit.\n2) Prove the nearest-interloper lemma (NIL) for the unique\u2013maximal crossing subcase: under simultaneous failure of the boundary-local triggers (Lemma 14(a,b)), show that either the crossing corner is clean (Theorem 7 applies) or a nearest interloper enforces a singleton+extension (Theorem 3) or an R3/R4 global uniqueness.\n3) Optional clean-up: adjust notation in Theorem 11 (\u201cv(\u03b2)=1\u201d \u2192 \u201cT_3(\u03b2)=1\u201d) and add a short remark that any maxima-local specialization should be stated via R_i,S_i (global counts) rather than open-segment emptiness.\n\nWhy this is progress\n- P5 advances the curated frontier from |U|=4 to |U|=5 with a complete, checkable proof leveraging the established toolkit (Theorems 1\u20134,7,11 and R3/R4). This strengthens confidence in the local triggers used in the general proof and provides additional tested patterns (especially the \u201cshared left endpoint\u201d L-corner) that recur in larger configurations.\n- The NIL blueprint precisely identifies what remains to close the unique\u2013maximal crossing case and explains why na\u00efve segment-emptiness conditions are insufficient, guiding a correct proof structure tied to the already-curated global multiplicity formulas."}]
+
+Current notes.md:
+Setup and terminology.
+- U ⊆ [n]×[n]. For p=(x,y) and q=(x',y'), say q is NE of p if x'>x and y'>y, and q is SE of p if x'>x and y'<y. Let G[U] be the graph on vertex set U with one edge for every unordered pair {p,q}. Each edge receives one of four types:
+  • Type 1 (NE–SW): endpoints differ in both coordinates and one is NE of the other. The color label is (1,α,β) with α = min{x,x'} and β = min{y,y'}; equivalently the SW endpoint’s coordinates.
+  • Type 2 (NW–SE): endpoints differ in both coordinates and one is NW of the other. The color label is (2,α,β) with α = min{x,x'} (the NW x) and β = min{y,y'} (the SE y).
+  • Type 3 (vertical): same x; the color label is (3,β) where β = min{y,y'} (the lower y).
+  • Type 4 (horizontal): same y; the color label is (4,α) where α = min{x,x'} (the left x).
+
+Exact multiplicities (global; now established).
+- Type 1: For (α,β)∈U, the multiplicity of color (1,α,β) equals the number of NE neighbors of (α,β) in U. No edge receives label (1,α,β) unless (α,β)∈U.
+- Type 2: For any (α,β)∈[n]^2, set r_U(α,β)=# { (α,y)∈U : y>β } and s_U(α,β)=# { (x,β)∈U : x>α }. Then the multiplicity of color (2,α,β) equals r_U(α,β)·s_U(α,β). In particular it is unique iff r_U(α,β)=s_U(α,β)=1.
+- Type 3: For any β, the multiplicity of (3,β) equals T_3(β)=∑_α 1_{(α,β)∈U} · # { (α,y)∈U : y>β }. It is unique iff exactly one α contributes and contributes 1.
+- Type 4: For any α, the multiplicity of (4,α) equals T_4(α)=∑_β 1_{(α,β)∈U} · # { (x,β)∈U : x>α }. It is unique iff exactly one β contributes and contributes 1.
+
+Safe uniqueness triggers (now established).
+- Single-line uniqueness: If U⊆[n]×{y0} with |U|≥2, list its x-coordinates x_1<⋯<x_m. Then the edge between (x_{m−1},y0) and (x_m,y0) is the only edge in G[U] colored (4,x_{m−1}). Dually, if U⊆{x0}×[n] with |U|≥2, then the edge between (x0,y_{m−1}) and (x0,y_m) is the only edge colored (3,y_{m−1}).
+- Singleton+extension uniqueness (global): If a row β contains exactly one vertex (α,β) and in column α there is exactly one vertex above it, then (3,β) is unique. Dually, if a column α contains exactly one vertex (α,β) and in row β there is exactly one vertex to its right, then (4,α) is unique. These follow immediately from the type-3/4 formulas.
+- Antichain ⇒ unique type 2: If U is an antichain (no two share a row or a column), then ordering its points by increasing x (hence decreasing y), any consecutive pair (x_i,y_i),(x_{i+1},y_{i+1}) yields r_U(x_i,y_{i+1})=s_U(x_i,y_{i+1})=1, hence (2,x_i,y_{i+1}) is unique.
+- Clean gap between consecutive maxima: Let M=Max(U) in the product order, list M as (x_1,y_1),…,(x_k,y_k) with x_1<⋯<x_k and y_1>⋯>y_k. For i∈{1,…,k−1} set R_i=# { (x_i,y)∈U : y>y_{i+1} } and S_i=# { (x,y_{i+1})∈U : x>x_i }. If R_i=S_i=1, then the color (2,x_i,y_{i+1}) is unique.
+- 2×2 rectangle with clean margins: If U contains the four corners of {(x_1,y_1),(x_1,y_2),(x_2,y_1),(x_2,y_2)} with x_1<x_2, y_1<y_2 and has no other point in column x_1 above y_1 and no other point in row y_1 to the right of x_1, then (2,x_1,y_1) is unique.
+- All three-point sets: If |U|=3, then G[U] has a uniquely colored edge. (Full case analysis is recorded in output.)
+
+Corrections and counterexamples.
+- “Three or more on a row/column ⇒ unique type 4/3” is false without further global conditions. Counterexample: U = {(1,1),(2,1),(3,1),(2,2),(4,2)}. On row y=1 we get a single occurrence of (4,2) within that row, but globally (4,2) occurs again on row y=2 (edge (2,2)–(4,2)). One must apply the global T_4(α) formula across all rows.
+- Gap in “unique maximal ⇒ unique color” (as previously sketched). The subcase S≠∅ must rule out extra NE neighbors lying on the top row or rightmost column. Example showing the gap: U = {(3,3),(4,5),(5,5)}. Here p=(3,3) has two NE neighbors (4,5) and (5,5). A correct proof should either find a different witness (types 3/4 via T_3/T_4) or choose p to avoid such extra NE neighbors. This remains an open item to be fixed.
+
+Open directions.
+1) Complete the unique-maximal case rigorously, as outlined above (identify conditions under which T_3/T_4 already gives uniqueness; otherwise find p∈S with unique NE neighbor).
+2) For |Max(U)|≥2, either certify a clean gap (R_i=S_i=1) for some consecutive pair, or force a type-3/4 trigger (singleton+extension) or a unique type-1 via a minimality argument on the “extra” points counted by R_i−1 and S_i−1.
+3) Extend the small-case verification from |U|=3 to |U|=4 to stress-test the dichotomies and expose the right minimality invariants.
+New curated results and corrections (this round)
+
+1) Robust L-corner uniqueness (type 2)
+If there exist α<α′ and β<β′ with (α,β′),(α′,β)∈U and, moreover, (i) (α,β) has exactly one point above it in its column (namely (α,β′)) and (ii) exactly one point to its right in its row (namely (α′,β)), then by the type-2 multiplicity formula r_U(α,β)=s_U(α,β)=1 and so the color (2,α,β) is unique. This generalizes the previously noted “2×2 rectangle with clean margins” by not requiring the NE corner (α′,β′) to be present.
+
+2) Cross-shape (row ∪ column) support ⇒ unique color
+If U is contained in the union of a single row Y and a single column X and |U|≥2, then G[U] has a uniquely colored edge. Proof: if |U∩row Y|≥2, let α be the second-largest x on that row. Since α≠X, the only row containing (α,·) inside U is Y, and on that row h_Y(α)=1. Thus T_4(α)=1 (unique type 4). Otherwise |U∩column X|≥2 and the vertical analogue gives a unique type 3.
+
+3) Unique-maximal triggers
+Let U have a unique maximal m=(X,Y) in the product order. Then X and Y are the global maxima of the used x- and y-coordinates. Define T={x<X : (x,Y)∈U} with α₂=max T (if T≠∅) and R={y<Y : (X,y)∈U} with β₂=max R (if R≠∅). Let S={p∈U : p_x<X and p_y<Y} and let Max(S) denote the set of product-maximal elements of S.
+- H′ (SW-max + boundary thresholds ⇒ unique type 1). If S≠∅ and there exists p∈Max(S) with p_x≥α₂ and p_y≥β₂, then p has exactly one NE neighbor in U (namely m), hence the color (1,p_x,p_y) is unique.
+- K (top-row pivot ⇒ unique type 4). If T≠∅ and the column α₂ contains no point below Y, then T_4(α₂)=1, realized by the top-row edge between (α₂,Y) and m.
+Remark: The column-dual must be formulated with care (see below) to avoid extra contributors in T_3(β₂).
+
+Corrections to proposed lemmas
+- The proposed Lemma J (empty L-corner ⇒ unique type 2) was too weak: forbidding points only in the open segments (β,β′) and (α,α′) does not preclude additional points above β′ or to the right of α′. A correct sufficient condition is exactly r_U(α,β)=s_U(α,β)=1 (see robust L-corner above). Counterexample to the weak form: U={(1,2),(3,1),(1,5),(5,1)} satisfies the stated emptiness on (1, y∈(1,2)) and (x∈(1,3),1) but yields multiplicity 4 for color (2,1,1).
+- The proposed Lemma K′ (right-column pivot ⇒ unique type 3) as stated omitted the requirement that no other columns contribute to T_3(β₂). A safe version is the singleton+extension trigger: if row β₂ is a singleton (only (X,β₂)) and column X has exactly one point above β₂ (necessarily m in the unique-maximal regime), then T_3(β₂)=1. Counterexample to the weak form: U={(5,5),(5,2),(1,2),(1,4)} makes T_3(2)=2.
+- The proposed Lemma L (top/right extremality of consecutive maxima ⇒ unique type 2) is false without excluding intermediate points in column x_i above y_{i+1} (or in row y_{i+1} to the right of x_i). Counterexample: U={(2,5),(5,2),(2,4)} satisfies “m_i topmost” and “m_{i+1} rightmost,” yet r_U(2,2)=2.
+
+Four-point sets (|U|=4)
+The claim that every 4-point configuration admits a uniquely colored edge is true; a corrected complete proof is added to output.md. The flawed claim “if no row has 2 points, then no column has 2 points” is refuted by U={(1,1),(1,3),(2,2),(2,4)}. The corrected proof handles all row/column occupancy patterns (4), (3+1), (2+2), (2+1+1), and (1+1+1+1), using type-3/4 triggers or the antichain lemma.
+
+Roadmap for the unique-maximal case
+- S=∅ is settled by the cross-shape lemma.
+- For S≠∅, aim for a trichotomy: H′ or K (or the safe column-dual) or a robust L-corner (D′) must fire. A workable extremal choice is p∈Max(S) with maximal x and, among those, maximal y; analyze its nearest boundary neighbors and the emptiness of the two open segments above/right of p. If both segments are populated, try to extract a singleton+extension on the boundary or an L-corner between consecutive top-row/right-column supports.
+Erratum to Theorem 11 (|U|=4) and fix.
+- The original subcase “two distinct rows each have exactly two points and share the same left endpoint α ⇒ T_3(β)=1 for the lower β” was incorrect. Counterexample: the 2×2 rectangle U={(1,1),(1,2),(2,1),(2,2)} has two columns contributing to T_3(1).
+- Correct resolution: In that subcase, let β be the lower y among the two points in column α. Then row β has exactly two points (α,β),(γ,β) (so s_U(α,β)=1), and column α has exactly one point above β (namely at the higher row, so r_U(α,β)=1). By Theorem 7 (robust L-corner), (2,α,β) is unique. This uniform fix also covers the rectangle case.
+
+Safe global triggers (recorded for use).
+- R4 (row-of-two with globally unique left endpoint ⇒ unique type 4). Suppose some row β has exactly two points (α,β),(α′,β) with α<α′, and for every other row β′ either (α,β′)∉U or there is no point (x,β′) with x>α. Then T_4(α)=1, hence there is a unique color (4,α). Proof: From the type-4 formula, only row β contributes and contributes 1.
+- R3 (column-of-two with globally unique lower endpoint ⇒ unique type 3). Suppose some column α has exactly two points (α,β)<(α,β′) with β<β′, and for every other column α′ either (α′,β)∉U or there is no point (α′,y) with y>β. Then T_3(β)=1, hence there is a unique color (3,β). Proof: From the type-3 formula, only column α contributes and contributes 1.
+
+Unique-maximal structure (replace R1 by UM1).
+- Setup: U has a unique maximal m=(X,Y). Let S={p∈U: p_x<X and p_y<Y} and Max(S) be its product-order maxima.
+- UM1 (boundary-only NE neighbors for SW-maxima). For any p=(α,β)∈Max(S): (i) there is no q∈U with x=α and β<y<Y; (ii) there is no q∈U with y=β and α<x<X. Consequently, any NE neighbor of p lies on the top row y=Y or the right column x=X. Proof: If such a q existed in (i) or (ii), then q∈S and q≻p, contradicting p∈Max(S).
+- Caution: The statement “If exactly one of (α,Y) and (X,β) lies in U, then p has exactly one NE neighbor” is false without further constraints. Counterexample: m=(5,5), p=(2,2)∈Max(S), and top-row points (3,5),(4,5) present while (2,5),(5,2) are absent. Then p has multiple NE neighbors. The correct boundary-threshold uniqueness is Theorem 9: require p_x≥α₂ and p_y≥β₂, where α₂ (resp. β₂) is the largest x<X with (x,Y)∈U (resp. largest y<Y with (X,y)∈U).
+
+Maxima-local L-corner certificate.
+- D′ (explicit consecutive-maxima L-corner). If M=Max(U)={m_i=(x_i,y_i)} with x_1<⋯<x_k and y_1>⋯>y_k and for some i there is no (x_i,y) with y_{i+1}<y<y_i and no (x,y_{i+1}) with x_i<x<x_{i+1}, then r_U(x_i,y_{i+1})=s_U(x_i,y_{i+1})=1 and color (2,x_i,y_{i+1}) is unique. This is a specialization of Theorem 7.
+
+Extremal SW-max analysis blueprint (pivot-or-corner).
+- Choose p∈Max(S) maximizing x and then y. By UM1, r_U(p),s_U(p)∈{0,1}, and all NE neighbors lie on the top row or right column.
+  • Regime A: r_U(p)=s_U(p)=1 and p_x≥α₂, p_y≥β₂ ⇒ unique type 1 (Theorem 9).
+  • Regime B: exactly one of r_U(p),s_U(p) equals 1. Try to promote a singleton+extension (Theorem 3) or apply R3/R4 to that row/column.
+  • Regime C: r_U(p)=s_U(p)=0. Show the nearest top-row point right of p and nearest right-column point above p cannot both exist away from m; otherwise one can extract a robust L-corner (Theorem 7) at p. This will complete the unique-maximal case.
+
+Toward a counting lemma for multiple maxima.
+- The horizontal rays on rows y_{i+1} (counted by S_i) and vertical rays on columns x_i (counted by R_i) are anchored at disjoint rows/columns across i. If all R_i,S_i are large (≥2), then many rows/columns carry 
+“extensions,” suggesting that a singleton+extension trigger (Theorem 3) or a robust L-corner (Theorem 7) must occur. Aim to formalize via a pigeonhole/counting argument over {y_{i+1}} and {x_i}.
+Addenda: unique–maximal thresholds and crossing analysis
+
+Definitions. Let U ⊆ [n]×[n] and assume U has a unique maximal element m = (X,Y) in the product order. Define
+- T = { x < X : (x,Y) ∈ U } and, if T ≠ ∅, α₂ = max T.
+- R = { y < Y : (X,y) ∈ U } and, if R ≠ ∅, β₂ = max R.
+- S = { p ∈ U : p_x < X and p_y < Y }, and let Max(S) denote its product-order maximal elements.
+
+Threshold-existence lemmas (for search reduction).
+- Lemma UM–X (x-threshold). If S ≠ ∅ and T ≠ ∅, then either (i) column α₂ contains no point below Y, in which case Theorem 10 applies and yields a unique type-4 color, or (ii) there exists p ∈ Max(S) with p_x ≥ α₂.
+  Proof. If column α₂ has no point below Y, we are in (i). Otherwise pick q = (α₂,β) with β < Y, so q ∈ S. In any finite poset, q is dominated by some p ∈ Max(S), hence p_x ≥ α₂.
+- Lemma UM–Y (y-threshold). If S ≠ ∅ and R ≠ ∅, then either (i) row β₂ is a singleton {(X,β₂)} and Theorem 3 applies (unique type-3), or (ii) there exists q ∈ Max(S) with q_y ≥ β₂.
+  Proof. If row β₂ is a singleton, we are in (i). Otherwise take r = (α,β₂) with α < X, so r ∈ S and is dominated by some q ∈ Max(S), whence q_y ≥ β₂.
+
+Corollary (two-threshold reduction for unique–maximal). In the unique–maximal regime, unless a pivot is already available (Theorem 10 or the safe type-3 singleton-row trigger), we can locate p,q ∈ Max(S) meeting the x- and y-thresholds respectively (p_x ≥ α₂ and q_y ≥ β₂). If some s ∈ Max(S) meets both thresholds simultaneously, Theorem 9 yields a unique type-1 color. The only unresolved subcase is the crossing: x-threshold and y-threshold are met, but by different maxima.
+
+Crossing-pair blueprint. List Max(S) as s_1, …, s_k with x increasing and y decreasing. Suppose indices f,g exist with x(s_f) ≥ α₂ and y(s_g) ≥ β₂ but no single s_i satisfies both. Then g ≥ f and, in fact, f > g. Consider the L-corner at (x(s_g), y(s_{g+1})).
+- Vertical ray at x = x(s_g): let y_v be the minimum y ∈ (y(s_{g+1}), Y) with (x(s_g), y) ∈ U, if any (else the ray is clean).
+- Horizontal ray at y = y(s_{g+1}): let x_h be the minimum x ∈ (x(s_g), X) with (x, y(s_{g+1})) ∈ U, if any (else the ray is clean).
+Dichotomy to establish next: If both rays are clean up to their boundary supports, then Theorem 7 applies at (x(s_g), y(s_{g+1})) and yields a unique type-2 color. Otherwise, analyze the nearest interloper(s) at y_v and/or x_h; prove that at least one induces a safe unique color via either Theorem 3 (singleton+extension) or the global triggers R3/R4. This will complete the unique–maximal case.
+
+Pattern library (robust L-corner in a 2+2(+…)).
+- RL (two 2-point rows sharing a left endpoint with a clean column ⇒ unique type 2). If rows β₁ < β₂ have (α,β_i) and (γ_i,β_i) with α < γ_i (i=1,2), column α contains exactly (α,β₁),(α,β₂), and on the lower row β=β₁ there is exactly one point to the right of α (namely (γ₁,β)), then by Theorem 7 we have a unique (2,α,β).
+
+Multiple maxima: counting lemma (work-in-progress). For M = Max(U) listed as m_i=(x_i,y_i) with x_1<…<x_k and y_1>…>y_k, define R_i and S_i as in Theorem 5. If no D′-witness exists for any i, then for each i at least one of R_i, S_i is ≥ 2. Since the rows {y_{i+1}} and columns {x_i} are disjoint across i, collect the “excess” contributors across all i and prove that some row/column must realize a singleton+extension (Theorem 3) or one of the global triggers R3/R4 (hence a unique type-3/4), or else a D′-witness appears, contradicting the assumption. Formalize an exact inequality to conclude.
+
+Stress tests to design. “Staircase + boundary fillers” families where Max(U) is a long chain, and rows y_{i+1} and columns x_i have either clean rays or minimally dirty rays (single interloper). Use them to verify the nearest-interloper analysis and to calibrate when Theorem 7 vs. type-3/4 triggers apply.
+Unique–maximal: new local triggers and the |Max(S)|=1 closure
+
+Definitions recap (unique–maximal regime). Assume U has a unique maximal m=(X,Y) in the product order. Define
+- T = { x<X : (x,Y)∈U }, α₂ = max T if T≠∅.
+- R = { y<Y : (X,y)∈U }, β₂ = max R if R≠∅.
+- S = { p∈U : p_x<X and p_y<Y }, and Max(S) its product-order maxima.
+
+New local certificate at a SW-maximum (UM2′).
+- Lemma (UM2′). If p=(α,β)∈Max(S) and both boundary-aligned points (α,Y) and (X,β) lie in U, then the color (2,α,β) is unique. Reason: By UM1, column α has no points in (β,Y) and row β has no points in (α,X). O1 forbids points beyond the boundary. Thus r_U(α,β)=s_U(α,β)=1, and Theorem 1 (type 2) yields uniqueness.
+
+Closure when |Max(S)|=1 (UM-single).
+- Theorem (UM-single). If S≠∅ and Max(S)={p=(α,β)}, then G[U] has a uniquely colored edge. Sketch (casework):
+  • If T=R=∅, then by UM1 any NE neighbor of p lies on the boundary; since only m lies there, (1,α,β) is unique (type 1).
+  • If T≠∅ and column α₂ has no point below Y, Theorem 10 gives a unique type 4.
+  • If R≠∅ and row β₂ is a singleton {(X,β₂)}, Theorem 3 gives a unique type 3 (v_X(β₂)=1 holds automatically in this regime).
+  • If T≠∅, R=∅ and column α₂ has some (α₂,β′) with β′<Y, then q=(α₂,β′)∈S and the uniqueness of the maximal element forces p≥q, hence p_x≥α₂. By UM1, all NE neighbors of p lie on the boundary; the right column contributes none (R=∅) and, among top-row points other than m, all have x≤α₂≤p_x, so none lies to the right of p. Thus m is p’s only NE neighbor and (1,α,β) is unique.
+  • If T=∅, R≠∅ and row β₂ has some (α′,β₂) with α′<X, then similarly p_y≥β₂ and the only NE neighbor is m; (1,α,β) is unique.
+  • If T,R≠∅ and both pivots fail, pick q₁=(α₂,β′) with β′<Y and q₂=(α′,β₂) with α′<X; then p≥q₁,q₂ so p_x≥α₂ and p_y≥β₂. Theorem 9 applies and (1,α,β) is unique.
+
+Boundary-local type-2 triggers (first subrow/last left column).
+- T2α. If T≠∅, column α₂ has some point below Y, and β_c=max{ y<Y : (α₂,y)∈U }, then whenever row β_c has exactly one point to the right of α₂ (i.e., h_{β_c}(α₂)=1), the color (2,α₂,β_c) is unique (r=1 via (α₂,Y), s=1 by hypothesis).
+- T2β. If R≠∅, row β₂ has some point left of X, and α_r=max{ x<X : (x,β₂)∈U }, then whenever column α_r has exactly one point above β₂ (i.e., v_{α_r}(β₂)=1), the color (2,α_r,β₂) is unique (s=1 via (X,β₂), r=1 by hypothesis).
+
+Pattern library (column-dual robust L-corner).
+- RL′. If columns α<α′ have exactly (α,β),(α,β₁) with β<β₁ and (α′,β),(α′,β₂) with β<β₂, and row β contains exactly (α,β),(α′,β), then (2,α,β) is unique. This is a direct instance of Theorem 7.
+
+Crossing subcase blueprint (|Max(S)|≥2; refined target for next round).
+- List s_1,…,s_k=Max(S) with x increasing, y decreasing. If both T,R≠∅ and neither pivot fires, there exist indices f,g with x(s_f)≥α₂ and y(s_g)≥β₂ but no single s_i meets both (hence f>g). Consider the crossing corner c=(x(s_g), y(s_{g+1})).
+  • If the open segments above/right of c are clean up to the boundary supports, Theorem 7 gives a unique type-2 at c.
+  • Otherwise, let y_v be the least y>y(s_{g+1}) with (x(s_g),y)∈U, and x_h the least x>x(s_g) with (x,y(s_{g+1}))∈U. The next lemma to prove: at least one of these nearest interlopers can be converted into a safe uniqueness via Theorem 3 (singleton+extension) or the global R3/R4 triggers; failing that, both segments are clean and Theorem 7 fires. The disjointness of the rows {y(s_{i+1})} and columns {x(s_i)} across i will be the key to isolating a globally unique base.
+
+Editorial note. In Theorem 11’s last paragraph, the phrase “v(β)=1” should read “T_3(β)=1” or “v_α(β)=1 for the unique contributing α”; this is purely notational.
+
+Current output.md (if any):
+Setup and notation
+- U ⊆ [n]×[n]. For p=(x,y) and q=(x',y'), say q is NE of p if x'>x and y'>y, and q is SE of p if x'>x and y'<y. G[U] has an (undirected) edge for every unordered pair {p,q}⊆U, each labeled by one of four types and a color as follows:
+  • Type 1 (NE–SW): if one endpoint is NE of the other. Color (1,α,β) with α = min{x,x'} and β = min{y,y'} (coordinates of the SW endpoint).
+  • Type 2 (NW–SE): if one endpoint is NW of the other. Color (2,α,β) with α = min{x,x'} (the NW x) and β = min{y,y'} (the SE y).
+  • Type 3 (vertical): if x=x'. Color (3,β) with β = min{y,y'} (the lower y).
+  • Type 4 (horizontal): if y=y'. Color (4,α) with α = min{x,x'} (the left x).
+
+Theorems currently established
+1) Exact multiplicity formulas for types 1–4.
+2) Single-line uniqueness: If U lies in a single row (resp. a single column) and has at least two points, then G[U] has a uniquely colored edge of type 4 (resp. type 3).
+3) Singleton+extension triggers: A singleton row (resp. singleton column) with exactly one extension above (resp. to the right) forces a unique type-3 (resp. type-4) color.
+4) Antichain ⇒ a unique type-2 color.
+5) Consecutive-maxima clean gap ⇒ a unique type-2 color.
+6) All three-point sets U admit a uniquely colored edge.
+7) Robust L-corner uniqueness (type 2).
+8) Row ∪ column support ⇒ a unique color.
+9) Unique-maximal: SW-max with boundary thresholds ⇒ unique type 1.
+10) Unique-maximal: top-row pivot ⇒ unique type 4.
+11) Every four-point set admits a uniquely colored edge.
+
+Proofs
+Theorem 1 (Exact multiplicities).
+- Type 1. Fix (α,β)∈[n]^2. An edge has color (1,α,β) iff its SW endpoint is (α,β), hence necessarily (α,β)∈U. Each NE neighbor q of (α,β) produces exactly one edge of that color, and distinct NE neighbors yield distinct edges. Conversely, any edge of that color arises this way. Therefore the multiplicity of (1,α,β) equals the number of NE neighbors of (α,β) in U.
+- Type 2. Fix (α,β)∈[n]^2 and define r_U(α,β)=# { (α,y)∈U : y>β } and s_U(α,β)=# { (x,β)∈U : x>α }. Choosing any (α,y) with y>β and any (x,β) with x>α produces a NW–SE pair whose color is (2,α,β); distinct choices yield distinct edges of that color. Conversely, any edge of color (2,α,β) has its NW endpoint on the vertical ray { (α,y) : y>β } and its SE endpoint on the horizontal ray { (x,β) : x>α }. Hence the multiplicity is r_U(α,β)·s_U(α,β). In particular, uniqueness holds iff r_U(α,β)=s_U(α,β)=1.
+- Type 3. Fix β. For each α with (α,β)∈U, the lower endpoint (α,β) connects vertically to each (α,y) with y>β, contributing v_α(β)=# { (α,y)∈U : y>β } edges of color (3,β). Summing over α gives the total multiplicity T_3(β)=∑_α 1_{(α,β)∈U}·v_α(β). Uniqueness holds iff exactly one α contributes and v_α(β)=1.
+- Type 4. Fix α. For each β with (α,β)∈U, the left endpoint (α,β) connects horizontally to each (x,β) with x>α, contributing h_β(α)=# { (x,β)∈U : x>α } edges of color (4,α). Summing over β gives T_4(α)=∑_β 1_{(α,β)∈U}·h_β(α). Uniqueness holds iff exactly one β contributes and h_β(α)=1.
+
+Theorem 2 (Single-line uniqueness).
+- Row case. Suppose U⊆[n]×{y0} and |U|≥2. Let the distinct x-coordinates be x_1<⋯<x_m with m≥2. The only horizontal edges in G[U] are those between (x_i,y0) and (x_j,y0). The multiset of colors on these edges is { (4,x_1) repeated m−1 times, (4,x_2) repeated m−2 times, …, (4,x_{m−1}) once }. In particular, (4,x_{m−1}) occurs exactly once in G[U].
+- Column case. The vertical analogue holds by symmetry: if U⊆{x0}×[n] with |U|≥2 and y_1<⋯<y_m, then (3,y_{m−1}) occurs exactly once.
+
+Theorem 3 (Singleton+extension triggers).
+- If a row β contains exactly one point (α,β)∈U and in column α there is exactly one point (α,y) with y>β, then by Theorem 1 (type 3) we have T_3(β)=1 and hence the color (3,β) is unique. The column/row dual gives the type-4 trigger.
+
+Theorem 4 (Antichain ⇒ unique type 2).
+- Assume U is an antichain (no two share a row or a column). List U as (x_1,y_1),…,(x_m,y_m) in increasing x, which forces y_1>y_2>⋯>y_m. For any i∈{1,…,m−1} consider (α,β)=(x_i,y_{i+1}). In column α there is exactly one point above β, namely (x_i,y_i); in row β there is exactly one point to the right of α, namely (x_{i+1},y_{i+1}). Thus r_U(α,β)=s_U(α,β)=1, and by Theorem 1 (type 2) the color (2,α,β) is unique.
+
+Theorem 5 (Consecutive-maxima clean gap ⇒ unique type 2).
+- Let M=Max(U) under the product order, listed as m_i=(x_i,y_i) with x_1<⋯<x_k and y_1>⋯>y_k (k≥2). For i∈{1,…,k−1} define R_i=# { (x_i,y)∈U : y>y_{i+1} } and S_i=# { (x,y_{i+1})∈U : x>x_i }. If R_i=S_i=1, then with (α,β)=(x_i,y_{i+1}) we have r_U(α,β)=R_i and s_U(α,β)=S_i, hence r_U·s_U=1 and color (2,α,β) is unique by Theorem 1 (type 2).
+
+Theorem 6 (All three-point sets admit a uniquely colored edge).
+- Let U have three distinct points.
+  • If all three lie on a common row, with x_1<x_2<x_3, the three horizontal edges on that row have colors (4,x_1),(4,x_1),(4,x_2), so (4,x_2) is unique.
+  • If all three lie on a common column, the vertical analogue yields a unique (3,y_2).
+  • Otherwise, if some pair lies on a row (resp. column) but not all three do, the edge of that pair has a type-4 (resp. type-3) color that cannot be duplicated elsewhere in U because there is no second edge on that same row (resp. column).
+  • Finally, if all x- and y-coordinates are distinct, order by x: p_1=(x_1,y_1),p_2=(x_2,y_2),p_3=(x_3,y_3).
+    – If y_1<y_2<y_3, then p_2p_3 is type 1 with color (1,x_2,y_2) and is unique (its SW endpoint is p_2, which has exactly one NE neighbor, namely p_3).
+    – If y_1>y_2>y_3, then p_2p_3 is type 2 with label (2,x_2,y_3) and is unique since r_U(x_2,y_3)=s_U(x_2,y_3)=1.
+    – In each of the remaining permutations of (y_1,y_2,y_3), one of the consecutive pairs in x-order forms a type-2 edge (NW–SE) with exactly one point above the L-corner in its column and exactly one point to the right on its row, giving a unique type-2 color by Theorem 1 (type 2). Hence at least one unique color exists in all cases.
+
+Theorem 7 (Robust L-corner uniqueness for type 2).
+Let α<α′ and β<β′. Suppose (α,β′),(α′,β)∈U, and in column α there is exactly one point above β (namely (α,β′)), and in row β there is exactly one point to the right of α (namely (α′,β)). Then the color (2,α,β) occurs exactly once in G[U].
+Proof. By Theorem 1 (type 2), r_U(α,β)=1 and s_U(α,β)=1, hence the multiplicity r_U·s_U=1.
+
+Theorem 8 (Row ∪ column support ⇒ a unique color).
+Assume U⊆({x=X}×[n]) ∪ ([n]×{y=Y}) and |U|≥2. Then G[U] has a uniquely colored edge.
+Proof. If U⊆{x=X}×[n] or U⊆[n]×{y=Y}, Theorem 2 applies. Otherwise U meets both the row and the column. If |U∩([n]×{Y})|≥2, list its x-coordinates x_1<⋯<x_m and set α=x_{m−1}. Since α≠X and U⊆(column X)∪(row Y), the only β with (α,β)∈U is β=Y. On row Y, h_Y(α)=1. Hence T_4(α)=1 by Theorem 1 (type 4). If instead |U∩({X}×[n])|≥2, the vertical analogue yields a unique type-3 color.
+
+Theorem 9 (Unique-maximal: SW-max with boundary thresholds ⇒ unique type 1).
+Suppose U has a unique maximal element m=(X,Y) in the product order. Let T={x<X : (x,Y)∈U} and R={y<Y : (X,y)∈U}, with α₂=max T if T≠∅ (and α₂=−∞ otherwise), and β₂=max R if R≠∅ (and β₂=−∞ otherwise). Let S={p∈U : p_x<X and p_y<Y}. If S≠∅ and there exists p∈Max(S) (for the product order) with p_x≥α₂ and p_y≥β₂, then the color (1,p_x,p_y) is unique.
+Proof. Any NE neighbor q of p with q_x<X and q_y<Y would satisfy q≻p and lie in S, contradicting p∈Max(S). Thus every NE neighbor of p lies on row Y or column X. Because p_x≥α₂, there is no (x,Y)∈U with p_x<x<X, and because p_y≥β₂, there is no (X,y)∈U with p_y<y<Y. Hence the only possible NE neighbor is m. By Theorem 1 (type 1), the multiplicity of (1,p_x,p_y) equals the number of NE neighbors of p, namely 1.
+
+Theorem 10 (Unique-maximal: top-row pivot ⇒ unique type 4).
+In the setting of Theorem 9, if T≠∅ and the column α₂ contains no point below Y, then the color (4,α₂) occurs exactly once in G[U].
+Proof. On row Y, the point (α₂,Y) has exactly one right neighbor, (X,Y), so h_Y(α₂)=1. For β≠Y there is no (α₂,β)∈U by hypothesis, and there are no β>Y in U when m is the unique maximal. Therefore T_4(α₂)=h_Y(α₂)=1 by Theorem 1 (type 4).
+
+Theorem 11 (Every four-point set admits a uniquely colored edge).
+If |U|=4, then G[U] has a uniquely colored edge.
+Proof. If some row has ≥3 points, list the x-coordinates on that row as x_1<⋯<x_k with k≥3. The rightmost edge on that row has color (4,x_{k−1}). To realize (4,x_{k−1}) elsewhere would require a different row containing both (x_{k−1},·) and a point with x>x_{k−1}, which is impossible with only one point off the given row. Thus (4,x_{k−1}) is unique. If some column has ≥3 points, the vertical analogue (type 3) applies.
+Otherwise, every row and every column has ≤2 points. If there is a row with exactly two points, let its smaller x be α. If no other row contains both (α,·) and a point to its right, then by Theorem 1 (type 4) we have T_4(α)=1. Otherwise there exists a second row with exactly two points and the same left endpoint α. Let β be the lower of the two y-values in column α. Then on row β there is exactly one point to the right of α, and in column α there is exactly one point above β. By Theorem 7 (robust L-corner), r_U(α,β)=s_U(α,β)=1 and the color (2,α,β) is unique.
+Finally, if no row has two points, then each row has exactly one point. If some column has two points, let β be the lower y on that column; at row β only that column contributes and v(β)=1, so T_3(β)=1. If no column has two points either, U is an antichain, and Theorem 4 gives a unique type-2 color. In all cases a unique color exists.
+Auxiliary lemmas (supporting Theorems 9–11 and later triggers)
+
+Lemma O1 (unique maximal ⇒ coordinatewise maxima).
+Statement. If U has a unique maximal element m=(X,Y) in the product order, then X = max{ x : (x,·) ∈ U } and Y = max{ y : (·,y) ∈ U }.
+Proof. Suppose some u=(x′,y′) ∈ U has x′ > X. In any finite poset, u is dominated by some maximal element m′ (i.e., m′ ≥ u coordinatewise). Then m′_x ≥ x′ > X, so m′ ≠ m, contradicting uniqueness. The case y′ > Y is symmetric. Therefore no point of U has x > X or y > Y, proving the claim.
+
+Lemma UM1 (SW-maxima have only boundary NE neighbors).
+Setup. Assume U has a unique maximal m=(X,Y). Let S={ p ∈ U : p_x < X and p_y < Y } and Max(S) its product-order maximal elements.
+Statement. If p=(α,β) ∈ Max(S), then: (i) there is no q ∈ U with x=α and β < y < Y; (ii) there is no q ∈ U with y=β and α < x < X. Consequently, every NE neighbor of p lies on the top row y=Y or the right column x=X.
+Proof. If q=(α,y) with β<y<Y existed, then q ∈ S and q ≻ p, contradicting p ∈ Max(S). The horizontal case is analogous. The consequence follows immediately.
+
+Corollary R4 (row-of-two with globally unique left endpoint ⇒ unique type 4).
+Statement. Suppose there exists a row β with exactly two points (α,β),(α′,β) ∈ U with α<α′. Assume furthermore that for every β′ ≠ β either (α,β′) ∉ U or there is no point (x,β′) with x>α. Then the color (4,α) appears exactly once in G[U].
+Proof. By the type-4 multiplicity formula, T_4(α)=∑_{β''} 1_{(α,β'')∈U} · h_{β''}(α). By hypothesis, only β contributes (since (α,β'')∉U for β''≠β or h_{β''}(α)=0 there), and on row β we have h_β(α)=1 (exactly one right neighbor at α′). Hence T_4(α)=1 and (4,α) is unique.
+
+Corollary R3 (column-of-two with globally unique lower endpoint ⇒ unique type 3).
+Statement. Suppose there exists a column α with exactly two points (α,β),(α,β′) ∈ U with β<β′. Assume furthermore that for every α′ ≠ α either (α′,β) ∉ U or there is no point (α′,y) with y>β. Then the color (3,β) appears exactly once in G[U].
+Proof. By the type-3 multiplicity formula, T_3(β)=∑_{α''} 1_{(α'',β)∈U} · v_{α''}(β). By hypothesis, only α contributes (since (α'',β)∉U for α''≠α or v_{α''}(β)=0 there), and in column α we have v_α(β)=1 (exactly one point above at β′). Hence T_3(β)=1 and (3,β) is unique.
+Theorems currently established (continued)
+12) Unique–maximal: SW–maximum with both boundary contacts ⇒ unique type 2.
+13) Unique–maximal with a single SW–maximum ⇒ some unique color exists.
+14) Unique–maximal: boundary-local type-2 triggers at α₂ and β₂.
+
+Proofs (additions)
+
+Theorem 12 (Unique–maximal: SW–maximum with both boundary contacts ⇒ unique type 2).
+Assume U has a unique maximal element m=(X,Y). Let S={ p∈U : p_x<X and p_y<Y }, and let p=(α,β)∈Max(S). Suppose (α,Y)∈U and (X,β)∈U. By Lemma UM1, there is no point of U on the open vertical segment { (α,y) : β<y<Y } and no point on the open horizontal segment { (x,β) : α<x<X }. By Lemma O1 there are no points with y>Y or x>X. Hence r_U(α,β)=1 and s_U(α,β)=1. By Theorem 1 (type 2), the color (2,α,β) occurs exactly once in G[U].
+
+Theorem 13 (Unique–maximal with a single SW–maximum ⇒ a unique color exists).
+Assume U has a unique maximal m=(X,Y). Let S={ p∈U : p_x<X and p_y<Y } and suppose S≠∅ but Max(S)={p=(α,β)}.
+Define T={ x<X : (x,Y)∈U } and, if T≠∅, α₂=max T. Define R={ y<Y : (X,y)∈U } and, if R≠∅, β₂=max R. We consider cases.
+- Case 1: T=∅ and R=∅. By Lemma UM1, any NE neighbor of p lies on the top row or right column; since m is the only point on either, m is the unique NE neighbor. By Theorem 1 (type 1), (1,α,β) has multiplicity 1.
+- Case 2: T≠∅ and column α₂ contains no point below Y. Then on row Y, h_Y(α₂)=1 and, by the definition of α₂ and Lemma O1, no other row contributes to T_4(α₂). Theorem 10 applies: (4,α₂) is unique.
+- Case 3: R≠∅ and row β₂ is a singleton {(X,β₂)}. In column X there is exactly one point above β₂, namely m, by the definition of β₂ and Lemma O1. By Theorem 3, (3,β₂) is unique.
+- Case 4: T≠∅, column α₂ contains some (α₂,β′) with β′<Y, and R=∅. Then q=(α₂,β′)∈S. Since p is the unique maximal of S, we have p≥q, hence p_x≥α₂. By Lemma UM1, any NE neighbor of p lies on the top row or the right column. The right column contributes none (R=∅). Among top-row points other than m, all have x≤α₂≤p_x and thus are not to the right of p. Therefore m is p’s only NE neighbor, and by Theorem 1 (type 1) the color (1,α,β) is unique.
+- Case 5: R≠∅, row β₂ contains some (α′,β₂) with α′<X, and T=∅. Then r=(α′,β₂)∈S and p≥r gives p_y≥β₂. By Lemma UM1, all NE neighbors of p lie on the top row or right column. The top row contributes none (T=∅). On the right column, by the definition of β₂ and Lemma O1 there is no point strictly above p_y other than m. Hence m is the only NE neighbor and (1,α,β) is unique.
+- Case 6: T≠∅ and R≠∅, with column α₂ containing some (α₂,β′) with β′<Y and row β₂ containing some (α′,β₂) with α′<X (i.e., both pivots fail). Then p≥(α₂,β′) and p≥(α′,β₂), so p_x≥α₂ and p_y≥β₂. Theorem 9 applies: p has exactly one NE neighbor (m), hence (1,α,β) is unique.
+These cases are exhaustive; in all cases a uniquely colored edge exists.
+
+Lemma 14 (Boundary-local type-2 triggers at α₂ and β₂).
+Assume U has a unique maximal m=(X,Y).
+(a) Suppose T≠∅ and column α₂ contains at least one point below Y. Let β_c=max{ y<Y : (α₂,y)∈U }. If row β_c has exactly one point to the right of α₂ (i.e., h_{β_c}(α₂)=1), then the color (2,α₂,β_c) is unique.
+Proof. In column α₂ the only point above β_c is (α₂,Y) by the choice of β_c and Lemma O1, so r_U(α₂,β_c)=1. By hypothesis s_U(α₂,β_c)=h_{β_c}(α₂)=1. By Theorem 1 (type 2), (2,α₂,β_c) has multiplicity 1.
+(b) Suppose R≠∅ and row β₂ contains at least one point left of X. Let α_r=max{ x<X : (x,β₂)∈U }. If column α_r has exactly one point above β₂ (i.e., v_{α_r}(β₂)=1), then the color (2,α_r,β₂) is unique.
+Proof. On row β₂ the only point to the right of α_r is (X,β₂) by the choice of α_r and Lemma O1, so s_U(α_r,β₂)=1. By hypothesis r_U(α_r,β₂)=v_{α_r}(β₂)=1. Theorem 1 (type 2) yields uniqueness.
+
+Remarks. Lemma 14(a,b) are boundary-anchored instances of Theorem 7 (robust L-corner), specialized to the first subrow below (α₂,Y) and the last left column before (X,β₂), respectively. They are particularly effective when the primary pivots (Theorems 10 and 3) fail but these first substructures are minimally “clean.”

@@ -1,0 +1,1 @@
+Thank you for a substantial and well-motivated pivot. There are several strong ideas here (pair-independence constraints for the product-state regime; ring-level view-matching experiments for r = 2), but a few technical missteps need correction to keep the pipeline rigorous.

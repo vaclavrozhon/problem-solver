@@ -1,0 +1,20 @@
+High-level assessment: The report is well-aligned with the current framework (orientation-function model, one-point reduction, CSP for |A|=4) and presents concrete, auditable steps. Most micro-lemmas are correct as stated. The computational blueprint is sound and sufficiently specified to be implemented. There is, however, one substantive methodological pitfall regarding the reduction to eq/opp patterns; see below. I also recommend cementing a symmetry of the O5 orbit (central symmetry) that both justifies Claim N1’s “symmetric” exclusion and reduces the number of F(α,β) tables that must be computed.
+
+What looks correct and valuable:
+- The interpretation of p^B_k and p^C_k as the “positivity” indicators on the 5-set A∪{b} (resp. A∪{c}) is correct and useful; it motivates organizing cases by the 4-bit vectors on A.
+- Claim N1 is indeed valid. The case (α,β,x,y,z)=(+;−;−,−,−) is the canonical O5 representative. The symmetric case (−;+;+,+,+) is also in the O5 orbit; a clean justification is via a permutation τ with ε_i(τ)=− for all i, which implies −O5=O5 (see Lemma added to output.md).
+- The triangle/edge view and ansatz x_{ij}=w_iw_j are coherent. The ansatz realizes exactly the four product +1 triples (+++),(+−−),(−+−),(−−+).
+- The computational plan for IsO5 via Lemma 6 is precise and testable; the unit tests are good. Recording the orbit size and a closure check is helpful.
+
+Cautions and corrections:
+- Reduction to eq/opp patterns: As written it implicitly assumes F(+,+)=F(−,−) and F(+,-)=F(−,+). You correctly noted we should not assume these a priori; but later Step D uses exactly that reduction (picking F(+,+) for k∈E and F(+,-) for k∉E). This is unsafe without proof. The safe reduction is to track the four pair-types per k: {++, −−, +−, −+}. Fortunately, central symmetry of the O5 orbit yields an exact relation F(−α,−β)=−F(α,β) (triplewise negation), so only two base tables need to be computed: F(+,+) and F(+,-); the other two follow by negating all three triple entries. I have added this as a corollary in output.md. Do still treat (+,-) and (−,+) separately unless computation confirms they coincide.
+- Permuting x,y,z: Do not assume invariance a priori. The S5 action may induce sign flips on the first two coordinates under permutations of the last three, so F(α,β) need not be S3-invariant on the last three entries. Compute and record any such invariance if present.
+
+Concrete next steps (minimally checkable):
+1) Implement IsO5 with Lemma 6. Verify: (+,−,−,−,−) is O5; (+,+,+,+,+), (+,−,+,−,+) are non-O5; and report the orbit size of O5 under the signed S5 action. Also verify existence of τ with ε_i=− for all i (e.g., τ=(13)).
+2) Compute and archive F(+,+) and F(+,-). Then set F(−,−):=−F(+,+) and F(−,+):=−F(+,-). Record any observed invariances (e.g., under permutations of the last three coordinates or swapping the first two coordinates). Conclude |A|=3 by listing one admissible triple for each (α,β).
+3) For |A|=4, use the full per-k type vector in {++, −−, +−, −+}^A (not just E={k: α_k=β_k}). Preferably, enumerate actual pairs (B,C) (both in {C5,H5}, agreeing on A) to generate only realizable type-vectors. For each case, brute-force 2^6 assignments to x_{ij}; archive a satisfying assignment or a minimal unsat certificate.
+4) Test the structured ansatz x_{ij}=w_iw_j with w_i=p^B_i p^C_i across all realized cases. If it always succeeds, document this as a candidate general construction; otherwise, record the smallest failing instance (type-vector and a proof of unsatisfiability for the ansatz, even if the full brute force succeeds).
+5) Document coordinate conventions for constructing p(Y_k) consistently (ordering of the five vertices and which two coordinates are the fixed ones) so that F(α,β) is used consistently in CSP checks.
+
+These steps will settle |A|=3 and decisively resolve the |A|=4 CSP, either uniformly (via the ansatz) or by exhaustive certification/counterexample.

@@ -1,0 +1,4863 @@
+--- SYSTEM ---
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+--- USER ---
+Work on this problem context:
+
+=== task.tex ===
+% \newcommand{\R}{\mathbb{R}}
+% \newcommand{\E}{\mathbb{E}}
+% \newcommand{\OPT}{\mathrm{OPT}}
+% \newcommand{\ALG}{\mathrm{ALG}}
+\newcommand{\AVG}{\mathrm{AVG}}
+
+\section*{Model and task: the \emph{two-point adversarial sampling process}}
+
+\paragraph{State.}
+Consider the following process. At round $i\in\{0,1,\dots,k\}$ the process maintains a multiset $E_i$ of $k-i$ elements. Every element $e\in E_i$ has a nonnegative weight $w_i(e)$. Let $W_i=\sum_{e\in E_i} w_i(e)$ and define the average weight
+\[
+\AVG_i \;=\; \frac{W_i}{k-i}\,.
+\]
+
+\paragraph{Sampling rule (two-point case).}
+Given $E_i$ and weights $w_i$, define the size-biased distribution
+\[
+\mathsf{D}_i(e)\;=\;\frac{w_i(e)}{W_i}\,.
+\]
+An adversary chooses $\ell_i\in\{1,2\}$. Then we draw $\ell_i$ points $e^{(1)}_i,\ldots,e^{(\ell_i)}_i$ \emph{independently} from $\mathsf{D}_i$ (sampling with replacement). The adversary selects one of these sampled points, call it $e_i\in\{e^{(1)}_i,\ldots,e^{(\ell_i)}_i\}$, and we delete it: $E_{i+1}=E_i\setminus\{e_i\}$. Finally the adversary chooses new weights $w_{i+1}(e)\in[0,w_i(e)]$ for each remaining $e\in E_{i+1}$. % This is exactly the $\ell$-point adversarial sampling process of Definition~B.3 specialized to $\ell=2$.  :contentReference[oaicite:0]{index=0}
+
+\medskip
+This is the $\ell$-point adversarial sampling process of Grunau–Özüdoğru–Rozhoň–Tětek (\emph{GÖRT}) specialized to $\ell=2$; see Appendix~B, Def.~B.3 for the general formulation. % :contentReference[oaicite:1]{index=1}
+
+\paragraph{Quantity of interest.}
+Let $g(k,2)$ be the smallest function such that for every adversary, every initial instance $(E_0,w_0)$, and every $0\le i<k$,
+\[
+\AVG_i \;\le\; g(k,2)\cdot \AVG_0\,.
+\]
+This is the $g(k,\ell)$ of GÖRT specialized to $\ell=2$ (Fact~B.4). % :contentReference[oaicite:2]{index=2}
+
+\section*{The task}
+Determine the asymptotic order of $g(k,2)$ as a function of $k$. In particular, is $g(k,2)=O(1)$ (that is, bounded by a universal constant independent of $k$)? Give the best possible matching upper and lower bounds.
+
+\section*{Context and prior results}
+
+\paragraph{What is known for general $\ell$.}
+GÖRT observe (Appendix~B.2) that for $\ell=1$ the average never increases, hence $g(k,1)=1$, while for $\ell>1$ one always has $\Omega(\ell)\le g(k,\ell)\le O(k)$; the lower bound is witnessed by a simple instance where a single very heavy element can be postponed with constant probability when $\ell=\Omega(k)$. The precise growth is open.
+
+\paragraph{Related but different ‘noisy’ model.}
+A closely related model allows the adversary to distort sampling probabilities by a $(1\pm\varepsilon)$ multiplicative factor before each draw. Bhattacharya–Eube–Röglin–Schmidt showed an $O(\log k)$ blow-up of the average in that model, yielding an $O(\log^2 k)$ guarantee for the algorithm; GÖRT later improved the analysis to an $O(1)$ average, which recovers the tight $O(\log k)$ bound. See also the direct constant‑average proof in the follow‑up “Noisy k‑means++ revisited,” Lemmas 3.2–3.4 leading to Lemma 2.5. 
+
+\section*{Partial results that would already be interesting}
+
+Consider the following two simplifications. Even analyzing the process under both of them is considered a success. 
+
+\paragraph{1.\ The \emph{lighter-item adversary}.}
+Restrict the adversary to the myopic rule “always choose $\ell = 2$, always delete the lighter of the two sampled items” (break ties arbitrarily), and set $w_{i+1}\equiv w_i$ (since decreasing weights only helps \emph{us}, this is the hardest case for upper bounds on $\AVG_i$).
+
+\paragraph{2.\ A concrete geometric input family.}
+Consider instances composed of \emph{weight layers}: for each $i\in\{0,1,\dots\}$ there are $\alpha^i$ items of weight $2^{-i}$, for a parameter $\alpha>0$. (Truncate to the largest $i$ so that the total item count is $k$.) Analyze $\AVG_i/\AVG_0$ under the lighter‑item adversary for every fixed $\alpha$.
+
+
+
+=== 2207.07949v1.pdf ===
+
+--- Page 1 ---
+A Nearly Tight Analysis of Greedy k-means++
+Christoph Grunau
+cgrunau@inf.ethz.ch
+ETH Zurich
+Ahmet Alper Özüdo˘gru
+oahmet@student.ethz.ch
+ETH Zurich
+Václav Rozhoň
+rozhonv@inf.ethz.ch
+ETH Zurich
+Jakub Tětek
+j.tetek@gmail.com
+BARC, Univ. of Copenhagen
+Abstract
+The famous k-means++ algorithm of Arthur and Vassilvitskii [SODA 2007] is the most
+popular way of solving the k-means problem in practice.
+The algorithm is very simple: it
+samples the ﬁrst center uniformly at random and each of the following k −1 centers is then
+always sampled proportional to its squared distance to the closest center so far. Afterward,
+Lloyd’s iterative algorithm is run. The k-means++ algorithm is known to return a Θ(log k)
+approximate solution in expectation.
+In their seminal work, Arthur and Vassilvitskii [SODA 2007] asked about the guarantees for
+its following greedy variant: in every step, we sample ℓcandidate centers instead of one and
+then pick the one that minimizes the new cost. This is also how k-means++ is implemented in
+e.g. the popular Scikit-learn library [Pedregosa et al.; JMLR 2011].
+We present nearly matching lower and upper bounds for the greedy k-means++: We prove
+that it is an O(ℓ3 log3 k)-approximation algorithm. On the other hand, we prove a lower bound of
+Ω(ℓ3 log3 k/ log2(ℓlog k)). Previously, only an Ω(ℓlog k) lower bound was known [Bhattacharya,
+Eube, Röglin, Schmidt; ESA 2020] and there was no known upper bound.
+arXiv:2207.07949v1  [cs.DS]  16 Jul 2022
+
+--- Page 2 ---
+Contents
+1
+Introduction
+1
+2
+Intuitive explanations
+4
+2.1
+Analyzing k-means++ . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4
+2.2
+k-means++ strikes back . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5
+2.3
+A new hope . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6
+2.4
+Return of the guarantees . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+8
+2.5
+Matching lower bound . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+10
+3
+Preliminaries
+13
+4
+Bounds on cluster hits by greedy k-means++
+14
+4.1
+Preparatory deﬁnitions and results . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+15
+4.2
+Inductive version of the main result . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+18
+4.3
+Basic properties of potentials . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+21
+4.4
+Hard and easy cases
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+23
+4.5
+Finishing the analysis
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+26
+5
+Analysis of greedy k-means++
+30
+5.1
+The potential and the intuition behind it
+. . . . . . . . . . . . . . . . . . . . . . . .
+30
+5.2
+The formal proof . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+32
+6
+A hard instance for greedy k-means++
+39
+6.1
+The point set . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+39
+6.2
+Analysis of greedy k-means++ on the hard point set . . . . . . . . . . . . . . . . . .
+41
+A A hard instance for general k-means++
+50
+B Analysis of general k-means++
+53
+B.1
+Hitting optimal clusters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+54
+B.2
+An interesting sampling process . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+55
+C An incomparable bound on the number of hits
+57
+
+--- Page 3 ---
+1
+Introduction
+This paper is devoted to analyzing a natural and frequently-used greedy variant of the famous k-
+means++ clustering algorithm [AV07]. The diﬀerence between k-means++ and its greedy variant
+is very small: k-means++ samples one center in each step while greedy k-means++ samples ℓ
+candidate centers and then selects the one that decreases the current cost the most. While it is
+well known that the k-means++ algorithm is Θ(log k)-approximate, analyzing its greedy variant
+remained wide open. In this paper we show that greedy k-means++ is O(ℓ3 log3 k)-approximate.
+Suprisingly, this is nearly tight. Speciﬁcally, we prove a lower bound of Ω(ℓ3 log3 k/ log2(ℓlog k)).
+Clustering: Clustering is one of the most important tools in unsupervised machine learning. The
+task is to divide given input data into clusters of neighboring data points. There are many ways of
+formalizing that task, but one of the most popular ones is the k-means problem.
+In the k-means problem, we are given a set of points X ⊆Rd, as well as a parameter k. We are
+asked to ﬁnd a set of k centers K ⊆Rd that minimizes the sum of squared distances of points of X
+to their respective closest centers. Namely, if we deﬁne the cost of a point x with respect to a set
+of centers C as ϕ(x, C) := minc∈C ||x −c||22, we wish to ﬁnd a set C with |C| = k that minimizes
+the expression ϕ(X, C) := P
+x∈X ϕ(x, C).
+The k-means problem is NP-hard [ADHP09, MNV09] and also NP-hard to approximate within
+some constant factor c > 1 [ACKS15, LSW17]. On the other hand, there is a long line of work
+on approximation algorithms, with the current record holder being the algorithm of [CAEMN22]
+with approximation ratio of 5.912. Moreover, 1 + ε-approximation can be reached for constant d
+[FMS07] and constant k [KSS04].
+However, these algorithms are not used in practice. Instead, practitioners rely on the so-called
+Lloyd’s heuristic [Llo82] which can start with an arbitrary solution and iteratively makes its cost
+smaller, until convergence.
+Lloyd’s heuristic is not ideal: it is prone to get stuck in bad local optima [AV07]. In particular,
+it is not a constant approximation algorithm. A remedy to this problem is seeding it with a solution
+that is already good as the Lloyd’s heuristic can then only make its cost smaller. In practice, such
+a seed can be simply a random subset of X of size k. This natural option is for instance one of the
+options in the implementation used by Scikit learn [PVG+11] or R [R C13]. Such an approach does
+not lead to any approximation ratio guarantees; its approximation ratio can be arbitrarily bad in
+some simple instances, e.g. whenever we have k well-separated clusters lying in one line.
+k-means++: A major result of Arthur and Vassilvitskii [AV07, ORSS13] is a simple seeding
+algorithm known as k-means++ that both works well in practice and has desirable theoretical
+worst-case guarantees.
+The k-means++ algorithm works as follows. We sample the set C ⊆X sequentially, one center
+at a time. The ﬁrst center we sample as a uniform point from X. Each next center is sampled
+proportional to its current cost. That is, if Ci is the already constructed set of centers, we sample
+x ∈X as the next one with probability ϕ(x, Ci)/ϕ(X, Ci). The pseudocode is in Algorithm 1.
+Algorithm 1 k-means++ seeding
+Input: X, k
+1: Uniformly sample x ∈X and set C1 = {x}.
+2: for i ←1, 2, 3, . . . , k −1 do
+3:
+Sample x ∈X w.p.
+ϕ(x,Ci)
+ϕ(X,Ci) and set Ci+1 = Ci ∪{x}.
+4: return C := Ck
+1
+
+--- Page 4 ---
+Arthur and Vassilvitskii proved that Algorithm 1 is Θ(log k) approximate, in expectation1.
+Although this approximation guarantee is not even constant, a benchmark achievable by many other
+known polynomial-time algorithms [KMN+04, LS19, ANFSW19], the main point of the analysis is
+that we cannot construct an adversarial instance where the Lloyd’s heuristic seeded by k-means++
+seeding can be arbitrarily bad, as is the case for e.g. the uniform random seeding. On practical
+data sets, the k-means++ seeding gives consistently better results than the random seeding [AV07]
+and is implemented in popular machine learning libraries like Scikit-learn [PVG+11].
+However, it turns out that the algorithm implemented in the popular Scikit-learn library is
+not the basic k-means++ (Algorithm 1), but its greedy variant described in Algorithm 2. This
+algorithm in fact comes from the original paper of Arthur and Vassilvitskii [AV07] who mention
+that it gives better empirical results. They say that their analysis “do[es] not carry over to this
+scenario” and that “it would be interesting to see a comparable (or better) asymptotic result”.
+The greedy k-means++ algorithm works as follows. In every step, we sample ℓcandidate centers
+c1
+i+1, . . . , cℓ
+i+1 from the constructed distribution, not just one. Next, for each candidate center cj
+i+1
+we compute the new cost of the solution ϕ(X, C ∪{cj
+i+1}) if we add this candidate to our set of
+centers. Then we pick the candidate center that minimizes this expression.
+Algorithm 2 Greedy k-means++ seeding
+Input: X, k, ℓ
+1: Uniformly independently sample c1
+1, . . . , cℓ
+1 ∈X;
+2: Let c1 = arg minc∈{c1
+1,...,cℓ
+1} ϕ(X, c) and set C1 = {c1}.
+3: for i ←1, 2, 3, . . . , k −1 do
+4:
+Sample c1
+i+1, . . . , cℓ
+i+1 ∈X independently, sampling x with probability ϕ(x,Ci)
+ϕ(X,Ci);
+5:
+Let ci+1 = arg minc∈{c1
+i ,...,cℓ
+i} ϕ(X, Ci ∪{c}) and set Ci+1 = Ci ∪{ci+1}.
+6: return C := Ck
+In [BERS20], the authors show that Algorithm 2 is Ω(ℓlog k) approximate, in expectation. That
+is, the enhanced Algorithm 2 has worse theoretical guarantees than the original Algorithm 1! This
+should not, however, be so surprising. In fact, if we think about ℓgoing to inﬁnity, the algorithm
+becomes essentially deterministic; in every step, it will simply pick the point that decreases the
+cost the most. Such an algorithm heuristically makes sense, but lacks worst-case guarantees2. To
+see this, imagine two clusters with many points and a single lonely point in between: taking the
+lonely point results in a substantial drop of the cost, but it cannot be part of any solution with
+bounded approximation factor.
+So, we cannot hope that Algorithm 2 gets better guarantees than Algorithm 1. However, in
+the words of Arthur and Vassilvitskii, its guarantees could still be “comparable”. This is the main
+result of this paper:
+Theorem 1.1. Greedy k-means++ (Algorithm 2) is an O(ℓ3 · log3 k)-approximation algorithm, in
+expectation.
+On the other hand, we provide the following near-matching lower bound.
+Theorem 1.2. For every k and ℓ≤k0.1, there exists a point set X ⊆Rd for some d ∈N where
+Algorithm 2 outputs Ω(ℓ3 log3 k/ log2(ℓlog k)) approximate solution with constant probability.
+1In practice, the algorithm is rerun several times, which boosts the guarantee in expectation to a high probability
+guarantee.
+2Note that the negative cost −ϕ(X, C) is submodular in C, but because of the negative sign we cannot use the
+well-known fact that the greedy algorithm yields a 1 −1/e approximation of the optimum.
+2
+
+--- Page 5 ---
+We believe that the eΘ(ℓ3 log3 k)-approximation3 bound is a truly unexpected twist! However
+bizarre it may sound now, we hope to give an adequate intuition behind it in Section 2.
+Greedy rule is crucial: The second result of this paper is that the greedy heuristic in Algorithm 2
+is in fact crucial to getting polylogarithmic approximation. To this end, we generalize Algorithm 2
+by allowing each center to be chosen from ℓcandidates by an arbitrary rule. The approximation
+ratio of this general algorithm becomes polynomial in k, unless we know the speciﬁcs of the rule.
+Concretely, we prove:
+Theorem 1.3 (Informal version of Theorem A.1). There exists a point set X ⊆Rd and a rule R
+such that a variant of Algorithm 2 that uses R instead of the greedy rule is Ω(k1−1/ℓ)-approximate
+with constant probability.
+This theorem also suggests that the greedy heuristic, among all others, makes a lot of sense!
+On the other hand, we get the following upper bound.
+Theorem 1.4 (Informal version of Theorem B.1). For any rule R, a variant of Algorithm 2 that
+uses R instead of the greedy rule is O(k2−1/ℓ· ℓlog k)-approximate.
+We note that from the perspective of Algorithms with Predictions [MV20], Theorem 1.4 shows
+that whatever rule we use to generalize the greedy k-means++ algorithm, we still know that the
+algorithm remains somewhat comparable to the optimum solution.
+The gap between the lower bound and upper bound of Theorems 1.3 and 1.4 can be tightened if
+one analyzes a certain natural stochastic process that can be understood without knowing anything
+about k-means(++); we defer the discussion of this interesting open problem to Appendix B.2.
+Related work: In this section, we list some related work with algorithms derived from k-means++.
+To see more work about k-means in general, see for example the introduction of [CAEMN22].
+To the best of our knowledge, the only paper exploring Algorithm 2 from the theoretical per-
+spective after the seminal paper [AV07] of Arthur and Vassilvitskii, is the paper of Bhattacharya,
+Eube, Röglin, and Schmidt [BERS20]. There, the authors show an Ω(ℓlog k) lower bound. They
+also consider a problem closely related to analysis of Algorithm 3, we discuss it in greater detail in
+Appendix B.
+The empirical work related to Algorithm 2 starts with the PhD thesis of Vassilvitskii [Vas07]
+that reports experiments with ℓ= 2, the comparative study of [CKV13] on the other hand advertises
+the choice of Θ(log k). This is also the choice taken in the Scikit-learn implementation [PVG+11]
+that chooses ℓ= ⌊2 + ln k⌋.
+Another related work to k-means++ include the following. Lattanzi and Sohler [LS19, CGPR20]
+present a variant of k-means++ inspired by the local search algorithm of [KMN+04]. A popular
+distributed variant of the k-means++ algorithm is the k-means∥algorithm of Bahmani, Moseley,
+Vattani, Kumar, and Vassilvitskii [BMV+12, BLK17, Roz20, MRS20] that achieves the same guar-
+antees as k-means++ in O(log n) Map-Reduce rounds. Other lines of work study bicriteria guaran-
+tees of k-means++ [ADK09, Wei16, MRS20], analyze bad instances [BR13], speed-up k-means++
+by subsampling [BLHK16b, BLHK16a] or adapt it to the setting with outliers [BVX19, GR20].
+Roadmap: In Section 2, we explain intuitively the proofs of Theorems 1.1, 1.2, A.1 and B.1.
+Section 3 collects some basic preliminary results that we need to use.
+In Section 4 we prove
+the main result necessary to prove Theorem 1.1 which is then proved in Section 5. In Section 6
+we then construct the almost matching lower bound. The analysis of Algorithm 3 is deferred to
+Appendices A and B.
+3Throughout this paper, we use eO(f(x)) to denote O(f(x) poly log(f(x))) and eΩ, eΘ are deﬁned analogously.
+3
+
+--- Page 6 ---
+2
+Intuitive explanations
+This section is devoted to an intuitive explanation of Theorems 1.1, 1.2, A.1 and B.1. We start by
+reviewing the analysis of the k-means++ algorithm by [AV07] in Section 2.1. Next, in Section 2.2
+we identify the issues with generalizing the analysis of k-means++ to its greedy variant from
+Algorithm 2. In Section 2.3, we discuss a crucial lemma that essentially says that the greedy rule
+implies that not so many candidate centers are sampled in total from each optimal cluster. In
+Section 2.4, we show how this lemma implies Theorem 1.1. Finally, we present the lower bound in
+Section 2.5.
+2.1
+Analyzing k-means++
+We need to start by reviewing the analysis of the k-means++ algorithm by Arthur and Vassilvitskii.
+Reviewing it will allow us to explain which parts of the argument cannot be simply generalized in
+the analysis of Algorithm 2.
+For K ⊆X we deﬁne ϕ∗(K) = ϕ(K, µ(K)) where µ(K) = (P
+c∈K c)/|K| is the center of mass
+of K. We note that ϕ∗(K) is the optimal k-means cost of K achievable with one center. At the
+core of the k-means++ analysis lies the following lemma.
+Lemma 2.1 (Informal version of Lemma 3.3). Let X ⊆Rd be the input point set to the k-means
+problem and C ⊆Rd a set of already selected centers. Let K be an arbitrary subset of X. If we
+sample a point of K such that a point c ∈K is sampled with probability ϕ(c, C)/ϕ(K, C), we have
+E[ϕ(K, C ∪{c})] ≤5ϕ∗(K).
+Intuitively, the reason why the lemma holds is that either all points C are far away from µ(K)
+and then we essentially sample c ∈K from a uniform distribution; such a distribution would even
+lead to E[ϕ(K, {c})] = 2ϕ∗(K) by a simple averaging argument (cf. Lemma 3.2). The other option
+is that some point of C is already close to µ(K), but then ϕ(K, C) is already small.
+Whenever we use this lemma, we have K to be a cluster of some ﬁxed optimal solution. Here,
+given a set of centers C, we deﬁne a cluster K ⊆X of a center c ∈C as the set of the points for
+which c is the closest center, that is, K = {x ∈X : c = argminc′∈Cϕ(x, c′)}. The usefulness of
+Lemma 2.1 comes from its corollary that whenever Algorithm 1 samples the new center ci in the
+i-th step and it happens that ci ∈K, then the cost of K becomes 5-approximated, in expectation.
+This holds even though the algorithm itself has no idea about what the optimal clusters are.
+So, if it somehow happened that each of the k sampled centers was from a diﬀerent optimal
+cluster, we would get that Algorithm 1 is a 5-approximation. Of course, there can be some clusters
+with no sampled center in the end because we happened to hit some other optimal cluster twice or
+more. This is the reason behind the ﬁnal O(log k) approximation.
+Let us be more precise now: Given a set of already taken centers Ci, we say that a cluster K
+from the optimal solution is covered in the i + 1th step if K ∩Ci ̸= ∅. We accordingly split X into
+points in covered and uncovered clusters, i.e., X = XC
+i ⊔XU
+i .4 Finally, we say that a step i + 1 is
+good whenever ci+1 is sampled from an uncovered cluster and bad otherwise. It is the bad steps,
+where the algorithm really loses ground with respect to the optimal solution. The question is, by
+how much?
+Intuitively, if there are ui uncovered clusters remaining after i steps and we had a bad i + 1th
+step, in the end we will need to pay in our solution for one of the ui currently uncovered clusters.
+The cost of the largest currently uncovered cluster may be as large as ϕ(XU
+i , Ci). However, we
+should hope that we only need to pay the cost of the average one, i.e., ϕ(XU
+i , Ci)/ui. The reason
+4The notation A = B ⊔C means A = B ∪C and B ∩C = ∅.
+4
+
+--- Page 7 ---
+for that is that we expect the size of the average uncovered cluster to only go down in the future,
+i.e., we have E
+h
+ϕ(XU
+j , Cj)/uj
+i
+≤ϕ(XU
+i , Ci)/ui for j > i. This is because if each new covered
+cluster were chosen from uncovered ones uniformly at random, the average cost of an uncovered
+cluster would stay the same. However, we are actually covering the more costly clusters with higher
+probability which makes the expected average cost of an uncovered cluster decrease in the future
+steps.
+So, having a bad step incurs a cost of ϕ(XU
+i , Ci)/ui. This cost can be huge but, very conveniently,
+in that case, the probability of the i + 1-th step being bad was very small to begin with. More
+concretely, the probability of having a bad step is equal to ϕ(XC
+i , Ci)/ϕ(X, Ci). Since the numerator
+of that expression is in expectation at most 5OPT by Lemma 2.1, we conclude that the expected
+cost incurred by the fact that we may sample from an already covered cluster in step i + 1 is at
+most
+5OPT
+ϕ(X, Ci) · ϕ(XU
+i , Ci)
+ui
+≤5OPT
+ui
+.
+The variable ui starts at u0 = k and then decreases in each step by at most one until uk−1 ≥1
+in the kth step.
+Thus the contribution to the cost over all k steps can be upper bounded by
+O(OPT) · ( 1
+k +
+1
+k−1 + · · · + 1
+1) = O(OPT · log k).
+This concludes the intuitive analysis of Algorithm 1. The formal proof can be found in [AV07]
+and a more detailed exposition can be found in lecture notes of Dasgupta [Das19].
+2.2
+k-means++ strikes back
+Here is the main problem with generalizing the k-means++ analysis to Algorithm 2: We can sample
+many centers from the same cluster K of the optimal solution, before the greedy heuristic decides to
+pick one! In other words: in k-means++ we can simply use Lemma 2.1 to conclude that whenever
+we sample a point from an optimal cluster K, we expect its cost to become a 5-approximation of the
+optimal cost. But what if we sample a candidate center from K in every step of the algorithm and
+the greedy heuristic chooses to actually pick the center only when it results in a bad approximation
+for K? In general, we can guarantee only expected 5 · (kℓ) approximation for the cluster K, when
+a center from it is picked, instead of 5 approximation.
+In fact, let us now turn this idea into a lower bound. We will now show that with ℓ= Ω(log k)
+there is a rule R such that Algorithm 3 has approximation factor of Ω(k), with constant probability.
+A simple generalization of the following argument will then yield Theorem A.1 in Appendix A.
+The weighted point set X that we use for the lower bound is in Fig. 1. We can use integer
+weights, even though they are not part of the original problem formulation, by replacing an ele-
+ment with weight w by w copies with unit weight. We will explain the lower bound in the setup
+where the points of X are endowed with an arbitrary metric, not necessarily the Euclidean one.
+Generalizations to the Euclidean space are routine and left to the formal proofs.
+We start with a point d in the center of the picture that has weight much larger than all the
+other points combined; thus with constant probability at least one candidate center is d in the ﬁrst
+step and our rule will then select d as the ﬁrst center.
+In a distance k around d, there are k −2 dummy points x1, . . . , xk−2, each with weight one.
+Moreover, there is an additional pair of points c and b, with c having weight k and b having
+weight 1. Their distance from each other is 1 and the distance of c from d is k. The set X =
+{d, x1, . . . , xk−2, b, c} is endowed with a tree metric generated by the deﬁned distance (see Fig. 1).
+Let us compute the optimal cost of this instance: The optimum solution would take as centers
+all points except of b. Its cost is hence w(b) · d(b, c)2 = 1.
+5
+
+--- Page 8 ---
+x1
+x2
+x3
+xk−3
+xk−2
+d
+c
+b
+· · ·
+k
+1
+100k
+k
+1
+1
+Figure 1: Illustration for the lower bound in the adversarial case. Edge weights deﬁning the metric are in
+blue while vertex weights are in orange and heavier points have a larger disk. All nodes xi have weight 1.
+Consider a rule that does not want to take the point c as a center unless it has to, but it wants to take b
+as a center whenever it can. Such a rule takes b a center with constant probability which results in Ω(k)
+approximation. Notice that in this case K = {b, c} is an optimal cluster such that we sample a candidate
+center from it Ω(k) times but select each candidate as a center only when it results in a bad approximation
+of the cost of K.
+Now, let us choose the rule R in Algorithm 3 as follows: whenever d or b is sampled as a
+candidate center, we select it. On the other hand, we do not select c as a center unless we have to
+(which happens only when all candidate centers sampled are c).
+We can see that with this rule, with high probability, we select d in the very ﬁrst step and
+then in each of the following k/2 steps we have only negligible probability of adding c to the set
+of centers: For that to happen, we would need all candidate centers to be c which happens with
+probability at most
+
+w(c)
+w(c)+k/2·w(x1)
+ℓ
+= (2/3)ℓ< 1/ poly(k) by our assumption ℓ= Ω(log k). On
+the other hand, the probability of sampling b and thus adding it to the set of centers is Ω(1/k) in
+every step (unless b or c is selected as a center), hence it is constant after k/2 steps.
+In this case, the solution of the algorithm has to leave some other point from {x1, . . . , xk−2, c}
+from the set of centers. If it leaves some xi, it needs to pay w(xi) · d(xi, d)2 = k2. If it leaves c,
+it needs to pay w(c) · d(b, c)2 = k. That is, the solution of Algorithm 3 is k-approximate or worse
+with constant probability.
+A more careful analysis in Theorem A.1 shows that for smaller ℓ, we should choose the weight
+of c to be k1−1/ℓ, to get a Ω(k1−1/ℓ) lower bound.
+2.3
+A new hope
+Let us observe that greedy k-means++ would not be fooled by the example from the previous
+Section 2.2. Once the point c is sampled as a candidate center, it is also selected as a center by
+the greedy rule. This is because it results in a bigger drop in the cost than if we picked any of the
+dummy points xj (we assume d is already picked).
+So, we may hope that in greedy k-means++ each optimal cluster cannot be hit by many
+candidate centers before it becomes covered. Our main technical contribution towards Theorem 1.1
+is indeed a proof that each optimal cluster K is not hit by many candidate centers by greedy k-
+means++, before it becomes covered or before its cost is comparable with the optimal one.
+Recall that a cluster K is covered in the i-th step if K ∩Ci ̸= ∅. We additionally say that K
+is solved if ϕ(K, Ci) ≤105ϕ∗(K). Finally, we deﬁne HIT(K) to be the count of candidate centers
+cj
+i ∈K for all 1 ≤i ≤k and 1 ≤j ≤ℓwhere we count a hit only when K is not covered or solved
+in the respective step. Our result is then the following.
+6
+
+--- Page 9 ---
+Lemma 2.2. For any optimal cluster K we have E[HIT(K)] = O(ℓ2 log2(k)).
+Going back to our issue with generalizing the analysis of k-means++, we note that the above
+lemma implies that although we can no longer say that the cost of a cluster that just became covered
+is 5 approximated in expectation, we can at least expect it to be 5·O(ℓ2 log2 k) approximated. This
+implies that the ﬁnal approximation guarantee picks up an additional O(ℓ2 log2 k) factor. This
+almost explains the ﬁnal O(ℓ3 log3 k) guarantee that we achieve in Theorem 1.1 – we pick up the
+remaining ℓfactor inside the main analysis, essentially because the probability of having a bad step
+increases by a factor of ℓ. In the rest of this section, we sketch the proof of Lemma 2.2.
+An important measure of progress in our analysis is the size of the neighborhood of K. Given
+a point set Ci, we deﬁne Ri = d(µ(K), Ci) and deﬁne the neighborhood Ni of a cluster K in the
+i + 1-th step as the set of points closer to µ(K) than Ri (see Fig. 2). Since we assume K is not
+solved, i.e., that the current cost ϕ(K, Ci) of K is at least 105ϕ∗(K), we know that the distance
+Ri is much larger than the distance of an average point of K from µ(K). This means that most of
+the points of K have to lie in Ni. For simplicity, we will next assume that K ⊆Ni.
+We will also, for the sake of simplicity, assume that every point in Ni has distance at most
+Ri/10 from µ(K). One reason this assumption makes our life easier is that every point in Ni has
+cost between (9Ri/10)2 and (11Ri/10)2. That is, up to small factors we can think of all points of
+Ni having the cost R2
+i .
+In every step of the algorithm, we say that we are either in the easy case or in the hard case.
+We say that we are in the easy case if it holds that for c sampled proportionally to its cost we have
+ϕ(X, Ci) −ϕ(X, Ci ∪{c}) ≤ϕ(Ni, Ci)/2 with probability at least 1 −1/ℓ, otherwise we are in the
+hard case. In the following discussions, we explain what needs to be done if all steps are easy and
+then if all the steps are hard. The fact that some steps are easy and some are hard does not make
+the ﬁnal analysis more complicated.
+Easy case: The reason why the easy case is in fact easy is that in that case, we can verify that
+whenever we sample a candidate center from Ni, the greedy rule adds it to the set of centers with
+constant probability. This intuitively means that for every hit of K we are getting a lot of progress
+in terms of the size of Ni going down rapidly.
+More precisely, we ﬁrst observe that for a ﬁxed 1 ≤j ≤ℓ, whenever cj
+i+1 ∈Ni, we have
+ϕ(X, Ci) −ϕ(X, Ci ∪{cj
+i+1}) ≥ϕ(Ni, Ci)/2.
+This inequality holds because of our simplifying
+assumption that all points in Ni have distance at most Ri/10 from µ(K): this assumption implies
+that the cost of each point x in Ni drops from d(x, Ci)2 ≥(9Ri/10)2 to at most (d(cj
+i+1, µ(K)) +
+d(µ(K), x))2 ≤(2Ri/10)2.
+This means that whenever we sample a candidate center cj
+i+1 ∈Ni and we are in the easy case,
+we also have constant probability of (1 −1/ℓ)ℓ−1 ≥1/e that all other sampled points result in a
+smaller cost drop than cj
+i+1 and thus the greedy rule decides that ci+1 = cj
+i+1. We claim this means
+that in the easy case, a sampled point from Ni means a constant probability of |Ni+1| ≤|Ni|/2. To
+see this, let us order the points of Ni in their increasing distance from µ(K) as n1, n2, . . . , n|Ni| (see
+Fig. 2). Importantly, if cj
+i+1 = nt, then Ni+1 does not contain any of the points nt+1, nt+2, . . . , n|Ni|.
+Recall that all points of Ni have the same cost, up to constant factors. Hence, if we condition on
+cj
+i+1 ∈Ni, we know it is essentially a point of Ni selected uniformly at random. This means that
+with constant probability cj
+i+1 ∈{n1, . . . , n|Ni|/2} and hence |Ni+1| ≤|Ni|/2, as we wanted.
+To conclude, note that whenever we sample a point from Ni, we also hit K with probability
+ϕ(K, Ci)/ϕ(Ni, Ci) ≈|K|/|Ni|. But above discussion shows that a hit of Ni implies that |Ni+1| ≤
+|Ni|/2 (with constant probability). Hence, the expected total number of hits of K of the easy case
+can be upper bounded by |K|
+|X| +
+|K|
+|X|/2 + · · · + |K|
+2|K| + |K|
+|K| = O(1).
+7
+
+--- Page 10 ---
+Hard case: Next, let us turn to the hard case. There, we at least know that with probability
+1 −(1 −1/ℓ)ℓ≥1 −1/e, at least one candidate center cj
+i+1 for 1 ≤j ≤ℓmakes the cost drop by at
+least ϕ(Ni, Ci)/2. We hence get that ϕ(X, Ci)−E[ϕ(X, Ci+1)] ≥(1−1/e)ϕ(Ni, Ci)/2 ≥ϕ(Ni, Ci)/4.
+Note that whenever it is the case that ϕ(Ni, Ci) ≤ϕ(X, Ci)/k, this implies that the probability
+we sample from Ni (and hence from K) is ϕ(Ni,Ci)
+ϕ(X,Ci) ≤1/k. Even if we sum up over all k steps,
+the total contribution in terms of number of samples from K is negligible. So, let us assume that
+ϕ(Ni, Ci) ≥ϕ(X, Ci)/k.
+We will now consider the sequence of sampling steps of the algorithm until a step j when it
+selects a center from Ni. Until then, we have for each step i + 1 ≤i′ < j that Ni = Ni′, that is,
+the neighborhood of K is the same. Notice that the cost of all points in Ni also stays roughly the
+same during this time. This is because of our simplifying assumption that all points of Ni have
+distance at most Ri/10 from µ(K) and hence the cost of all points of Ni is between (9Ri/10)2 and
+(11Ri/10)2. This remains so even after sampling new centers with distance larger than Ri from K.
+After ϕ(X, Ci)/ϕ(Ni, Ci) steps, we expect to sample O(ℓ) many candidate centers from Ni.
+Meanwhile, the cost of X is expected to drop from ϕ(X, Ci) to 3/4 · ϕ(X, Ci) or smaller.
+Recall that we assume that ϕ(Ni, Ci) ≥ϕ(X, Ci)/k. This means that after expected O(ℓlog k)
+candidate centers sampled from Ni, we expect that ϕ(X, Ci′) < ϕ(Ni, Ci′) which is a contradiction.
+In other words, when we ﬁnally reach the step j when a center is picked from Ni, this center is
+some point out of O(ℓlog k) candidate centers sampled from Ni so far between the steps i and j.
+Each of these candidates is essentially a uniformly random point of Ni (see Fig. 2).
+We can now (as in the easy case) order the points of Ni as n1, . . . , n|Ni| in the order of in-
+creasing distance from µ(K).
+We sampled O(ℓlog k) candidate centers from {n1, . . . , n|Ni|} es-
+sentially uniformly at random; hence with constant probability none of them hits the set of
+top |Ni|/O(ℓlog k) points {n|Ni|−|Ni|/O(ℓlog k), . . . , n|Ni|}, hence with constant probability we have
+|Ni+1| ≤|Ni|(1 −1/O(ℓlog k)).
+That is, the size of |Ni| is expected to drop by 1−1/O(ℓlog k) factor while O(ℓlog k) candidate
+centers hit Ni, which corresponds to expected
+|K|
+|Ni| · O(ℓlog k) hits of K.
+Put diﬀerently, after
+|K|
+|Ni|O(ℓ2 log2 k) hits of K we expect the size of the neighborhood Ni to halve.
+Similarly to the easy case, this implies that the total number of hits of K can be upper bounded
+by O(ℓ2 log2 k)·
+
+|K|
+|X| +
+|K|
+|X|/2 + · · · + |K|
+2|K| + |K|
+|K|
+
+= O(ℓ2 log2 k). This ﬁnishes the hard case analysis
+and hence the whole proof.
+The full proof of Lemma 2.2 is in Section 4. The only substantial diﬀerence from the above
+sketch is that as we do not have the simplifying assumption that all points of Ni are Ri/10-close
+to µ(K), we need to work with two sets Nsmall
+i
+, Nbig
+i
+instead. We remark that one can replace the
+term O(ℓ2 log2 k) by O
+
+ℓlog OPT(1)
+OPT(k)
+
+with a substantially easier proof, where OPT(ek) is the size
+of the optimal solution with ek centers. We give a proof sketch in Appendix C.
+2.4
+Return of the guarantees
+After proving Lemma 2.2, we are ready to prove the main result, Theorem 1.1. This is proven
+by adapting the k-means++ analysis of Arthur and Vassilvitskii [AV07]. As we have seen, their
+analysis gives O(log k) approximation guarantee. We pick up additional O(ℓ2 log2 k) factor after
+using Lemma 2.2 to conclude that when a cluster K becomes covered, we expect its cost to be
+5·E[HIT(K)]·ϕ∗(K) = O(ℓ2 log2 k)·ϕ∗(K). Finally, we need one more ℓfactor since the probability
+of a bad step can now be bounded only by ℓϕ(XU
+i ,Ci)
+ϕ(X,Ci)
+instead of ϕ(XU
+i ,Ci)
+ϕ(X,Ci) . This results in O(ℓ3 log3 k)
+expected approximation guarantee.
+8
+
+--- Page 11 ---
+µ(K)
+c ∈Ci
+X \ Ni
+Ni
+K
+n1
+n2
+O(ℓlog k) sampled
+candidate centers
+
+|Ni|
+O(ℓlog k) points
+Ri
+n|Ni|
+Figure 2: The ﬁgure shows an optimal cluster K and its neighborhood Ni. The points of Ni are sorted as
+n1, . . . , n|Ni| based on their distance from µ(K). Note that the picture is not to scale as our simplifying
+assumption says that even n|Ni| has distance at most Ri/10 from µ(K).
+During the steps i′ ≥i until the step j with Nj ̸= Ni, the relative cost ϕ(Ni, Ci′)/ϕ(X, Ci′) of the neigh-
+borhood Ni increases from at least 1/k to at most 1, we expect to sample ℓlog k candidate centers from Ni
+(highlighted by red color). One of these samples needs to be chosen as the new center in the step j that
+deﬁnes the new Nj ̸= Ni. Since the red points are chosen essentially uniformly at random, we expect the
+top |Ni|/(ℓlog k) points of Ni to be removed from Ni+1.
+The above discussion may suggest that everything simply falls in place but there is one important
+subtlety that our analysis needs to deal with. In the k-means++ analysis, we paid the cost of
+ϕ(XU
+i , Ci)/ui in every bad step. Recall that this was substantiated by the fact that the size of
+an average uncovered cluster is only expected to go down in the future steps, i.e., for k-means++
+we can prove that E
+
+ϕ(XU
+i+1, Ci+1)/ui+1
+
+≤ϕ(XU
+i , Ci)/ui. However, this bound is not necessarily
+true for ℓ> 1. In fact, in the case of an adversarial rule, one can imagine the average size of a
+cluster increases substantially during the algorithm. Whether it is indeed so is an exciting open
+problem described in Appendix B.2. This is also the reason behind the mismatch in our upper and
+lower bounds of Theorems A.1 and B.1.
+Fortunately, the fact that our rule is greedy and not an arbitrary one saves us again. To see
+this, ﬁrst assume that instead of the greedy rule we use a diﬀerent, idealized, rule that picks the
+candidate center cj
+i+1 that minimizes the expression ϕ(XU
+i+1, Ci∪{cj
+i+1}) instead of ϕ(X, Ci∪{cj
+i+1})
+like the greedy rule. For such an idealized algorithm we have
+E
+
+ϕ(XU
+i+1, Ci+1)/ui+1
+
+≤E
+
+ϕ(XU
+i+1, Ci ∪{c1
+i+1})/ui+1
+
+≤ϕ(XU
+i , Ci)/ui.
+The ﬁrst inequality above is saying that our rule picks the best candidate cj
+i+1 which is at least
+as good as the ﬁrst candidate c1
+i+1. The second inequality is just the reasoning of the original
+k-means++ analysis. Therefore, for this idealized algorithm, the original analysis of k-means++
+immediately generalizes.
+Fortunately, our greedy rule is almost this idealized algorithm!
+The diﬀerence between the
+idealized minimization of ϕ(XU
+i+1, Ci+1) and the actual greedy minimization of ϕ(X, Ci+1) just
+9
+
+--- Page 12 ---
+creates two small mismatches: When the greedy rule considers a candidate center cj
+i+1 ∈K, it,
+in addition to the idealized rule, takes into account 1) the decrease in the cost of already covered
+clusters ϕ(XC
+i , Ci)−ϕ(XC
+i , Ci∪{cj
+i+1}) and 2) the cost of the newly covered cluster ϕ(K, Ci∪{cj
+i+1}).
+To give an example of the point (1), we can have a cluster K with ϕ(K, Ci) ≈0 that is very close
+to covered clusters. When we sample cj
+i+1 ∈K and we have ϕ(XC
+i , Ci ∪{cj
+i+1}) ≪ϕ(XC
+i , Ci); for
+the greedy rule then taking cj
+i+1 is an attractive option although taking it increases the average
+cost of the remaining uncovered clusters.
+Fortunately, the two mismatches can be handled. After some calculations, it turns out that
+the ﬁrst mismatch implies that we need to pay an additional cost of ϕ(XC
+i , Ci)/ui per step in the
+analysis, but fortunately we already pay this term in the original analysis because of the possibility
+that the i + 1th step can be bad.
+One can also show that the second mismatch implies that we need to pay additional factor
+of P
+K∈KU
+i
+ϕ(K,Ci)
+ϕ(X,Ci)ϕ∗(K) where KU
+i is the set of uncovered clusters. Fortunately, if we sum this
+expression over all steps, this is simply counting the number of hits to each optimal cluster K. So,
+in total, we need to pay additional term P
+K∈KU
+0 E[HIT(K)]ϕ∗(K) in the approximation guarantee,
+but we are again already paying this term anyway because this is our upper bound on the cost of
+a cluster K once it becomes covered.
+To conclude, the mismatch between the idealized algorithm and the actual greedy algorithm
+can be accounted for and the increase in the approximation factor is asymptotically dominated by
+terms we already have to pay in the analysis anyway for diﬀerent reasons.
+2.5
+Matching lower bound
+At this point, we have already a good understanding of where diﬀerent terms in the approximation
+guarantee O(ℓ3 log3 k) are coming from. This allows us to construct a point set where the above
+analysis is close to tight.
+Point set deﬁnition: We describe the point set X next (see also Fig. 3) and then explain intuitively
+what happens when the greedy k-means++ is run on it. We will describe the lengths and weights
+here up to factors of size O(log(ℓlog k)) that need to be added to make the construction work.
+Given a parameter k, there are 1 + ek = O(k1.2) points in X and we ask for a solution with ek
+centers, hence exactly one point of X is going to be excluded. We set t = ℓlog k.
+1. There is a point b for which we have w(b) = 1
+t2 .
+2. A point c is at distance 1 from b. We have w(c) = 1. The points {b, c} form one cluster of
+the optimal solution. While the optimal solution would take c as a center and would not take
+b, we will argue that greedy k-means++ takes b as a center with constant probability.
+3. We have a set of points N = {n1, n2, . . . , nt+1} and M = {m1, . . . , mt} deﬁned as follows.
+We have d(b, ni) = ki, d(ni, mi) = tki and w(ni) = w(mi) = 1
+t . An exception is the point
+nt+1 that gets very large weight so that it is selected as a center in the ﬁrst two steps of the
+algorithm.
+4. We have E = {e0, S
+e∈E1 e, . . . , S
+e∈Et e} where Ei = {ei,1, . . . , ei,
+√
+k}. Each point in E \ {e0}
+has distance 1 from the point e0 which is very far from {b, c} ∪N ∪M ∪A. The point e0
+has very large weight so that it is selected as a center in the ﬁrst two steps of the algorithm.
+Each ei,j ∈Ei has the same weight wi ≈k2i+2. We postpone the exact deﬁnition of wi as it
+needs to be quite precise.
+10
+
+--- Page 13 ---
+b
+c
+a1a2
+ak1.2
+n1
+n2
+m2
+m1
+nt
+mt
+e0
+e1,1e1,2
+e1,
+√
+k
+e2,1
+e2,2
+e2,
+√
+k
+et,1
+et,2
+et,
+√
+k
+1
+1
+k
+k
+tk
+k2
+tk2
+kt
+tkt
+ℓlog k
+k2
+1
+1
+t2
+1
+t
+1
+t
+≈k6
+≈k2t+2
+≈k4
+Points surviving to the second epoch
+A “clock” for the ﬁrst epoch
+nt+1
+kt+1
+Figure 3: This ﬁgure shows the point set X used for the lower bound (up to small changes by poly log(ℓlog k)
+factors). The point weights are orange and heavier points are represented by larger disks.
+In this intuitive explanation, the metric is not Euclidean but it is a tree (or a bit more precisely forest)
+metric induced by the blue edges with the distances given by blue numbers. The image is not to scale, for
+example, the distance from b to nt is in fact much larger than the distance from b to m2.
+In the ﬁrst two steps, the points nt+1 and e0 are taken. During the ith phase of the ﬁrst epoch we mostly
+take just points of Ei = {ei,1, . . . , ei,
+√
+k} that serve as a “clock”. This clock is ticking for enough time so
+that the algorithm samples ni as a candidate. Because of mi, ni is then selected by the greedy rule. This
+drastically reduces the costs of the not-yet-taken points of X \ E so that nothing interesting happens until
+all points of Ei are taken (the clock for this phase stops ticking) and then we go to the next phase. The aim
+of these phases is that in each one of them we have a small probability of 1/t of sampling b and taking it as
+the center. As there are t phases, we get constant probability of taking it.
+In the second epoch, we simply show that the greedy k-means++ samples and then takes c with constant
+probability, which increases the approximation factor by additional ℓlog k.
+5. We have A = {a1, . . . , ak1.2} at distance k from c. The weight of each ai is ℓlog k
+k2
+so their total
+weight is ℓlog k
+k0.8 .
+The optimal solution on X takes all the points except b as centers and hence it pays 1/(ℓ2 log2 k).
+Here is an intuitive explanation how greedy k-means++ runs on X. There are two epochs. In
+the ﬁrst epoch, the set A is too small to be discovered by the algorithm, so only {b, c} ∪N ∪M ∪E
+is relevant. Our aim is to show that with constant probability we reach a situation where only the
+points in A ∪{c} are not taken; when this happens we say that the second epoch starts.
+Note that K = {b, c} is a cluster in the optimal solution. Hence, we are proving that in the
+ﬁrst epoch the cost of K under the greedy k-means++ is approximated only by factor Ω(ℓ2 log2 k),
+matching the bound in the proof of Lemma 2.2. Moreover, for each i the sets {n1, m1, . . . , ni, mi}
+are playing the role of the neighborhood Ni of K in the analysis from Section 2.3, while the set E
+plays the role of X \ K.
+First epoch : Here is what is going to happen in the ﬁrst epoch. We can split it into t phases
+11
+
+--- Page 14 ---
+where at the beginning of the ith phase all the points in N≥i+1 ∪M≥i+2 ∪E≥i+1 5 are already
+selected as centers. During the i-th phase, we do not sample points from A ∪E<i as they have too
+small a probability of being sampled. Mostly, we sample just points of Ei since each point there has
+cost about k2i+2. These points serve as a kind of clock. During the time we are sampling mostly
+points of Ei, we also have a small chance of sampling points of {b, c} ∪N≤i ∪M≤i+1. Since we
+start with |Ei| ≥
+√
+k, before we add all of Ei to the set of centers, we expect to sample the point
+c about ℓlog k times. Similarly, each point in N≤i ∪M≤i+1 is expected to be sampled constantly
+many times. The point b has only probability of around (ℓlog k)/t2 = 1/t of being sampled.
+Now we can ﬁne-tune the weight of points in Ei so that the drop in the cost if we take e ∈Ei
+is larger than the drop resulting from taking c but smaller than the drop of b (taking b results in
+a larger drop than c, since c is further from N≤i ∪M≤i than b). This means that the drop of e is
+smaller than the drop of the points {b, ni, mi+1}, but it is larger than the drop of all other points.
+In fact, the reason why we always have a pair {ni, mi} is to make the cost drop of ni large: as ni lies
+roughly in the center of mass of c and mi, it is a very attractive point to take from the perspective
+of the greedy rule. So, during the ith phase we are essentially just waiting until we sample ni.
+When we encounter it, we add it to the set of centers which decreases the cost of {b, c}∪N<i ∪M≤i
+dramatically so that in the rest of the phase only the points of Ei are sampled. Also, the point
+mi+1 that is leftover from the previous phase is at some point sampled and selected as a center.
+This process is running for t phases and in each phase, we have probability of 1/t of sampling
+b. After b is sampled, all other points except for A ∪{c} are sampled in the following steps; the
+weight of all of them is much larger than the weight of points of A ∪{c}. When this is done, the
+ﬁrst epoch is ﬁnished.
+Second epoch: While the ﬁrst epoch corresponds to the bound that we lose in Lemma 2.2 for
+not approximating well clusters that get covered, the second epoch corresponds to the rest of the
+analysis in which we lose additional ℓlog k factor because of the fact that some steps are bad. In
+our case, a bad step means that we select a point c from the optimal cluster K = {b, c} that we
+already covered in the ﬁrst epoch by selecting b.
+The second epoch begins when all points except of A ∪{c} are already taken as centers. Note
+that in the following k1.2−k1.1 steps we have a constant probability that we sample c as a candidate
+center. In that case, the greedy heuristic decides to pick c over the other candidates from A. This
+is because the cost drop induced by any a ∈A is simply w(a)·d(a, b)2 ≈ℓlog k, whereas selecting c
+makes the cost of each a ∈A drop by roughly w(a) ·
+ (k + 1)2 −k2
+≈ℓlog k
+k2
+· k = ℓlog k
+k
+. However,
+there are at least k1.1 points in A, hence the drop of c is larger than the drop of any a ∈A.
+Putting it together: Putting the two epochs together, we get a constant probability that the
+greedy k-means++ algorithm ﬁrst fails by covering K using b, instead of c, and then it fails again
+by taking c although K is already covered. This means that one point of A is not covered in the
+end and we need to pay ℓlog k for it, whereas the optimum opts not to take b and hence pays only
+1/(ℓ2 log2 k).
+One problem with the above analysis is that at each epoch we have a constant probability of
+not sampling ni before all points of Ei are added to the set of centers. In that case, our analysis
+fails since it is probable that the algorithm will soon afterward sample c and take it as a center.
+However, adjusting weights by poly(log t) = poly log(ℓlog k) factors makes the failure probability
+of one phase smaller than 1/(2t) so that we can union bound over them.
+5The notation N≥i+1 means {ni+1, . . . , nt}.
+12
+
+--- Page 15 ---
+3
+Preliminaries
+We use X for the input point set. In case X is weighted as discussed below in the lower bound
+section, every point x ∈X comes with nonnegative weight w(x), in the unweighted case we have
+w(x) = 1. Whenever we talk about an optimal cluster K, we tacitly assume a ﬁxed optimal solution
+C∗and K ⊆X is a set of points deﬁned by some c ∈C∗as K = {x ∈X : c = argminc′∈C∗ϕ(x, c′)}.
+We use d(x, y) to denote the distance between two points x, y rather then ||x −y||, since all
+our upper bounds generalize to general metric space (the only diﬀerence being that Lemmas 3.2
+and 3.3 require larger constant factors in that case).
+For x ∈X we use ϕ(x, C) = w(x) · minc∈C d(x, c)2 and for K ⊆X we deﬁne ϕ(K, C) =
+P
+x∈K ϕ(x, C). For a cluster K we write ϕ∗(K) = ϕ(Kµ(K)) where µ(K) is the center of mass of
+K, i.e., µ(K) = (P
+x∈K x)/w(K) for w(K) = P
+x∈K w(x). That is, ϕ∗(K) is the smallest cost of K
+achievable if we have just one center.
+When we write E≥i+1[X] in relation to Algorithms 1, 2 and 3, we tacitly assume that the
+randomness of the ﬁrst i steps is ﬁxed and the expectation is over the randomness in the rest of
+the algorithm. Similarly, Ei+1[X] is an expectation over the randomness in the step i + 1.
+Standard lemmas from [AV07]: We will need some lemmas from [AV07].
+First, note that for the squared distance we have the approximate triangle inequality
+d(x, z)2 ≤2(d(x, y)2 + d(y, z)2)
+(1)
+The following lemmas can be found in [AV07].
+Lemma 3.1 (Lemma 2.1 in [AV07]). For any K, c we have ϕ(K, c) = ϕ∗(K) + |K|c2.
+Lemma 3.2 (Lemma 3.1 in [AV07]). If c is a uniformly randomly selected point of K, we have
+E[ϕ(K, c)] = 2ϕ∗(K).
+Lemma 3.3 (Lemma 3.2 in [AV07], Lemma 4.2 in [MRS20]). Fix two point sets K, C and sample
+a random points c ∈K with probability proportional to ϕ(c, C). Then,
+E[ϕ(K, C ∪{c})] ≤5ϕ∗(K).
+We note that the original version of the lemma from [AV07] had the constant being 8, this was
+improved to 5 in the work of [MRS20].
+Lemmas for lower bounds: For lower bounds, it will be easier to work with the more general
+weighted version of the k-means problem. Any lower bound for the weighted version can be lifted to
+an unweighted one by multiplying all weights by a large number and rounding them to the closest
+integer.
+Even more generally, it will be more convenient to prove our lower bounds for the generalized
+k-means problem where the input contains not only a weighted point set X and k, but also a set
+of prescribed centers C0. We next use (X, k, C0) to denote input to such generalized problem. We
+will use the following fact.
+Lemma 3.4. Suppose that any of the algorithms Algorithms 1, 2 and 3 returns at least α-approximate
+solution on some k-means instance (X, k, C0) with constant probability. Then there exists an in-
+stance (X′, k + |C0|, ∅) where the algorithm is still at least α-approximate with constant probability.
+Proof Sketch. We simply deﬁne X′ to be X ∪C0, where we make the weight of each point in C0
+substantially larger than the total weight of X so that the ﬁrst |C0| steps only points of C0 can be
+sampled, with high probability.
+13
+
+--- Page 16 ---
+Above construction can, in general, substantially increase the weights. However, we only use it
+in case |C0| ≤2 where this is not the case.
+Another useful fact is that if we restrict our solution to k-means to points of X, we lose only a
+2-factor in approximation. This lemma follows directly from Lemma 3.2.
+Lemma 3.5. Whenever there is some solution Ck to an instance of k-means, there is also a solution
+C′
+k ⊆X such that ϕ(X, C′
+k) ≤2ϕ(X, Ck).
+Finally, our lower bounds would be easier if they were proven in general metric spaces. It is
+simple, though a bit technical, to make them work in Euclidean spaces. To this end, we need the
+following result about embedding a star metric to the Euclidean space.
+Fact 3.6. There is a way to arrange d vectors v1, . . . , vd in Euclidean space in such that for any
+two vi, vj, we have ⟨vi, vj⟩= −1/(d −1). In particular, we get this property by arranging v1, . . . , vd
+as vertices of a d −1 dimensional simplex.
+Few more results: All logarithms in this paper are natural. We will use the following facts.
+Fact 3.7. For any x > 0 we have log(x) ≥1 −1/x.
+Fact 3.8. For any x ∈[−1, 0] we have
+ 1 + x
+2
+
+≥ex.
+We also need the following lemma that says that if we learn about a random variable that it is
+larger than some other independently sampled variables it can only increase its expectation.
+Lemma 3.9. Let X, Y1, . . . , Yt be independent random variables. We have
+E[X|X = min(X, Y1, . . . , Yt)] ≤E[X].
+Proof. We assume all variables are discrete. Let us consider any (y1, . . . , yt) ∈Rt, and ﬁx Yi = yi
+for all 1 ≤i ≤t.
+We have that the conjunction of the event ∀i : Yi = yi together with the
+event X = min(X, Y1, . . . , Yt) is equivalent to the conjunction of the event ∀i : Yi = yi with
+X ≤min(y1, . . . , yt). Hence, we can write
+E[X|X = min(X, Y1, . . . , Yt)] =
+X
+(y1,...,yt)∈Rt
+P(∀i : Yi = yi) · E [X|X = min(X, Y1, . . . , Yt) ∧∀i : Yi = yi]
+=
+X
+(y1,...,yt)∈Rt
+P(∀i : Yi = yi) · E [X|X ≤min(y1, . . . , yt) ∧∀i : Yi = yi]
+=
+X
+(y1,...,yt)∈Rt
+P(∀i : Yi = yi) · E [X|X ≤min(y1, . . . , yt)]
+However, for any (y1, . . . , yt) ∈Rt we have E [X|X ≤min(y1, . . . , yt)] ≤E[X] and the lemma
+follows.
+4
+Bounds on cluster hits by greedy k-means++
+In this section we give a formal proof of Lemma 2.2. We start by giving preparatory deﬁnitions
+and the statement of Lemma 4.7 – inductive variant of Lemma 2.2 – in Section 4.1. The lemma is
+then proved in Section 4.2.
+14
+
+--- Page 17 ---
+4.1
+Preparatory deﬁnitions and results
+We start by formally deﬁning covered and solved clusters.
+Deﬁnition 4.1 (Covered Cluster). Consider some optimal cluster K. We refer to K as covered
+with respect to a set of centers C if K ∩C ̸= ∅.
+Deﬁnition 4.2 (Solved Cluster). Consider some optimal cluster K. We refer to K as solved with
+respect to point set C if
+ϕ(K, C) ≤105ϕ∗(K).
+We also say that C is covered/solved in the i + 1th step of the algorithm if it is covered/solved
+with respect to Ci.
+Next, we formally deﬁne the object of interest, that is, the number of points we are going to
+sample from K during Algorithm 2.
+Deﬁnition 4.3 (Number of points we will sample). Let HITj
+i+1(K) be an indicator variable for
+the conjunction of the following three events:
+1. cj
+i+1 ∈K
+2. K is not covered with respect to Ci
+3. K is not solved with respect to Ci
+We further deﬁne HITi(K) := Pℓ
+j=1 HITj
+i(K), HIT≥i(K) = Pk
+ι=i HITι(K) and HIT(K) = HIT≥1(K).
+Recall that Lemma 2.2 asks us to prove that HIT(K) = O(ℓ2 log2 k).
+We will need a few more deﬁnitions to state our main technical result Lemma 4.7 which is an
+inductive version of Lemma 2.2. We start with the deﬁnition of the parameter Ri. This parameter
+is, up to constant factors, equal to the distance d(µ(K), Ci) of the center of mass of K with the
+closest center of Ci. However, it may be that Ri = Ri+1 although d(µ(K), Ci) = d(µ(K), Ci+1).
+This is because whenever Ri changes, we want it to change by a factor of 10 for a reason explained
+later.
+We also deﬁne the index i0 as the smallest index of a step where the size of K becomes “non-
+negligible”. Before step i0, we have only a negligible probability of sampling a point from K. We
+note that from now on, we consider the cluster K ﬁxed, so that we can talk about Ri instead of
+Ri(K), etc.
+Deﬁnition 4.4 (Parameters i0 and Ri). Fix an optimal cluster K. Let i0 = min{i ∈{1, 2, . . . , k}: ϕ(K, Ci) ≥
+ϕ(X, Ci)/k}. For every i ∈{i0, i0 + 1, . . . , k}, we deﬁne a parameter Ri with
+Ri0 = d(µ(K), Ci0)
+and for i > i0, we deﬁne
+Ri =
+ Ri−1
+d(µ(K), Ci) > Ri−1/10
+d(µ(K), Ci)
+otherwise.
+Note that Ri satisﬁes
+d(µ(K), Ci) ≤Ri ≤10d(µ(K), Ci).
+(2)
+15
+
+--- Page 18 ---
+That is, Ri is roughly equal to the distance of the cluster center to the set Ci. Next, we always
+implicitly assume that i ≥i0, i.e., Ri is well deﬁned.
+Based on Ri we also deﬁne
+Nsmall
+i
+= B(µ(K), Ri/100)
+(3)
+and
+Nbig
+i
+= B(µ(K), Ri/10).
+(4)
+These deﬁnitions correspond to the neighborhood Ni from the intuition section in Section 2.3.
+We need two diﬀerent neighborhoods due to technical diﬃculties like the fact that only for x ∈
+Nsmall
+i
+we have d(x, C) = Ω(Ri) (in the proof sketch of Section 2.3 we worked under a simplifying
+assumption that all x ∈Nbig
+i
+are also in Nsmall
+i
+). The reason for the slightly weird deﬁnition of Ri
+is that we want that whenever Ri+1 < Ri, then Nbig
+i+1 ⊆Nsmall
+i
+.
+In the following claim, we summarize several basic properties of the cluster K and its neighbor-
+hoods Nsmall
+i
+and Nbig
+i
+. These claims substantiate some simple intuition about these sets like that
+all points in Nsmall
+i
+have essentially the same cost. A careful reader will note that we do not try
+to optimize the constants (and we warn that it will get worse).
+Claim 4.5. Assume K is not solved with respect to Ci for i ≥1. Then, we have:
+1. For each point x ∈Nsmall
+i
+, we have
+R2
+i /200 ≤ϕ(x, Ci) ≤3R2
+i .
+and for each point x ∈Nbig
+i
+we have
+0 ≤ϕ(x, Ci) ≤3R2
+i .
+2. We have
+|Nsmall
+i
+| · R2
+i /200 ≤ϕ(Nsmall
+i
+, Ci) ≤3|Nsmall
+i
+| · R2
+i
+and
+ϕ(Nbig
+i
+, Ci) ≤3|Nbig
+i
+| · R2
+i .
+3. We have
+|K|R2
+i /400 ≤ϕ(K, Ci) ≤2|K|R2
+i .
+4. At least |K|/2 points of K are in Nsmall
+i
+. Also, ϕ(K ∩Nsmall
+i
+, Ci) ≥ϕ(K, Ci)/800.
+Proof. Let c∗= argminc∈Cid(µ(K), c). Recall that Eq. (2) implies that
+d(µ(K), c) ≤Ri ≤10d(µ(K), c).
+(5)
+1. Consider any x ∈Nbig
+i
+. We have
+ϕ(x, Ci) ≤d(x, c∗)2 ≤2(d(x, µ(K))2 + d(µ(K), c∗)2)
+Eq. (1)
+≤2
+ Ri
+10
+2
++ R2
+i
+!
+Eq. (5)
+≤3R2
+i
+On the other hand, for any x ∈Nsmall
+i
+, we have
+ϕ(x, Ci) ≥(d(µ(K), c∗) −d(µ(K), x))2
+≥(Ri/10 −Ri/100)2
+≥R2
+i /200.
+16
+
+--- Page 19 ---
+2. This follows by applying bullet point (1) to every point in Nsmall
+i
+and Nbig
+i
+, respectively.
+3. Recall that by Lemma 3.1, we have
+ϕ(K, Ci) ≤ϕ(K, c∗) = |K| · d(µ(K), c∗)2 + ϕ∗(K) ≤|K|R2
+i + ϕ∗(K).
+(6)
+On the other hand,
+ϕ(K, Ci) ≥105ϕ∗(K)
+by Deﬁnition 4.2. Hence,
+ϕ∗(K) ≤|K|R2
+i
+105 −1.
+(7)
+If we plug Eq. (7) back to Eq. (6), we get
+ϕ(K, Ci) ≤|K|R2
+i + |K|R2
+i
+105 −1 ≤2|K|R2
+i .
+We postpone the proof of the other inequality to the end of the proof.
+4. Deﬁne d by ϕ∗(K) = |K|d2, that is, d is the average squared distance of a point of K to
+µ(K). Note that Eq. (7) implies that d2 ≤R2
+i /(105 −1). By Markov’s inequality, at most
+|K|/2 points can have a cost of at least 2d2, which is at most 2R2
+i /(105 −1) ≤(Ri/100)2.
+Hence, at least |K|/2 points of K need to be in Nsmall
+i
+.
+Moreover, using the above result and bullet point (2), we get
+ϕ(K ∩Nsmall
+i
+, Ci) ≥|K|
+2
+· R2
+i
+200
+and using the part of bullet point (3) that we have already proven, we have
+2|K|R2
+i ≥ϕ(K, Ci).
+Combining the two bounds, we get
+ϕ(K ∩Nsmall
+i
+, Ci) ≥|K|R2
+i
+400
+≥ϕ(K, Ci)
+800
+.
+5. Finally, using the fact that at least |K|/2 points of K are in Nsmall
+i
+by bullet point (4) and
+that each point x ∈Nsmall
+i
+satisﬁes ϕ(x, Ci) ≥R2
+i /200 by bullet point (1) we infer that
+ϕ(K, Ci) ≥|K|/2 · R2
+i /200 = |K|R2
+i /400 and the proof of bullet point (3) is ﬁnished.
+The reason why we deal with the steps before i0 diﬀerently is that for all i ≥i0 we know that
+|Nbig
+i
+| is at most O(k) times larger then |K|.
+Claim 4.6. Let i0 as deﬁned in Deﬁnition 4.4. For all i ≥i0, we have
+|Nbig
+i
+| ≤4k|K|.
+17
+
+--- Page 20 ---
+Proof. It suﬃces to prove that |Nbig
+i0 | ≤4k|K|, since Deﬁnition 4.4 implies that |Nbig
+i+1| ≤|Nbig
+i
+| for
+any i.
+Recall that Ri0 := d(µ(K), Ci0). Consider any x ∈Nbig
+i0 . We have
+ϕ(x, Ci0) ≥(d(Ci0, µ(K)) −d(µ(K), x))2 ≥(Ri0 −Ri0/10)2 ≥R2
+i0/2.
+(8)
+This implies that
+ϕ(X, Ci0) ≥ϕ(Nbig
+i0 , Ci0) ≥|Nbig
+i0 | · R2
+i0/2.
+(9)
+One the other hand, using bullet point (3) of Claim 4.5 we get that
+2|K|R2
+i0 ≥ϕ(K, Ci0).
+(10)
+By deﬁnition of i0 we know that ϕ(K, Ci0) ≥ϕ(X, Ci0)/k. Putting this together with Eqs. (9)
+and (10), we get
+2|K|R2
+i0 ≥|Nbig
+i0 | · R2
+i0/(2k)
+or
+|Nbig
+i0 | ≤4k|K|,
+as needed.
+4.2
+Inductive version of the main result
+Finally, we are ready to state the technical, inductive version of Lemma 2.2.
+The lemma is a
+potential argument: we cook up three potentials such that their sum in the step i is an upper
+bound on how many candidate centers are expected to be sampled from K. The advantage of such
+an argument is that once the potentials are written down, checking the correctness of the argument
+reduces to algebra. The disadvantage is that it is hard to get an intuition about the high-level
+picture (compare with the original analysis of k-means++ and its rewording of Dasgupta [Das19]).
+Hence, we ﬁrst invite the reader to read Section 2.4 where we try to convey the high-level intuition
+about the argument. This section is primarily optimized for making it easy to check the correctness
+of the proofs.
+In Lemma 4.7, we track the number of hits to K using three potentials.
+1. The ﬁrst potential πi is “dropping” a potential of O(ℓ/k) uniformly in every step. This allows
+us to argue about some edges cases like when ϕ(K, Ci) < ϕ(X, Ci)/k. In these cases we have
+probability of at most ℓ/k of hitting K and the drop in πi can pay for that.
+2. Whenever the value of Ri changes, we “reﬁll” the value of potential σi to its maximum value
+of O
+
+ℓlog k ·
+|K|
+|Nsmall
+i
+|
+
+. The purpose of ρi is to pay for this reﬁll of σi. Intuitively, we hope
+that whenever Ri drops, the size of |Nbig
+i
+| drops by at least (1 −O(1/ℓlog k)) multiplicative
+factor (see the intuition in Section 2.3). In that case, the drop in ρi is proportional to exactly
+O(ℓ2 log2 k
+ℓlog k ·
+|K|
+|Nsmall
+i
+|), so it can pay for the reﬁll of σi.
+3. The third potential σi is designed to pay for the possibility of hitting K until we redeﬁne
+Ri. Intuitively, if we are in the hard case when hitting K does not result in covering it, we
+are expecting the cost of our solution to drop. Accordingly, drop in the overall cost ϕ(X, Ci)
+results in the drop in σi and this drop is paying for the possibility of hitting K.
+18
+
+--- Page 21 ---
+Lemma 4.7. Fix an optimal cluster K. Assume we have already sampled the ﬁrst i points where
+i ∈{1, 2, . . . , k}.
+Then, we have
+E≥i+1[HIT≥i+1(K)] ≤πi + ρi + σi,
+where
+πi =
+
+1 −i
+k
+
+· ℓ+ 1050ℓlog k,
+ρi = 1050ℓ2 log2(k) ·
+ 
+4 −
+|K|
+|Nsmall
+i
+| −
+|K|
+|Nbig
+i
+|
+!
+and
+σi = 1025ℓ· log min
+
+105k, 400ϕ(X, Ci)
+|K|R2
+i
+
+·
+|K|
+|Nsmall
+i
+|
+This is only when K is neither solved nor covered with respect to Ci. Otherwise, we deﬁne πi =
+ρi = σi = 0.
+Before proving Lemma 4.7, we brieﬂy verify that it implies Lemma 2.2:
+Proof of Lemma 2.2. First, note that in the ﬁrst step we sample at most ℓpoints from K, that is,
+HIT1 ≤ℓ.
+Next, we consider running Algorithm 2 until the ﬁrst time it happens that
+ϕ(K, Ci) > ϕ(X, Ci)/k.
+(11)
+Fix some i such that Eq. (11) does not hold and it did not hold for any ι ∈{1, 2, . . . , i −1}. Then,
+the expected number of points we sample from K in the (i + 1)-th step is at most
+E[HITi+1] ≤ℓϕ(K, Ci)
+ϕ(X, Ci) ≤ℓ
+k.
+(12)
+In fact, the ﬁrst inequality is an equality, whenever the cluster K is not solved or covered. The
+second inequality uses our assumption that ϕ(K, Ci) ≤ϕ(X, Ci)/k.
+Next, consider the ﬁrst i such that Eq. (11) holds. Then, we apply Lemma 4.7. This lemma
+states that E[HIT≥i+1] can be upper bounded by a sum πi + ρi + σi. From the deﬁnition of these
+quantities in Lemma 4.7 we immediately see that
+πi = O(ℓlog k),
+ρi = O(ℓ2 log2 k)
+and
+σi = O(ℓlog k).
+Hence, we get that
+E[HIT≥1] ≤ℓ+ k · ℓ
+k + O(ℓ2 log2 k) = O(ℓ2 log2 k).
+19
+
+--- Page 22 ---
+The rest of this section is dedicated to the proof of Lemma 4.7.
+We prove the statement by (reverse) induction. First, consider the base case i = k. Note that
+for the base case it suﬃces to show that πi, ρi, σi ≥0. If K is covered or solved with respect
+to Ci, then this directly follows from the deﬁnition. Next, assume that K is neither solved nor
+covered with respect to Ci. Clearly πk+1 ≥0. Using bullet point (4) of Claim 4.5, we conclude
+that |Nbig
+k | ≥|Nsmall
+k
+| ≥|K|/2 which implies ρk+1 ≥0. Using bullet point (3) of Claim 4.5, we
+conclude that ϕ(X, Ck) ≥ϕ(K, Ck) ≥|K|R2
+k
+400
+which implies σk+1 ≥0.
+Next, we consider i < k. Note that the statement trivially holds if K is solved or covered with
+respect to Ci. Hence, from now on we consider the case that K is neither solved nor covered with
+respect to Ci.
+Note that we have
+E≥i+1[HIT≥i+1(K)] = Ei+1[
+ℓ
+X
+j=1
+HITj
+i+1] + Ei+1 [E≥i+2[HIT≥i+2(K)]]
+(13)
+By deﬁnition of HIT and the fact that K is both uncovered and unsolved, we have Ei+1[Pℓ
+j=1 HITj
+i+1] =
+ℓϕ(K,Ci)
+ϕ(X,Ci) and we can use induction to bound
+Ei+1 [E≥i+2[HIT≥i+2(K)]] ≤Ei+1[πi+1 + ρi+1 + σi+1].
+(14)
+Plugging back to Eq. (13), we get
+E≥i+1[HIT≥i+1(K)] ≤ℓϕ(K, Ci)
+ϕ(X, Ci) + Ei+1 [πi+1 + ρi+1 + σi+1] .
+(15)
+Note that the claim we want to prove is
+E≥i+1[HIT≥i+1] ≤πi + ρi + σi,
+(16)
+so it suﬃces if we prove that
+ℓϕ(K, Ci)
+ϕ(X, Ci) + Ei+1 [πi+1 + ρi+1 + σi+1] ≤πi + ρi + σi.
+After rearranging, we get
+(πi −Ei+1[πi+1]) + (ρi −Ei+1[ρi+1]) + (σi −Ei+1[σi+1]) ≥ℓϕ(K, Ci)
+ϕ(X, Ci) .
+(17)
+The potential σ is the only one of π, σ, ρ that is not necessarily monotone in i. Hence, to better
+understand the term (σi −Ei+1[σi+1]), given the sampled point ci+1, we deﬁne σi+1 as
+σi+1 = 1025ℓlog min
+
+105k, 400ϕ(X, Ci+1)
+|K|R2
+i
+
+|K|
+|Nsmall
+i
+|.
+(18)
+That is, in σi+1 we already change the cost ϕ(X, Ci) to ϕ(X, Ci+1) but we do not replace Ri by
+Ri+1 and Nsmall
+i
+by Nsmall
+i+1
+yet. We can rewrite Eq. (17) and get
+(πi −Ei+1[πi+1]) + (ρi −Ei+1[ρi+1]) + (σi −Ei+1[σi+1]) + Ei+1[σi+1 −σi+1] ≥ℓϕ(K, Ci)
+ϕ(X, Ci) .
+(19)
+In the rest of the proof, we will simply need to show that Eq. (19) is satisﬁed. We will need
+to consider several cases and in each one of them, we will have to lower bound the terms on the
+left-hand side of Eq. (19). Formally, the proof follows from Claims 4.11 and 4.16 to 4.18 that cover
+all possible cases that can occur.
+20
+
+--- Page 23 ---
+4.3
+Basic properties of potentials
+Here we collect some basic claims about the potentials π, ρ and σ. We start with π. Note that we
+always have
+πi −Ei+1[πi+1] ≥ℓ
+k
+(20)
+by deﬁnition of πi. Note that this is just an inequality. When K becomes solved or covered, we
+have
+πi −πi+1 ≥1050ℓlog k.
+(21)
+We continue with ρ whose changes we handle through the following claim. The main message
+of the claim is that whenever we have Ri ̸= Ri+1 and, even more, |Nbig
+i+1| ≤(1 −O(1/ℓlog k))|Nbig
+i
+|,
+we have ρi −ρi+1 as large as the maximum size of σi.
+Claim 4.8. We have
+ρi −ρi+1 ≥1050ℓ2 log2 k|K|
+ 
+1
+|Nsmall
+i+1
+| −
+1
+|Nsmall
+i
+| +
+1
+|Nbig
+i+1|
+−
+1
+|Nbig
+i
+|
+!
+(22)
+In particular, we always have
+ρi −ρi+1 ≥0.
+Moreover, if we assume that
+|Nbig
+i+1| ≤(1 −1/(1020ℓlog k))|Nbig
+i
+|,
+then we have:
+ρi −ρi+1 ≥1030ℓlog k
+|K|
+|Nsmall
+i+1
+|
+Proof. The ﬁrst inequality follows from the deﬁnition of ρ.
+Next, assume that
+|Nbig
+i+1| ≤(1 −1/(1020ℓlog k))|Nbig
+i
+|.
+(23)
+We have
+ 
+1
+|Nsmall
+i+1
+| −
+1
+|Nsmall
+i
+| +
+1
+|Nbig
+i+1|
+−
+1
+|Nbig
+i
+|
+!
+≥
+ 
+1
+|Nsmall
+i+1
+| −
+1
+|Nbig
+i
+|
+!
+Nbig
+i+1 ⊆Nsmall
+i
+by deﬁnition of Ri
+= |Nbig
+i
+| −|Nsmall
+i+1
+|
+|Nbig
+i
+||Nsmall
+i+1
+|
+≥
+1
+1020ℓlog k · |Nbig
+i
+|
+|Nbig
+i
+||Nsmall
+i+1
+|
+Nsmall
+i+1
+⊆Nbig
+i+1, Eq. (23)
+≥
+1
+1020ℓlog k ·
+1
+|Nsmall
+i+1
+|
+and the claim follows.
+21
+
+--- Page 24 ---
+The idea behind σ is that it drops by an amount proportional to the drop in the cost ϕ(X, Ci)−
+ϕ(X, Ci+1). This is substantiated by the following claim.
+Claim 4.9. Assume that 105k > 400ϕ(X,Ci)
+|K|R2
+i
+. Then for any Ci+1 we have
+σi −σi+1 ≥1025ℓϕ(X, Ci) −ϕ(X, Ci+1)
+ϕ(X, Ci)
+|K|
+|Nsmall
+i
+|.
+Proof. Using the assumption from the statement we get that σi = 1025ℓlog
+
+400ϕ(X,Ci)
+|K|R2
+i
+
+|K|
+|Nsmall
+i
+|.
+We have
+σi −σi+1
+1025ℓ|K|/|Nsmall
+i
+| =
+
+log 400ϕ(X, Ci)
+|K|R2
+i
+−log 400ϕ(X, Ci+1)
+|K|R2
+i
+
+= log ϕ(X, Ci)
+ϕ(X, Ci+1)
+≥
+
+1 −ϕ(X, Ci+1)
+ϕ(X, Ci)
+
+Fact 3.7
+= ϕ(X, Ci) −ϕ(X, Ci+1)
+ϕ(X, Ci)
+as needed.
+Note however, that E[σi+1 −σi+1] is not necessarily positive since σi+1 > σi+1 whenever Ri+1 ̸=
+Ri. In these cases, we can bound the diﬀerence σi+1 −σi+1 ≤σi+1 = O(ℓlog k ·
+|K|
+|Nsmall
+i+1
+|). If there
+is large enough drop in the size of the neighborhood, we have seen in Claim 4.8 that the drop in ρ
+can pay for the negative value of −σi+1 that we need to pay to make the left hand side of Eq. (19)
+positive.
+This is the point of the ﬁrst part of the next claim. The second part argues that if we are in the
+case ϕ(K, Ci) = O(ϕ(X, Ci)/k), we can also account for the potentially negative term E[σi+1−σi+1].
+This time this is because in this special case, the speciﬁc value of Ri anyway does not aﬀect the
+size of σi which is “maxed out” at value O(ℓlog k ·
+|K|
+|Nsmall
+i
+|).
+Claim 4.10.
+1. Assume that |Nbig
+i+1| ≤(1 −1/(1020ℓlog k)|Nbig
+i
+|. Then, we have
+ρi −ρi+1 + σi+1 −σi+1 ≥0.
+2. Assume that 105k ≤400ϕ(X,Ci)
+|K|R2
+i
+. Then,
+ρi −ρi+1 + σi −σi+1 ≥0.
+Proof. First, assume that |Nbig
+i+1| ≤(1 −
+1
+1020ℓlog k)|Nbig
+i
+|. In this case, we use Claim 4.8 to get that
+ρi −ρi+1 ≥1030ℓlog k
+|K|
+|Nsmall
+i+1
+|
+On the other hand, we certainly have
+σi+1 ≤1025ℓlog(105k) ·
+|K|
+|Nsmall
+i+1
+|
+22
+
+--- Page 25 ---
+Hence, we have
+ρi −ρi+1 + σi+1 −σi+1 ≥0
+(24)
+since we can assume k ≥2 (for k = 1 there is not much to prove) and we are done.
+Next, assume 105k ≤400ϕ(X,Ci)
+|K|R2
+i
+. Simplifying the bound Eq. (22) from Claim 4.8 we get
+ρi −ρi+1 ≥1050ℓ2 log2 k|K|
+ 
+1
+|Nsmall
+i+1
+| −
+1
+|Nsmall
+i
+|
+!
+(25)
+On the other hand, by our assumption we have σi = 1025ℓlog(105k) ·
+|K|
+|Nsmall
+i
+| and it certainly
+has to hold that σi+1 ≤1025ℓlog(105k) ·
+|K|
+|Nsmall
+i+1
+|, hence we get
+σi+1 −σi ≤1025ℓlog(105k) · |K|
+ 
+1
+|Nsmall
+i+1
+| −
+1
+|Nsmall
+i
+|
+!
+(26)
+Comparing Eqs. (25) and (26), we infer that ρi −ρi+1 + σi −σi+1 ≥0, as needed.
+4.4
+Hard and easy cases
+In this section, we formalize the “hard and easy case” from Section 2.3 and prove the necessary
+preparatory results for each case.
+At ﬁrst, we get rid of the special case when ϕ(K, Ci) = O(ϕ(X, Ci)/k).
+Claim 4.11. Assume that 105k ≤400ϕ(X,Ci)
+|K|R2
+i
+. Then Eq. (19) is satisﬁed.
+Proof. The condition from the statement in other words means that σi has the “maxed out” value
+of 1025ℓlog(105 · k)
+|K|
+|Nsmall
+i+1
+|.
+Using Claim 4.10 item (2) we infer that the left hand side of Eq. (19) can be lower bounded by
+(πi −E[πi+1]) + 0 ≥ℓ/k.
+(27)
+On the other hand, for the right-hand side of Eq. (19) we have
+ℓϕ(K, Ci)
+ϕ(X, Ci) ≤ℓ· 2|K|R2
+i
+ϕ(X, Ci)
+Claim 4.5
+(28)
+≤2 · 400ℓ
+105k
+assumption
+Eqs. (27) and (28) imply that Eq. (19) holds in this case, as needed.
+In the rest of the proof we only consider the case when
+105 · k > 400ϕ(X, Ci)
+|K|R2
+i
+(29)
+23
+
+--- Page 26 ---
+Consider the probability distribution over X used to sample in the current, i + 1th, step. That
+is, consider the probability space where a point c ∈X has probability ϕ(c, Ci)/ϕ(X, Ci). Consider
+the random variable δi on this space that assigns the value ϕ(X, Ci)−ϕ(X, Ci∪{c}) to the sampled
+point c. That is, δi is the random variable measuring the drop in the cost if we sampled just one
+point of X proportional to its individual cost.
+We deﬁne a value ξi as the 1/(2ℓ)th quantile of the distribution of δi. Formally, ξi is the largest
+number such that
+P (ϕ(X, Ci) −ϕ(X, Ci ∪{c}) ≥ξi) ≥1
+2ℓ
+(30)
+Deﬁnition 4.12 (Easy and hard clusters). We say that K is easy with respect to Ci (or in the
+i + 1th step) if and only if
+ξi < ϕ(Nsmall
+i
+, Ci)
+1500
+.
+(31)
+Otherwise, K is hard.
+The argumentation for the easy and hard cases diﬀers. We will next prove Claim 4.14 that we
+rely on in the easy case and Claim 4.15 that we rely on in the hard case.
+Claim 4.13. Any point c ∈Nsmall
+i
+has the property that ϕ(X, Ci) −ϕ(X, Ci ∪{c}) ≥ϕ(Nsmall
+i
+,Ci)
+1500
+.
+Proof. Let us ﬁx some c ∈Nsmall
+i
+.
+Consider any point x ∈Nsmall
+i
+.
+By Claim 4.5, we have
+ϕ(x, Ci) ≥R2
+i /200. On the other hand, we have
+d(c, x) ≤d(c, µ(K)) + d(µ(K), x) ≤2 · Ri/100.
+Hence, we get
+ϕ(x, Ci) −ϕ(x, Ci ∪{c}) ≥R2
+i
+200 −4R2
+i
+104 ≥R2
+i
+500
+(32)
+and summing up Eq. (32) for all x ∈Nsmall
+i
+, we get
+ϕ(X, Ci) −ϕ(X, Ci ∪{c}) ≥ϕ(Nsmall
+i
+, Ci) −ϕ(Nsmall
+i
+, Ci ∪{c})
+(33)
+≥|Nsmall
+i
+| · R2
+i
+500
+Eq. (32)
+(34)
+≥ϕ(Nsmall
+i
+, Ci)
+1500
+Claim 4.5 item 2
+(35)
+Claim 4.14 (Claim for the easy case). Assume that K is easy in the i + 1th step. Then, for any
+x ∈Nsmall
+i
+we have that ci+1 = x with probability at least
+ℓϕ(x,Ci)
+2ϕ(X,Ci). In particular, this implies:
+1. ci+1 ∈Nsmall
+i
+with probability at least ℓϕ(Nsmall
+i
+,Ci)
+2ϕ(X,Ci)
+,
+2. ci+1 ∈K with probability at least
+ℓϕ(K,Ci)
+2000ϕ(X,Ci).
+24
+
+--- Page 27 ---
+Proof. Fix any x ∈Nsmall
+i
+. For any 1 ≤j ≤ℓconsider the following event Ej.
+Event Ej: We have cj
+i+1 = x. Moreover, for every 1 ≤j′ ≤ℓwith j′ ̸= j, we have ϕ(X, Ci) −
+ϕ(X, Ci ∪{cj′}) ≤ξi.
+By independence of all ℓsamples of candidate centers and deﬁnition of ξi, we have that
+P(Ej) ≥ϕ(x, Ci)
+ϕ(X, Ci) · (1 −1/(2ℓ))ℓ−1
+(36)
+≥ϕ(x, Ci)
+ϕ(X, Ci) ·
+
+1 −ℓ−1
+2ℓ
+
+union bound
+(37)
+≥ϕ(x, Ci)
+2ϕ(X, Ci)
+(38)
+Note that since K is easy, we have ξi < ϕ(Nsmall
+i
+,Ci)
+1500
+. Hence, we apply Claim 4.13 to conclude
+that the event Ej implies that ci+1 = x. The upper bound from K being easy also implies that all
+events Ej are disjoint for diﬀerent j. Thus we get
+P(ci+1 = x) ≥
+ℓ
+X
+j=1
+P(Ej) ≥ℓϕ(x, Ci)
+2ϕ(X, Ci)
+(39)
+as needed.
+Next, we prove the second part of the claim. The ﬁrst bullet point is proven by summing up
+over all points x ∈Nsmall
+i
+:
+P(ci+1 ∈Nsmall
+i
+) ≥
+X
+x∈Nsmall
+i
+ℓϕ(x, Ci)
+2ϕ(X, Ci) = ℓϕ(Nsmall
+i
+, Ci)
+2ϕ(X, Ci)
+Similarly, using Claim 4.5 item 4, we conclude that
+P(ci+1 ∈K) ≥P(ci+1 ∈K ∩Nsmall
+i
+) ≥
+X
+x∈K∩Nsmall
+i
+ℓϕ(x, Ci)
+2ϕ(X, Ci) ≥
+ℓϕ(K, Ci)
+2000ϕ(X, Ci).
+Claim 4.15 (Claim for the hard case). Assume K is hard and
+105k > 400ϕ(X, Ci)
+|K|R2
+i
+.
+Then,
+ϕ(X, Ci) −Ei+1[ϕ(X, Ci+1)] ≥ϕ(Nsmall
+i
+, Ci)
+3000
+≥ϕ(K, Ci)
+107
+and
+σi −Ei+1[σi+1] ≥1015 ℓϕ(K, Ci)
+ϕ(X, Ci) .
+Proof. Note that by the deﬁnition of ξi as the 1−1/(2ℓ)th quantile, the probability that ϕ(X, Ci)−
+ϕ(X, Ci+1) < ξi is at most (1 −1/(2ℓ))ℓ≤1/3. Hence, with probability at least 2/3 we have
+ϕ(X, Ci) −ϕ(X, Ci+1) ≥ξi and this implies that
+ϕ(X, Ci) −Ei+1[ϕ(X, Ci+1)] ≥2ξi/3.
+25
+
+--- Page 28 ---
+Plugging in that K is hard (Deﬁnition 4.12), we get
+ϕ(X, Ci) −Ei+1ϕ(X, Ci+1) ≥ϕ(Nsmall
+i
+, Ci)
+3000
+≥ϕ(K, Ci)
+107
+Claim 4.5 item (4).
+Using Claim 4.9, this implies
+σi −Ei+1[σi+1] ≥1025 ℓ(ϕ(X, Ci) −Ei+1[ϕ(X, Ci+1)])
+ϕ(X, Ci)
+·
+|K|
+|Nsmall
+i
+|
+Claim 4.9
+≥1025 ℓϕ(Nsmall
+i
+, Ci)
+3000ϕ(X, Ci) ·
+|K|
+|Nsmall
+i
+|
+≥1020 ℓϕ(Nsmall
+i
+, Ci)
+ϕ(X, Ci)
+·
+ϕ(K, Ci)/(2R2
+i )
+200ϕ(Nsmall
+i
+, Ci)/R2
+i
+Claim 4.5
+≥1015 ℓϕ(K, Ci)
+ϕ(X, Ci)
+as needed.
+4.5
+Finishing the analysis
+We are now ready to do a case distinction where for each case we combine results from the previous
+section to verify Eq. (19).
+We will ﬁrst assume that
+|Nbig
+i
+\ Nsmall
+i
+| ≥
+1
+1020ℓlog k|Nbig
+i
+|
+(40)
+Intuitively, in this case, we are happy since there are many points in Nbig
+i
+that will not be present
+in Nbig
+i+1. This implies a large drop in the potential ρ via Claim 4.8 that can pay for everything.
+Claim 4.16. Assume that 105k > 400ϕ(X,Ci)
+|K|R2
+i
+and |Nbig
+i
+\ Nsmall
+i
+| ≥
+1
+1020ℓlog k|Nbig
+i
+|. Then Eq. (19)
+is satisﬁed.
+Proof. First, assume that K is easy.
+Note that if Ri ̸= Ri+1 then we can use the fact that
+Nbig
+i+1 ⊆Nsmall
+i
+and our assumption to conclude that
+|Nbig
+i+1| ≤(1 −1/(1020ℓlog k))|Nbig
+i
+|
+(41)
+Hence, we may apply the ﬁrst item in Claim 4.10 and get that
+ρi −ρi+1 + σi −σi+1 ≥0
+(42)
+When Ri = Ri+1, the same equation holds since by deﬁnition σi+1 ≤σi.
+That is, the sum of all potentials always drops. We write ∗for the event that ci+1 ∈K and
+compute that
+26
+
+--- Page 29 ---
+(πi −E[πi+1]) + (ρi −E[ρi+1]) + (σi −E[σi+1])
+= P(∗) (πi −E[πi+1|∗]) + P(¬∗) (πi −E[πi+1|¬∗])
++ (ρi −E[ρi+1]) + (σi −E[σi+1])
+≥P(∗) · 1050ℓlog k + 0
+Eqs. (21) and (42)
+≥
+ℓϕ(K, Ci)
+2000ϕ(X, Ci) · 1050ℓlog k
+Claim 4.14
+≥ℓϕ(K, Ci)
+ϕ(X, Ci) .
+That is, Eq. (19) is satisﬁed.
+Next, assume K is hard. Then, we use Claim 4.15 to get
+σi −Ei+1[σi+1] ≥1015 ℓϕ(K, Ci)
+ϕ(X, Ci) .
+Next, whenever Ri ̸= Ri+1, we have necessarily |Nbig
+i+1| ≤(1 −1/(1020ℓlog k))|Nbig
+i
+| by Eq. (41)
+and using Claim 4.10 item (2) we conclude that
+ρi −ρi+1 + σi+1 −σi+1 ≥0
+If Ri = Ri+1, above equation is also clearly satisﬁed since in that case σi+1 = σi+1.
+In view of the above reasoning, we get
+(πi −E[πi+1]) + (σi −E[σi+1]) + (ρi −E[ρi+1]) + (E[σi+1 −σi+1])
+≥0 + 1015 ℓϕ(K, Ci)
+ϕ(X, Ci) + 0
+and Eq. (19) is proven.
+It remains to argue about the case when
+|Nbig
+i
+\ Nsmall
+i
+| <
+1
+1020ℓlog k|Nbig
+i
+|
+(43)
+In this case, we have that the two sets Nbig
+i
+and Nsmall
+i
+are basically the same. This allows us
+to carry out the planned argument as promised in Section 2.3.
+Let us deﬁne M ⊆Nbig
+i
+as the set of |Nbig
+i
+|/(1020ℓlog k) points of M of maximum distance to
+µ(K).
+We observe that whenever ci+1 ∈Nbig
+i
+\ M, then for each m ∈M we have m ̸∈Nbig
+i+1. This
+means that ci+1 ∈Nbig
+i
+\ M implies that
+|Nbig
+i+1| ≤(1 −1/(1020ℓlog k)) · |Nbig
+i
+|.
+(44)
+Also, since each point x ∈M satisﬁes ϕ(x, Ci) ≤3R2
+i by Claim 4.5, item (1), we infer
+ϕ(M, Ci) ≤
+|Nbig
+i
+|
+1020ℓlog k · 3R2
+i .
+27
+
+--- Page 30 ---
+On the other hand, by Claim 4.5, item (2) and the fact that |Nsmall
+i
+| ≥|Nbig
+i
+|/2 by Eq. (43), we
+have
+ϕ(Nsmall
+i
+, Ci) ≥|Nsmall
+i
+|R2
+i /200 ≥|Nbig
+i
+|R2
+i /400.
+Putting these two facts together, we get
+ϕ(M, Ci) ≤3R2
+i · 400ϕ(Nsmall
+i
+, Ci)
+1020ℓlog k · R2
+i
+≤ϕ(Nsmall
+i
+, Ci)
+1016ℓlog k
+.
+(45)
+Since by Eq. (43) we have M ⊇Nbig
+i
+\ Nsmall
+i
+, we can write
+ϕ(Nbig
+i
+, Ci) ≤ϕ(Nsmall
+i
+, Ci) + ϕ(M, Ci) ≤3ϕ(Nsmall
+i
+, Ci)/2
+(46)
+Hence, we have two results Eq. (43) and Eq. (46) that both formalize the intuition that we do
+not really need to distinguish between Nbig
+i
+and Nsmall
+i
+. We now consider the easy and the hard
+case separately and ﬁnish the analysis in the following two claims.
+Claim 4.17. Assume that 105k >
+400ϕ(X,Ci)
+|K|R2
+i
+and |Nbig
+i
+\ Nsmall
+i
+| <
+1
+1020ℓlog k|Nbig
+i
+|.
+Moreover,
+assume K is easy. Then Eq. (19) is satisﬁed.
+Proof. Using Claim 4.14 for the set Nbig
+i
+\ M = Nsmall
+i
+\ M, we infer that ci+1 ∈Nbig
+i
+\ M with
+probability at least
+ℓϕ(Nbig
+i
+\ M, Ci)
+2ϕ(X, Ci)
+≥ℓϕ(Nbig
+i
+, Ci)
+4ϕ(X, Ci)
+where we used Eq. (45).
+This implies that with probability at least ℓϕ(Nbig
+i
+,Ci)
+4ϕ(X,Ci)
+we have πi+1 = 0 and using Eq. (21), we
+get
+πi −E[πi+1] ≥ℓϕ(Nsmall
+i
+, Ci)
+4ϕ(X, Ci)
+· 1050ℓlog k
+Using Eq. (46), we infer that
+πi −E[πi+1] ≥ℓϕ(Nbig
+i
+, Ci)
+10ϕ(X, Ci) · 1050ℓlog k
+Next, note that σi+1 ≥σi only in the case when Ri ̸= Ri+1 and in that case we have
+σi+1 ≤1025ℓlog(105k)
+|K|
+|Nsmall
+i+1
+| ≤1025ℓlog(105k).
+We have P(Ri ̸= Ri+1) ≤P(ci+1 ∈Nbig
+i
+) ≤ℓϕ(Nbig
+i
+,Ci)
+ϕ(X,Ci) . Hence,
+σi −E[σi+1] ≥ℓϕ(Nbig
+i
+, Ci)
+ϕ(X, Ci)
+· (−1025ℓlog(105k))
+28
+
+--- Page 31 ---
+This implies
+πi −E[πi+1] + ρi −E[ρi+1] + σi −E[σi+1]
+≥ϕ(Nbig
+i
+, Ci)
+ϕ(X, Ci)
+· 1049ℓ2 log k + 0 −ϕ(Nbig
+i
+, Ci)
+ϕ(X, Ci)
+· 1025ℓ2 log(105k)
+≥1040 ϕ(Nbig
+i
+, Ci)
+ϕ(X, Ci)
+≥ϕ(K, Ci)
+ϕ(X, Ci)
+Claim 4.5 item 4
+as needed.
+Claim 4.18. Assume that 105k >
+400ϕ(X,Ci)
+|K|R2
+i
+and |Nbig
+i
+\ Nsmall
+i
+| <
+1
+1020ℓlog k|Nbig
+i
+|.
+Moreover,
+assume K is hard. Then Eq. (19) is satisﬁed.
+Proof. We will lower bound the terms σi −E[σi+1], E[σi+1 −σi+1], and ρi −E[ρi+1].
+First, recall that Claim 4.15 imply
+σi −Ei+1[σi+1] ≥1015ℓϕ(K, Ci)/ϕ(X, Ci).
+(47)
+Next, we have that σi+1 > σi+1 only when Ri ̸= Ri+1, which happens only when ci+1 ∈Nbig
+i
+,
+otherwise we have σi+1 = σi+1. Also, we have σi+1 ≤1025ℓlog(105k)
+|K|
+|Nsmall
+i+1
+|, hence we get
+E[σi+1 −σi+1] ≥P(ci+1 ∈Nbig
+i
+) ·
+ 
+−1025ℓ
+|K|
+|Nsmall
+i+1
+| log(105k)
+!
+.
+(48)
+We rewrite the right hand side as follows. First, note that
+P(ci+1 ∈Nbig
+i
+) = P(ci+1 ∈M) + P(ci+1 ∈Nbig
+i
+\ M).
+We bound the ﬁrst term as follows:
+P(ci+1 ∈M) ≤P(∃j : cj
+i+1 ∈M)
+≤ℓϕ(M, Ci)
+ϕ(X, Ci)
+≤
+ℓϕ(Nsmall
+i
+, Ci)
+1016ℓlog k · ϕ(X, Ci)
+Eq. (45)
+Thus we can continue bounding one part of the right hand side of Eq. (48) as
+P(ci+1 ∈M) · 1025ℓ
+|K|
+|Nsmall
+i+1
+| log(105k)
+(49)
+≤
+ϕ(Nsmall
+i
+, Ci)
+1016 log k · ϕ(X, Ci) · 1025ℓ
+|K|
+|Nsmall
+i
+| log(105k)
+(50)
+≤
+ϕ(Nsmall
+i
+, Ci)
+1016 log k · ϕ(X, Ci) · 1025ℓ
+400ϕ(K, Ci)/R2
+i
+ϕ(Nsmall
+i
+, Ci)/(3R2
+i ) log(105k)
+Eq. (46) and Claim 4.5
+(51)
+≤1014 ℓϕ(K, Ci)
+ϕ(X, Ci)
+(52)
+29
+
+--- Page 32 ---
+Putting all this together, we get
+E[σi+1 −σi+1] ≥−1014 ℓϕ(K, Ci)
+ϕ(X, Ci) −P(ci+1 ∈Nbig
+i
+\ M) ·
+ 
+1025ℓ
+|K|
+|Nsmall
+i+1
+| log(105k)
+!
+.
+(53)
+Finally, we bound ρi −E[ρi+1]. Using Claim 4.8 and the fact that if we sample from M, we
+have |Nbig
+i+1| ≤|Nbig
+i
+| −|M| ≤(1 −1/(1020ℓlog k))|Nbig
+i
+|, we get
+ρi −E[ρi+1] ≥P(ci+1 ∈Nbig
+i
+\ M) · 1030ℓlog k ·
+|K|
+|Nsmall
+i+1
+| + P(ci+1 ∈M) · 0
+(54)
+= P(ci+1 ∈Nbig
+i
+\ M) · 1030ℓlog k ·
+|K|
+|Nsmall
+i+1
+|
+(55)
+Putting Eqs. (47), (53) and (55) together, we get
+πi −E[πi+1] + ρi −E[ρi+1] + σi −E[σi+1] + E[σi+1 −σi+1]
+≥0 + P(ci+1 ∈Nbig
+i
+\ M) · 1030ℓlog k ·
+|K|
+|Nsmall
+i+1
+| + 1015 ℓϕ(K, Ci)
+ϕ(X, Ci)
+−1014 ℓϕ(K, Ci)
+ϕ(X, Ci) −P(ci+1 ∈Nbig
+i
+\ M) ·
+ 
+1025ℓ
+|K|
+|Nsmall
+i+1
+| log(105k)
+!
+≥ℓϕ(K, Ci)
+ϕ(X, Ci)
+and Eq. (19) is proven.
+The proof of Lemma 4.7 now follows from Claims 4.11 and 4.16 to 4.18 that cover all possible
+cases.
+5
+Analysis of greedy k-means++
+In this section, we prove Theorem 1.1 that we restate here for convenience. The proof relies on
+Lemma 2.2 proven in Section 4.
+Theorem 1.1. Greedy k-means++ (Algorithm 2) is an O(ℓ3 · log3 k)-approximation algorithm, in
+expectation.
+We prove the theorem formally by a potential argument. We set up a potential in Deﬁnition 5.1
+and track it during the algorithm. We prove in Proposition 5.2 that at the beginning the size of
+the potential is O(ℓ3 log3 k) · OPT. At the end of the algorithm, the potential is at least as large as
+the cost of the ﬁnal solution as proved in Proposition 5.3. Finally, in Proposition 5.7 we prove that
+we expect the potential only to decrease in between two steps of the algorithm. Together, these
+results prove Theorem 1.1.
+5.1
+The potential and the intuition behind it
+In the rest of the section, we prove Theorem 1.1. As in the original proof of [AV07], we introduce
+a potential function that assigns each optimal cluster some potential.
+30
+
+--- Page 33 ---
+Before we introduce it, recall Deﬁnition 4.3 where HITj
+i+1(K) is deﬁned as an indicator for
+whether in i + 1th step K is uncovered and unsolved and cj
+i+1 ∈K. We also have HITi+1 =
+Pℓ
+j=1 HITj
+i+1 and HIT≥i+1 = Pk
+ι=i+1 HITι. Also, let bi be the number of bad steps so far where a
+step i + 1 is bad whenever ci+1 is a point of a cluster covered with respect to Ci. In the deﬁnition
+of Φi we condition on the randomness of the ﬁrst i steps of the algorithm which makes values like
+bi deterministic.
+We also use the following notation: K is the set of all clusters of a ﬁxed optimal solution; we
+have K = KU
+i ⊔KC
+i , i.e., we split the clusters to uncovered and covered with respect to Ci. We
+have XU
+i = S
+x∈K∈KU
+i x, i.e., XU
+i is the set of points in uncovered clusters, we have XC
+i = X \ XU
+i .
+Finally, we split the uncovered clusters into unsolved and solved. Formally, KU
+i = KUU
+i
+⊔KUS
+i
+and
+XU
+i
+= XUU
+i
+⊔XUS
+i
+. We do not use the notation ui for the number of uncovered clusters as in
+Section 2 since this value is exactly equal to k −i + bi.
+We choose our potential as follows:
+Deﬁnition 5.1. Fix a step i of Algorithm 3. We deﬁne a potential Φi as follows.
+Φi = Φ1
+i + Φ2
+i + Φ3
+i
+(56)
+= 1010ℓ(1 + Hk−i) · ϕ(XC
+i , Ci)
+(57)
++ 1020ℓ
+X
+K∈KU
+i
+(1 + E≥i+1[HIT≥i+1(K)]) · (1 + Hk−i) · ϕ∗(K)
+(58)
++ bi · ϕ(X, Ci)
+k −i + bi
+(59)
+The intuition behind the potential is as follows. The potential function is very similar to the
+potential of [AV07] although our analysis is more complicated. Let us walk through the three terms
+Φ1
+i , Φ2
+i , Φ3
+i of the potential and explain the intuition behind each of them.
+The ﬁrst term of the potential, Φ1
+i , can be thought of as follows: every covered cluster K
+has potential proportional to (1 + Hk−i)ϕ(K, Ci). In the end, the cluster needs to have potential
+ϕ(K, Ci) to pay for itself, so it already has a surplus of Hk−i · ϕ(K, Ci) of potential. This means
+that in the i + 1-th step, each covered cluster can “pay” a cost of ϕ(K, Ci)/(k −i). We use this
+cost to pay for the fact that i + 1th step can be bad; formally, in that case, Φ3
+i increases and we
+pay for that increase by the decrease in Φ1
+i .
+The second term of the potential, Φ2
+i , has the following intuition.
+At the beginning, every
+(uncovered) cluster gets potential proportional to E≥1[HIT≥1(K)] · (1 + Hk−i) · ϕ∗(K).
+In the
+original analysis of [AV07] it would be only (1 + Hk−i) · 5ϕ∗(K) and the aim of the potential would
+be that if we at some point sample from K, we use the 5 approximation result of Lemma 3.3
+to argue that, in expectation, we can now change 5ϕ∗(K) for ϕ(K, Ci+1), which would make the
+potential of the newly covered cluster proportional to (1 + Hk−i) · ϕ(K, Ci+1) which is exactly the
+potential that every covered cluster is supposed to have.
+In our analysis, the additional term E≥1[HIT≥1(K)] allows K to “pay” the cost (1+Hk−i)ϕ(K, Ci∪
+{cj
+i+1}) whenever some candidate center cj
+i+1 happens to be sampled from K. If cj
+i+1 = ci+1, we use
+the paid cost to give K enough potential as it is required being now covered. If cj
+i+1 ̸= ci+1, this
+part of the potential that K “paid” is still subtracted from the potential of K although it remains
+uncovered.
+One additional subtlety is that we replace Hk by Hk−i in the potential of every uncovered
+cluster. This allows us to argue that every solved uncovered cluster, i.e., every uncovered cluster
+with Φ(K, Ci) ≤105ϕ∗(K) also pays the cost proportional to Φ(K, Ci)/(k −i) in every round in
+31
+
+--- Page 34 ---
+the same way as uncovered clusters do. We need to use this fact essentially because our random
+variable HIT is counting hits of a cluster only until it becomes solved. Hence, we need a small
+separate argument for solved clusters inside the proof.
+Finally, we come to the last part of the potential, Φ3
+i . This part of the potential is paying for
+the fact that there were some bad steps. In [AV07], this part of the potential would be equal to
+bi · ϕ(XU
+i ,Ci)
+k−i+bi
+and its meaning would be that it can pay for bi “average” uncovered clusters. In the
+end, when i = k, it simply pays for all uncovered clusters. The intuition about the new problems
+we face here is described in Section 2.4. In summary, there is a mismatch between the optimization
+of ϕ(XU
+i+1, Ci+1) that we wish to optimize for and ϕ(X, Ci+1) that the greedy optimizes for. While
+this makes the proof substantially more technical, the deﬁnition of the potential Φ3
+i is very similar
+to that used by [AV07]; the only diﬀerence is that we replace the term ϕ(XU
+i , Ci) by ϕ(X, Ci),
+essentially because the greedy rule optimizes for the latter, not the former expression.
+5.2
+The formal proof
+In this section, we give a formal proof of Theorem 1.1. It follows from Propositions 5.2, 5.3 and 5.7.
+Proposition 5.2. We have E[Φ1] = O(ℓ3 log3 k) · OPT.
+Proof. Let us go through the three parts of Φ1. There was only one node sampled, hence only
+one covered cluster. Using Lemma 3.2, we conclude that E[ϕ(XC
+1 , C1)] ≤2OPT, hence E[Φ1
+i ] =
+O(ℓlog k) · OPT. Next, we use Lemma 2.2 to conclude that E[HIT≥1(K)] = O(ℓ2 log2 k) for every
+cluster K, hence Φ2
+1 = O(ℓ3 log3 k)·OPT. Finally, b1 = 0 since the ﬁrst center was certainly picked
+from an uncovered cluster, hence Φ3
+1 = 0.
+Proposition 5.3. We have Φk ≥ϕ(X, Ck).
+Proof. For i = k we have bi/(k −i + bi) = 1 and hence Φk ≥Φ3
+k = ϕ(X, Ck).
+The main part of our proof of Theorem 1.1 is to show that the potential Φi only decreases
+in expectation.
+We prove it in Proposition 5.7 after analyzing all three parts of the potential
+Φ1
+i , Φ2
+i , Φ3
+i .
+Proposition 5.4. Fix a step i ≥1. We have
+∆Φ1
+i = Φ1
+i −Ei+1[Φ1
+i+1]
+≥1010ℓ
+k −i · ϕ(XC
+i , Ci)
+−1015ℓ
+X
+K∈KUU
+i
+ℓϕ(K, Ci)
+ϕ(X, Ci) · (1 + Hk−i−1) · ϕ∗(K)
+−1015ℓ
+X
+K∈KUS
+i
+P(ci+1 ∈K) · (1 + Hk−i−1) · ϕ∗(K).
+The intuition behind ∆Φ1
+i is as follows. The ﬁrst part is proportional to ϕ(XC, Ci)/(k −i); this
+is what we are paying for the fact that the i-th step can be bad, i.e., the ﬁrst term will dominate a
+similar, negative, term in ∆Φ3
+i . The second and the third part of the diﬀerence corresponds to the
+fact that some uncovered clusters can become covered and we need to ensure they have potential
+proportional to (1 + Hk−i)ϕ(K, Ci+1) on them in this case. We argue diﬀerently about the solved
+and unsolved clusters, hence two expressions. They are accounted for by the corresponding drop
+in the potential ∆Φ2
+i .
+32
+
+--- Page 35 ---
+Proof. We write
+∆Φ1
+i /(1010ℓ) =
+ (1 + Hk−i) · ϕ(XC
+i , Ci)
+
+−Ei+1
+
+(1 + Hk−i−1) · ϕ(XC
+i+1, Ci+1)
+
+For every K ∈KC
+i we upper bound the the term ϕ(K, Ci+1) by ϕ(K, Ci) in the above expression.
+However, notice that XC
+i+1 potentially contains one additional newly covered cluster. We can hence
+write:
+∆Φ1
+i /(1010ℓ) ≥
+1
+k −i · ϕ(XC
+i , Ci) −
+X
+K∈KU
+i
+P(ci+1 ∈K) · (1 + Hk−i−1) · Ei+1[ϕ(K, Ci+1)|ci+1 ∈K]
+We split the sum on the right hand side to the summation over K ∈KUS
+i
+and K ∈KUU
+i
+. To
+bound the ﬁrst part, consider any K ∈KUU
+i
+and write
+P(ci+1 ∈K) · Ei+1[ϕ(K, Ci+1)|ci+1 ∈K]
+= P(ci+1 ∈K) ·
+ℓ
+X
+j=1
+P(ci+1 = cj
+i+1|ci+1 ∈K) · E
+h
+ϕ(K, Ci ∪{cj
+i+1})|ci+1 ∈K ∧ci+1 = cj
+i+1
+i
+=
+ℓ
+X
+j=1
+P(cj
+i+1 ∈K ∧ci+1 = cj
+i+1) · E
+h
+ϕ(K, Ci ∪{cj
+i+1})|cj
+i+1 ∈K ∧ci+1 = cj
+i+1
+i
+≤
+ℓ
+X
+j=1
+P(cj
+i+1 ∈K ∧ci+1 = cj
+i+1) · E
+h
+ϕ(K, Ci ∪{cj
+i+1})|cj
+i+1 ∈K ∧ci+1 = cj
+i+1
+i
++ P(cj
+i+1 ∈K ∧ci+1 ̸= cj
+i+1) · E
+h
+ϕ(K, Ci ∪{cj
+i+1})|cj
+i+1 ∈K ∧ci+1 ̸= cj
+i+1
+i
+=
+ℓ
+X
+j=1
+P(cj
+i+1 ∈K) · E
+h
+ϕ(K, Ci ∪{cj
+i+1})|cj
+i+1 ∈K
+i
+≤ℓϕ(K, Ci)
+ϕ(X, Ci) · 5ϕ∗(K)
+where we used Lemma 3.3 in the last inequality.
+On the other hand, for each K ∈KUS
+i
+we can use the deﬁnition of solved clusters to get that
+P(ci+1 ∈K) · Ei+1 [ϕ(K, Ci+1)|ci+1 ∈K]
+≤P(ci+1 ∈K) · ϕ(K, Ci)
+≤P(ci+1 ∈K) · 105ϕ∗(K).
+We continue with Φ2
+i .
+33
+
+--- Page 36 ---
+Proposition 5.5. Fix a step i ≥1. We have
+Φ2
+i −Ei+1[Φ2
+i+1] ≥1020ℓ
+X
+K∈KUU
+i
+ℓϕ(K, Ci)
+ϕ(X, Ci) · (1 + Hk−i−1) · ϕ∗(K)
++ 1020ℓ
+X
+K∈KUS
+i
+P(ci+1 ∈K) · (1 + Hk−i−1) · ϕ∗(K)
++ 1010ℓϕ(XUS
+i
+, Ci)
+k −i
+The intuition behind ∆Φ2
+i is as follows. The ﬁrst part of the potential is saying that whenever a
+candidate center cj
+i+1 hits an unsolved cluster K, we can pay the potential for K to become covered.
+The second part is saying that whenever a solved cluster K becomes covered, we can also pay the
+due potential; this is simple since the cost of K is already small. These two terms dominate the
+respective decreases in ∆Φ1
+i . Finally, each solved cluster pays a cost proportional to ϕ∗(K)/(k −i)
+which is proportional to ϕ(K, Ci)/(k −i) in every step; this is analogous to the ﬁrst term of ∆Φ1
+i .
+Proof. We have
+∆Φ2
+i /(1020ℓ) =
+X
+K∈KU
+i
+(1 + E≥i+1[HIT≥i+1(K)]) · (1 + Hk−i) · ϕ∗(K)
+(60)
+−Ei+1
+
+
+X
+K∈KU
+i+1
+(1 + E≥i+2[HIT≥i+2(K)]) · (1 + Hk−i−1) · ϕ∗(K)
+
+
+We bound this expression as follows:
+∆Φ2
+i /(1020ℓ) ≥
+X
+K∈KUU
+i
+(E≥i+1[HIT≥i+1(K)] −Ei+1[E≥i+2[HIT≥i+2(K)]]) (1 + Hk−i−1) · ϕ∗(K)
+(61)
++
+X
+K∈KUS
+i
+P (ci+1 ∈K) · (1 + Hk−i−1) · ϕ∗(K)
+(62)
++
+1
+k −i · ϕ∗(XU
+i )
+(63)
+We did the following. For each cluster that is unsolved in the ith step we simply used the fact that
+KU
+i+1 ⊆KU
+i and subtracted the two expressions of Eq. (60). For the solved clusters we on the other
+hand used that with probability P(ci+1 ∈K) we have K ̸∈KU
+i+1. Finally, the last term comes from
+the replacement of Hk−i in Φ2
+i by Hk−i−1 in Φ2
+i+1.
+Comparing with the desired bound from the statement, we see that the second term Eq. (62) in
+our bound is already what it should be. For the third term Eq. (63), we ﬁrst use ϕ∗(XU
+i ) ≥ϕ∗(XUS
+i
+)
+and then, by deﬁnition of solved clusters, ϕ∗(XUS
+i
+) ≥
+1
+105 ϕ(XUS
+i
+, Ci).
+It remains to deal with the ﬁrst term Eq. (61). Consider any cluster K ∈KU
+i that is also not
+solved. Then we have Ei+1[HITj
+i+1(K)] = ϕ(K,Ci)
+ϕ(X,Ci) for any 1 ≤j ≤ℓand we can hence compute
+34
+
+--- Page 37 ---
+that
+E≥i+1[HIT≥i+1(K)] −Ei+1 [E≥i+2[HIT≥i+2(K)]]
+= E≥i+1[HIT≥i+1(K)] −HIT≥i+2(K)]]
+= E≥i+1[
+ℓ
+X
+j=1
+HITj
+i+1]
+= ℓϕ(K, Ci)
+ϕ(X, Ci) .
+which concludes the proof.
+We ﬁnish with the third part of the potential, Φ3
+i .
+Proposition 5.6. Fix a step i ≥1. We have
+Φ3
+i −Ei+1[Φ3
+i+1] ≥−2ℓϕ(XC
+i ∪XUS
+i
+, Ci)
+k −i
+(64)
+−5
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(X, Ci)ϕ∗(K)
+(65)
+The intuition behind ∆Φ3
+i is as follows. In the original k-means++ analysis, we would here want
+to prove that ∆Φ3
+i ≥−ϕ(XC
+i , Ci)/(k −i) where the right-hand side corresponds to the probability
+of a bad step multiplied by the cost of average uncovered cluster. In our setting, we ﬁrst lose an
+additional ℓ-factor since the probability of having a bad step is ℓtimes larger. We also lose a few
+more error terms as discussed in Section 5.1, the important part is that they can be paid for by
+∆Φ1
+i + ∆Φ2
+i .
+Proof. We will bound Ei+1[Φ3
+i+1]−Φ3
+i instead of Φ3
+i −Ei+1[Φ3
+i+1] to make the relevant terms positive.
+At ﬁrst we note that we surely know that
+Φ3
+i+1 ≤(bi + 1)
+ϕ(X, Ci)
+k −(i + 1) + (bi + 1) = (bi + 1) ϕ(X, Ci)
+k −i + bi
+(66)
+This follows by bounding ϕ(X, Ci+1) ≤ϕ(X, Ci) and noting that the value of Φi+1 is larger when-
+ever bi+1 = bi + 1 as opposed to bi+1 = bi. To see it formally, we note that for any bi > 0 and any
+k−(i+1) ≥0 the inequality
+bi
+k−(i+1)+bi ≤
+bi+1
+k−(i+1)+(bi+1) is equivalent to
+k−(i+1)
+k−(i+1)+bi ≥
+k−(i+1)
+k−(i+1)+(bi+1).
+We start by analysing the special case when ϕ(XU
+i , Ci) ≤ϕ(XC
+i , Ci). In this case, we simply
+use this assumption and Eq. (66) to bound
+Ei+1[Φ3
+i+1] −Φ3
+i
+(67)
+≤(bi + 1) ϕ(X, Ci)
+k −i + bi
+−bi
+ϕ(X, Ci)
+k −i + bi
+(68)
+= ϕ(X, Ci)
+k −i + bi
+≤2ϕ(XC
+i , Ci)
+k −i + bi
+≤2ϕ(XC
+i , Ci)
+k −i
+(69)
+and we are done as this term is dominated by the right hand side of Eq. (64).
+Next, we assume
+ϕ(XU
+i , Ci) ≥ϕ(XC
+i , Ci)
+(70)
+35
+
+--- Page 38 ---
+We start by writing
+Ei+1[Φ3
+i+1] −Φ3
+i
+(71)
+= Ei+1
+
+bi+1
+ϕ(X, Ci+1)
+k −(i + 1) + bi+1
+
+−bi · ϕ(X, Ci)
+k −i + bi
+(72)
+≤P(ci+1 ∈XC
+i ∪XUS
+i
+)
+
+(bi + 1) ϕ(X, Ci)
+k −i + bi
+−bi
+ϕ(X, Ci)
+k −i + bi
+
+(73)
++ P(ci+1 ∈XUU
+i
+) ·
+
+bi
+Ei+1[ϕ(X, Ci+1)|ci+1 ∈XUU
+i
+]
+k −(i + 1) + bi
+−bi
+ϕ(X, Ci)
+k −i + bi
+
+(74)
+That is, we distinguish two cases based on where the center ci+1 is picked from. In the ﬁrst case we
+pessimistically bound Φ3
+i+1 using Eq. (66), while in the second case we use the fact that ci+1 ∈XUU
+i
+implies that bi+1 = bi.
+To bound the ﬁrst term, i.e. Eq. (73), we ﬁrst use that
+P(ci+1 ∈XC
+i ∪XUS
+i
+) ≤P(∃j : cj
+i+1 ∈XC
+i ∪XUS
+i
+) ≤ℓϕ(XC
+i ∪XUS
+i
+, Ci)
+ϕ(X, Ci)
+.
+We also have
+(bi + 1) ϕ(X, Ci)
+k −i + bi
+−bi
+ϕ(X, Ci)
+k −i + bi
+≤ϕ(X, Ci)
+k −i
+Hence, the value of Eq. (73) is at most
+ℓϕ(XC
+i ∪XUS
+i
+, Ci)
+ϕ(X, Ci)
+· ϕ(X, Ci)
+k −i
+≤ℓϕ(XC
+i ∪XUS
+i
+, Ci)
+k −i
+Hence, the ﬁrst term, corresponding to the case when the step is bad, is conveniently dominated
+by Eq. (64).
+In the rest of the proof, we analyze the second term Eq. (74) that corresponds to the drift of
+the size of the average uncovered cluster.
+We start by proving that
+Ei+1[ϕ(X, Ci+1)|ci+1 ∈XUU
+i
+] ≤Ei+1[ϕ(X, Ci ∪{c1
+i+1})|c1
+i+1 ∈XUU
+i
+]
+(75)
+That is, we claim that if we reveal that the center ci+1 taken by the greedy rule is from XUU
+i
+, we
+know that the expected new cost ϕ(X, Ci+1) is smaller than if we simply sampled some candidate
+center cj
+i+1 and revealed it is sampled from XUU
+i
+. Eq. (75) then allows us to analyze further only
+the expression on its right-hand side that does not rely anymore on the greedy rule.
+Eq. (75) follows from the fact our rule is greedy; to formally verify it holds, let us ﬁrst write
+Ei+1[ϕ(X, Ci+1)|ci+1 ∈XUU
+i
+] =
+X
+I∈I
+P(I|ci+1 ∈XUU
+i
+) · Ei+1[ϕ(X, Ci+1)|I]
+(76)
+where I is the set of all of at most 2ℓ·ℓpossible following revelations: For each 1 ≤j ≤ℓ, we reveal
+whether cj
+i+1 ∈XUU
+i
+, and we also reveal for which index j0 we have ci+1 = cj0
+i+1. Notice that on the
+right hand side of Eq. (76) we used Ei+1[ϕ(X, Ci+1)|I] = Ei+1[ϕ(X, Ci+1)|I ∧ci+1 ∈XUU
+i
+] since
+ci+1 ∈XUU
+i
+is always either implied by I or it is incompatible with it and then P(I|ci+1 ∈XUU
+i
+) = 0.
+Fixing any revelation I with ci+1 = cj0
+i+1, we observe that
+Ei+1[ϕ(X, Ci+1)|I] ≤Ei+1[ϕ(X, Ci ∪{c1
+i+1})|c1
+i+1 ∈XUU
+i
+]
+(77)
+36
+
+--- Page 39 ---
+To see this, ﬁrst rewrite the equation equivalently as
+Ei+1[ϕ(X, Ci ∪{cj0
+i+1})|I] ≤Ei+1
+h
+ϕ(X, Ci ∪{cj0
+i+1})|cj0
+i+1 ∈XUU
+i
+i
+.
+(78)
+Observe that the information I can be viewed as describing distributions from which all candidate
+centers cj
+i+1 are sampled from, independently, together with the information that after candidate
+centers were sampled, it happened that ϕ(X, Ci ∪{cj0
+i+1}) ≤ϕ(X, Ci ∪{cj
+i+1}) for any j ̸= j0. This
+means that the correctness of Eq. (78) follows from Lemma 3.9. Plugging Eq. (77) to Eq. (76)
+proves Eq. (75).
+We now continue with analysing the term Ei+1[ϕ(X, Ci ∪{c1
+i+1})|c1
+i+1 ∈XUU
+i
+] from Eq. (75)
+even further. We write:
+Ei+1[ϕ(X, Ci ∪{c1
+i+1})|c1
+i+1 ∈XUU
+i
+]
+(79)
+≤ϕ(X, Ci) −
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(XUU
+i
+, Ci) ·
+ ϕ(K, Ci) −Ei+1
+
+ϕ
+ K, Ci ∪{c1
+i+1}|c1
+i+1 ∈K
+
+(80)
+≤ϕ(X, Ci) −
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(XUU
+i
+, Ci) · (ϕ(K, Ci) −5ϕ∗(K))
+Lemma 3.3
+(81)
+= ϕ(X, Ci) −
+X
+K∈KUU
+i
+ϕ2(K, Ci)
+ϕ(XUU
+i
+, Ci) +
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(XUU
+i
+, Ci) · 5ϕ∗(K)
+(82)
+≤ϕ(X, Ci) −ϕ(XUU
+i
+)
+|KUU
+i
+|
++
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(XUU
+i
+, Ci) · 5ϕ∗(K)
+(83)
+where the last bound follows from the Cauchy-Schwartz inequality (or AK inequality) Pn
+i=1 x2
+i ≥
+(Pn
+i=1 xi)2 /n.
+It is time to reap the fruits of our work. We plug in the bounds from Eqs. (75) and (83) to the
+term Eq. (74) and bound P(ci+1 ∈XUU
+i
+) ≤1 there to conclude that
+Eq. (74) ≤
+
+bi
+Ei+1[ϕ(X, Ci+1)|ci+1 ∈XUU
+i
+]
+k −(i + 1) + bi
+−bi
+ϕ(X, Ci)
+k −i + bi
+
+(84)
+≤bi ·
+
+
+ϕ(X, Ci) −ϕ(XUU
+i
+)
+|KUU
+i
+| + P
+K∈KUU
+i
+ϕ(K,Ci)
+ϕ(XUU
+i
+,Ci) · 5ϕ∗(K)
+k −(i + 1) + bi
+−ϕ(X, Ci)
+k −i + bi
+
+
+(85)
+This can be further simpliﬁed to
+Eq. (74) ≤bi ·
+
+
+ϕ(X, Ci) −ϕ(XUU
+i
+)
+|KUU
+i
+|
+k −(i + 1) + bi
+−ϕ(X, Ci)
+k −i + bi
+
++
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(XUU
+i
+, Ci) · 5ϕ∗(K)
+(86)
+Note that the last term of the right-hand side is already equal to Eq. (65) so to ﬁnish we need to
+37
+
+--- Page 40 ---
+analyze the ﬁrst term of the right-hand side. We do it as follows.
+bi ·
+
+
+ϕ(X, Ci) −ϕ(XUU
+i
+)
+|KUU
+i
+|
+k −(i + 1) + bi
+−ϕ(X, Ci)
+k −i + bi
+
+
+(87)
+≤bi ·
+
+ϕ(X, Ci) −ϕ(XUU
+i
+)
+k−i+bi
+k −(i + 1) + bi
+−ϕ(X, Ci)
+k −i + bi
+
+
+|KUU
+i
+| ≤|KU
+i |
+(88)
+= bi ·
+
+ϕ(XUU
+i
+, Ci) −ϕ(XUU
+i
+)
+k−i+bi
+k −(i + 1) + bi
+−ϕ(XUU
+i
+, Ci)
+k −i + bi
+
++ biϕ(XUS
+i
+∪XC
+i )
+
+1
+k −(i + 1) + bi
+−
+1
+k −i + bi
+
+(89)
+= 0 +
+biϕ(XUS
+i
+∪XC
+i )
+(k −i + bi)(k −i + bi −1)
+(90)
+≤ϕ(XUS
+i
+∪XC
+i )
+k −i
+i ≤k −1
+(91)
+Plugging back to Eq. (86) and all the way back to Eq. (71) ﬁnishes the proof.
+Proposition 5.7. Fix a step i > 1. We have
+Φi ≥Ei+1[Φi+1].
+Proof. Putting all bounds of Propositions 5.4 to 5.6 together, we get
+Φi −Ei+1[Φi+1] = ∆Φ1
+i + ∆Φ2
+i + ∆Φ3
+i
+(92)
+≥1010ℓ
+k −i · ϕ(XC
+i , Ci)
+(93)
+−1015ℓ
+X
+K∈KUU
+i
+ℓϕ(K, Ci)
+ϕ(X, Ci) · (1 + Hk−i−1) · ϕ∗(K)
+(94)
+−1015ℓ
+X
+K∈KUS
+i
+P(ci+1 ∈K) · (1 + Hk−i−1) · ϕ∗(K)
+(95)
++ 1020ℓ
+X
+K∈KUU
+i
+ℓϕ(K, Ci)
+ϕ(X, Ci) · (1 + Hk−i−1) · ϕ∗(K)
+(96)
++ 1020ℓ
+X
+K∈KUS
+i
+P(ci+1 ∈K) · (1 + Hk−i−1) · ϕ∗(K)
+(97)
++ 1010ℓϕ(XUS
+i
+, Ci)
+k −i
+(98)
+−2ℓϕ(XC
+i ∪XUS
+i
+, Ci)
+k −i
+(99)
+−5
+X
+K∈KUU
+i
+ϕ(K, Ci)
+ϕ(X, Ci)ϕ∗(K)
+(100)
+≥0
+(101)
+38
+
+--- Page 41 ---
+6
+A hard instance for greedy k-means++
+In this section we provide a construction of a (weighted) point set where Algorithm 2 returns a solu-
+tion with approximation Ω(
+ℓ3 log3 k
+log2(ℓlog k)) with constant probability. Formally, we prove Theorem 1.2
+that we restate here for convenience.
+Theorem 1.2. For every k and ℓ≤k0.1, there exists a point set X ⊆Rd for some d ∈N where
+Algorithm 2 outputs Ω(ℓ3 log3 k/ log2(ℓlog k)) approximate solution with constant probability.
+Recall that we already gave an informal description in Section 2.5. We ﬁrst describe the point
+set in Section 6.1. We then give the formal analysis of greedy k-means++ on the point set in
+Section 6.2.
+6.1
+The point set
+We start by describing the weighted point set X. In fact, we deﬁne the full input instance (X, C0, ek)
+where C0 is the starting set of centers (see Lemma 3.4).
+We set
+t =
+ℓlog k
+1000 log(ℓlog k).
+In the follow-up discussion, we always assume that k is large enough and the expressions like the
+one above that deﬁnes t are integers. This is for the purpose of readability; it is simple to make
+the proof work by adding ⌊⌋to all deﬁnitions that require integer values.
+Recall that in the statement of Theorem 1.2 we assume that ℓ< k0.1; we did not try to optimize
+this bound but note that there has to be some since for ℓ≫k we have ℓ2 log2 k ≫ℓ· k where the
+right-hand side is the trivial bound on the number of hits. Note that the lower bound Ω(ℓlog k)
+of [BERS20] holds also for large ℓ, hence for ℓ> k0.1 the greedy k-means++ algorithm already
+necessarily has bad, polynomial, approximation guarantee.
+We will now describe the point set X, the weights of the points, and the distances between
+some pairs of points. Then, we discuss how exactly we embed the points in the Euclidean space.
+We next list points of X (the picture to have in mind is Fig. 3).
+1. There is a point b for which we have w(b) = 1
+t .
+2. A point c is at distance 1 from b. We have w(c) = 1/10.
+3. We have a set of points N = {n1, n2, . . . , nt+1} and M = {m1, . . . , mt} deﬁned as follows.
+We have d(b, ni) = ki and w(ni) = w(mi) = 1000
+t . Each mi lies at distance 10tki from ni. We
+put the point nt+1 to C0, that is, we assume that point is already sampled at the beginning.
+4. We have A = {a1, . . . , ak1.2} at distance k from c. The weight of each ai is ℓlog k
+k2
+so their total
+weight is ℓlog k
+k0.8 .
+5. We have E = {e0, S
+e∈E1 e, . . . , S
+e∈Et e} where Ei = {ei,1, . . . , ei,
+√
+k}. Each point in E \ {e0}
+has distance 1 from a point e0 which is at distance k2t from b. We include e0 to C0. Since
+we also included nt+1 ∈C0 and we chose d(b, e0) large enough, it will never happen that a
+closest center to a point in E is in X \ E or vice versa. Each ei,j ∈Ei has the same weight
+wi. This parameter needs to be set up quite precisely depending on the rest of the instance
+so we deﬁne it only later.
+39
+
+--- Page 42 ---
+The number of points in this point set X is equal to |X| = 1+1+(t+1)+t+k1.2+(1+t·
+√
+k) =
+O(k1.2). Two points of X, nt+1 and d, are already in C0. We choose the number ek = |X|−|C0|−1.
+We will work with the input instance (X, C0, ek). That is, in this instance, the optimal solution
+(Lemma 3.5) as well as the solution of greedy k-means++ selects as centers all points of X, except
+for one.
+Arrangement: We next specify fully how to embed the point set X to the Euclidean space. So far,
+we only speciﬁed distances of pairs (ni, mi), (b, ni), (b, c), (c, ai), (e0, ei,j), (e0, b) for all i, j. These
+distances deﬁne a tree metric that we will simulate. Unfortunately, we cannot simulate exactly this
+tree metric in a Euclidean space, but we can come suﬃciently close to it, using Fact 3.6.
+We now describe the conﬁguration. In view of Fact 3.6, vectors (b, c), (b, n1), . . . , (b, nt+1) are
+chosen as vertices of a (t + 1)-dimensional simplex. Each mi lies on the ray (b, ni).
+To give an example how this embedding simulates the idealized tree metric up to 1/t loss, let
+us verify that d(ni′, ni) = d(ni, b) + Θ(d(b, ni′)/t):
+d(ni′, ni)2 = d(ni′, b)2 + d(b, ni)2 + 2d(ni′, b)d(ni, b)/(t + 1) = k2i′ + k2i +
+2
+t + 1ki+i′
+(102)
+where we used the cosine law and Fact 3.6. That is, we have
+d(ni′, ni) ≥
+q
+k2i + 2ki+i′/(t + 1) = ki
+q
+1 + 2ki′−i/(t + 1) ≥ki(1 + ki′−i/(2t)) = ki + ki′/(2t)
+(103)
+Similarly, we can get the following bounds
+d(mi′, ni) ≥ki + ki′/(2t)
+(104)
+d(c, ni) ≥ki + 1/(2t)
+(105)
+d(c, mi) ≥(10t + 1)ki + 1/(2t)
+(106)
+Next, we specify the directions of the points A. Each ai goes partly in the direction of the ray
+b, c and partly in a direction orthogonal to everything else. Namely, the ray (c, ai) has direction
+1
+2(b, c) + 1
+2νi where νi is orthogonal to the span of X \ {ai}. Hence, the projection of ai to (b, c) is
+at distance k/
+√
+2 from c. Also, for any i < j we can project to the plane deﬁned by νi, νj to see
+that
+d(ai, aj) = k
+(107)
+Finally, using cosine law, we get
+d(b, ai)2 = d(c, b)2 + d(c, ai)2 −d(b, c)d(c, ai) cos 135◦
+(108)
+= 1 + d(c, ai)2 + d(c, ai)/
+√
+2
+(109)
+≥d(c, ai)2 + d(c, ai)/2
+(110)
+= k2 + k/2
+(111)
+Finally, each vector (e0, ei,j) is orthogonal to the span of X \ {ei,j}. In particular, we have
+d(ei,j, ei′,j′) ≥d(e0, ei,j)
+(112)
+40
+
+--- Page 43 ---
+for every i, j, i′, j′.
+Precise deﬁnition of wi: It remains to deﬁne wi. We deﬁne Si = {b, c, aj, n≤i, m≤i}. Then, we
+deﬁne
+∆(b) = ϕ(Si, {ni+1 ∪b}) −ϕ(Si, {ni+1})
+(113)
+and
+∆(c) = ϕ(Si, {ni+1 ∪c}) −ϕ(Si, {ni+1})
+(114)
+We deﬁne
+wi = ∆(b) + ∆(c)
+2
+.
+(115)
+That is, wi is set up so that, under some assumptions about what centers are already taken (e.g.
+ni+1 is but points of Si are not), the drop resulted by taking ei,j as a center is smaller than the drop
+when we take b but bigger than the drop when we take c (we are yet to prove that ∆(b) > ∆(c)).
+Note that wi satisﬁes
+k2i+2 ≤wi ≤3000k2i+2
+(116)
+The lower bound follows from ϕ(c, {ni+1}) ≥k2i+2 using Eq. (105). The upper bound follows
+from the fact that w(Si) is dominated by the cost of Ni and Mi and for any x ∈Si we have
+d(ni+1, x) < 1.1ki+1 which follows from looking at Fig. 3.
+This concludes the description of the point set X.
+Remark 6.1. Although our point set is weighted, we can make it unweighted by scaling all the
+weights up by a suﬃciently large number and rounding them to the nearest integer.
+In fact, we believe, but do not prove, that all weights and positions of points in X from Theo-
+rem 1.2 can be made integers of order kO(log k). We do not attempt a formal proof since that would
+require tedious arguments about rounding errors.
+We note that in view of the O(ℓO(1) log OPT(1)
+OPT(k)) upper bound sketched in Appendix C, the size of
+point weights and positions cannot be both improved to kO(1). Namely, for constant ℓ, any instance
+where Algorithm 2 is Ω(log3 k/ poly log log k) approximate needs to satisfy
+log OPT(1)
+OPT(k) ≥log2 k/ poly log log k.
+Hence, whenever OPT(k) is a positive integer, we get that necessarily
+OPT(1) = ϕ(X, µ(X)) ≥klog k/ poly log log k.
+6.2
+Analysis of greedy k-means++ on the hard point set
+In this subsection, we give the formal proof of Theorem 1.2.
+First epoch:
+We deﬁne the ﬁrst epoch formally as the ﬁrst ek −k1.2 steps of Algorithm 2 (cf. Section 2.5 for
+the intuition behind the ﬁrst epoch). This means our aim is to prove the following claim.
+Claim 6.2. After running Algorithm 2 on the instance (X, ek, C0) for ek −k1.2 steps, with positive
+probability we have
+Cek−k1.2 = X \ (A ∪{c})
+41
+
+--- Page 44 ---
+We split the epoch into t phases that we, for notational reasons, index in a decreasing order as
+i = t, t −1, . . . , 1. Our main task is to prove that in each i-th phase the point b is selected as a
+center with probability Ω(1/t). The i-th phase is formally deﬁned as follows. With the exception
+of the very ﬁrst phase, it starts when the last point of Ei+1 is taken as a center. Alternatively, we
+say that a phase ﬁnishes whenever b is taken.
+As a ﬁrst claim, we prove that whenever b is selected as a center, with constant probability, we
+ﬁnish the ﬁrst epoch as intended.
+Claim 6.3. Assume that in some step ι0 during the ﬁrst phase we have b ∈Cι0 and ({c}∪A)∩Cι0 =
+∅. Then, with probability at least 1/2, the ﬁrst phase ﬁnishes with
+Cek−k1.2 = X \ (A ∪{c}).
+Proof. First, we upper bound the total cost of {c}∪A in every step ι ≥ι0 assuming ({c}∪A)∩Cι = ∅.
+We have ϕ(c, b) = 1·12 = 1 and ϕ(A, b) = k1.2· ℓlog k
+k2
+·k2 = ℓk1.2 log k. That is, ϕ({c}∪A, Cι) ≤ℓk1.3.
+On the other hand, we claim that any point x ∈N ∪M ∪E has always cost ϕ(x, Cι) ≥k2/t,
+unless x ∈Cι. For the points of N ∪M, this is because their weight is 1000/t and the distance to
+the closest other point of X is always at least k. For the points of E, this is because the distance to
+the closest already taken point is always 1 (this is the point e0 ∈C0 ⊆Cι) and the smallest weight
+of a point in E is at least k4 by Eq. (116).
+In view of the above computations, we have that the probability we sample a candidate center
+from {c} ∪A in step ι is at most
+ℓ·
+ℓk1.3
+(ek −k1.2 −ι) · k2/t
+≤
+1
+(ek −k1.2 −ι) · k0.4 .
+Union bounding over all ek < k2 step leads to a harmonic series summing up to O(log k)/k0.4 < 1/2,
+as needed.
+Next, let us analyze one phase of the ﬁrst epoch. Recall that the ith phase starts after step ι
+for which Ei+1 ⊆Cι and ﬁnishes when Ei ⊆Cι or b ∈Cι. In the next claim, we compare the cost
+drops of various points with the “baseline cost drop” of taking a point in Ei.
+Claim 6.4. Assume that N≥i+1∪M≥i+2∪E≥i+1 ⊆Cι while (N≤i∪M≤i∪E≤i∪A∪{b, c})∩Cι = ∅.
+Let ∆(x) = ϕ(X, Cι) −ϕ(X, Cι ∪{x}) be a cost drop of a point x ∈X. Then, we have for any
+i′ < i and any j we have
+∆(ni′), ∆(mi′), ∆(c) < ∆(ei,j) < ∆(b) < ∆(ni), ∆(mi+1)
+where ei,j is arbitrary point not in Cι.
+Proof. First, we prove that ∆(b) > ∆(c). For x ∈{c} ∪A we have ϕ(x, c) ≤ϕ(x, b), whereas for
+any x ∈{b} ∪N≤i ∪M≤i+1 we have ϕ(x, b) ≤ϕ(x, c).
+So, we ﬁrst upper bound the drop diﬀerence for {c} ∪A:
+ϕ(c ∪A, b) −ϕ(c ∪A, c) = 1 + ϕ(A, b) −ϕ(A, c)
+= 1 + k1.2 · log k
+k2
+· (1 + d(c, a1)/
+√
+2)
+= O(k0.2 log k)
+where we used Eq. (109) and d(c, a1) = k.
+42
+
+--- Page 45 ---
+On the other hand, consider just the point n1. Using the cosine law, we have
+ϕ(n1, b) −ϕ(n1, c) ≥2d(n1, b)d(b, c)/t ≥k/t
+That is, the diﬀerence in the cost drop at point n1 dominates all other points where c has a
+larger cost drop than b. This means that ∆(b) > ∆(c) and by deﬁnition of wi, we already get for
+any j that
+∆(c) < ∆(ei,j) < ∆(b).
+Next, consider the point ni. We will prove that ∆(ni) > ∆(b). The intuitive reason for this is
+that mi is suﬃciently far away to make the drop diﬀerence between ni and b there dominate the
+other terms. Concretely, we have
+ϕ(mi, b) −ϕ(mi, ni) = 1000/t ·
+ ((10t + 1)ki)2 −(10tki)2
+≥1000/t · 20tk2i ≥20000k2i
+(117)
+On the other hand, consider the set T = {b, c} ∪A ∪N<i ∪M<i of points x for which ϕ(x, ni) ≥
+ϕ(x, b) (note that ϕ(mi+1, Cι ∪{b}) = ϕ(mi+1, Cι ∪{c}) = ϕ(mi+1, ni+1), that is, mi+1 is not
+enjoying any cost drop). Using the fact that the largest distance d(x, ni) for x ∈T is 10tki−1 for
+x = mi−1, and the fact that w(T) ≤3000, we get
+ϕ(T, ni) −ϕ(T, b) ≤ϕ(T, ni) ≤w(T) · (10tki−1 + ki)2 ≤3000 · (2ki)2 = 12000k2i
+(118)
+Comparing with Eq. (117), we conclude that ∆(ni) > ∆(b) as needed.
+Next, consider the point mi+1. We have ∆(mi+1) = ϕ(mi+1, Cι) = 1/t · (10tki+1)2 = Ω(k2i+2).
+This term dominates ∆(b) = O((tki)2) = O(k2i+0.2) where we used that all points aﬀected by b
+have total weight of O(1) and distance from b is at most 10tki. So, we get ∆(mi) > ∆(b), as needed.
+Next, consider any point ni′ for i′ < i; we will prove that ∆(ni′) < ∆(c). We have ϕ(x, ni′) <
+ϕ(x, c) only for x = ni′ and x = mi′. Using triangle inequality to bound d(mi′, c) ≤d(mi′, ni′) +
+d(ni′, b) + d(b, c) = (10t + 1)kj + 1, we get
+ϕ(mi′, c) −ϕ(mi′, ni′) ≤1000/t ·
+ ((10t + 1)kj + 1)2 −(10tkj)2
+≤30000k2i′
+(cf. Eq. (117)) and
+ϕ(ni′, c) −ϕ(ni′, ni′) = ϕ(ni′, c) ≤2000/t · k2i′
+We will show that these terms are dominated by ϕ(ni, ni′) −ϕ(ni, c). First, using the cosine
+law, we have
+ϕ(ni, ni′) −ϕ(ni, b) = 1000/t ·
+ d(ni, ni′)2 −d(ni, b)2
+≥1000/t · 1/t · d(b, ni′)d(b, ni) = 1000ki+i′/t2
+and
+ϕ(ni, c) −ϕ(ni, b) = 1000/t · (2d(b, c)d(b, ni)/t + d(b, c)2) ≤1000ki
+Combining the two bounds, we get
+ϕ(ni, ni′) −ϕ(ni, c) ≥1000ki+i′/t2 −1000ki
+Since i > i′ ≥1, it is certainly true that 1000ki+i′/t2 −1000ki > 30000k2i′ + 2000k2i′/t and we
+get that ∆(ni′) < ∆(c), as needed.
+A very similar argument works for every mi′ with i′ < i and we omit the proof.
+43
+
+--- Page 46 ---
+The only missing point is now mi for which we prove that ∆(mi) < ∆(c). To see that, note
+that the only point x for which ϕ(x, mi) < ϕ(x, c) is x = mi itself. We have
+ϕ(mi, b) −ϕ(mi, mi) = ϕ(mi, b) = 1000/t · ((1 + 10t)ki)2
+On the other hand, we have
+ϕ(b, mi) −ϕ(b, b) = ϕ(b, mi) = 1 · ((1 + 10t)ki)2
+That is, the cost drop of b if we take b dominates the cost drop of mi if we take mi. Whence
+∆(mi) < ∆(b), as needed.
+Consider the ﬁrst k0.5 −k0.4 steps of the i-th phase. We will show that what happens with high
+probability is that the algorithm select only points of Ei ∪{mi+1} as new centers, until at some
+point it selects ni or b.
+Claim 6.5. Fix ι0 to be the ﬁrst step of phase i. Let ι1 be the ﬁrst point in time when either there
+were at least k0.5 −k0.4 sampling steps of the i-th phase, or until {ni, b} ∩Cι1 ̸= ∅.
+Then, with probability at least 1 −1/(10000t), we have Cι1 \ Cι0 ⊆Ei ∪{ni, b, mi+1} and either
+{ni, mi+1} ⊆Cι1 or {b} ⊆Cι1. Moreover, b ∈Cι1 with probability at least 1/(107t).
+Proof. We will need to upper bound the probability of various bad events. First, we upper bound
+the probability of the events that at least one point from E1 ∪· · · ∪Ei−1 ∪A is sampled as a
+candidate center. To compute the relevant probabilities, ﬁrst note that at any point in time ι ≤ι1,
+we have |Ei| ≥k0.4, hence
+ϕ(Ei, Cι) ≥k0.4wi ≥k0.4 · k2i+2
+(119)
+where we used Eq. (116).
+On the other hand, we have ϕ(E1 ∪· · · ∪Ei−1, Cι) ≤t
+√
+kwi−1 ≤3000t
+√
+kk2i using Eq. (116)
+and ϕ(A, Cι) ≤k1.2 · log k
+k2 · (2ki+1)2. We get
+ϕ(E1 ∪· · · ∪Ei−1 ∪A, Cι)
+ϕ(X, Cι)
+= O(k2i+1.3
+k2i+2.4 ) = O(1/k).
+Hence, during at most k0.5 −k0.4 = O(
+√
+k) steps of the phase, the probability of this event is at
+most O(
+√
+k · ℓ/k) = O(1/k0.4).
+Another bad event is that in some step of the algorithm none of the ℓ> 1 points sampled is
+from Ei. To compute the probability of this event, we upper bound the following cost:
+ϕ({b, c} ∪N≤i ∪M≤i+1 ∪E1 ∪· · · ∪Ei−1 ∪A, Cι)
+= O(ϕ(mi+1, ni+1))
+cost dominated by the cost of mi+1
+= O((10tki+1)2 · 1/t)
+= O(tk2i+2)
+On the other hand, in view of Eq. (119), we have
+P(c1
+ι+1, c2
+ι+1 ̸∈Ei) =
+O(tk2i+2)
+k2i+2.4
+2
+= O(1/k0.7)
+44
+
+--- Page 47 ---
+Hence, the probability that this bad event happens in the ﬁrst k0.5−k0.4 steps is at most O(k0.5/k0.7) =
+1/k0.2.
+A ﬁnal bad event that we need to deal with is that in one sampling step we sample at least
+two points from the set {b, ni, mi+1}.
+We argue just about the probability that ni, mi+1 are
+sampled in one sampling step as this event has the largest probability out of the three pairs
+{b, ni}, {b, mi+1}, {ni, mi+1}. The probability of this event in one step is at most
+ℓϕ(ni, Cι)
+ϕ(X, Cι) · ℓϕ(mi+1, Cι)
+ϕ(X, Cι)
+≤ℓ· 1000
+t
+· (2ki+1)2 · ℓ· 1000
+t
+· (10tki+1)2
+(γ · k2i+2)2
+= O((ℓ/k0.4)2) = O(1/k0.6)
+where we used Eq. (119).
+Hence, the probability that this bad event happens in the ﬁrst k0.5 −k0.4 steps is at most
+O(k0.5/k0.6) = 1/k0.1.
+In view of the computations above, we may assume that in the ﬁrst k0.5 −k0.4 steps we always
+sample one point from Ei and ℓ−1 points from Ei ∪{b, c} ∪N≤i ∪M≤i+1. Moreover, we do not
+sample more than one point from {b, ni, mi+1} in one sampling step. We now invoke Claim 6.4 and
+get that only when the non-Ei point we sample is ni or mi+1 or b, we add that point to the set of
+centers. Otherwise, we always select the new center as one of the sampled points from Ei.
+We will now prove the claims from the statement. First, we prove that with probability 1 −
+O(1/t) we have either both ni and mi+1 in Cι1, or we have b ∈Cι1.
+In each step ι, there are at least γ = k0.5 −(ι −ι0) −3 not-yet-taken points of Ei, since we
+already assume that the algorithm chooses a point from Ei ∪{b, ni, mi+1} as the next center in
+each step. The probability that the next point sampled is ni is at least
+P(cι+1 = ni) ≥ℓϕ(ni, Cι)
+ϕ(X, Cι)
+≥
+ℓ· 1000/t · k2i+2
+10000k2i+2 + 3000γk2i+2 ≥
+ℓ
+10tγ
+where we bounded ϕ({b, c} ∪A ∪N≤i ∪M≤i+1) ≤10000k2i+2, used Eq. (116) and used that since
+γ ≥k0.4, it dominates the constant term 10000. Hence, the probability that we do not take ni nor
+b in the k0.5 −k0.4 steps, is at most
+k0.4+3
+Y
+γ=k0.5
+(1 −ℓ/(10tγ)) ≤e
+−Pk0.4+3
+γ=k0.5 ℓ/(10tγ) ≤e−(ℓlog k)/100t = e−log(ℓlog k) < 1/(100000t)
+where we used t =
+ℓlog k
+1000 log(ℓlog k) and summed up a harmonic series. Similarly, we can bound that
+the probability that we take neither mi+1 nor b is at most 1/(1000ℓlog k). The ﬁrst part of the
+claim follows after we also subtract the probabilities of various bad events bounded above from
+1 −1/(100000t).
+Note that after ni is selected as a center during the phase in some step ι, the cost drop resulted
+by adding a point from {b, c} ∪A ∪N<i ∪M≤i to Cι is smaller than the cost drop resulted by
+adding a point from Ei to Cι. Hence, we have Cι1 \ Cι ⊆Ei ∪{mi+1} which consequently implies
+Cι1 \ Cι0 ⊆Ei ∪{ni, b, mi+1} as required.
+Finally, we need to prove that we sample b with probability at least 1/(100t). To see this, let
+us condition on b or ni being one of the sampled and taken points in the ﬁrst n0.5 −n0.4 steps of
+the phase. In every step the ratio of the probability we sample b versus that we sample ni is equal
+to
+45
+
+--- Page 48 ---
+ϕ(b, Cι)/ϕ(ni, Cι) ≥
+ log2(ℓlog k)
+1000ℓ2 log2 k · k2i+2
+
+/
+ 1000/t · 2k2i+2
+=
+ℓlog k
+log(ℓlog k) · log2(ℓlog k)
+2 · 106 · ℓ2 log2 k
+=
+log(ℓlog k)
+2 · 106 · ℓlog k = 1/(2 · 106 · t)
+Hence, after we subtract the probabilities of various bad events from 1/(2 · 106 · t), we get that the
+probability that we sample b during the process is at least 1/(107t), as needed.
+We are now ready to deduce Claim 6.2.
+Proof. We iterate Claim 6.5. As we have only 1/(10000t) probability of various failure modes inside
+one phase, the total probability of failing in some phase is at most 1/10000. If we condition on no
+bad events happening in a phase, we get probability of at least 1/(107t) of sampling b per phase.
+Hence, the total probability of sampling b in at least one phase is at least
+1 −(1 −1/107t)t ≥1 −e−1/107 > 0
+Finally, after b is sampled, we use Claim 6.3 to conclude that with positive probability, at the end
+of the ﬁrst epoch we have Cek−k1.2 = X \ (A ∪{c}) as needed.
+It remains to argue about the second epoch. We need to prove that there is constant probability
+of sampling c as a candidate center during the ﬁrst k1.2 −k1.1 steps. Then we need to argue that
+in that case c is taken as a center by the greedy rule. We start by lower bounding the probability
+of sampling c.
+Claim 6.6. Assume that in some step ι0 we have X \Cι0 ⊆{c}∪A but c ̸∈Cι0. Moreover, assume
+that k1.1 ≤|A|. Then, with probability at least 1 −e−1/(6 log k), Algorithm 2 samples the point c as
+a candidate center in the following |A|/2 steps.
+Proof. In each of the next |A|/2 steps ι0 ≤ι ≤ι0 + |A|/2, unless c ∈Cι, we sample c as a
+ﬁxed candidate center cj
+ι with probability at least
+ϕ(c,b)
+ϕ(c,b)+|A|·ϕ(a1,b) ≥
+1·12
+1·12+|A|· ℓlog k
+k2
+·(k+1)2 ≥
+1
+3|A|ℓlog k.
+Hence, the probability that c is not sampled in any of the |A|/2 steps as no candidate center cj
+ι is
+at most
+
+1 −
+1
+3|A|ℓlog k
+ℓ·|A|/2
+≤e−
+1
+3|A|ℓlog k ·ℓ|A|/2 = e−1/(6 log k)
+and we are done.
+We can now ﬁnish the proof.
+Claim 6.7. Assume that Cek−k1.2 = X \ (A ∪{c}). Then, with positive probability we have c ∈Cek.
+46
+
+--- Page 49 ---
+Proof. Consider the ﬁrst k1.2 −k1.1 steps after the end of the ﬁrst epoch. We split these steps to
+log2
+k1.2
+k1.1 = 0.1 log2 k batches where the batch i contains k1.2/2i steps. Fix one such i-th batch. We
+ﬁrst prove that whenever the algorithm samples a point c as a candidate center, it also takes it as
+a center. To see that, we need to compute the drop in cost ∆(c) of c and ∆(aj) of any aj. First,
+we bound the drop of c. We use the fact that each point of at least k1.1 points A that are not yet
+taken will have its cost dropped by a small yet non-negligible amount. Namely for the drop in the
+cost ∆(c) after taking c as a new center we have
+∆(c) ≥
+k1.1
+X
+j=1
+ϕ(aj, b) −ϕ(aj, c) ≥k1.1 · ℓlog k
+k2
+·
+ d(b, a1)2 −d(c, a1)2
+(120)
+≥ℓlog k
+k0.9
+· k/2
+Eq. (108)
+(121)
+≥ℓk0.1
+(122)
+On the other hand, whenever we take some point aj as a center, the only point whose cost is
+dropped is aj itself; this follows from Eq. (107). Thus for the drop in the cost ∆(aj) after taking
+aj as a new center we have
+∆(aj) = ϕ(aj, b) = ℓlog k
+k2
+· k2 = ℓlog k
+(123)
+That is, for k large enough we get ∆(c) > ∆(aj) and, hence, whenever c is sampled, it is also
+taken as a center by the greedy rule of Algorithm 2.
+Finally, we use Claim 6.6 to conclude that c is not sampled in any of the 0.1 log2 k batches only
+with probability at most
+ e−1/(6 log k)0.1 log2 k ≤e−1/100 < 1.
+Acknowledgment: We thank Mohsen Ghaﬀari, Bill Kuszmaul, Silvio Lattanzi, Aleksander  Lukasiewicz,
+and Melanie Schmidt for useful discussions. CG and VR were supported by the European Research
+Council (ERC) under the European Unions Horizon 2020 research and innovation programme (grant
+agreement No. 853109). JT is part of BARC, Basic Algorithms Research Copenhagen, supported
+by the VILLUM Foundation grant 16582.
+References
+[ACKS15]
+Pranjal Awasthi, Moses Charikar, Ravishankar Krishnaswamy, and Ali Kemal
+Sinop.
+The hardness of approximation of euclidean k-means.
+arXiv preprint
+arXiv:1502.03316, 2015.
+[ADHP09]
+Daniel Aloise, Amit Deshpande, Pierre Hansen, and Preyas Popat. Np-hardness of
+euclidean sum-of-squares clustering. Machine learning, 75(2):245–248, 2009.
+[ADK09]
+Ankit Aggarwal, Amit Deshpande, and Ravi Kannan. Adaptive sampling for k-means
+clustering. In Approximation, Randomization, and Combinatorial Optimization. Al-
+gorithms and Techniques, pages 15–28. Springer, 2009.
+[ANFSW19] Sara Ahmadian, Ashkan Norouzi-Fard, Ola Svensson, and Justin Ward. Better guar-
+antees for k-means and euclidean k-median by primal-dual algorithms. SIAM Journal
+on Computing, (0):FOCS17–97, 2019.
+47
+
+--- Page 50 ---
+[AV07]
+David Arthur and Sergei Vassilvitskii. k-means++: The advantages of careful seed-
+ing.
+In Proceedings of the eighteenth annual ACM-SIAM symposium on Discrete
+algorithms, pages 1027–1035. Society for Industrial and Applied Mathematics, 2007.
+[BERS20]
+Anup Bhattacharya, Jan Eube, Heiko Röglin, and Melanie Schmidt. Noisy, greedy
+and not so greedy k-means++. In 28th Annual European Symposium on Algorithms
+(ESA 2020). Schloss Dagstuhl-Leibniz-Zentrum für Informatik, 2020.
+[BLHK16a]
+Olivier Bachem, Mario Lucic, Hamed Hassani, and Andreas Krause. Fast and provably
+good seedings for k-means. In Advances in neural information processing systems,
+pages 55–63, 2016.
+[BLHK16b]
+Olivier Bachem, Mario Lucic, S Hamed Hassani, and Andreas Krause. Approximate k-
+means++ in sublinear time. In Thirtieth AAAI Conference on Artiﬁcial Intelligence,
+2016.
+[BLK17]
+Olivier Bachem, Mario Lucic, and Andreas Krause. Distributed and provably good
+seedings for k-means in constant rounds. In Proceedings of the 34th International
+Conference on Machine Learning-Volume 70, pages 292–300. JMLR. org, 2017.
+[BMV+12]
+Bahman Bahmani, Benjamin Moseley, Andrea Vattani, Ravi Kumar, and Sergei Vas-
+silvitskii. Scalable k-means++. Proceedings of the VLDB Endowment, 5(7):622–633,
+2012.
+[BR13]
+Tobias Brunsch and Heiko Röglin. A bad instance for k-means++. Theoretical Com-
+puter Science, 505:19–26, 2013.
+[BVX19]
+Aditya Bhaskara, Sharvaree Vadgama, and Hong Xu. Greedy sampling for approxi-
+mate clustering in the presence of outliers. Advances in Neural Information Processing
+Systems, 32, 2019.
+[CAEMN22] Vincent Cohen-Addad, Hossein Esfandiari, Vahab Mirrokni, and Shyam Narayanan.
+Improved approximations for euclidean k-means and k-median, via nested quasi-
+independent sets, 2022.
+[CGPR20]
+Davin Choo, Christoph Grunau, Julian Portmann, and Václav Rozhoň. k-means++:
+few more steps yield constant approximation, 2020.
+[CKV13]
+M Emre Celebi, Hassan A Kingravi, and Patricio A Vela. A comparative study of
+eﬃcient initialization methods for the k-means clustering algorithm. Expert systems
+with applications, 40(1):200–210, 2013.
+[Das19]
+Sanjoy Dasgupta. Lecture 3 – algorithms for k-means clustering, 2013. accessed May
+8th, 2019.
+[FMS07]
+Dan Feldman, Morteza Monemizadeh, and Christian Sohler. A ptas for k-means clus-
+tering based on weak coresets. In Proceedings of the twenty-third annual symposium
+on Computational geometry, pages 11–18, 2007.
+[GOR]
+Christoph Grunau, Ahmet Ozudogru, and Vaclav Rozhon. Noisy k-means++ revis-
+ited.
+48
+
+--- Page 51 ---
+[GR20]
+Christoph Grunau and Václav Rozhoň. Adapting k-means algorithms for outliers,
+2020.
+[KMN+04]
+Tapas Kanungo, David M Mount, Nathan S Netanyahu, Christine D Piatko, Ruth
+Silverman, and Angela Y Wu. A local search approximation algorithm for k-means
+clustering. Computational Geometry, 28(2-3):89–112, 2004.
+[KSS04]
+Amit Kumar, Yogish Sabharwal, and Sandeep Sen. A simple linear time (1+/spl
+epsiv/)-approximation algorithm for k-means clustering in any dimensions. In 45th
+Annual IEEE Symposium on Foundations of Computer Science, pages 454–462. IEEE,
+2004.
+[Llo82]
+Stuart P. Lloyd. Least squares quantization in pcm. IEEE Transactions on Informa-
+tion Theory, 28(2):129–136, 1982.
+[LS19]
+Silvio Lattanzi and Christian Sohler. A better k-means++ algorithm via local search.
+In International Conference on Machine Learning, pages 3662–3671, 2019.
+[LSW17]
+Euiwoong Lee, Melanie Schmidt, and John Wright. Improved and simpliﬁed inap-
+proximability for k-means. Information Processing Letters, 120:40–43, 2017.
+[MNV09]
+Meena Mahajan, Prajakta Nimbhorkar, and Kasturi Varadarajan.
+The planar k-
+means problem is np-hard. In International Workshop on Algorithms and Computa-
+tion, pages 274–285. Springer, 2009.
+[MRS20]
+Konstantin Makarychev, Aravind Reddy, and Liren Shan. Improved guarantees for
+k-means++ and k-means++ parallel. Advances in Neural Information Processing
+Systems, 33:16142–16152, 2020.
+[MV20]
+Michael Mitzenmacher and Sergei Vassilvitskii. Algorithms with predictions, 2020.
+[ORSS13]
+Rafail Ostrovsky, Yuval Rabani, Leonard J Schulman, and Chaitanya Swamy. The
+eﬀectiveness of lloyd-type methods for the k-means problem. Journal of the ACM
+(JACM), 59(6):1–22, 2013.
+[PVG+11]
+F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blon-
+del, P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cournapeau,
+M. Brucher, M. Perrot, and E. Duchesnay. Scikit-learn: Machine learning in Python.
+Journal of Machine Learning Research, 12:2825–2830, 2011.
+[R C13]
+R Core Team. R: A Language and Environment for Statistical Computing. R Foun-
+dation for Statistical Computing, Vienna, Austria, 2013.
+[Roz20]
+Václav Rozhoň. Simple and sharp analysis of k-means——, 2020.
+[Vas07]
+Sergei Vassilvitskii. k-means: algorithms, analyses, experiments, 2007.
+[Wei16]
+Dennis Wei. A constant-factor bi-criteria approximation guarantee for k-means++.
+In Advances in Neural Information Processing Systems, pages 604–612, 2016.
+49
+
+--- Page 52 ---
+Algorithm 3 General k-means++ seeding
+Input: X, k, ℓ, and a rule R that picks one point from ℓpoints x1, . . . , xℓ, given access to X, Ci, k, ℓ.
+1: Uniformly independently sample x1, . . . , xℓ∈X;
+2: Let x ∈{x1, . . . , xℓ} be selected by R and set C1 = {x}.
+3: for i ←1, 2, 3, . . . , k −1 do
+4:
+Sample c1
+i+1, . . . , cℓ
+i+1 ∈X independently w.p.
+ϕ(x,Ci)
+ϕ(X,Ci);
+5:
+Let ci+1 ∈{c1
+i+1, . . . , cℓ
+i+1} be selected by R and set Ci+1 = Ci ∪{ci+1}.
+6: return C := Ck
+A
+A hard instance for general k-means++
+In this section, we prove the precise version of Theorem 1.3. To this end, we ﬁrst formally describe
+the general version of k-means++ with for an arbitrary seeding rule in Algorithm 3.
+The rest of this section is then devoted to the proof of the following theorem.
+Theorem A.1. There exists a point set X ⊆Rd and a rule R such that Algorithm 3 with R is
+Ω(k1−1/ℓ)-approximate with constant probability.
+We already sketched a proof of this theorem in Section 2.2 for ℓ= Ω(log k). The generalization
+for any ℓand to a Euclidean space below is routine.
+We remark that we believe one can improve the lower bound from Theorem A.1 to Ω(k1−1/ℓℓlog k)
+by adding the set A as in the proof of Theorem 1.2.
+We begin by describing the input instance (X, k, C0) (recall that in view of Lemma 3.4 we can
+assume we start with a non-empty set of centers C0). Throughout the proof, we will assume that
+the weights are integers. This is for readability, we could round the numbers to the closest integer
+and that would not hurt any asymptotic guarantees. Our instance X is a subset of k+1-dimensional
+Euclidean space Rk+1.
+We next describe the input weighted point set X.
+1. There is a point d ∈C0 in the origin.
+2. There are k −1 points x1, x2, . . . , xk−1 having weight w(xi) = 1. Moreover each xi has the
+coordinate (0, . . . , 0, k, 0, . . . , 0), which has value 0 at each dimension except the i-th. Hence,
+d(d, xi) = k for every i ∈{1, 2, . . . , k −1}.
+3. There is a point c with weight w(c) = k1−1/ℓ
+2
+at (0, 0, . . . , k, 0). Hence d(d, c) = k.
+4. The ﬁnal point b has weight w(b) = 1 and lies in the plane generated by vectors (0, . . . , 1, 0)
+and (0, . . . , 0, 1) in such a position that it holds that d(c, d) = d(b, d) = k and d(b, c) = 1 (i.e.,
+d, c, b form an isosceles triangle).
+In view of Lemma 3.5, we require the optimal solution C∗⊆X.
+Then, we have C∗=
+{x1, x2, . . . , xk−1, c} and the cost of it is OPT = ϕ(b, C∗∪C0) = d(c, b)2 · w(b) = 1.
+We are going to pick the rule R as follows: whenever we sample b as a candidate, we take it as
+a center. Furthermore, we only take c as a center if all of the ℓcandidate points are c, hence when
+we have no other choice.
+We will show that with constant probability we will take b as a center after k/2 steps. That
+means that at least one of the points in {x1, x2, . . . , xk−1, c} will not be selected as a center at
+the end. If one of the xi is not selected as a center, then the cost of the solution will be at least
+50
+
+--- Page 53 ---
+w(xi) · d(xi, d)2 = k2, since d is the closest point to any xi. If c is not selected as a center, then the
+cost of the solution will be at least w(c) · d(c, b)2 = k1−1/ℓ
+2
+, since the closest chosen center to c is b.
+Hence if we pick b as a center, the approximation factor will be at least k1−1/ℓ
+2
+.
+Let Bi and Ci be the events that b and c are chosen as a center at the i-th step, respectively
+and B≤i and C≤i be the events that b and c are chosen as a center in one of the ﬁrst i steps.
+We will calculate the probability of picking b as a center in the ﬁrst k/2 steps as follows:
+P(B≤k/2) = P(B1) + P(B2 | ¬B≤1) · P(¬B≤1) + · · · + P(Bk/2 | ¬B≤k/2−1) · P(¬B≤k/2−1)
+To calculate a lower bound for P(B≤k/2), we will need a lower bound for P(Bi | ¬B≤i−1) and
+P(¬B≤i). We start by showing that with constant probability we do not pick b in the ﬁrst k/2
+steps.
+Lemma A.2. For any i ≤k/2 we have P(¬B≤i) ≥1
+10.
+Proof. First we show that for any i ≤k
+2 we have P(¬Bi|¬B≤i−1) ≥1 −
+2
+k+2. We have
+P(¬Bi | ¬B≤i−1 ∧¬C≤i−1) =
+k −i + k1−1/ℓ/2
+k −i + k1−1/ℓ/2 + 1
+≥
+k/2 + k1−1/ℓ/2
+k/2 + k1−1/ℓ/2 + 1
+≥
+k/2
+k/2 + 1 = 1 −
+k/2
+k/2 + 1 = 1 −
+2
+k + 2
+P(¬Bi | ¬B≤i−1 ∧C≤i−1) =
+(k −i + 1) · k2
+1 + (k −i + 1) · k2
+≥
+k3/2
+1 + k3/2 = 1 −
+2
+2 + k3 ≥1 −
+2
+k + 2
+Hence P(¬Bi | ¬B≤i−1) ≥1 −
+2
+k+2. Now we can calculate the probability of not picking b in
+the ﬁrst i steps.
+P(¬B≤i) = P(¬B1 ∩¬B2 ∩¬B3 ∩· · · ∩¬Bi)
+= P(¬B1 | ¬B≤0) · P(¬B2 | ¬B≤1) · P(¬B3 | ¬B≤2) · · · P(¬Bi | ¬B≤i−1)
+≥
+
+1 −
+2
+k + 2
+i
+≥
+
+1 −
+2
+k + 2
+k/2
+≥
+
+e−
+4
+k+2
+k/2
+Fact 3.8
+≥
+
+e−2k
+k+2
+
+≥1
+10
+51
+
+--- Page 54 ---
+Now, to calculate a lower bound for P(Bi | ¬B≤i−1) we split it as follows:
+P(Bi | ¬B≤i−1) = P(Bi | ¬B≤i−1 ∧¬C≤i−1) · P(¬C≤i−1) + P(Bi | ¬B≤i−1 ∧C≤i−1) · P(C≤i−1)
+≥P(Bi | ¬B≤i−1 ∧¬C≤i−1) · P(¬C≤i−1)
+First, we will show that the probability of picking c in a step is at most 1/k.
+Lemma A.3. For every i ≤k/2 we have P(Ci | ¬C≤i−1) ≤1/k .
+Proof. We will start by showing that the probability of c being selected as a center is higher when
+b is not selected as a center. This intuitively makes sense because b lies very close to c.
+P(Ci | ¬C≤i−1 ∧B≤i−1) =
+k1−1/ℓ
+k1−1/ℓ+ (k −i + 1) · k2
+≤
+k1−1/ℓ+ (k3−1/ℓ−k1−1/ℓ)
+k1−1/ℓ+ (k −i + 1) · k2 + (k3−1/ℓ−k1−1/ℓ)
+≤
+k3−1/ℓ
+k3−1/ℓ+ (k −i + 1) · k2 = P(Ci | ¬C≤i−1 ∧¬B≤i−1)
+Now using P(Ci | ¬C≤i−1 ∧B≤i−1) ≤P(Ci | ¬C≤i−1 ∧¬B≤i−1), we can bound P(Ci | ¬C≤i−1).
+P(Ci | ¬C≤i−1) = P(B≤i−1) · P(Ci | ¬C≤i−1 ∧B≤i−1) + P(¬B≤i−1) · P(Ci | ¬C≤i−1 ∧¬B≤i−1)
+≤P(B≤i−1) · P(Ci | ¬C≤i−1 ∧¬B≤i−1) + P(¬B≤i−1) · P(Ci | ¬C≤i−1 ∧¬B≤i−1)
+≤P(Ci | ¬C≤i−1 ∧¬B≤i−1)
+According to our rule R, for c to be selected as a center, all of the ℓsamples in a step should
+be c.
+P(Ci | ¬C≤i−1 ∧¬B≤i−1) =
+ 
+k3−1/ℓ/2
+k3−1/ℓ/2 + (k −i + 1) · k2
+!ℓ
+≤
+ 
+k3−1/ℓ/2
+k3−1/ℓ/2 + k/2 · k2
+!ℓ
+≤
+ 
+k3−1/ℓ/2
+k3/2
+!ℓ
+≤
+ 1
+k1/ℓ
+ℓ
+= 1
+k
+Hence P(Ci | ¬C≤i−1) ≤P(Ci | ¬C≤i−1 ∧¬B≤i−1) ≤1
+k
+Now we can show that the probability of not picking c as a center in the ﬁrst k/2 steps is at
+least 1/2.
+Lemma A.4. For i ≤k/2, P(¬C≤i) ≥1
+2
+52
+
+--- Page 55 ---
+Proof.
+P(C≤i) = P(C1) + P(C2 | ¬C≤1) · P(¬C≤1) + · · · + P(Ci | ¬C≤i−1) · P(¬C≤i−1)
+≤P(C1 | ¬C≤0) + P(C2 | ¬C≤1) + P(C3 | ¬C≤2) + · · · + P(Ci | ¬Ci−1)
+≤1
+k + 1
+k + 1
+k + · · · + 1
+k
+Lemma A.3
+≤i
+k ≤1
+2
+Hence, P(¬C≤i) = 1 −P(C≤i) ≥1
+2
+Using Lemma A.4 we can ﬁnally calculate a lower bound for P(Bi | ¬B≤i−1).
+Lemma A.5. For i ≤k/2, P(Bi | ¬B≤i−1) ≥
+1
+4k
+Proof.
+P(Bi | ¬B≤i−1) = P(Bi | ¬B≤i−1 ∧¬C≤i−1) · P(¬C≤i−1) + P(Bi | ¬B≤i−1 ∧C≤i−1) · P(C≤i−1)
+≥P(Bi | ¬B≤i−1 ∧¬C≤i−1) · P(¬C≤i−1)
+≥P(Bi | ¬B≤i−1 ∧¬C≤i−1) · 1
+2
+Lemma A.4
+≥
+1
+(k −i) + k1−1/ℓ/2 + 1 · 1
+2
+≥1
+2k · 1
+2 = 1
+4k
+Now we are ready to prove the theorem.
+P(B≤k/2) = P(B1) + P(B2 | ¬B≤1) · P(¬B≤1) · · · + P(Bk/2 | ¬B≤k/2−1) · P(¬B≤k/2−1)
+≥1
+10 ·
+ P(B1 | ¬B≤0) + P(B2 | ¬B≤1) + P(B3 | ¬B≤2) + · · · + P(Bk/2 | ¬B≤k/2−1)
+
+Lemma A.2
+≥1
+10 · ( 1
+4k + 1
+4k + 1
+4k + · · · + 1
+4k)
+Lemma A.5
+≥1
+10 · (k/2
+4k )
+≥1
+80
+Hence, with constant probability, b will be taken as a center in the ﬁrst k/2 steps, and as a
+result, the algorithm will return a solution with an approximation ratio of at least Ω(k1−1/ℓ).
+B
+Analysis of general k-means++
+In this section, we prove the precise version of Theorem 1.4 that we state next.
+Theorem B.1. For any rule R, Algorithm 3 is O(k2−1/ℓ· ℓlog k)-approximate.
+53
+
+--- Page 56 ---
+B.1
+Hitting optimal clusters
+We start by proving an analogue to the Lemma 2.2 that shows that any optimal cluster is expected
+to be hit O(ℓk1−1/ℓ) times. Note that it is trivially hit O(ℓk) times. The reason we bother proving
+this only slightly better (and tight) result is that we wrote the proof before we realized that our
+lower and upper bounds for Algorithm 3 are not matching since we could not analyze the sampling
+process deﬁned below.
+The improvement over the trivial O(ℓk) bound is based on the fact that if a cluster K dominates
+the cost of the whole point set, we have a nontrivial probability of sampling all ℓcandidate centers
+from it.
+Lemma B.2. For any rule R in Algorithm 3 and any optimal cluster K we have that E[HIT(K)] =
+O(ℓ· k1−1/ℓ).
+Proof. We prove this statement by induction. Recall that HIT(K) be the number of points of K
+that we sample from K until K becomes covered (Deﬁnition 4.1) or solved (Deﬁnition 4.2) but for
+the purposes of this proof we even drop the “solved” requirement.
+We prove that
+E≥k−i[HIT≥k−i(K)] ≤10ℓi1−1/ℓ
+For i = 0 it clearly holds. Next, assume the equation holds for k −i + 1 and we prove it for
+k −i.
+Let us deﬁne p = ϕ(K,Ci)
+ϕ(X,Ci). We will now use the fact that whenever we sample all points c1
+i , . . . , cℓ
+i
+from K, i.e., whenever HITi(K) = ℓ, we have ci ∈K and K hence becomes covered. Namely, using
+induction hypothesis we compute:
+E≥k−i[HIT≥k−i(K)] = Ek−i[HITi(K)] + E≥k−i[HIT≥k−i+1(K))
+(124)
+≤ℓp + P(HITi(K) = ℓ) · 0 + P(HITi(K) ̸= ℓ)10ℓ(i −1)1−1/ℓ
+(125)
+= ℓp + (1 −pℓ)10ℓ(i −1)1−1/ℓ
+(126)
+Next, we compute
+(i −1)1−1/ℓ= i1−1/ℓ· (1 −1/i)1−1/ℓ
+≤i1−1/ℓ· (1 −1/i)1/2
+ℓ≥2
+≤i1−1/ℓ· (1 −1/(4i))
+Let us use f(i) = 10ℓi1−1/ℓ· (1 −1/(4i)). Then, the above computation in Eq. (124) says that
+E≥k−i[HIT≥k−i(K)] ≤ℓp + (1 −pℓ)f(i)
+(127)
+Let us analyze the right-hand side of that expression. We have
+δ
+ ℓp + (1 −pℓ)f(i)
+
+δp
+= ℓ−ℓpℓ−1f(i)
+Solving for the right hand side equal to zero, we get 1 −pℓ−1f(i) = 0, hence p = (1/f(i))1/(ℓ−1).
+That is, the right hand side of Eq. (127) is maximized for that p and then it is equal to
+ℓ(1/f(i))1/(ℓ−1) +
+
+1 −
+
+(1/f(i))1/(ℓ−1)ℓ
+f(i)
+(128)
+54
+
+--- Page 57 ---
+Let us plug in the deﬁnition of f(i) to that expression. We start with the ﬁrst term. We have
+ℓ(1/f(i))1/(ℓ−1) = ℓ
+
+1
+10ℓi1−1/ℓ· (1 −1/(4i))
+1/(ℓ−1)
+≤
+ℓ
+i1/ℓ
+where we used that 10ℓ(1 −1/(4i)) ≥1.
+Next, we handle the second term as follows:
+
+1 −
+
+(1/f(i))1/(ℓ−1)ℓ
+f(i) ≤f(i) ≤10ℓi1−1/ℓ· (1 −1/(4i))
+Hence, we can upper bound the expression in Eq. (128) by
+10ℓi1−1/ℓ· (1 −1/(4i)) +
+ℓ
+i1/ℓ
+= 10ℓi1−1/ℓ·
+
+1 −1/(4i) + 1
+10i
+
+≤10ℓi1−1/ℓ
+and we are done.
+As a corollary we get Theorem B.1.
+Proof Sketch. The proof is very similar to the proof of Theorem 1.1. In that proof, we are using
+the greedy rule in two places:
+1. Through Lemma 2.2; instead of that lemma we now use Lemma B.2.
+2. Inside Proposition 5.6 we use it to bound how much can the size of the average uncovered
+cluster increases during the algorithm. We can very crudely bound this multiplicative increase
+by k, hence our approximation guarantee picks up additional k-factor.
+B.2
+An interesting sampling process
+This section is devoted to the explanation of an interesting open problem that, if solved, probably
+brings together the upper and lower bounds for Algorithm 3 that are now oﬀby a factor of k. We
+note that losing a factor of k because of the drift of the size of the average uncovered cluster looks
+very wasteful. In fact, we can replace this factor of k in the upper bound by a function g(k, ℓ)
+that we discuss in the rest of this section. We believe that understanding g(k, ℓ) is an exciting
+open problem. The problem in the analysis of Theorem B.1 can be distilled into the following
+riddle, which one can understand without understanding the details of the analysis of Arthur and
+Vassilvitskii.
+Deﬁnition B.3 (ℓ-point adversarial sampling process). Let ℓ∈N. We deﬁne the ℓ-point adver-
+sarial sampling process as follows. At the beginning, there is a set E0 of k elements where each
+element e ∈E0 has some nonnegative weight w0(e). The process has k rounds: in each round, we
+form the new set Ei+1 from Ei as follows:
+55
+
+--- Page 58 ---
+1. We deﬁne the distribution Di over Ei where the probability of e is deﬁned as wi(e)/ P
+e∈Ei wi(e).
+An adversary chooses an arbitrary number ℓi that satisﬁes 0 ≤ℓi ≤ℓ. We sample ℓi points
+e1
+i , . . . , eℓi
+i independently from Di. Next, an adversary chooses a point ei ∈{e1
+i , . . . , eℓi
+i }. We
+set Ei+1 = Ei \ {ei}.
+2. An adversary chooses the new weight function wi+1(e) for every element e ∈Ei+1 as an
+arbitrary function that satisﬁes
+0 ≤wi+1(e) ≤wi(e).
+The relationship between this process and the analysis of Algorithm 3 is as follows. The set Ei
+of elements corresponds to a set of uncovered clusters. The steps where we sample ℓi ≤ℓelements
+e1
+i , . . . , eℓi
+i corresponds to the algorithm sampling at most ℓcenters from uncovered clusters. We
+assume that the rule R behaves adversarially and can decide to cover any of the sampled clusters,
+i.e., we allow removing any sampled element ei ∈{e1
+i , . . . , eℓi
+i } from Ei to form Ei+1. The adversarial
+decreasing of the element weights in between two sampling steps corresponds to the newly taken
+center decreasing the cost of the optimal clusters in an uncontrolled manner.
+We note that the analysis of k-means++ from [AV07] implicitly analyzes this game for ℓ= 1.
+This case is qualitatively simpler than the general case: We can in fact even prove that for ℓ= 1,
+the average element size can only decrease between two steps. To see this, we observe that it would
+stay the same if we picked each element uniformly at random. Picking heavier elements with higher
+probability can only decrease the average size then.
+However, this simple approach does not work anymore for ℓ> 1. In fact, consider as an example
+the set E0 consisting of k−1 elements of size one and one element of size k. Choosing ℓ= Ω(k), the
+adversary can prevent us to remove the costly element until the very end, with constant probability.
+This increases the average element size from roughly 2 to k, that is, by Ω(k) = Ω(ℓ) factor.
+We do not know how much the average can increase but it is clearly at most by a O(k) factor
+and by the above reasoning it is at least by Ω(ℓ) factor.
+Fact B.4. We deﬁne the function g(k, ℓ) as the smallest growing function satisfying the following
+condition. Let AVGi be deﬁned as the average weight of an element in the i-th round of the ℓ-point
+adversarial sampling process from Deﬁnition B.3, i.e., for any 0 ≤i < k we deﬁne
+AVGi =
+P
+e∈Ei wi(e)
+k −i
+.
+Then, for any adversary and any 0 ≤i < k, we have
+AVGi ≤g(k, ℓ)AVG0.
+Question B.5. What is the value of g(k, ℓ)?
+A similar problem to our sampling process was recently considered in [BERS20] where the
+authors consider the following related problem. Suppose that we run k-means++, but before each
+sampling step, an adversary distorts each probability of taking an element by a multiplicative 1±ε
+factor. Does such an algorithm retain O(log k) approximation guarantees for ﬁxed ε < 1? This
+question leads to the analysis of a process very similar to Deﬁnition B.3; instead of choosing one of ℓ
+sampled elements, the power of the adversary is now to distort the sampling distribution pointwise
+by 1 ± ε multiplicative factor. In [BERS20], the authors show that the average in this game can
+increase only by a multiplicative O(log k) factor. This follows from the fact that all elements larger
+than Ω(log k) will be already taken in the ﬁrst k/2 steps of the process. This implies O(log2 k)
+approximation guarantee for the ﬁnal algorithm. In [GOR] this analysis of the game is improved
+to O(1) which implies the tight O(log k) upper bound for k-means++ with noise.
+56
+
+--- Page 59 ---
+C
+An incomparable bound on the number of hits
+In this section, we sketch the proof of the following result which is incomparable with Lemma 2.2
+but substantially easier to prove. In fact, we used this proof sketch as a way to build intuition
+towards the proof of Lemma 2.2 in an earlier draft of this writeup, before we realized Sections 1
+and 2 are way too long.
+Lemma C.1. For any optimal cluster K we have E[HIT(K)] = O(ℓlog OPT(1)
+OPT(K)).
+Here, OPT(ek) is the size of the optimal solution with ek centers.
+Proof sketch. Fix an optimal cluster K, consider a step i + 1 and assume that for the cost of
+K we have ϕ(K, Ci) ≥105ϕ∗(K).
+Being far from the optimum means that all centers of Ci
+are very far from most of the points of K. Hence, whenever it happens that a potential center
+cj
+i+1 for some 1 ≤j ≤ℓis sampled from K, we have constant probability that d(µ(K), cj
+i+1) ≤
+d(µ(K), Ci)/2, i.e., cj
+i+1 is substantially closer to µ(K) than all other centers in Ci. In that case,
+we have ϕ(X, Ci) −ϕ(X, Ci ∪{cj
+i+1}) ≥ϕ(K, Ci)/2. That is, adding cj
+i+1 as the new center will
+result in the cost drop of at least ϕ(K, Ci)/2.
+We will now need to distinguish two cases. Let us consider the distribution over the cost drop
+ϕ(X, Ci) −ϕ(X, Ci ∪{c}) where c is sampled proportional to its current cost ϕ(c, Ci). That is,
+we consider the distribution of how the cost drops if we add the candidate center c1
+i+1 (or any
+other ﬁxed candidate center) to the current solution. In the ﬁrst, easy, case we assume that with
+probability 1 −1/ℓ, the cost drop ϕ(X, Ci) −ϕ(X, Ci ∪{c}) is less than ϕ(K, Ci)/2; otherwise we
+are in the hard case.
+What is easy in the easy case? The discussion above implies that in that case, whenever we
+sample some cj
+i+1 from K, we have constant probability that all other candidate centers create a
+cost drop smaller than ϕ(K, Ci)/2, hence the greedy heuristic chooses ci+1 = cj
+i+1. Hence, sampling
+a point from K in the easy case can happen only constantly many times, in expectation, before K
+becomes covered after which we stop counting the hits to K.
+But what do we do in the hard case? There, we at least know that with constant probability the
+cost drops by ϕ(K, Ci)/2, concretely we know that ϕ(K, Ci) −E[ϕ(K, Ci+1)] ≥ϕ(K, Ci)/5. Recall
+that we are counting hits to K and each candidate center hits it with probability ϕ(K, Ci)/ϕ(X, Ci).
+Our situation is very similar to the following deterministic process where we start with a number
+X0 (corresponding to ϕ(X, C1)) and an empty counter H0 = 0 (corresponding to counting hits).
+In each step we then choose some number 0 < Ki ≤Xi (corresponding to the cost of the cluster
+ϕ(K, Ci)) and deﬁne Xi+1 ←Xi −Ki, while increasing the counter Ci+1 ←Ci + ℓ· Ki/Xi. In this
+idealized process, it holds that Ci = O(ℓ· log X0/Xi). Intuitively, this is because the case when
+Ki = Θ(Xi) in every step is the hardest one.
+We can apply similar reasoning to our randomized process to get the expected bound O
+
+ℓlog OPT(1)
+OPT(k)
+
+on the number of hits. Here, we additionally use that 1) the starting cost of our solution ϕ(X, C1)
+is expected to be of order OPT(1) by Lemma 2.1 and 2) the ﬁnal cost ϕ(X, Ck) has to be at least
+OPT(k).
+57
+
+
+=== 2307.13685v1.pdf ===
+
+--- Page 1 ---
+arXiv:2307.13685v1  [cs.DS]  25 Jul 2023
+Noisy k-means++ Revisited
+Christoph Grunau
+ETH Zurich
+cgrunau@inf.ethz.ch
+Ahmet Alper Özüdo˘gru
+ETH Zurich
+oahmet@student.ethz.ch
+Václav Rozhoň
+ETH Zurich
+rozhonv@ethz.ch
+July 26, 2023
+Abstract
+The k-means++ algorithm by Arthur and Vassilvitskii [SODA 2007] is a classical and time-tested
+algorithm for the k-means problem. While being very practical, the algorithm also has good theoretical
+guarantees: its solution is O(log k)-approximate, in expectation.
+In a recent work, Bhattacharya, Eube, Roglin, and Schmidt [ESA 2020] considered the following
+question: does the algorithm retain its guarantees if we allow for a slight adversarial noise in the sampling
+probability distributions used by the algorithm? This is motivated e.g. by the fact that computations with
+real numbers in k-means++ implementations are inexact. Surprisingly, the analysis under this scenario
+gets substantially more diﬃcult and the authors were able to prove only a weaker approximation guarantee
+of O(log2 k). In this paper, we close the gap by providing a tight, O(log k)-approximate guarantee for
+the k-means++ algorithm with noise.
+1
+Introduction
+The k-means problem is a classical problem in computer science: given a point set X ⊆Rd consisting of
+n points and a parameter k, we are asked to return a set of k clusters with corresponding cluster centers
+C ⊆Rd so as to minimize the sum of the squared distances of points of X with respect to their closest cluster
+center in C. Formally, we are asked to minimize the function ϕ(X, C) deﬁned by ϕ(x, C) = minc∈C ||x −c||2
+for a single point x and as ϕ(X, C) = P
+x∈X ϕ(x, C) for a set of points.
+There exists some ﬁxed constant c > 1 such that it is NP-hard to ﬁnd a c-approximate solution to
+the k-means objective [ADHP09, ACKS15]. On the other hand, a substantial amount of work has been
+devoted to ﬁnding polynomial time algorithms with a good approximation guarantee, with the currently
+best approximation ratio being 5.912 [CAEMN22]. On the practical side, the celebrated clustering algorithm
+k-means++ by Arthur and Vassilvitskii [AV07] is one of the classical algorithms for the k-means problem.
+Due to its simplicity, it is widely used in practice, for example in the well-known Python Scikit-learn library
+[PVG+11]. It is also very appealing from the theoretical perspective, as it returns a solution that is O(log k)-
+approximate, in expectation.
+The k-means++ algorithm (Algorithm 1 with ε = 0) is indeed very simple: we sample C ⊆X in k steps.
+The ﬁrst center is taken as a uniformly random point of X. To get each subsequent center, we always ﬁrst
+compute the current costs ϕ(x, Ci) for each x ∈X; then we sample each point of X as the next center with
+probability proportional to ϕ(x, Ci).
+In [BERS20], the authors made an intriguing observation: the classical analysis of the algorithm by Arthur
+and Vassilvitski [AV07] fails to work if we allow small errors in the sampling probabilities. That is, consider
+Algorithm 1: this is the k-means++ algorithm, however, with an additional small positive parameter ε. In
+every step, before we sample, we allow an adversary to perturb the sampling distribution such that the
+multiplicative change of each probability is within 1 ± ε of its original value.
+Does the noisy k-means++ algorithm retain the original guarantees? This question is natural since in
+every implementation, there are small numerical errors associated with the distance computations made by
+Algorithm 1. It would be shocking if these errors could substantially aﬀect the quality of the algorithm’s
+output! From a more theoretical perspective, the authors of [BERS20] considered this problem as a ﬁrst
+1
+
+--- Page 2 ---
+Algorithm 1 (1 + ε)-noisy k-means++
+Input: X, k, 0 ≤ε < 1/2
+1: Sample x ∈X w.p. in
+
+(1 −ε) · 1
+n, (1 + ε) · 1
+n
+
+, set C1 = {x}.
+2: for i ←0, 1, . . ., k −1 do
+3:
+Sample x ∈X w.p. in
+h
+(1 −ε) · ϕ(x,Ci)
+ϕ(X,Ci), (1 + ε) · ϕ(x,Ci)
+ϕ(X,Ci)
+i
+and set Ci+1 = Ci ∪{x}.
+return C := Ck
+step towards understanding other questions related to the k-means++ algorithm, in particular the analysis
+of the greedy variant of k-means++, a related algorithm later analyzed in [GÖRT22].
+Going back to noisy k-means++, the authors of [BERS20] proved that Algorithm 1 remains O(log2 k)-
+approximate even for small constant ε (think e.g. ε = 0.01). In this paper, we improve their analysis to
+recover the tight O(log k)-approximation guarantee. That is, we show that the adversarial noise worsens the
+approximation guarantee by at most a constant multiplicative factor.
+Theorem 1.1. Algorithm 1 is O(log k)-approximate, in expectation.
+Remark 1.2. It would be interesting to see an analysis of the approximation ratio of Algorithm 1 that would
+be within a 1 + O(ε)-factor of the classical k-means++ analysis from [AV07], or a counterexample showing
+this is not possible. In our analysis, we lose a very large constant factor even for very small ε.
+Related Work: There is a lot of work related to the k-means++ algorithm, both improving the algorithm
+or its analysis [LS19, CGPR20, ADK09, Wei16, MRS20, BERS20, GÖRT22] and adapting it to other setups
+[BMV+12, BLHK16b, Roz20, MRS20, BLHK16a, BLK17, BVX19, GR20].
+Acknowledgements: We would like to thank Mohsen Ghaﬀari for many helpful comments.
+2
+Reduction to a Sampling Game
+To analyze Algorithm 1, the authors of [BERS20] follow the proof of [AV07] (more precisely, they follow the
+proof from [Das19]) and show that most arguments of that proof, in fact, work even in the adversarial noise
+scenario. The part of the proof that does not generalize from ε = 0 to ε > 0 can be distilled into a simple
+sampling process that we analyze in this paper. We next describe this process and state its relation to the
+analysis of noisy k-means++ (cf. the discussion on page 15 of [BERS20]).
+Deﬁnition 2.1 ((1 + ε)-adversarial sampling process). Let 0 < ε < 1/2. We deﬁne the (1 + ε)-adversarial
+sampling process as follows. At the beginning, there is a set E0 of k elements where each element e ∈E0
+has some nonnegative weight w0(e). The process has k rounds where in each round, we form the new set
+Ei+1 from Ei as follows:
+1. We deﬁne the distribution Di over Ei where the probability of selecting e ∈Ei is deﬁned as wi(e)/ P
+e∈Ei wi(e).
+Next, an adversary chooses an arbitrary distribution Dε
+i over Ei that satisﬁes for any e ∈Ei that
+(1 −ε)PDi(e) ≤PDε
+i (e) ≤(1 + ε)PDi(e).
+(1)
+We sample an element ei+1 ∈Ei according to Dε
+i and set Ei+1 = Ei \ {ei+1}.
+2. Next, an adversary chooses a new weight function wi+1(e) for every element e ∈Ei+1 as an arbitrary
+function that satisﬁes
+0 ≤wi+1(e) ≤wi(e).
+We will be interested in the expected average weight of an element after some number of steps in this
+process, that is, we need to understand the value of E
+h P
+e∈Ei wi(e)
+k−i
+i
+for 0 ≤i < k. If ε = 0, one can prove
+that
+E
+P
+e∈Ei wi(e)
+k −i
+
+≤
+P
+e∈Ei−1 wi−1(e)
+k −(i −1)
+(2)
+2
+
+--- Page 3 ---
+where the randomness is over the sampling in the i-th step (we always regard the adversary as ﬁxed in
+advance). Why is Eq. (2) true? The inequality would clearly hold with equality if the distribution Di were
+a uniform one and there was no adversary; we in fact give larger sampling probabilities to heavier elements
+in Di and, moreover, the adversary can lower the weights arbitrarily after we sample, but both of these
+operations can make the left-hand side of Eq. (2) only smaller.
+However, this monotonic behavior is no longer true for ε > 0. The question that needs to be analyzed as
+a part of the analysis of noisy k-means++ is whether the adversarial choices can make the average size of
+an element drift so that in the end the left-hand side of Eq. (2) is substantially larger than P
+e∈E0 w0(e)/k.
+More precisely, we will need to bound the following quantity that we call the adversarial advantage.
+Deﬁnition 2.2 (Adversarial advantage). We say that the adversarial advantage is at most some function
+f if the following conclusion holds: Consider a (1 + ε)-adversarial sampling process on k elements for any
+0 < ε < 1
+2, any starting set E0, and any adversary. For any 0 ≤i < k, we have
+E
+P
+e∈Ei wi(e)
+k −i
+
+≤f(k) ·
+P
+e∈E0 w0(e)
+k
+.
+(3)
+Although we require the inequality Eq. (3) to hold for all i, note that for all 0 ≤i ≤(1−δ)k we can choose
+f(k) = 1/δ in Eq. (3) and it will be satisﬁed for those values of i simply because P
+e∈Ei wi(e) ≤P
+e∈E0 w0(e)
+is true deterministically. Thus, intuitively, i = k −1 is the hardest case.
+In [BERS20], the authors proved that if we adapt the analysis of k-means++ to the noisy k-means++,
+it only picks up the multiplicative factor of f(k). That is, analyzing the (1 + ε)-adversarial sampling process
+is enough to get an upper bound for noisy k-means++. The following theorem is proven in [BERS20] (it is
+proven only for f(k) = O(log k), but it directly generalizes to any f(k)).
+Theorem 2.3 (Theorem 2 in [BERS20]). For any 0 < ε < 1/2, (1 + ε)-noisy k-means++ is O(f(k) · log k)-
+approximate, in expectation.
+In Lemma 10 of [BERS20], the authors prove that f(k) = O(log k). The reason for this is that if an
+element e ∈E0 is Θ(log k) times larger than the average size of an element of E0, it will be sampled in the
+ﬁrst k/2 steps of the process with probability 1 −1/kO(1). Thus, the contribution of elements Ω(log k) larger
+than the average to the left-hand side of Eq. (3) is negligible even for i = k −1. Hence, f(k) = O(log k).
+Lemma 2.4 (Lemma 10 in [BERS20]). The adversarial advantage is at most O(log k).
+Our technical contribution is to show that the adversarial advantage is bounded by O(1).
+Lemma 2.5. The adversarial advantage is at most O(1).
+Theorem 1.1 then follows from Theorem 2.3 and Lemma 2.5.
+3
+Analysis of the Sampling Process
+This section is devoted to the proof of Lemma 2.5. We view the adversary as a function ﬁxed at the beginning
+of the argument. We start by normalizing the starting weights w0 so that the average at the beginning is one,
+i.e., from now on we assume that (P
+e∈E0 w0(e))/k = 1. For every E ⊆Ei, we deﬁne wi(E) = P
+e∈E wi(e)
+and similarly PDε
+i (E) = P
+e∈E PDε
+i (e). In every step i, we consider the partition Ei = Bi ⊔Mi ⊔Si where
+e ∈Ei is in
+1. the big set Bi iﬀwi(e) ≥80,
+2. the medium set Mi iﬀ2 < wi(e) < 80 and
+3. the small set Si iﬀwi(e) ≤2.
+The main idea of the analysis is to show that wi(Bi) = O(|Si|), and thus wi(Ei)
+k−i
+=
+O(|Si|)
+|Si|+|Mi|+|Bi| = O(1),
+with probability 1 −e−Ω(|Si|). This turns out (see the proof of Lemma 2.5) that this is suﬃcient to show
+that the adversarial advantage is O(1), i.e., that E
+h
+wi(Ei)
+k−i
+i
+= O(1).
+3
+
+--- Page 4 ---
+Roughly speaking, we call an iteration with ℓsmall elements bad, if the total weight of the big elements
+is greater than 4ℓ, which intuitively means the average drifted way above 1. In general we use the number
+of the small elements as our main way to refer to the iterations. Then in Lemma 3.2 we denote with ℓmax
+the number of small elements at the ﬁrst bad iteration. Using that the previous iterations were good, and
+wi2ℓ(Bi2ℓ) ≤8ℓfor the bad iterations (Deﬁnition 3.1), we provide an upper bound on the average element
+size for the following iterations. Even though this bound is depending on the number of the small elements
+ℓ, we show in Lemma 3.3 that an iteration is bad with probability at most e−ℓ
+40 , which is enough to show
+the constant average in expectation.
+The following deﬁnition is crucial for our analysis.
+Deﬁnition 3.1. For every ℓ∈{1, 2, . . ., |S0|}, we deﬁne iℓas the smallest i for which |Si| = ℓ. We refer to
+a given ℓ∈{1, 2, . . ., ⌊|S0|/2⌋} as bad if both wi2ℓ(Bi2ℓ) ≤8ℓand wiℓ(Biℓ) > 4ℓand otherwise we refer to ℓ
+as good.
+Note that iℓis well-deﬁned in the sense that there has to exist at least one i with |Si| = ℓfor every
+ℓ∈{1, 2, . . ., |S0|}. This follows from |Si+1| ≥|Si| −1 for every i ∈{1, 2, . . ., k −1} and |Sk−1| ≤1.
+Lemma 3.2. Let ℓmax be deﬁned as the largest ℓ∈{1, 2, . . ., ⌊|S0|/2⌋} such that ℓis bad, if there exists
+such an ℓ, and otherwise let ℓmax = 1. Then, for every i ∈{0, 1, . . ., k −1}, we have wi(Ei)
+k−i
+≤90ℓmax.
+Proof. We ﬁrst prove by induction that wi(Bi) ≤max(4|Si|, 8ℓmax) for every i ∈{0, 1, . . ., k −1}. As our
+base case, we consider any i with |Si| ≥|S0|/2. Using that the average weight is 1 at the beginning, we
+get |S0| ≥k/2 by Markov’s inequality and therefore wi(Bi) ≤k ≤2|S0| ≤4|Si|. For our induction step,
+consider some arbitrary i with |Si| < |S0|/2. Let ℓ:= |Si|. First, we consider the case that ℓmax ≥ℓ. In
+particular, this implies |Si−1| ≤|Si| + 1 ≤ℓ+ 1 ≤ℓmax + 1 and therefore we get by induction that
+wi(Bi) ≤wi−1(Bi−1) ≤max(4|Si−1|, 8ℓmax) ≤max(4(ℓmax + 1), 8ℓmax) ≤8ℓmax.
+Thus, it suﬃces to consider the case that ℓ> ℓmax, which in particular implies that ℓis good. We have i2ℓ<
+iℓ≤i (since ℓ≤|S0|/2 ≤i) and therefore we can assume by induction that wi2ℓ(Bi2ℓ) ≤max(4(2ℓ), 8ℓmax) =
+8ℓ. As ℓis good, this implies that wiℓ(Biℓ) ≤4ℓand therefore wi(Bi) ≤wiℓ(Biℓ) ≤4ℓ= 4|Si|. This ﬁnishes
+the induction and thus we indeed have wi(Bi) ≤max(4|Si|, 8ℓmax) for every i ∈{0, 1, . . ., k −1}. Therefore,
+wi(Ei)
+k −i ≤
+wi(Ei)
+|Si| + |Mi| + |Bi| ≤
+wi(Bi)
+max(|Si|, 1) + 80(|Si| + |Mi|)
+|Si| + |Mi|
+≤max(4, 8ℓmax) + 80 ≤90ℓmax.
+Lemma 3.3. Let ℓ∈{1, 2, . . ., ⌊|S0|/2⌋}. Then, ℓis bad with probability at most e−ℓ
+40 .
+For the proof of Lemma 3.3, we need the following Chernoﬀ-bound variant.
+Lemma 3.4 (Chernoﬀbound). Let X1, . . . , Xℓbe independent Bernoulli-distributed random variables, each
+equal to one with probability p. Then,
+P
+ ℓ
+X
+i=1
+Xi < pℓ
+2
+!
+≤e−pℓ/8.
+Proof of Lemma 3.3. Throughout the proof, we assume that wi2ℓ(Bi2ℓ) ≤8ℓ. In particular,
+|Bi2ℓ| ≤wi2ℓ(Bi2ℓ)
+80
+≤ℓ
+10.
+Below, we will deﬁne for every j ∈{1, 2, . . ., ℓ} an indicator variable Xj in such a way that
+1. E[Xj|X1, X2, . . . , Xj−1] ≥1
+5 for every j ∈{1, 2, . . ., ℓ} and
+2. if X := Pℓ
+j=1 Xj ≥
+ℓ
+10, then wiℓ(Biℓ) ≤4ℓ.
+4
+
+--- Page 5 ---
+The ﬁrst property implies that X stochastically dominates a random variable X′ which is the sum of ℓ
+independent Bernoulli-distributed random variables, each equal to one with probability 1/5. Thus, using
+Lemma 3.4, we get
+P
+
+X < ℓ
+10
+
+≤P
+
+X′ < ℓ
+10
+
+≤e−ℓ
+40 .
+Thus, we can now use the second property to deduce that ℓis bad with probability at most e−ℓ
+40 . It thus
+remains to deﬁne the random variables and show that they indeed satisfy the two properties. To that end,
+ﬁx some j ∈{1, 2, . . ., ℓ}. We deﬁne i′
+j as the smallest i ∈{i2ℓ, i2ℓ+ 1, . . . , iℓ−1} with |Si| = 2ℓ−j + 1
+and ei+1 /∈Mi. Note that there exists at least one such i as there exists some i with |Si| = 2ℓ−j + 1 and
+|Si+1| = 2ℓ−j, and for this i it holds that ei+1 ∈Si and therefore ei+1 /∈Mi. Note that it furthermore holds
+that i′
+1 < i′
+2 < . . . < i′
+ℓ. We set Xj = 1 if wi′
+j(Bi′
+j) ≤4ℓor ei′
+j+1 ∈Bi′
+j and otherwise we set Xj = 0. We
+start by showing that the second property holds by proving the contrapositive. To that end, assume that
+wiℓ(Biℓ) > 4ℓ. In particular, we have for every j that wi′
+j (Bi′
+j) > 4ℓ. Thus, if Xj = 1, we get ei′
+j+1 ∈Bi′
+j
+and therefore |Bi′
+j+1| ≤|Bi′
+j| −1. As |Bi2ℓ| <
+ℓ
+10, we therefore get that X <
+ℓ
+10, as needed.
+It remains to show the ﬁrst property. To that end, consider any i and assume we have already sampled
+e1, . . . , ei in an arbitrary manner such that |Si| ≤2ℓand wi(Bi) ≥4ℓ. Then, conditioned on ei+1 /∈Mi, we
+get ei+1 ∈Bi with probability at least
+Dε
+i (Bi)
+Dε
+i (Bi) + Dε
+i (Si) ≥
+(1 −ε)wi(Bi)
+(1 −ε)wi(Bi) + (1 + ε)wi(Si) ≥
+0.5 · 4ℓ
+0.5 · 4ℓ+ 1.5 · 2 · 2ℓ≥1
+5.
+In particular, this directly implies E[Xj|X1, X2, . . . , Xj−1] ≥1
+5 for every j ∈{1, 2, . . ., ℓ}.
+Finally, we are ready to prove Lemma 2.5 by combining Lemmas 3.2 and 3.3.
+Proof of Lemma 2.5. Fix some i ∈{0, 1, . . ., k −1}. Let ℓmax be deﬁned as in Lemma 3.2. Lemma 3.2 gives
+that for every ℓwith Pr[ℓmax = ℓ] > 0, we have
+E
+P
+e∈Ei wi(e)
+k −i
+|ℓmax = ℓ
+
+≤90ℓ.
+Moreover, for ℓ> 1 , we can use Lemma 3.3 to deduce that P[ℓmax = ℓ] ≤P[ℓis bad] ≤e−ℓ
+40 . Therefore,
+E
+P
+e∈Ei wi(e)
+k −i
+
+≤
+∞
+X
+ℓ=1
+90ℓ· e−ℓ−1
+40 = O(1).
+References
+[ACKS15]
+Pranjal Awasthi, Moses Charikar, Ravishankar Krishnaswamy, and Ali Kemal Sinop.
+The
+hardness of approximation of euclidean k-means. arXiv preprint arXiv:1502.03316, 2015.
+[ADHP09]
+Daniel Aloise, Amit Deshpande, Pierre Hansen, and Preyas Popat. Np-hardness of euclidean
+sum-of-squares clustering. Machine learning, 75(2):245–248, 2009.
+[ADK09]
+Ankit Aggarwal, Amit Deshpande, and Ravi Kannan. Adaptive sampling for k-means clus-
+tering. In Approximation, Randomization, and Combinatorial Optimization. Algorithms and
+Techniques, pages 15–28. Springer, 2009.
+[AV07]
+David Arthur and Sergei Vassilvitskii. k-means++: The advantages of careful seeding. In
+Proceedings of the eighteenth annual ACM-SIAM symposium on Discrete algorithms, pages
+1027–1035. Society for Industrial and Applied Mathematics, 2007.
+5
+
+--- Page 6 ---
+[BERS20]
+Anup Bhattacharya, Jan Eube, Heiko Röglin, and Melanie Schmidt. Noisy, greedy and not so
+greedy k-means++. In 28th Annual European Symposium on Algorithms (ESA 2020). Schloss
+Dagstuhl-Leibniz-Zentrum für Informatik, 2020.
+[BLHK16a]
+Olivier Bachem, Mario Lucic, Hamed Hassani, and Andreas Krause. Fast and provably good
+seedings for k-means. In Advances in neural information processing systems, pages 55–63, 2016.
+[BLHK16b]
+Olivier Bachem, Mario Lucic, S Hamed Hassani, and Andreas Krause.
+Approximate k-
+means++ in sublinear time. In Thirtieth AAAI Conference on Artiﬁcial Intelligence, 2016.
+[BLK17]
+Olivier Bachem, Mario Lucic, and Andreas Krause. Distributed and provably good seedings for
+k-means in constant rounds. In Proceedings of the 34th International Conference on Machine
+Learning-Volume 70, pages 292–300. JMLR. org, 2017.
+[BMV+12]
+Bahman Bahmani, Benjamin Moseley, Andrea Vattani, Ravi Kumar, and Sergei Vassilvitskii.
+Scalable k-means++. Proceedings of the VLDB Endowment, 5(7):622–633, 2012.
+[BVX19]
+Aditya Bhaskara, Sharvaree Vadgama, and Hong Xu. Greedy sampling for approximate clus-
+tering in the presence of outliers. Advances in Neural Information Processing Systems, 32,
+2019.
+[CAEMN22] Vincent Cohen-Addad, Hossein Esfandiari, Vahab Mirrokni, and Shyam Narayanan. Improved
+approximations for euclidean k-means and k-median, via nested quasi-independent sets, 2022.
+[CGPR20]
+Davin Choo, Christoph Grunau, Julian Portmann, and Václav Rozhon. k-means++: few more
+steps yield constant approximation. In International Conference on Machine Learning, pages
+1909–1917. PMLR, 2020.
+[Das19]
+Sanjoy Dasgupta. Lecture 3 – algorithms for k-means clustering, 2013. accessed May 8th, 2019.
+[GÖRT22]
+Christoph Grunau, Ahmet Alper Özüdo˘gru, Václav Rozhoň, and Jakub Tětek. A nearly tight
+analysis of greedy k-means++. arXiv preprint arXiv:2207.07949, 2022.
+[GR20]
+Christoph Grunau and Václav Rozhoň. Adapting k-means algorithms for outliers, 2020.
+[LS19]
+Silvio Lattanzi and Christian Sohler.
+A better k-means++ algorithm via local search.
+In
+International Conference on Machine Learning, pages 3662–3671, 2019.
+[MRS20]
+Konstantin Makarychev, Aravind Reddy, and Liren Shan. Improved guarantees for k-means++
+and k-means++ parallel. Advances in Neural Information Processing Systems, 33:16142–16152,
+2020.
+[PVG+11]
+F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel,
+P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cournapeau, M. Brucher,
+M. Perrot, and E. Duchesnay. Scikit-learn: Machine learning in Python. Journal of Machine
+Learning Research, 12:2825–2830, 2011.
+[Roz20]
+Václav Rozhoň. Simple and sharp analysis of k-means——. In International Conference on
+Machine Learning, pages 8266–8275. PMLR, 2020.
+[Wei16]
+Dennis Wei. A constant-factor bi-criteria approximation guarantee for k-means++. In Advances
+in Neural Information Processing Systems, pages 604–612, 2016.
+6
+
+
+
+Current round tag: Round 0001 — 2025-08-27T15:17:54.765797Z
+Return ONLY valid JSON with a single field:
+{ "progress_md": "<your progress notes for this round>" }
+
+Read output.md. If you spot gaps, errors, or missing justifications in output.md, point them out clearly inside progress_md.

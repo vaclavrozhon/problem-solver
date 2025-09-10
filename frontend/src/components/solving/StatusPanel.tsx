@@ -21,7 +21,8 @@ import {
   ModelPreset, 
   AppMessage,
   StatusDisplayProps,
-  MessageHandlerProps
+  MessageHandlerProps,
+  FileInfo
 } from './types'
 import { 
   getProblemInfo, 
@@ -32,7 +33,7 @@ import {
   organizeTimings,
   formatRelativeTime
 } from './utils'
-import { getStatus, runRound, stopProblem } from '../../api'
+import { getStatus, runRound, stopProblem, listFiles } from '../../api'
 import ProverConfigComponent from './ProverConfig'
 
 // =============================================================================
@@ -105,6 +106,7 @@ export default function StatusPanel({
   // Local component state
   const [localLoading, setLocalLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<number>(0)
+  const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([])
 
   // =============================================================================
   // COMPUTED VALUES
@@ -211,19 +213,39 @@ export default function StatusPanel({
     const current = runConfig.proverConfigs || []
     const configs: ProverConfig[] = []
     
+    // Create default paper access for all available papers
+    const defaultPaperAccess: Record<string, boolean> = {}
+    availableFiles.filter(file => file.type === 'paper').forEach(paper => {
+      defaultPaperAccess[paper.path] = true  // Default: access to all papers
+    })
+    
     for (let i = 0; i < numProvers; i++) {
-      configs.push(current[i] || { calculator: false, focus: 'default' })
+      const defaultConfig = { 
+        calculator: true,  // Default: calculator enabled
+        focus: 'default',
+        paperAccess: defaultPaperAccess
+      }
+      
+      // Merge with existing config, but ensure paper access is updated with new papers
+      const existing = current[i]
+      if (existing) {
+        const mergedPaperAccess = { ...defaultPaperAccess, ...existing.paperAccess }
+        configs.push({
+          ...existing,
+          paperAccess: mergedPaperAccess
+        })
+      } else {
+        configs.push(defaultConfig)
+      }
     }
     
     return configs
   }
   
   /**
-   * Update configuration for a specific prover
+   * Update all prover configurations
    */
-  const updateProverConfig = (proverIndex: number, config: ProverConfig) => {
-    const configs = ensureProverConfigs(runConfig.provers)
-    configs[proverIndex] = config
+  const updateProverConfigs = (configs: ProverConfig[]) => {
     updateRunConfig({ proverConfigs: configs })
   }
 
@@ -237,6 +259,24 @@ export default function StatusPanel({
       setLastUpdate(status.overall.timestamp)
     }
   }, [status])
+  
+  // Load files when problem changes
+  useEffect(() => {
+    if (problemName) {
+      loadFiles()
+    }
+  }, [problemName])
+  
+  // Load available files
+  const loadFiles = async () => {
+    try {
+      const fileList = await listFiles(problemName)
+      setAvailableFiles(fileList)
+    } catch (err) {
+      console.error('Failed to load files for prover configuration:', err)
+      setAvailableFiles([])
+    }
+  }
   
   // Ensure prover configs are in sync with number of provers
   useEffect(() => {
@@ -660,24 +700,20 @@ export default function StatusPanel({
       )}
 
       {/* Prover Configurations */}
-      {runConfig.provers > 1 && (
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>
             Prover Configurations
           </label>
-          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {ensureProverConfigs(runConfig.provers).map((config, index) => (
-              <ProverConfigComponent
-                key={index}
-                proverIndex={index + 1}
-                config={config}
-                onChange={(newConfig) => updateProverConfig(index, newConfig)}
-                focusOptions={focusOptions}
-              />
-            ))}
+          <div style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'auto' }}>
+            <ProverConfigComponent
+              proverConfigs={ensureProverConfigs(runConfig.provers)}
+              onChange={updateProverConfigs}
+              focusOptions={focusOptions}
+              availablePapers={availableFiles}
+              numProvers={runConfig.provers}
+            />
           </div>
         </div>
-      )}
 
       {/* Start Button */}
       <div style={{ marginTop: '16px' }}>

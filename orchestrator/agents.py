@@ -36,7 +36,7 @@ def parse_structured_output(model_class, response_text: str, model: str, system_
             # One constrained repair retry
             repair_prompt = (f"Your last message did not match the JSON schema due to: {e}. "
                            f"Return ONLY a JSON object that conforms to the exact schema I provided.")
-            repair_text, _, _ = complete_text(
+            repair_text, _, _, _ = complete_text(
                 model, system_prompt, user_message + "\n\n" + repair_prompt,
                 response_format=response_format
             )
@@ -135,6 +135,21 @@ def _with_retries(call, max_retries=4):
             delay *= 2
 
 
+def _normalize_tools(tools):
+    """Convert tools into [{'type': ...}] dicts and deduplicate by type."""
+    if not tools:
+        return []
+    norm = []
+    seen = set()
+    for t in tools:
+        ttype = t if isinstance(t, str) else t.get("type")
+        if not ttype or ttype in seen:
+            continue
+        seen.add(ttype)
+        norm.append({"type": ttype})
+    return norm
+
+
 def load_prover_focus_prompts() -> dict:
     """Load prover focus mini-prompts from JSON file."""
     focus_file = Path(__file__).parent.parent / "prompts" / "prover_focus.json"
@@ -149,11 +164,11 @@ def load_prover_focus_prompts() -> dict:
 
 def complete_text(model: str, system_prompt: str, user_message: str,
                  response_format: Any = None, temperature: float = 0.2, 
-                 previous_response_id: str = None, tools: list = None) -> Tuple[str, float, str]:
+                 previous_response_id: str = None, tools: list = None, attachments: list = None) -> Tuple[str, float, str, dict]:
     """Complete text using OpenAI API with appropriate settings for the model.
     
-    Returns: (response_text, duration, response_id) where response_id can be used
-    for reasoning state preservation in subsequent calls.
+    Returns: (response_text, duration, response_id, usage) where response_id can be used
+    for reasoning state preservation in subsequent calls and usage contains token counts.
     """
     start_time = time.perf_counter()
     
@@ -178,12 +193,21 @@ def complete_text(model: str, system_prompt: str, user_message: str,
         
         if response_format:
             kwargs["response_format"] = response_format
-            
+        
         if previous_response_id:
             kwargs["previous_response_id"] = previous_response_id
-            
-        if tools:
-            kwargs["tools"] = tools
+        
+        # Normalize incoming tools
+        norm_tools = _normalize_tools(tools)
+        
+        if attachments:
+            kwargs["attachments"] = attachments
+            # Ensure file_search is available whenever attachments are present
+            if not any(t["type"] == "file_search" for t in norm_tools):
+                norm_tools.append({"type": "file_search"})
+        
+        if norm_tools:
+            kwargs["tools"] = norm_tools
 
         # Execute with retries
         def _call():
@@ -205,17 +229,23 @@ def complete_text(model: str, system_prompt: str, user_message: str,
         duration = time.perf_counter() - start_time
         response_id = getattr(completion, "id", None)
         
-        # Log usage if available
+        # Extract usage information
+        usage_dict = {}
         try:
             usage = getattr(completion, 'usage', None)
             if usage:
-                print(f"    Usage - Input: {getattr(usage, 'input_tokens', 0)}, "
-                      f"Output: {getattr(usage, 'output_tokens', 0)}, "
-                      f"Reasoning: {getattr(usage, 'reasoning_tokens', 0)}")
+                usage_dict = {
+                    'input_tokens': getattr(usage, 'input_tokens', 0),
+                    'output_tokens': getattr(usage, 'output_tokens', 0),
+                    'reasoning_tokens': getattr(usage, 'reasoning_tokens', 0)
+                }
+                print(f"    Usage - Input: {usage_dict['input_tokens']}, "
+                      f"Output: {usage_dict['output_tokens']}, "
+                      f"Reasoning: {usage_dict['reasoning_tokens']}")
         except Exception:
             pass  # Don't fail on usage logging errors
             
-        return text, duration, response_id
+        return text, duration, response_id, usage_dict
         
     elif is_o_model(model):
         # O-series models don't support system prompts or temperature
@@ -252,16 +282,22 @@ def complete_text(model: str, system_prompt: str, user_message: str,
     
     duration = time.perf_counter() - start_time
     
-    # Log usage for standard models
+    # Extract usage for standard models
+    usage_dict = {}
     try:
         usage = getattr(completion, 'usage', None)
         if usage:
-            print(f"    Usage - Input: {getattr(usage, 'prompt_tokens', 0)}, "
-                  f"Output: {getattr(usage, 'completion_tokens', 0)}")
+            usage_dict = {
+                'input_tokens': getattr(usage, 'prompt_tokens', 0),
+                'output_tokens': getattr(usage, 'completion_tokens', 0),
+                'reasoning_tokens': 0  # Standard models don't have reasoning tokens
+            }
+            print(f"    Usage - Input: {usage_dict['input_tokens']}, "
+                  f"Output: {usage_dict['output_tokens']}")
     except Exception:
         pass  # Don't fail on usage logging errors
     
-    return completion.choices[0].message.content, duration, None
+    return completion.choices[0].message.content, duration, None, usage_dict
 
 
 def _get_update_mode_and_content(u):

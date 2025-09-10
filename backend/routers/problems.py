@@ -13,12 +13,18 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import FileResponse
 from typing import List, Optional
+from pydantic import BaseModel
 
 from ..models import RunParams
 from ..config import REPO_PROBLEMS_ROOT
 from ..services.tasks import TaskService
 
 router = APIRouter(prefix="/problems_public", tags=["problems"])
+
+
+class FileUpdatePayload(BaseModel):
+    content: str
+    description: Optional[str] = None
 
 
 @router.get("")
@@ -451,6 +457,48 @@ def get_problem_file_public(problem: str, file_path: str, version: Optional[str]
         return {"content": content}
     except Exception as e:
         raise HTTPException(500, f"Error reading file: {e}")
+
+
+@router.put("/{problem}/file")
+def update_problem_file_public(problem: str, file_path: str, payload: FileUpdatePayload):
+    """Update content of a specific file in the problem directory."""
+    problem_dir = REPO_PROBLEMS_ROOT / problem
+    
+    if not problem_dir.exists():
+        raise HTTPException(404, "Problem not found")
+    
+    full_path = problem_dir / file_path
+    
+    if not full_path.exists():
+        raise HTTPException(404, "File not found")
+    
+    # Security check - ensure file is within problem directory
+    try:
+        full_path.resolve().relative_to(problem_dir.resolve())
+    except ValueError:
+        raise HTTPException(403, "Access denied")
+    
+    try:
+        # Update file content
+        full_path.write_text(payload.content, encoding="utf-8")
+        
+        # Update description if provided and this is a paper file
+        if payload.description is not None and file_path.startswith("papers/"):
+            papers_dir = problem_dir / "papers"
+            paper_name = Path(file_path).name
+            desc_file = papers_dir / f"{Path(paper_name).stem}.description.txt"
+            
+            if payload.description.strip():
+                desc_file.write_text(payload.description, encoding="utf-8")
+            else:
+                # Remove description file if description is empty
+                if desc_file.exists():
+                    desc_file.unlink()
+        
+        return {"message": "File updated successfully"}
+        
+    except Exception as e:
+        raise HTTPException(500, f"Error updating file: {e}")
 
 
 @router.get("/{problem}/file-versions")

@@ -185,6 +185,9 @@ export interface ProverConfig {
   
   /** Focus instruction type */
   focus: string
+  
+  /** Paper access permissions - maps paper path to boolean */
+  paperAccess?: Record<string, boolean>
 }
 
 export interface RunParameters {

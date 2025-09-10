@@ -1,0 +1,1 @@
+Blocked: Conjecture 7.2’s statement and required definitions are missing; no prover outputs to audit. We requested the verbatim statement, outlined a concrete plan for formalization, small-case testing, and structural approaches, and set documentation rules. No updates to proofs.md or output.md.

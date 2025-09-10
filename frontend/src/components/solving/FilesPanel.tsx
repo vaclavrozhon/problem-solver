@@ -41,6 +41,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   /** Currently selected file path */
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   
+  /** Currently selected file object (for metadata like description) */
+  const [selectedFileInfo, setSelectedFileInfo] = useState<FileInfo | null>(null)
+  
   /** Content of the selected file */
   const [fileContent, setFileContent] = useState<string>('')
   
@@ -100,7 +103,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   /**
    * Loads content for a specific file and version
    */
-  const loadFileContent = async (filePath: string, version: string = 'current') => {
+  const loadFileContent = async (filePath: string, version: string = 'current', fileInfo?: FileInfo) => {
     try {
       setLoading(true)
       
@@ -134,6 +137,14 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
       setFileContent(result.content)
       setSelectedFile(filePath)
       setSelectedVersion(version)
+      
+      // Store the file info if provided, or find it from files list
+      if (fileInfo) {
+        setSelectedFileInfo(fileInfo)
+      } else {
+        const foundFile = files.find(f => f.path === filePath)
+        setSelectedFileInfo(foundFile || null)
+      }
       
       // Notify parent component
       onFileSelect?.(filePath)
@@ -240,7 +251,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
       <div key={file.path} style={{ marginBottom: '6px' }}>
         {/* Original File */}
         <button
-          onClick={() => loadFileContent(file.path)}
+          onClick={() => loadFileContent(file.path, 'current', file)}
           style={{
             background: selectedFile === file.path ? '#e3f2fd' : 'transparent',
             border: '1px solid #ddd',
@@ -284,7 +295,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
         {/* Parsed Content Button (if available) */}
         {file.type === 'paper' && parsedFilePath && (
           <button
-            onClick={() => loadFileContent(parsedFilePath)}
+            onClick={() => loadFileContent(parsedFilePath, 'current', file)}
             style={{
               background: selectedFile === parsedFilePath ? '#e8f5e8' : '#f8f9fa',
               border: '1px solid #ddd',
@@ -449,6 +460,33 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
               <div style={{ color: '#155724' }}>
                 This is the text content extracted from the original PDF file for AI analysis. 
                 The content has been processed to be machine-readable while preserving the paper's structure and information.
+              </div>
+            </div>
+          )}
+          
+          {/* Paper description field */}
+          {selectedFileInfo?.description && (selectedFileInfo.type === 'paper' || selectedFile?.startsWith('papers/')) && (
+            <div style={{ 
+              background: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: '4px',
+              padding: '12px',
+              marginBottom: '12px',
+              fontSize: '14px'
+            }}>
+              <div style={{ fontWeight: 'bold', color: '#8a6d3b', marginBottom: '8px' }}>
+                📋 Paper Description
+              </div>
+              <div style={{ 
+                background: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '3px',
+                padding: '8px',
+                fontSize: '13px',
+                color: '#333',
+                lineHeight: '1.4'
+              }}>
+                {selectedFileInfo.description}
               </div>
             </div>
           )}

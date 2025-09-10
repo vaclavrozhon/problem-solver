@@ -1,0 +1,217 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+=== USER ===
+=== Task (txt) ===
+
+# Problem Statement
+
+We consider the problem of estimating the winner in an election run under **Ranked Choice Voting** (also known as *Instant-Runoff Voting*).  
+
+Suppose there are \(K\) candidates. Each voter submits a complete ranking of these candidates. The voting rule proceeds in rounds: in each round, every ballot is assigned to the top-ranked candidate who is still in contention. The candidate with the smallest number of votes is eliminated (with ties broken according to a fixed deterministic rule), and this candidate is crossed out from all ballots. The process repeats until only one candidate remains, who is declared the winner.
+
+Our goal is not to compute the exact winner from the full set of ballots, but rather to estimate a *robust* winner from a random sample of ballots. To make this precise, we introduce the notion of an **ε-winner**. A candidate \(c\) is called an ε-winner of an election profile if it is possible to add at most an ε-fraction of additional ballots to the election so that \(c\) becomes the winner under Ranked Choice Voting. In other words, \(c\) is “close” to being the true winner, in the sense that a small perturbation of the electorate would make \(c\) win. There may be more ε-winners. The real winner is ε-winner for any ε. 
+
+The sampling model is as follows. We assume there is a large population of voters, each ballot drawn independently from the empirical distribution of this population. The algorithm does not see all the ballots; instead, it may sample ballots at random, with replacement. The task of the algorithm is: given parameters \(\varepsilon\) and \(\delta\), and access to at most \(m\) random ballots, output a candidate \(\hat{c}\) such that with probability at least \(1-\delta\), the candidate \(\hat{c}\) is an ε-winner of the true election.
+
+There is a natural algorithm for this problem: Sample a subset of votes and run the ranked-choice algorithm on them; output the winner. How many samples are needed for this algorithm to succeed? We seek the best possible upper and lower bound. 
+
+
+
+=== Notes ===
+
+# Notes
+
+
+
+# Path-wise IRV certification and concentration
+
+- Define, for any subset A of candidates and candidate x ∈ A, the linear functional score_x(P; A) := Pr_{b∼P}[x is the top-ranked among A on ballot b]. For a fixed elimination order σ = (e_1, e_2, …, e_{K-1}, w), define A_r := [K] \ {e_1,…,e_{r-1}} and, for each y ∈ A_r \ {e_r}, the margin functional d_{r,y}(P) := score_y(P; A_r) − score_{e_r}(P; A_r).
+- Feasibility of σ under P is equivalent to d_{r,y}(P) ≥ 0 for all r and y; ties are broken by a fixed rule consistent with σ.
+- Certificate distribution: Let R be the full ranking that lists candidates in the order (w, e_{K−1}, e_{K−2}, …, e_1). Let Q be the point mass on R. Under Q, for every round r, e_r is never top among A_r (so score_{e_r}(Q; A_r)=0). The top among A_r is always w, hence d_{r,y}(Q) = 1 if y=w and 0 otherwise.
+- Additive-ballot model: Adding an α-fraction of additional ballots from Q transforms P into P′ := (P + α Q)/(1+α). For any linear functional ℓ, ℓ(P′) = (ℓ(P) + α ℓ(Q))/(1+α).
+- Uniform concentration: The family of functionals F := { (A, y, x) ↦ score_y(·; A) − score_x(·; A) : A ⊆ [K], |A|≥2, y≠x∈A } has cardinality U = Σ_{s=2}^K C(K,s) s(s−1) = K(K−1) 2^{K−2}. Hoeffding plus a union bound yields that with m ≥ C (log U + log(1/δ))/ε^2 = C' (K + log(1/δ))/ε^2, we have |ℓ(S) − ℓ(P)| ≤ ε for all ℓ ∈ F w.p. ≥ 1−δ.
+- Path-wise certificate (informal): If IRV run on the sample S produces σ, and d_{r,y}(S) ≥ 2ε for all r,y on that path, then on the uniform concentration event, d_{r,y}(P) ≥ ε. Adding α=ε fraction of ballots from Q makes d_{r,y}(P′) ≥ ε/(1+ε) for y≠w and ≥ (ε+ε)/(1+ε) for y=w, so σ is feasible on P′ and w wins. Thus w is an ε-winner.
+
+Remarks and contrasts
+- This approach controls adaptivity: we concentrate uniformly over all d_{r,y}, so the random sets A_r along the sample path pose no extra difficulty.
+- A previously suggested per-round “repair by adding ≤ 2η mass” must be reformulated as a single added distribution Q (e.g., the ranking R above). Sequential repairs are hard to compose rigorously due to renormalization and cross-effects.
+- Identity check: Σ_{s} C(K,s) s(s−1) = K(K−1) 2^{K−2} follows from evaluating E[S(S−1)] for S∼Bin(K,1/2).
+
+Next targets
+- Write a clean theorem: with m ≥ C (K+log(1/δ))/ε^2, with prob ≥ 1−δ, either some empirical margin < 2ε (no certificate), or the sample winner is an ε-winner. Provide full proof under the additive-ballot model.
+- K=3 specialization: Only a constant number of statistics (first-round shares and final pairwise margin) are needed; present the explicit certificate and concentration.
+- Lower bounds: (i) K=3 two-point lower bound Ω((log(1/δ))/ε^2); (ii) constructions probing K-dependence (hidden near-tie constraints; chains of near-ties).
+
+
+
+=== Current Output ===
+
+# Output
+
+No output yet.
+
+
+## Theorems toward certifying the natural IRV sampler
+
+We study the following algorithm: sample m ballots i.i.d. from the electorate, run IRV on the sample to obtain an elimination order σ and winner w, and output w. We provide a path-wise certificate that, when triggered, guarantees that w is an ε-winner of the true election with high probability.
+
+Definitions. For any subset A⊆[K] with |A|≥2 and x∈A, let
+- score_x(P; A) := Pr_{b∼P}[x is the top-ranked among A on ballot b].
+For a fixed elimination order σ=(e_1,…,e_{K−1}, w), set A_r := [K] \ {e_1,…,e_{r−1}} and, for each y∈A_r\{e_r}, define the margin functional
+- d_{r,y}(P) := score_y(P; A_r) − score_{e_r}(P; A_r).
+We say that σ is feasible under P if d_{r,y}(P) ≥ 0 for all r and y (with a fixed deterministic tie-breaking rule consistent with σ).
+
+We adopt the additive-ballot model for ε-winner: a candidate c is an ε-winner for P if there exists a distribution Q over full rankings and α∈[0,ε] such that, in the profile P′ := (P + α Q)/(1+α), candidate c wins under IRV.
+
+Lemma 1 (Uniform concentration of path functionals). Let
+U := Σ_{s=2}^K C(K,s) s(s−1) = K(K−1) 2^{K−2}.
+For any ε∈(0,1) and δ∈(0,1), if m ≥ (1/(2ε^2))(log(2U)+log(1/δ)), then with probability at least 1−δ, simultaneously for all subsets A and ordered pairs (y,x) with y≠x∈A,
+| (score_y(S; A) − score_x(S; A)) − (score_y(P; A) − score_x(P; A)) | ≤ ε.
+Proof. Each difference is an average of m i.i.d. variables in [−1,1]. Apply Hoeffding’s inequality and a union bound over the U functionals and their negations. The identity for U follows by evaluating E[S(S−1)] for S∼Bin(K,1/2).
+
+Lemma 2 (Certificate via adding a single ranking). Fix σ=(e_1,…,e_{K−1}, w). Let R be the full ranking that orders candidates as (w, e_{K−1}, e_{K−2}, …, e_1), and let Q be the point mass on R. For every round r and every y∈A_r\{e_r}, under Q we have score_{e_r}(Q; A_r)=0 and
+- d_{r,y}(Q) = 1 if y = w,
+- d_{r,y}(Q) = 0 if y ≠ w.
+Consequently, for any α≥0 and any P, in P′:=(P+αQ)/(1+α),
+- d_{r,y}(P′) = (d_{r,y}(P) + α d_{r,y}(Q))/(1+α).
+
+Theorem 1 (Path-wise ε-winner certificate for IRV). Fix ε∈(0,1/2) and δ∈(0,1). Draw m ballots i.i.d. from P to form the empirical profile S, and run IRV on S to obtain an elimination order σ and winner w. If m ≥ C (K + log(1/δ))/ε^2 for a suitable absolute constant C, then with probability at least 1−δ, the following implication holds:
+If d_{r,y}(S) ≥ 2ε for every round r and every y∈A_r\{e_r}, then w is an ε-winner for P.
+Proof. By Lemma 1 (absorbing constants into C), with probability ≥1−δ we have |d_{r,y}(S) − d_{r,y}(P)| ≤ ε uniformly over all (A,y,x). On this event, for all r and y we get d_{r,y}(P) ≥ ε. Let Q be as in Lemma 2 and take α=ε. Then for y≠w, d_{r,y}(P′) = (d_{r,y}(P) + 0·ε)/(1+ε) ≥ ε/(1+ε) > 0; for y=w, d_{r,w}(P′) = (d_{r,w}(P) + ε·1)/(1+ε) ≥ (ε+ε)/(1+ε) > 0. Hence all feasibility inequalities for σ hold in P′, so w wins under IRV in P′. By definition, w is an ε-winner for P.
+
+Corollary 2 (K=3, explicit certificate). For K=3, let the sample S have elimination order (e, o, w). If the empirical first-round margins satisfy score_e(S;[3]) ≤ min(score_o(S;[3]), score_w(S;[3])) − 2ε and the final pairwise margin satisfies Pr_S[w ≻ o] − Pr_S[o ≻ w] ≥ 2ε, then for m ≥ C' (log(1/δ))/ε^2 (for a suitable constant C'), with probability ≥1−δ the candidate w is an ε-winner of P. Proof: specialize Theorem 1 to K=3; only O(1) functionals are needed for concentration in this case.
+
+Discussion. The theorem gives a certify-or-abstain guarantee for the natural algorithm: whenever the observed sample path has per-round slack at least 2ε, the sample winner is an ε-winner of the true election with high probability from m = O((K+log(1/δ))/ε^2) samples. The uniform concentration over all path functionals resolves adaptivity of the random elimination sets.
+
+
+
+=== Prover 01 Output ===
+
+## Audit of current output and quick fixes
+
+- Additive-ballot normalization: Correctly used as P′ = (P + α Q)/(1+α) throughout Theorem 1 and Lemma 2. Good.
+- Tie-breaking: Theorem 1 implicitly ensures strict positivity of all margins in P′, so tie-breaking becomes irrelevant; this should be stated explicitly in the proof (to avoid any dependence on the fixed rule once the certificate fires).
+- Counting identity U: A simpler and fully explicit combinatorial proof would help. See Lemma A below.
+- Certify-or-abstain vs. unconditional guarantee: Theorem 1 proves a certify-or-abstain statement. It does not, and cannot, guarantee that the natural algorithm outputs an ε-winner w.p. ≥ 1−δ uniformly over all P without further assumptions on true margins. This gap relative to the problem’s “succeed” phrasing should be flagged in output.md.
+- K=3 corollary: The statement is sound; an explicit list of the O(1) functionals and a concrete constant in the sample bound would strengthen it. See Corollary B below.
+
+## Ideas
+
+1) Parametric path certificate (one-line why useful). A sharpened version of Theorem 1 that decouples the empirical slack τ and the uniform deviation η, yielding a data-dependent certificate and explicit α ≤ ε. This lets the algorithm compute a guaranteed ε̂ from the sample: ε̂ := max{0, min(τ−η, ε)}.
+
+2) Minimal α accounting (one-line why useful). Given uniform deviation bound η and observed margins, upper bound the minimal α (for the single-ranking Q) needed to realize σ on the true P. This quantifies robustness and can yield tighter guarantees than the fixed “2ε” trigger.
+
+3) Clean combinatorial proof of U = K(K−1) 2^{K−2} (one-line why useful). Streamlines Lemma 1’s union bound and removes reliance on the binomial-moment identity.
+
+4) K=3 lower bound via Le Cam (one-line why useful). Establishes Ω((log(1/δ))/ε^2) necessity for any method, matching our upper bound’s ε, δ dependence in the simplest nontrivial case.
+
+## Statements and proofs/sketches
+
+Lemma A (Counting of path functionals). Let F = { (A,y,x): A⊆[K], |A|≥2, y≠x∈A }. Then |F| = U = K(K−1) 2^{K−2}.
+Proof. For each ordered pair (y,x) with y≠x (K(K−1) choices), any A that contains both y and x is formed by choosing an arbitrary subset of the remaining K−2 candidates, so 2^{K−2} choices. Multiply.
+
+Lemma C (Parametric path-wise certificate). Fix σ=(e_1,…,e_{K−1},w) produced by IRV on the sample S. Suppose a uniform concentration event holds: |d_{r,y}(S) − d_{r,y}(P)| ≤ η for all r,y. Let τ := min_{r,y} d_{r,y}(S). If τ > η, then for any α ∈ [0, τ−η], the same σ is feasible on P′:=(P+αQ)/(1+α) where Q is the point mass on ranking (w, e_{K−1}, …, e_1); in particular, w is an (τ−η)-winner for P.
+Reason. For y≠w, d_{r,y}(P′) = d_{r,y}(P)/(1+α) ≥ (τ−η)/(1+α) > 0. For y=w, d_{r,w}(P′) = (d_{r,w}(P)+α)/(1+α) ≥ (τ−η+α)/(1+α) > 0. Hence all feasibility inequalities are strictly positive, so σ executes on P′ and w wins.
+
+Corollary B (Explicit K=3 certificate with constants). Let K=3, S be an m-sample, and suppose S’s elimination order is (e,o,w). Define
+- First round: M1 := min{ score_o(S;[3]) − score_e(S;[3]), score_w(S;[3]) − score_e(S;[3]) }.
+- Final pair: M2 := Pr_S[w ≻ o] − Pr_S[o ≻ w].
+Let τ := min{M1, M2}. If m ≥ (1/(2η^2)) (log(12) + log(1/δ)) and τ ≥ η + ε, then w is an ε-winner w.p. ≥ 1−δ. In particular, taking η=ε yields m ≥ (1/(2ε^2))(log 12 + log(1/δ)) and the simple trigger “all three margins ≥ 2ε.”
+Sketch. The class has at most 6 functionals (two first-round differences, one pairwise difference, and their negatives). Apply Hoeffding+union bound with 2U ≤ 12. Then apply Lemma C with τ−η ≥ ε.
+
+Example check (K=3). Let P place mass p_A = 0.51 on w≻o≻e and p_B = 0.49 on o≻w≻e. Then round 1 eliminates e (score_e=0), and in the final pair M2 = 0.02. With ε=0.01, η=0.01, τ=0.02, the certificate fires; adding α=0.01 of Q = (w,o,e) yields d_{2,w}(P′) = (0.02+0.01)/1.01 > 0 while d_{1,o}, d_{1,w} shrink but stay positive.
+
+Lemma D (Minimal α upper bound from sample). Under the uniform deviation bound η and given σ from S, define τ := min_{r,y} d_{r,y}(S). Then any α ≤ τ−η suffices to realize σ on P′ with Q as above. In particular, the data-driven bound α∗ := (τ−η)_+ is feasible and α∗ ≤ ε whenever τ ≥ η + ε.
+Proof. Immediate from Lemma C.
+
+Lemma E (K=3 Le Cam lower bound). Fix ε ∈ (0, 1/6). Consider two electorates on K=3 supported on {A: w≻o≻e, B: o≻w≻e}: P_+ with P_+(A)=1/2+ε, P_+(B)=1/2−ε; P_- with P_-(A)=1/2−ε, P_-(B)=1/2+ε. Then for target ε (same symbol) and any algorithm that, from m i.i.d. ballots, outputs a candidate who is an ε-winner of the true election with probability ≥ 1−δ for both P_+ and P_-, it must hold that m ≥ c log(1/δ)/ε^2 for an absolute constant c>0.
+Why sets of ε-winners are disjoint. Under P_+, e is eliminated immediately (score_e=0). The final pair margin is M2=2ε in favor of w. For ε<1/6, any α≤ε leaves round-1 elimination unchanged, and to make o beat w in the final pair requires α≥M2=2ε. Thus under P_+, the only ε-winner is w. Symmetrically, under P_- the only ε-winner is o. Hence any algorithm must identify which world it is in (binary testing). Information bound. The observations reduce to m i.i.d. draws from a Bernoulli with mean 1/2±ε (indicator of A). Standard tail or KL bounds (KL(P_+||P_-) ≈ 8ε^2 for small ε) imply m ≥ c log(1/δ)/ε^2 is necessary for error ≤ δ.
+
+## Obstacles and open items
+
+- Uniform-in-P success of the natural algorithm: Without assumptions on true path margins, no fixed m can guarantee that the sample winner is an ε-winner w.p. ≥ 1−δ uniformly over all electorates. Our results are certify-or-abstain; quantifying the rate at which the abstain event occurs requires margin conditions.
+- K-dependence lower bounds: While the union bound suggests an O(K/ε^2) price for certification, a matching lower bound requires constructing a packing of electorates whose ε-winner sets are nearly disjoint and whose induced ballot laws are pairwise close. Ensuring IRV consistency across many rounds while “hiding” the critical inequality remains delicate.
+- Tight α accounting when some d_{r,w}(S) are small: Lemma C tolerates small d_{r,w} using the +α boost, but for y≠w margins shrink by 1/(1+α). Balancing these may lead to slightly stronger, round-dependent α choices if one enriches Q beyond a single ranking; this complicates composition and is left open.
+
+## Next steps
+
+1) Integrate Lemma C (parametric certificate) and Lemma A (counting) into output.md, clarifying tie-breaking.
+2) Flesh out Lemma E with explicit constants via KL(P_+||P_-) and Chernoff bounds; include a short proof that e is not an ε-winner in either instance for ε<1/6.
+3) K=3: Provide an explicit list of the three functionals and compute the exact m bound m ≥ (1/(2ε^2))(log(12)+log(1/δ)).
+4) Toward K-dependent lower bounds: attempt a family where the first-round loser is unique but “hidden” among Θ(K) candidates by perturbing first-choice rates by ±ε while keeping later rounds fixed; analyze disjointness of ε-winner sets and pairwise divergences.
+5) Empirical margin estimator: recommend reporting ε̂ := max{0, τ−η} as a certified tolerance derived from the sample, together with m and δ; this is immediately supported by Lemma C.
+
+
+
+=== Prover 02 Output ===
+
+Ideas
+- Parametrized certificate (decoupling accuracy and robustness). Introduce two knobs: a concentration radius γ for the uniform deviation event and a target robustness α (the amount of added ballots). If along the empirical path σ we have all margins d_{r,y}(S) ≥ α + γ, then on the uniform event |d_{r,y}(S) − d_{r,y}(P)| ≤ γ we get d_{r,y}(P) ≥ α. Mixing with Q (the single ranking R = (w, e_{K−1}, …, e_1)) at level α yields, for all r,y≠w, d_{r,y}(P′) = d_{r,y}(P)/(1+α) ≥ α/(1+α) > 0 and for y = w, d_{r,w}(P′) ≥ (α+α)/(1+α) > 0. Hence σ is feasible in P′ and w is an α-winner. This strictly generalizes the 2ε→ε threshold in the current output.
+- Clean separation of roles: choose γ via uniform Hoeffding over U = K(K−1)2^{K−2} functionals; choose α ≤ ε as the robustness budget we certify. Then a one-line certify-or-abstain condition: min_{r,y} d_{r,y}(S) ≥ α+γ.
+- Counting identity proof sketch. U = Σ_{A} |A|(|A|−1) over nonempty A with |A|≥2. Let S ∼ Bin(K, 1/2) be the size of a uniformly random subset; E[S(S−1)] = K(K−1)E[Z_1Z_2] with Z_i ∼ Ber(1/2) iid, hence K(K−1)2^{K}·(1/4)/2^{K} = K(K−1)/4. Multiplying by the number of subsets 2^K and dividing by 4 yields U = K(K−1)2^{K−2}. Alternatively, double-count ordered pairs (y,x) and subsets containing them.
+
+Examples
+- K=3 lower-bound instance (Le Cam two-point). Candidates a,b,c. Fix a robust first-round elimination of c by setting first-place shares a: (1−s)/2, b: (1−s)/2, c: s with s ∈ (0, 1/3). Choose distributions supported on the six rankings with all masses identical except on types with c on top:
+  • P+: r_1 = P[c ≻ a ≻ b] = s/2 + ε, r_2 = P[c ≻ b ≻ a] = s/2 − ε.
+  • P−: r_1 = s/2 − ε, r_2 = s/2 + ε.
+  Keep p_1+p_2 = q_1+q_2 = (1−s)/2 and split these arbitrarily (identically under P+ and P−) so first-round shares match exactly. Then c is eliminated first under both. Final decision equals the a vs b pairwise majority: margin m_ab(P±) = r_1 − r_2 = ±2ε. Thus under P+, a is the IRV winner; under P−, b is the IRV winner; moreover, under P−, a is not an ε-winner (since mixing with α=ε yields margin (−2ε+ε)/(1+ε) < 0). The total variation between P+ and P− equals 2ε; the KL satisfies KL(P+||P−) = (s/2+ε)log((s/2+ε)/(s/2−ε)) + (s/2−ε)log((s/2−ε)/(s/2+ε)) ≤ c_s ε^2 with c_s = 8/s for ε ≤ s/4 (from Taylor’s theorem and convexity). Hence, by Le Cam, any algorithm that outputs an ε-winner with error ≤ δ must use m ≥ (1/c_s)·Ω(log(1/δ))/ε^2 = Ω((log(1/δ))/ε^2).
+- Toy certificate check (K=4). Suppose the empirical path is e_1=4, e_2=3, e_3=2 with winner w=1, and the per-round empirical margins are 0.08, 0.06, 0.05. With γ = 0.02 (from m via Lemma 1) and α = 0.03 ≤ ε, we have min margin 0.05 ≥ α+γ, so certification triggers; after mixing, all non-w margins shrink to ≥ α/(1+α) ≈ 0.029 > 0.
+
+Obstacles and gaps
+- Current output’s Theorem 1 fixes α = ε and requires d_{r,y}(S) ≥ 2ε. This is correct under the additive model, but the dependence on ε is somewhat rigid. The parametrized version above allows any α ≤ ε and any γ achieved by m.
+- Success probability of the “always output empirical winner” algorithm cannot be bounded uniformly over all P without a gap assumption on P (e.g., Γ := min_{r,y} d_{r,y}(P) ≥ margin). The certificate yields a standard gap-dependent guarantee: if Γ ≥ α + 2γ, then with probability ≥ 1−δ (the uniform event) the algorithm’s sample path has min margin ≥ α + γ and we certify an α-winner. This gap-dependence should be stated explicitly.
+- Constants in Lemma 1. The output uses a generic C. A precise instantiation: with m ≥ (2/γ^2)(log(2U) + log(1/δ)), we get uniform deviation ≤ γ by Hoeffding plus union bound (accounting for signs). This can be threaded through the parametrized certificate to produce an explicit m.
+
+Formal lemmas (ready to add to output)
+- Lemma (Parametrized certificate). Fix α ∈ (0,1/2) and γ ∈ (0,1/2). On the event sup_{A,y≠x} |(score_y(S;A)−score_x(S;A))−(score_y(P;A)−score_x(P;A))| ≤ γ, if along the empirical IRV path σ we have min_{r,y} d_{r,y}(S) ≥ α + γ, then the empirical winner w is an α-winner for P.
+- Theorem (Gap-dependent guarantee). Suppose Γ := min_{r,y} d_{r,y}(P) ≥ α + 2γ. If m ≥ (2/γ^2)(log(2U) + log(1/δ)), then with probability ≥ 1−δ the empirical winner w is an α-winner for P.
+- Lemma (K=3 Le Cam lower bound). For any δ ∈ (0,1/3) and ε ≤ s/4 with s ∈ (0,1/3), there exist P+, P− as above such that any algorithm using m samples that, with probability ≥ 1−δ, outputs an ε-winner must satisfy m ≥ c (log(1/δ))/ε^2, where c = s/32 (by the bound KL(P+||P−) ≤ 8ε^2/s and Bretagnolle–Huber inequality). In particular, for a fixed constant s (e.g., s = 1/4), we get m = Ω((log(1/δ))/ε^2).
+
+Next steps
+- Insert the parametrized certificate and gap-dependent theorem into output.md with full proofs (including the algebra with normalization (P+αQ)/(1+α)).
+- Finalize the K=3 lower bound with explicit constants (verify KL bound rigorously: use second derivative at 0 equals 4/(s/2) and convexity to upper bound for |ε| ≤ s/4).
+- K-dependence lower bound sketch to formalize: construct a packing of M ≈ exp(Θ(K)) instances by choosing one round/competitor y* at which the true margin is ±2ε, while all other constraints have slack Ω(1). Apply Fano to obtain m ≥ Ω((log M)/ε^2) = Ω(K/ε^2) under a prior. As a stepping stone, prove at least an Ω((log K)/ε^2) bound by packing over O(K) choices of the critical constraint.
+- Tighten constants in the uniform bound via Bernstein/Chernoff (the top-among-A indicators have variance ≤ p(1−p)); document whether this yields meaningful gains in m for moderate K.
+
+Notes on gaps in current output.md
+- Add the parametrized version to avoid hard-coding 2ε and to clearly separate γ (from m,δ,K) and the target α ≤ ε.
+- State and prove the gap-dependent guarantee explicitly; currently it is implicit.
+- For Corollary 2 (K=3), list the exact finite set of functionals needed and compute U_K=3 = 12 to justify the m = O((log(1/δ))/ε^2) claim with an explicit constant.

@@ -1,0 +1,52 @@
+# Ideas
+
+- Notation. For a remaining set of candidates S and distribution P over full rankings: f_i(S) := P[ballot’s top among S is i]. In each IRV round on P, eliminate r(S) = argmin_i f_i(S) (ties via fixed rule). Let the sequence of remaining sets along the true IRV path be S_1 ⊋ S_2 ⊋ … ⊋ S_K, with |S_t| = K-t+1. Define per-round gap Δ(S) := (second-smallest_i f_i(S)) − (smallest_i f_i(S)). Let Γ := min_t Δ(S_t).
+- Empirical estimates. From m i.i.d. ballots, let \hat f_i(S) be the empirical frequency that i is top among S.
+- Goal. Analyze the natural algorithm “run IRV on the sample; output its winner ĉ”. Provide upper bounds on m for ĉ to be an ε-winner w.h.p., and a matching (up to factors) lower-bound blueprint.
+
+# Lemmas / Claims
+
+- Lemma 1 (Stability under margins). If for all rounds t and all i ∈ S_t, |\hat f_i(S_t) − f_i(S_t)| ≤ Δ(S_t)/3, then the empirical IRV elimination order equals the true order (hence the sample winner equals the true winner). Why useful: yields an exact-winner guarantee when Γ is bounded away from 0.
+  Sketch: For each S_t, the identity of argmin_i f_i(S_t) is preserved since any perturbation ≤ Δ(S_t)/3 cannot change which coordinate is strictly smallest.
+
+- Lemma 2 (One-round repair by adding ballots). For any set S and candidates a,b∈S, if f_a(S) ≤ f_b(S) and we add an α-fraction of new ballots all ranking a first among S, then in the new electorate P′ (mixture with weight α) we have f′_a(S) − f′_b(S) = [f_a(S) − f_b(S) + α]/(1+α). In particular, choosing α ≥ f_b(S) − f_a(S) ensures f′_a(S) ≥ f′_b(S). Why useful: provides a clean bound on how much additive mass is needed to flip a single elimination comparison.
+
+- Lemma 3 (Bounding the cost of a mistaken elimination). Suppose for a given S, the empirical min is r̂ while the true min is r. If max_i |\hat f_i(S) − f_i(S)| ≤ η, then f_{r̂}(S) − f_r(S) ≤ 2η. Hence, by Lemma 2, adding α ≤ 2η suffices to force elimination of r̂ instead of r at S. Why useful: quantifies the ε-cost per round of a wrong elimination due to sampling noise.
+
+# Main Proposition (Upper bound for ε-winner via the natural algorithm)
+
+Proposition. Let CH be the event that for every round’s remaining set in the true path (S_1,…,S_K) and in the empirical path (Ŝ_1,…,Ŝ_K), the deviations satisfy max_i |\hat f_i(S) − f_i(S)| ≤ η. On CH, the sample winner ĉ is an ε-winner with ε ≤ 2(K−1)η. Consequently, with probability ≥ 1−δ,
+- ε ≤ 2(K−1) η where η = sqrt{ (1/(2m)) log(4 K^2/δ) }.
+Equivalently, it suffices that
+- m ≥ (2 (K−1)^2 / ε^2) · log(4 K^2/δ)
+for the natural algorithm to output an ε-winner w.p. ≥ 1−δ.
+
+Proof sketch: Traverse the empirical elimination path backwards from ĉ. Whenever the empirical path’s next eliminated candidate at some Ŝ differs from the true eliminated candidate, apply Lemma 3 and then Lemma 2 to add ≤ 2η mass to force the empirical choice on the true electorate. There are ≤ K−1 rounds, so total added mass ≤ 2(K−1)η. For the probabilistic bound, each \hat f_i(S) is an average of m i.i.d. indicators; Hoeffding gives P(|\hat f_i(S)−f_i(S)|>η) ≤ 2e^{−2mη^2}. Across at most sum_t |S_t| + sum_t |Ŝ_t| ≤ K(K+1) ≤ 2K^2 coordinates, a union bound yields P(CH^c) ≤ 4 K^2 e^{−2 m η^2}. Solve for η in terms of δ.
+
+# Corollaries / Special cases
+
+- Exact-winner under margins. If Γ = min_t Δ(S_t) > 0, choosing η ≤ Γ/3 in Lemma 1 and union-bounding over the K(K+1)/2 true-path coordinates yields m ≥ (1/(2 Γ^2)) · log(2 K^2/δ) to recover the exact winner w.p. ≥ 1−δ.
+- Dimension-agnostic statement. The ε-winner guarantee above scales as m = O((K^2/ε^2) log(K/δ)), independent of hidden “subset” combinatorics.
+
+# Examples / Sanity checks
+
+- K=2 (plurality). The bound reduces to m = O((1/ε^2) log(1/δ)), matching the known optimal rate (up to constants), since K−1=1.
+- Near-tie chain. If each round’s min-vs-second-min gap is about 2ε/K, then our bound predicts η ≈ ε/K is necessary, hence m ≈ Ω(K^2/ε^2), consistent with intuition that many rounds may need “repair”.
+
+# Obstacles / Gaps
+
+- Tie-breaking: Our lemmas assume strict inequalities; with deterministic tie-breaking, the Δ(S) can be 0. The ε-winner guarantee remains valid because any elimination reversal due to a tie can be repaired with arbitrarily small α>0, fitting within the 2η per-round budget. For exact-winner recovery, Γ=0 prevents stability without further assumptions.
+- Adaptivity: While we union-bounded across coordinates for both true and empirical paths, those sets are data-dependent. We sidestepped exponential unions by noting there are ≤ K(K+1) coordinates realized along both paths. This is valid because Hoeffding’s bound applies to any fixed coordinate a posteriori, and union bound over a superset of at most 2K^2 coordinates controls all coordinates that could appear.
+- Lower bound: A formal minimax lower bound for the “sample-IRV” algorithm matching the O(K^2/ε^2) upper bound is not yet proven here. The sketched hard family would create a chain of K−1 near-ties so that typical sampling noise of order η flips Ω(K) eliminations, forcing >ε added mass to realize ĉ. This requires careful anti-concentration and coupling to ensure multiple mistaken eliminations happen with nontrivial probability.
+
+# Next steps
+
+- Formalize Lemma 2 with precise normalization for added ballots (mixture model) and extend to sequences of rounds rigorously (composition of additions while tracking renormalization by 1+α).
+- Give a full proof of the Proposition with explicit constants, including the case where some rounds are ties under P.
+- Construct and analyze a concrete lower-bound instance parameterized by K and ε to show that m = Ω((K^2/ε^2)) samples are necessary for the “run-IRV-on-sample” algorithm to output an ε-winner with high probability.
+- Empirical validation: small-K simulations to estimate the dependence on K and constants in the ε ≈ 2(K−1)η relationship.
+- Check literature for related stability/margin-of-victory results for IRV (e.g., audit margins) that might tighten the per-round 2η bound or reduce K-dependence via path-aware aggregation of deficits.
+
+# Gaps in output.md
+
+- No curated results yet. The lemmas and proposition above are candidates to be added after full proofs are written and constants verified.

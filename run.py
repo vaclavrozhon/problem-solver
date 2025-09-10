@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Simple root-only startup script that actually works.
-Uses Streamlit UI only and fixes all the path issues.
+Start the FastAPI backend and the new React UI (Vite dev server),
+then open the browser to the new UI.
+
+Usage:
+  python3 run.py
 """
 
 import subprocess
@@ -12,69 +16,128 @@ import webbrowser
 from pathlib import Path
 
 REPO = Path(__file__).parent.resolve()
+VENV = REPO / "venv"
 
 def ensure_env():
-    """Load API key from ~/.openai.env"""
+    """Load API key from ~/.openai.env into environment if present."""
     home_env = Path.home() / ".openai.env"
     if not home_env.exists():
-        print("❌ Please create ~/.openai.env with: OPENAI_API_KEY=sk-...")
-        sys.exit(1)
-    
-    # Load the API key into environment
-    with open(home_env) as f:
-        for line in f:
-            if line.strip().startswith("OPENAI_API_KEY="):
-                key = line.split("=", 1)[1].strip()
-                os.environ["OPENAI_API_KEY"] = key
-                print(f"✅ API key loaded: {key[:20]}...")
-                return
-    
-    print("❌ No OPENAI_API_KEY found in ~/.openai.env")
-    sys.exit(1)
+        print("⚠️  ~/.openai.env not found. Backend will start, but OPENAI_API_KEY may be missing.")
+        return
+    try:
+        with open(home_env) as f:
+            for line in f:
+                if line.strip().startswith("OPENAI_API_KEY="):
+                    key = line.split("=", 1)[1].strip()
+                    if key:
+                        os.environ["OPENAI_API_KEY"] = key
+                        print(f"✅ API key loaded: {key[:20]}...")
+                        return
+        print("⚠️  OPENAI_API_KEY not found in ~/.openai.env")
+    except Exception as e:
+        print(f"⚠️  Could not read ~/.openai.env: {e}")
+
+def start_backend() -> subprocess.Popen:
+    """Start FastAPI backend via uvicorn inside repo venv."""
+    print("🚀 Starting backend (FastAPI + Uvicorn) on http://localhost:8000 ...")
+    py = str((VENV / ("Scripts" if os.name == "nt" else "bin") / "python"))
+    log_path = REPO / "backend.log"
+    log_fp = open(log_path, "a", buffering=1)
+    proc = subprocess.Popen(
+        [py, "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"],
+        cwd=str(REPO),
+        env=os.environ.copy(),
+        stdout=log_fp,
+        stderr=log_fp,
+        text=True,
+    )
+    return proc
+
+def start_frontend() -> subprocess.Popen:
+    """Install dependencies if needed and start Vite dev server."""
+    fe_dir = REPO / "frontend"
+    if not fe_dir.exists():
+        raise RuntimeError("frontend/ directory not found")
+    print("📦 Ensuring frontend dependencies (npm install)...")
+    # Best-effort install; ignore errors if already installed
+    try:
+        subprocess.run(["npm", "install"], cwd=str(fe_dir), check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  npm install failed (continuing): {e}")
+
+    print("🧩 Starting Vite dev server (new UI) on http://localhost:5173 ...")
+    env = os.environ.copy()
+    env.setdefault("VITE_API_BASE", "http://localhost:8000")
+    log_path = REPO / "frontend" / "vite.log"
+    log_fp = open(log_path, "a", buffering=1)
+    proc = subprocess.Popen(
+        ["npm", "run", "dev"],
+        cwd=str(fe_dir),
+        env=env,
+        stdout=log_fp,
+        stderr=log_fp,
+        text=True,
+    )
+    return proc
 
 def main():
-    print("🔬 Starting Automatic Researcher (Simple)")
-    
+    print("🔬 Starting Automatic Researcher — New UI")
     ensure_env()
-    
-    # Create venv for dependencies (in root)
-    venv = REPO / "venv"
-    if not venv.exists():
-        print("🐍 Creating virtual environment...")
-        subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-        
-        print("📦 Installing dependencies...")
-        subprocess.run([
-            str(venv / "bin" / "pip"), 
-            "install", 
-            "-r", str(REPO / "requirements.txt")
-        ], check=True)
-    
-    # Start Streamlit dashboard
-    print("🚀 Starting Streamlit UI...")
-    ui_proc = subprocess.Popen([
-        str(venv / "bin" / "streamlit"), 
-        "run", "web_app.py",
-        "--server.headless", "true"
-    ], cwd=str(REPO))
-    
-    # Give it time to start
-    time.sleep(3)
-    
+
+    # Ensure a project-local virtual environment and install backend deps
     try:
-        webbrowser.open("http://localhost:8501")
-        print("🌐 Streamlit UI: http://localhost:8501")
-    except:
-        print("📖 Please open http://localhost:8501")
-    
-    print("🎉 System started!")
-    print("Press Ctrl+C to stop")
-    
+        if not VENV.exists():
+            print("🐍 Creating virtual environment (venv)...")
+            subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
+        # Always (re)install/repair dependencies to ensure uvicorn is available
+        print("📦 Ensuring backend dependencies (requirements.txt)...")
+        pip_exe = str((VENV / ("Scripts" if os.name == "nt" else "bin") / "pip"))
+        subprocess.run([pip_exe, "install", "--upgrade", "pip", "setuptools", "wheel"], check=True)
+        subprocess.run([pip_exe, "install", "-r", str(REPO / "requirements.txt")], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to prepare venv or install dependencies: {e}")
+        print("   Check requirements.txt or your network, then rerun: python3 run.py")
+        return
+
+    backend = None
+    frontend = None
     try:
-        ui_proc.wait()
+        backend = start_backend()
+        # Give backend a moment to bind the port
+        time.sleep(1.5)
+        frontend = start_frontend()
+        # Give vite a moment to start
+        time.sleep(2.5)
+        try:
+            webbrowser.open("http://localhost:5173")
+            print("🌐 Opened http://localhost:5173 in your browser")
+        except Exception:
+            print("📖 Please open http://localhost:5173 in your browser")
+
+        print("🎉 New UI running. Press Ctrl+C to stop.")
+        # Wait on frontend; it runs until interrupted
+        if frontend:
+            frontend.wait()
+        else:
+            # Fallback wait loop
+            while True:
+                time.sleep(1)
+
     except KeyboardInterrupt:
         print("\n🛑 Stopping...")
-        ui_proc.terminate()
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    finally:
+        # Terminate frontend first, then backend
+        for proc in (frontend, backend):
+            if proc and proc.poll() is None:
+                try:
+                    proc.terminate()
+                    time.sleep(0.5)
+                    if proc.poll() is None:
+                        proc.kill()
+                except Exception:
+                    pass
         print("👋 Goodbye!")
 
 if __name__ == "__main__":

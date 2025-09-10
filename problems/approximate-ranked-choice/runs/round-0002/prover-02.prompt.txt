@@ -1,0 +1,168 @@
+=== SYSTEM ===
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (summary of past progress; optional) 
+- output.md (rigorously proven results curated so far; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md or output.md (but do not rewrite output.md yourself).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+- Remember: the verifier curates notes and outputs, you only suggest.
+
+**Return strictly JSON**:
+{
+  "progress_md": "Your progress notes for this round in Markdown (KaTeX allowed). Point out any gaps in output.md clearly. Do not modify output.md directly."
+}
+
+
+=== USER ===
+=== Task (txt) ===
+
+# Problem Statement
+
+We consider the problem of estimating the winner in an election run under **Ranked Choice Voting** (also known as *Instant-Runoff Voting*).  
+
+Suppose there are \(K\) candidates. Each voter submits a complete ranking of these candidates. The voting rule proceeds in rounds: in each round, every ballot is assigned to the top-ranked candidate who is still in contention. The candidate with the smallest number of votes is eliminated (with ties broken according to a fixed deterministic rule), and this candidate is crossed out from all ballots. The process repeats until only one candidate remains, who is declared the winner.
+
+Our goal is not to compute the exact winner from the full set of ballots, but rather to estimate a *robust* winner from a random sample of ballots. To make this precise, we introduce the notion of an **ε-winner**. A candidate \(c\) is called an ε-winner of an election profile if it is possible to add at most an ε-fraction of additional ballots to the election so that \(c\) becomes the winner under Ranked Choice Voting. In other words, \(c\) is “close” to being the true winner, in the sense that a small perturbation of the electorate would make \(c\) win. There may be more ε-winners. The real winner is ε-winner for any ε. 
+
+The sampling model is as follows. We assume there is a large population of voters, each ballot drawn independently from the empirical distribution of this population. The algorithm does not see all the ballots; instead, it may sample ballots at random, with replacement. The task of the algorithm is: given parameters \(\varepsilon\) and \(\delta\), and access to at most \(m\) random ballots, output a candidate \(\hat{c}\) such that with probability at least \(1-\delta\), the candidate \(\hat{c}\) is an ε-winner of the true election.
+
+The central question is: **what is the sample complexity of this problem?**  
+That is, how many samples \(m\) are sufficient (and necessary) in order for an algorithm to reliably identify an ε-winner with probability at least \(1-\delta\)? We seek both upper bounds, by designing sampling algorithms and analyzing their guarantees, and lower bounds, by proving that no algorithm can succeed with significantly fewer than a certain number of samples. 
+
+
+
+=== Notes ===
+
+# Notes
+
+
+
+# Corrected certificate and counterexample for K = 3
+
+Notation: For a candidate set C with |C| = K and any nonempty S ⊆ C with c ∈ S and |S| ≥ 2, define t_a(S) = Pr[top among S is a] under the population distribution P over full rankings.
+
+Corrected c-first certificate: Define
+
+M_c(P) := max_{S ⊆ C, c ∈ S, |S| ≥ 2} [ min_{a ∈ S \ {c}} t_a(S) − t_c(S) ]_+.
+
+If ε > M_c(P), then adding ε' (with 0 < ε' ≤ ε) mass of c-first ballots ensures that in every subset S encountered along any IRV elimination path, c's tally strictly exceeds the minimum among S \ {c}, so c cannot be eliminated and is the eventual winner. This yields a sound, distribution-free sufficient condition. Note the strict inequality requirement; in algorithmic use we maintain a margin so that ε' < ε and ties do not involve c.
+
+Uniform estimation: The family {1[top_S(r) = a]} over all (a, S) has size K · 2^{K-1}. Hoeffding + union bound gives uniform estimation of all t_a(S) within ±τ using m = O((log(K · 2^{K-1}) + log(1/δ))/τ^2) samples. The plug-in estimate \hat M_c satisfies |\hat M_c − M_c| ≤ 2τ.
+
+Counterexample to "K = 3 exactness" of c-first certificate: Let first-place shares be a = 0.38, b = 0.35, c = 0.27. Suppose c beats b head-to-head by margin m = 0.10 but loses to a by margin 0.20. The c-first certificate f_c requires ε ≥ max{0.35 − 0.27, 0.20, 0} = 0.20. However, adding α = 0.11 of c-first ballots and β = 0.03 of b-first ballots yields new first-place tallies c' = 0.38, b' = 0.38, a' = 0.38 (with tiny extra slack to make a uniquely minimal). Then a is eliminated first; in the final, the c vs b margin is m + α − β = 0.10 + 0.11 − 0.03 = 0.18 > 0, so c wins. Total added mass ≈ 0.14 < 0.20. Thus, for K = 3, the minimal augmentation need not equal the c-first-only threshold. A full characterization must allow mixed additions.
+
+LP approach (status and caveats): For a fixed elimination order π, the condition that π(j) is eliminated at round j can be written linearly in terms of the baseline tallies t_a(S_j) and the additive contributions of the added mass y(r) via indicators 1[top_{S_j}(r) = a]. This leads to a linear program minimizing total added mass. To be rigorous one must encode the fixed tie-breaking rule (e.g., by strict inequalities or lexicographic tie constraints). Sensitivity of the LP optimum to perturbations in the t_a(S) (estimated from samples) is the key technical step for a polynomial-in-K sample bound using this approach; deriving an explicit O(poly(K)) Lipschitz constant remains open.
+
+Lower bounds: The Ω((1/ε^2) log(1/δ)) dependence is necessary even for K = 2 (majority). Stronger K-dependent lower bounds (Ω((log K)/ε^2) or Ω(K/ε^2)) are plausible but require explicit constructions.
+
+Next steps summary:
+- Formalize LP with tie-breaking and derive sensitivity bounds.
+- Provide a correct, closed-form minimal-augmentation characterization for K = 3 allowing mixed additions (compare two strategies: avoid facing a losing opponent by flipping the first-round loser vs. directly fixing the head-to-head deficit).
+- Explore whether the worst-case S for the c-first certificate can be restricted by |S| ≤ r for a constant r.
+- Build K-dependent lower bounds via Fano/packing constructions over top-of-S events.
+
+
+
+=== Current Output ===
+
+# Output
+
+No output yet.
+
+
+# Theorems and results relevant to sampling ε-winners under IRV
+
+We work with a candidate set C of size K. For any nonempty S ⊆ C and a ∈ S, let t_a(S) = Pr[top among S is a] under the population distribution P over full rankings. When we add a nonnegative measure y on rankings with total mass ||y||_1 ≤ ε, the tallies update additively: for each S and a ∈ S,
+
+ t'_a(S) = t_a(S) + ∑_{r} y(r) 1[top_S(r) = a].
+
+We assume ties in IRV are broken by a fixed deterministic rule, but we will enforce strict separations so that tie-breaking is irrelevant for our sufficient conditions.
+
+Theorem 1 (Uniform convergence of top-of-S tallies).
+Let F = {f_{a,S}(r) := 1[top_S(r) = a] : a ∈ S ⊆ C, |S| ≥ 1}. For m i.i.d. sampled ballots and any δ ∈ (0,1), with probability at least 1 − δ,
+
+ sup_{a,S} |\hat t_a(S) − t_a(S)| ≤ τ
+
+whenever m ≥ c (log(K · 2^{K-1}) + log(2/δ)) / τ^2 for a universal constant c.
+
+Proof.
+There are at most K · 2^{K-1} indicator functions f_{a,S}. Hoeffding’s inequality plus a union bound gives the claim.
+
+Theorem 2 (Sufficient certificate via c-first additions).
+Fix c ∈ C and define
+
+ f_c(P) := max_{S ⊆ C, c ∈ S, |S| ≥ 2} [ min_{a ∈ S \ {c}} t_a(S) − t_c(S) ]_+.
+
+If ε > f_c(P), then c is an ε-winner. In particular, adding any ε' with f_c(P) < ε' ≤ ε of c-first ballots (with arbitrary completion below c) makes c the IRV winner under the augmented profile.
+
+Proof.
+Adding ε' c-first ballots increases t_c(S) by ε' for every S with c ∈ S and leaves t_a(S) for a ≠ c unchanged. By the choice ε' > f_c(P), for each such S we have t'_c(S) = t_c(S) + ε' > min_{a∈S\{c}} t_a(S). Therefore, at any round in which the remaining set is S, c’s tally strictly exceeds the minimum among other candidates in S and hence c cannot be eliminated. Since some candidate is eliminated in every round, c survives all rounds and is the unique remaining candidate; thus c wins. Because the inequalities are strict, the fixed tie-breaking rule is irrelevant.
+
+Corollary 3 (Sound certifier and its sample complexity).
+Let τ > 0, and suppose m satisfies Theorem 1 so that with probability ≥ 1 − δ we have sup_{a,S} |\hat t_a(S) − t_a(S)| ≤ τ. Define the plug-in estimator
+
+ \hat f_c := max_{S ⊆ C, c ∈ S, |S| ≥ 2} [ min_{a ∈ S \ {c}} \hat t_a(S) − \hat t_c(S) ]_+.
+
+Then |\hat f_c − f_c(P)| ≤ 2τ for all c. Consequently, the following procedure is a sound certifier: compute \hat f_c for all c and output any c with \hat f_c ≤ ε − 2τ. With probability at least 1 − δ, every output c satisfies f_c(P) ≤ ε, and hence (by Theorem 2) is an ε-winner.
+
+In particular, choosing τ = ε/4 and m = Θ((log(K · 2^{K-1}) + log(1/δ)) / ε^2) suffices for correctness with probability ≥ 1 − δ.
+
+Proof.
+For each fixed S containing c, the map (\{t_a(S)\}_{a∈S}) ↦ min_{a∈S\{c}} t_a(S) − t_c(S) is 2-Lipschitz in the sup norm (the minimum over a ≠ c perturbs by at most τ, and t_c by at most τ). Taking positive part and a maximum over S preserves Lipschitzness, giving |\hat f_c − f_c| ≤ 2τ. The rest follows from Theorem 2.
+
+Proposition 4 (Necessary dependence on ε and δ).
+Any algorithm that, with probability at least 1 − δ, outputs an ε-winner from m samples must have m = Ω((1/ε^2) log(1/δ)).
+
+Proof.
+For K = 2, IRV reduces to a two-candidate majority. Determining whether a given candidate is an ε-winner requires distinguishing whether their head-to-head share is ≥ 1/2 − ε versus ≤ 1/2 − 2ε, which is standard Bernoulli mean testing and requires Ω((1/ε^2) log(1/δ)) samples by classical information-theoretic or concentration lower bounds.
+
+Remarks and scope.
+- The certifier in Theorem 2 is sufficient but not necessary in general (and, in particular, is not exact for K = 3). It uses only c-first additions and enforces non-elimination of c in every potential round, which can be conservative.
+- An exact minimal-augmentation characterization for a fixed elimination order can be expressed via a linear program over the added-ballot distribution; making this rigorous with a fixed tie-breaking rule and deriving a stability bound in terms of estimation error in the t_a(S) are promising next steps.
+
+
+
+=== Round 1 Summary ===
+
+This round compared two parallel approaches for certifying that candidate c can be made an IRV winner by adding ≤ε mass: (i) a simple, conservative "c‑first" certificate M_c / f_c based on top-within-S tallies (sufficient only), and (ii) an LP that, for a fixed elimination order, exactly characterizes the minimal added mass. Both provers proved uniform convergence for the top-within-S indicators (union bound over ≤K·2^{K-1} functions) giving a plug-in estimator with additive error control (≤2τ). Sample complexity for the certifier is sound but exponential in K (≈O(K·2^{K-1}/ε^2)). The verifier corrected key issues: the deficit must compare c to other candidates in S (typo), tie-breaking requires strict inequalities or explicit encoding in the LP, and the claimed K=3 exactness (for arbitrary added ballots) is not generally true. Solid lower bound: Ω((log(1/δ))/ε^2) via K=2 holds; K-dependent lower bounds remain conjectural. (Sources: prover-01, prover-02, verifier-feedback.)
+
+
+=== Previous Round Feedback ===
+
+Overall, both provers offered promising directions, but several rigor issues need fixing and some claims are overstated.
+
+Key corrections and auditing:
+- Prover 01’s Lemma 3 (conservative certificate) has a crucial typo: the deficit must compare against the minimum over other candidates in S. The correct deficit is min_{a∈S\{c}} t_a(S) − t_c(S), not min over all a∈S (which is always ≤ t_c(S) and hence yields 0). Also, to be independent of tie-breaking, one needs strict separation (or use a tiny slack). With strict inequality ensured by adding an arbitrarily small extra mass (still ≤ ε when we keep a margin), the certificate is sound.
+- Prover 01’s LP for a fixed elimination order is a good formulation idea, but as stated it does not encode the fixed tie-breaking rule. Weak inequalities allow ties in which the fixed tie-breaker might eliminate someone other than π(j). This can often be cured by introducing an arbitrarily small slack to force strict inequalities or by encoding the lexicographic tie-break in the constraints; either way, these details must be made precise before this can go into output.md. The sensitivity bound is not yet derived, so this remains in notes.
+- Prover 02’s function f_c (identical in spirit to the corrected certificate of Prover 01) is a valid sufficient condition using only c-first added ballots. However, the claim of an exact characterization for K = 3 is not correct in general: allowing non–c-first added ballots can reduce the required total added mass compared to the c-first-only strategy by altering which opponent gets eliminated first. A concrete counterexample is given in the notes.
+- Sample complexity statements tied to the certificate are fine: estimating all top-within-S tallies uniformly within ±τ via Hoeffding + union bound over K·2^{K-1} events (for all S containing c and all a ∈ S) is standard. The induced Lipschitz bound for the plug-in estimator of the certificate value is ≤ 2τ.
+- Lower bounds: the Ω((1/ε^2) log(1/δ)) bound via K = 2 is correct and should be included. The conjectured Ω(K/ε^2) (Prover 01) and Ω((log K)/ε^2) (Prover 02) bounds need construction/proofs and stay in notes.
+
+What to keep vs. defer:
+- Keep: The uniformly convergent estimators for t_a(S); the corrected c-first certificate (sufficient condition) and its sample-complexity guarantee; the basic lower bound from K = 2.
+- Defer to notes: LP-based exact characterization and sensitivity; any claim of exactness for K ≥ 3 based solely on c-first ballots; K-dependent lower bounds.
+
+Concrete next steps:
+1) Formalize the dual of the LP for a fixed elimination order with precise handling of tie-breaking, and derive an explicit Lipschitz/sensitivity constant in terms of K (aim for O(K)).
+2) For K = 3, characterize the true minimal augmentation by allowing mixtures of added ballot types. Provide a closed-form minimum over two strategies: (i) survivability + pairwise vs the eventual opponent (c-first only), and (ii) eliminating the disfavored opponent first by boosting both c and the other opponent’s first-place tallies, while preserving c’s pairwise win in the final.
+3) Investigate whether the worst-case S attaining the c-first certificate necessarily has |S| ≤ r for small r; if yes, this would reduce exponential dependence.
+4) Develop explicit lower-bound constructions in K (packing/Fano) to distinguish many profiles encoding different ε-winner identities via near-independent top-of-S events.
+5) If time permits, implement a two-tier algorithm: run the certifier; if it abstains, solve the LP for a small set of promising orders inferred from the sample, with confidence intervals propagated via LP sensitivity.

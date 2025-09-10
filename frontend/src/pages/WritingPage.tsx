@@ -52,7 +52,7 @@ export default function WritingPage() {
 
   const modelPresets = {
     gpt5: { label: 'GPT-5 (default)', value: 'gpt5' },
-    fast: { label: 'Fast (test)', value: 'fast' },
+    fast: { label: 'GPT4 (test)', value: 'fast' },
   }
 
   useEffect(() => {
@@ -252,7 +252,6 @@ export default function WritingPage() {
   }
 
   async function handleDeleteRounds() {
-    console.log('handleDeleteRounds called', { selected, deleteCount })
     if (!selected || deleteCount <= 0) return
     if (!confirm(`Are you sure you want to delete ${deleteCount} rounds?`)) return
     
@@ -260,16 +259,39 @@ export default function WritingPage() {
     setMessage(null)
     
     try {
-      console.log('Making deleteDraftRounds API call', { selected, deleteCount })
       const result = await deleteDraftRounds(selected, deleteCount)
-      console.log('API call result:', result)
       setMessage({ type: 'success', text: result.message || `Deleted ${result.deleted} rounds` })
       // Refresh rounds data after deletion
       loadRounds()
       loadStatus()
     } catch (err: any) {
-      console.error('Delete rounds error:', err)
       setMessage({ type: 'error', text: err.message || 'Failed to delete rounds' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDeleteAllRounds() {
+    if (!selected || !Array.isArray(roundsData) || roundsData.length === 0) return
+    
+    const totalRounds = roundsData.length
+    if (!confirm(`⚠️ This will delete ALL ${totalRounds} rounds and reset the task to the beginning.\n\nOnly the task description and papers will survive. All conversations and progress will be lost.\n\nAre you absolutely sure?`)) return
+    
+    setLoading(true)
+    setMessage(null)
+    
+    try {
+      const result = await deleteDraftRounds(selected, totalRounds)
+      setMessage({ 
+        type: 'success', 
+        text: `All ${totalRounds} rounds deleted. Task reset to beginning.` 
+      })
+      // Refresh all data after deletion
+      loadRounds()
+      loadStatus()
+      loadFiles()
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to delete all rounds' })
     } finally {
       setLoading(false)
     }
@@ -367,172 +389,80 @@ export default function WritingPage() {
             <>
               <h3>Paper Writing: {selected}</h3>
               
-              {/* Draft Management Section */}
+              {/* Writing Controls */}
               <div style={{ marginBottom: '20px' }}>
                 <div className="problem-card">
-                  <h4>📄 Draft Management</h4>
+                  <div className="input-group">
+                    <label>Model Preset</label>
+                    <select value={preset} onChange={e => setPreset(e.target.value)}>
+                      {Object.entries(modelPresets).map(([key, val]) => (
+                        <option key={key} value={val.value}>{val.label}</option>
+                      ))}
+                    </select>
+                  </div>
                   
-                  {drafts.length === 0 ? (
-                    <div>
-                      <p>No drafts found. Create your first draft to begin paper writing.</p>
-                      
-                      {/* File Upload */}
-                      <div style={{ marginTop: '16px' }}>
-                        <h5>Upload First Draft</h5>
-                        <input
-                          type="file"
-                          accept=".tex,.txt,.md"
-                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                          style={{ marginBottom: '8px' }}
+                  <div className="input-group">
+                    <label>Rounds</label>
+                    <input 
+                      type="number" 
+                      min={1} 
+                      max={20}
+                      value={rounds} 
+                      onChange={e => setRounds(parseInt(e.target.value || '3'))}
+                    />
+                  </div>
+
+                  <div className="control-buttons">
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleStartWriting}
+                      disabled={loading || drafts.length === 0}
+                    >
+                      ✏️ Start Writing Process ({rounds} rounds)
+                    </button>
+                  </div>
+
+                  {/* Delete Rounds Section */}
+                  {Array.isArray(roundsData) && roundsData.length > 0 && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeaa7' }}>
+                      <h5 style={{ marginTop: 0, color: '#856404' }}>🗑️ Delete Rounds</h5>
+                      <div className="input-group">
+                        <label>Delete how many rounds:</label>
+                        <input 
+                          type="number" 
+                          min={1} 
+                          max={roundsData.length}
+                          value={deleteCount} 
+                          onChange={e => setDeleteCount(parseInt(e.target.value || '1'))}
+                          style={{ width: '80px' }}
                         />
+                        <span style={{ fontSize: '12px', color: '#666' }}>
+                          (max {roundsData.length})
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <button
-                          className="btn btn-primary"
-                          onClick={handleUploadDraft}
-                          disabled={!selectedFile || loading}
+                          className="btn btn-danger"
+                          onClick={handleDeleteRounds}
+                          disabled={loading}
+                          style={{ fontSize: '12px', padding: '6px 12px' }}
                         >
-                          📤 Upload Draft
+                          Delete {deleteCount} Round{deleteCount !== 1 ? 's' : ''}
                         </button>
-                      </div>
-
-                      {/* Copy-Paste Draft */}
-                      <div style={{ marginTop: '16px' }}>
-                        <h5>Create Draft from Text</h5>
-                        <p className="small-font">Copy and paste your paper content below</p>
-                        
-                        <div className="input-group" style={{ marginBottom: '12px' }}>
-                          <label>Draft filename:</label>
-                          <input 
-                            type="text" 
-                            value={draftName}
-                            onChange={(e) => setDraftName(e.target.value)}
-                            placeholder="e.g., draft.tex, paper.txt"
-                            style={{ width: '250px' }}
-                          />
-                        </div>
-                        
-                        <textarea 
-                          value={paperText}
-                          onChange={(e) => setPaperText(e.target.value)}
-                          placeholder="Paste your paper content here..."
-                          rows={8}
+                        <button
+                          className="btn btn-danger"
+                          onClick={handleDeleteAllRounds}
+                          disabled={loading}
                           style={{ 
-                            width: '100%', 
-                            minHeight: '200px',
-                            fontFamily: 'monospace',
-                            fontSize: '12px',
-                            marginBottom: '12px'
+                            fontSize: '12px', 
+                            padding: '6px 12px',
+                            backgroundColor: '#dc2626',
+                            borderColor: '#dc2626'
                           }}
-                        />
-                        
-                        <div className="control-buttons">
-                          <button
-                            className="btn btn-primary"
-                            onClick={handleCreateDraftFromText}
-                            disabled={!paperText.trim() || loading}
-                          >
-                            📝 Create Draft from Text
-                          </button>
-                          <button
-                            className="btn btn-secondary"
-                            onClick={() => setPaperText('')}
-                            disabled={loading}
-                          >
-                            🗑️ Clear Text
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Convert output.md */}
-                      {hasOutputMd && (
-                        <div style={{ marginTop: '16px' }}>
-                          <h5>Convert Research Output</h5>
-                          <p className="small-font">Use your research output as the first draft</p>
-                          <button
-                            className="btn btn-secondary"
-                            onClick={handleConvertOutputMd}
-                            disabled={loading}
-                          >
-                            🔄 Convert output.md to Draft
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <p>Found {drafts.length} draft(s). Latest drafts will be used for paper writing.</p>
-                      
-                      {/* Draft List */}
-                      <div style={{ marginTop: '16px' }}>
-                        <h5>Current Drafts</h5>
-                        <ul style={{ marginLeft: '20px' }}>
-                          {drafts.map((draft) => (
-                            <li key={draft.id}>
-                              <strong>{draft.name}</strong> - {draft.size} bytes - {new Date(draft.createdAt).toLocaleString()}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Writing Controls */}
-                      <div style={{ marginTop: '16px' }}>
-                        <div className="input-group">
-                          <label>Model Preset</label>
-                          <select value={preset} onChange={e => setPreset(e.target.value)}>
-                            {Object.entries(modelPresets).map(([key, val]) => (
-                              <option key={key} value={val.value}>{val.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        <div className="input-group">
-                          <label>Rounds</label>
-                          <input 
-                            type="number" 
-                            min={1} 
-                            max={20}
-                            value={rounds} 
-                            onChange={e => setRounds(parseInt(e.target.value || '3'))}
-                          />
-                        </div>
-
-                        <div className="control-buttons">
-                          <button 
-                            className="btn btn-primary" 
-                            onClick={handleStartWriting}
-                            disabled={loading}
-                          >
-                            ✏️ Start Writing Process ({rounds} rounds)
-                          </button>
-                        </div>
-
-                        {/* Delete Rounds Section */}
-                        {Array.isArray(roundsData) && roundsData.length > 0 && (
-                          <div style={{ marginTop: '16px', padding: '12px', background: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeaa7' }}>
-                            <h5 style={{ marginTop: 0, color: '#856404' }}>🗑️ Delete Rounds</h5>
-                            <div className="input-group">
-                              <label>Delete how many rounds:</label>
-                              <input 
-                                type="number" 
-                                min={1} 
-                                max={roundsData.length}
-                                value={deleteCount} 
-                                onChange={e => setDeleteCount(parseInt(e.target.value || '1'))}
-                                style={{ width: '80px' }}
-                              />
-                              <span style={{ fontSize: '12px', color: '#666' }}>
-                                (max {roundsData.length})
-                              </span>
-                            </div>
-                            <button
-                              className="btn btn-danger"
-                              onClick={handleDeleteRounds}
-                              disabled={loading}
-                              style={{ fontSize: '12px', padding: '6px 12px' }}
-                            >
-                              Delete {deleteCount} Round{deleteCount !== 1 ? 's' : ''}
-                            </button>
-                          </div>
-                        )}
+                          title="Delete all rounds and reset task to beginning"
+                        >
+                          🔄 Delete All & Reset
+                        </button>
                       </div>
                     </div>
                   )}
@@ -588,6 +518,55 @@ export default function WritingPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Draft Modal */}
+      {showDeleteDraftModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            minWidth: '400px',
+            maxWidth: '500px'
+          }}>
+            <h3 style={{ color: '#dc3545' }}>⚠️ Delete Draft</h3>
+            <p>
+              Are you sure you want to delete the draft <strong>"{draftToDelete}"</strong>?
+            </p>
+            <p style={{ fontSize: '14px', color: '#666', background: '#fff3cd', padding: '8px', borderRadius: '4px', border: '1px solid #ffeaa7' }}>
+              This will permanently delete all associated files, rounds, papers, and data. This action cannot be undone.
+            </p>
+            
+            <div className="control-buttons" style={{ marginTop: '20px' }}>
+              <button 
+                className="btn btn-danger" 
+                onClick={handleDeleteDraft}
+                disabled={loading}
+              >
+                🗑️ Delete Draft
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowDeleteDraftModal(false)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -627,6 +606,23 @@ function WritingStatusPane({ status, rounds }: { status: any, rounds: RoundData[
             <strong>Last Activity:</strong> {overall.last_round_completed ? '✅ Complete' : '⏳ In Progress'}
           </div>
         </div>
+        
+        {/* Display error message if present */}
+        {overall.error && (
+          <div style={{ 
+            marginTop: '12px', 
+            padding: '12px', 
+            backgroundColor: '#f8d7da', 
+            color: '#721c24', 
+            border: '1px solid #f5c6cb', 
+            borderRadius: '6px' 
+          }}>
+            <strong>❌ Error:</strong>
+            <div style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '11px', wordBreak: 'break-word' }}>
+              {overall.error}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Round History */}
@@ -695,6 +691,108 @@ function WritingStatusPane({ status, rounds }: { status: any, rounds: RoundData[
   )
 }
 
+// Helper function to parse and format JSON content
+function formatPaperAgentOutput(content: string) {
+  try {
+    const parsed = JSON.parse(content)
+    
+    if (parsed.advice_md || parsed.priority_items || parsed.risk_notes) {
+      // Paper Suggester format
+      return (
+        <div>
+          {parsed.advice_md && (
+            <div style={{ marginBottom: '20px' }}>
+              <h5 style={{ color: '#2563eb', marginBottom: '8px' }}>📋 Advice</h5>
+              <div style={{ whiteSpace: 'pre-wrap', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                {parsed.advice_md}
+              </div>
+            </div>
+          )}
+          
+          {parsed.priority_items && Array.isArray(parsed.priority_items) && (
+            <div style={{ marginBottom: '20px' }}>
+              <h5 style={{ color: '#dc2626', marginBottom: '8px' }}>🎯 Priority Items</h5>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                {parsed.priority_items.map((item: string, i: number) => (
+                  <li key={i} style={{ marginBottom: '4px' }}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {parsed.risk_notes && (
+            <div>
+              <h5 style={{ color: '#ea580c', marginBottom: '8px' }}>⚠️ Risk Notes</h5>
+              <div style={{ whiteSpace: 'pre-wrap', backgroundColor: '#fef7ed', padding: '12px', borderRadius: '6px', border: '1px solid #fed7aa' }}>
+                {parsed.risk_notes}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    } else if (parsed.status && parsed.new_tex) {
+      // Paper Fixer format
+      return (
+        <div>
+          <div style={{ marginBottom: '16px' }}>
+            <h5 style={{ color: parsed.status === 'success' ? '#16a34a' : '#dc2626', marginBottom: '8px' }}>
+              {parsed.status === 'success' ? '✅' : '❌'} Status: {parsed.status}
+            </h5>
+          </div>
+          
+          {parsed.changes_summary_md && (
+            <div style={{ marginBottom: '16px' }}>
+              <h5 style={{ color: '#2563eb', marginBottom: '8px' }}>📝 Changes Summary</h5>
+              <div style={{ whiteSpace: 'pre-wrap', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                {parsed.changes_summary_md}
+              </div>
+            </div>
+          )}
+          
+          {parsed.new_tex && (
+            <div>
+              <h5 style={{ color: '#7c3aed', marginBottom: '8px' }}>📄 Updated LaTeX</h5>
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                LaTeX content updated ({parsed.new_tex.length} characters)
+              </div>
+              <div style={{ padding: '12px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <p style={{ margin: 0, fontSize: '13px' }}>
+                  📋 LaTeX has been updated. Check the <strong>Files</strong> tab to view the compiled PDF or download the .tex file.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {parsed.unfixable_issues_md && (
+            <div style={{ marginTop: '16px' }}>
+              <h5 style={{ color: '#dc2626', marginBottom: '8px' }}>🚫 Unfixable Issues</h5>
+              <div style={{ whiteSpace: 'pre-wrap', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', border: '1px solid #fecaca' }}>
+                {parsed.unfixable_issues_md}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    } else {
+      // Fallback for unknown JSON format
+      return (
+        <div>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', backgroundColor: '#f3f4f6', padding: '12px', borderRadius: '6px' }}>
+            {JSON.stringify(parsed, null, 2)}
+          </pre>
+        </div>
+      )
+    }
+  } catch (e) {
+    // Not valid JSON, return as plain text
+    return (
+      <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+        {content}
+      </div>
+    )
+  }
+}
+
 function WritingConversationsPane({ rounds, loading }: { rounds: RoundData[], loading: boolean }) {
   if (loading) {
     return <div>Loading conversations...</div>
@@ -740,10 +838,8 @@ function WritingRoundDisplay({ round }: { round: RoundData }) {
         {round.paper_suggester && (
           <div>
             <strong>📝 Paper Suggester Output</strong>
-            <div className="pane" style={{ height: '400px', fontSize: '12px' }}>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                {round.paper_suggester.content}
-              </div>
+            <div className="pane" style={{ maxHeight: '600px', overflow: 'auto', fontSize: '12px' }}>
+              {formatPaperAgentOutput(round.paper_suggester.content)}
             </div>
           </div>
         )}
@@ -751,10 +847,8 @@ function WritingRoundDisplay({ round }: { round: RoundData }) {
         {round.paper_fixer && (
           <div>
             <strong>✏️ Paper Writer Output</strong>
-            <div className="pane" style={{ height: '400px', fontSize: '12px' }}>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                {round.paper_fixer.content}
-              </div>
+            <div className="pane" style={{ maxHeight: '600px', overflow: 'auto', fontSize: '12px' }}>
+              {formatPaperAgentOutput(round.paper_fixer.content)}
             </div>
           </div>
         )}
@@ -810,28 +904,65 @@ function WritingFilesPane({
               <p style={{ color: '#666', fontSize: '14px' }}>No files found</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0 }}>
-                {files.map((file, index) => (
-                  <li key={index} style={{ marginBottom: '4px' }}>
-                    <button
-                      onClick={() => onLoadFile(file.path)}
-                      style={{
-                        background: selectedFilePath === file.path ? '#e3f2fd' : 'transparent',
-                        border: '1px solid #ddd',
-                        padding: '8px 12px',
-                        width: '100%',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold' }}>{file.name}</div>
-                      <div style={{ fontSize: '10px', color: '#666' }}>
-                        {file.type} • {Math.round(file.size / 1024)}KB
-                      </div>
-                    </button>
-                  </li>
-                ))}
+                {files.map((file, index) => {
+                  const isPDF = file.name.toLowerCase().endsWith('.pdf')
+                  
+                  if (isPDF) {
+                    // For PDF files, show as a download link
+                    return (
+                      <li key={index} style={{ marginBottom: '4px' }}>
+                        <a
+                          href={`http://localhost:8000/drafts_public/${encodeURIComponent(draftName!)}/file?file_path=${encodeURIComponent(file.path)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'block',
+                            background: '#f0f8ff',
+                            border: '1px solid #4285f4',
+                            padding: '8px 12px',
+                            width: '100%',
+                            textAlign: 'left',
+                            textDecoration: 'none',
+                            color: 'inherit',
+                            borderRadius: '4px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold', color: '#4285f4' }}>
+                            📄 {file.name}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#666' }}>
+                            PDF • {Math.round(file.size / 1024)}KB • Click to view
+                          </div>
+                        </a>
+                      </li>
+                    )
+                  } else {
+                    // For other files, keep the existing behavior
+                    return (
+                      <li key={index} style={{ marginBottom: '4px' }}>
+                        <button
+                          onClick={() => onLoadFile(file.path)}
+                          style={{
+                            background: selectedFilePath === file.path ? '#e3f2fd' : 'transparent',
+                            border: '1px solid #ddd',
+                            padding: '8px 12px',
+                            width: '100%',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold' }}>{file.name}</div>
+                          <div style={{ fontSize: '10px', color: '#666' }}>
+                            {file.type} • {Math.round(file.size / 1024)}KB
+                          </div>
+                        </button>
+                      </li>
+                    )
+                  }
+                })}
               </ul>
             )}
           </div>
@@ -886,55 +1017,6 @@ function WritingFilesPane({
           </div>
         )}
       </div>
-
-      {/* Delete Draft Modal */}
-      {showDeleteDraftModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '24px',
-            borderRadius: '8px',
-            minWidth: '400px',
-            maxWidth: '500px'
-          }}>
-            <h3 style={{ color: '#dc3545' }}>⚠️ Delete Draft</h3>
-            <p>
-              Are you sure you want to delete the draft <strong>"{draftToDelete}"</strong>?
-            </p>
-            <p style={{ fontSize: '14px', color: '#666', background: '#fff3cd', padding: '8px', borderRadius: '4px', border: '1px solid #ffeaa7' }}>
-              This will permanently delete all associated files, rounds, papers, and data. This action cannot be undone.
-            </p>
-            
-            <div className="control-buttons" style={{ marginTop: '20px' }}>
-              <button 
-                className="btn btn-danger" 
-                onClick={handleDeleteDraft}
-                disabled={loading}
-              >
-                🗑️ Delete Draft
-              </button>
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => setShowDeleteDraftModal(false)}
-                disabled={loading}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

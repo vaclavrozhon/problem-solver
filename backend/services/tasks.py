@@ -35,10 +35,10 @@ class TaskService:
         task_file = task_path / f"task.{task_type}"
         task_file.write_text(task_description)
         
-        # Initialize other files
-        (task_path / "progress.md").write_text("# Progress\n\nTask created.\n")
-        (task_path / "notes.md").write_text("# Notes\n\n")
-        (task_path / "summary.md").write_text("# Summary\n\nNo runs yet.\n")
+        # Initialize 3-tier file system
+        (task_path / "notes.md").write_text("# Research Notes\n\n")
+        (task_path / "proofs.md").write_text("# Rigorous Proofs\n\n")
+        (task_path / "output.md").write_text("# Main Results\n\n")
         
         return task_name
 
@@ -106,6 +106,39 @@ TODO: Write introduction
         except Exception as e:
             raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
+    @staticmethod
+    def reset_problem(name: str) -> bool:
+        """Reset a problem - keep task description and papers, delete runs and interactions"""
+        import shutil
+        
+        problem_path = REPO_PROBLEMS_ROOT / name
+        if not problem_path.exists():
+            raise HTTPException(404, "Problem not found")
+        
+        try:
+            # Remove runs directory (all prover/verifier interactions)
+            runs_dir = problem_path / "runs"
+            if runs_dir.exists():
+                shutil.rmtree(runs_dir)
+                runs_dir.mkdir()  # Recreate empty runs directory
+            
+            # Reset files to initial state
+            (problem_path / "notes.md").write_text("# Research Notes\n\n")
+            (problem_path / "proofs.md").write_text("# Rigorous Proofs\n\n")
+            (problem_path / "output.md").write_text("# Main Results\n\n")
+            
+            # Remove progress.md if it exists (legacy file)
+            progress_file = problem_path / "progress.md"
+            if progress_file.exists():
+                progress_file.unlink()
+            
+            # Preserve task description files and papers
+            # task.txt, papers/, papers_parsed/ remain unchanged
+            
+            return True
+        except Exception as e:
+            raise HTTPException(500, f"Failed to reset problem: {str(e)}")
+
     @staticmethod 
     def delete_draft(name: str) -> bool:
         """Delete a draft and all its associated data"""
@@ -127,7 +160,7 @@ class PaperService:
     """Service for managing research papers associated with tasks"""
     
     @staticmethod
-    async def upload_problem_paper(problem: str, file: UploadFile) -> str:
+    async def upload_problem_paper(problem: str, file: UploadFile, description: str = "") -> str:
         """Upload a paper PDF to a problem"""
         problem_path = REPO_PROBLEMS_ROOT / problem
         if not problem_path.exists():
@@ -135,15 +168,25 @@ class PaperService:
         
         papers_dir = problem_path / "papers"
         
+        # Generate sequential paper name
+        paper_count = len(list(papers_dir.glob("paper*.pdf"))) + len(list(papers_dir.glob("paper*.txt"))) + len(list(papers_dir.glob("paper*.md"))) + 1
+        file_extension = Path(file.filename).suffix or '.pdf'
+        new_filename = f"paper{paper_count}{file_extension}"
+        
         # Save uploaded file
-        file_path = papers_dir / file.filename
+        file_path = papers_dir / new_filename
         content = await file.read()
         file_path.write_bytes(content)
         
-        return file.filename
+        # Save description if provided
+        if description.strip():
+            desc_file = papers_dir / f"{Path(new_filename).stem}.description.txt"
+            desc_file.write_text(description, encoding="utf-8")
+        
+        return new_filename
 
     @staticmethod
-    async def upload_draft_paper(draft: str, file: UploadFile) -> str:
+    async def upload_draft_paper(draft: str, file: UploadFile, description: str = "") -> str:
         """Upload a paper PDF to a draft"""
         draft_path = REPO_DRAFTS_ROOT / draft
         if not draft_path.exists():
@@ -151,12 +194,22 @@ class PaperService:
         
         papers_dir = draft_path / "papers"
         
+        # Generate sequential paper name
+        paper_count = len(list(papers_dir.glob("paper*.pdf"))) + len(list(papers_dir.glob("paper*.txt"))) + len(list(papers_dir.glob("paper*.md"))) + 1
+        file_extension = Path(file.filename).suffix or '.pdf'
+        new_filename = f"paper{paper_count}{file_extension}"
+        
         # Save uploaded file
-        file_path = papers_dir / file.filename
+        file_path = papers_dir / new_filename
         content = await file.read()
         file_path.write_bytes(content)
         
-        return file.filename
+        # Save description if provided
+        if description.strip():
+            desc_file = papers_dir / f"{Path(new_filename).stem}.description.txt"
+            desc_file.write_text(description, encoding="utf-8")
+        
+        return new_filename
 
     @staticmethod
     def add_problem_paper_from_url(problem: str, url: str) -> str:
@@ -167,20 +220,19 @@ class PaperService:
         
         papers_dir = problem_path / "papers"
         
-        # Generate filename from URL
-        parsed_url = urllib.parse.urlparse(url)
-        filename = os.path.basename(parsed_url.path) or "paper.pdf"
-        if not filename.endswith('.pdf'):
-            filename += '.pdf'
+        # Generate sequential paper name
+        paper_count = len(list(papers_dir.glob("paper*.pdf"))) + len(list(papers_dir.glob("paper*.txt"))) + len(list(papers_dir.glob("paper*.md"))) + 1
+        file_extension = '.pdf' if not os.path.basename(urllib.parse.urlparse(url).path) or not Path(os.path.basename(urllib.parse.urlparse(url).path)).suffix else Path(os.path.basename(urllib.parse.urlparse(url).path)).suffix
+        new_filename = f"paper{paper_count}{file_extension}"
         
-        file_path = papers_dir / filename
+        file_path = papers_dir / new_filename
         
         try:
             urllib.request.urlretrieve(url, str(file_path))
         except Exception as e:
             raise HTTPException(400, f"Failed to download paper: {str(e)}")
         
-        return filename
+        return new_filename
 
     @staticmethod  
     def add_draft_paper_from_url(draft: str, url: str) -> str:
@@ -191,17 +243,16 @@ class PaperService:
         
         papers_dir = draft_path / "papers"
         
-        # Generate filename from URL
-        parsed_url = urllib.parse.urlparse(url)
-        filename = os.path.basename(parsed_url.path) or "paper.pdf"
-        if not filename.endswith('.pdf'):
-            filename += '.pdf'
+        # Generate sequential paper name
+        paper_count = len(list(papers_dir.glob("paper*.pdf"))) + len(list(papers_dir.glob("paper*.txt"))) + len(list(papers_dir.glob("paper*.md"))) + 1
+        file_extension = '.pdf' if not os.path.basename(urllib.parse.urlparse(url).path) or not Path(os.path.basename(urllib.parse.urlparse(url).path)).suffix else Path(os.path.basename(urllib.parse.urlparse(url).path)).suffix
+        new_filename = f"paper{paper_count}{file_extension}"
         
-        file_path = papers_dir / filename
+        file_path = papers_dir / new_filename
         
         try:
             urllib.request.urlretrieve(url, str(file_path))
         except Exception as e:
             raise HTTPException(400, f"Failed to download paper: {str(e)}")
         
-        return filename
+        return new_filename

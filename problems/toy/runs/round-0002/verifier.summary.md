@@ -1,1 +1,0 @@
-Both prover reports are careful and largely aligned. I rechecked the current outputs.md line by line:

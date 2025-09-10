@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createProblem, createDraft, uploadProblemPaper, uploadDraftPaper, addProblemPaperFromUrl, addDraftPaperFromUrl } from '../api'
+import { createProblem, createDraft, uploadProblemPaper, uploadDraftPaper, addProblemPaperFromUrl, addDraftPaperFromUrl, uploadProblemTextContent, uploadDraftTextContent } from '../api'
 import { useNavigate } from 'react-router-dom'
 
 interface Message {
@@ -15,43 +15,112 @@ export default function TaskCreationPage() {
   const [taskName, setTaskName] = useState('')
   const [taskDescription, setTaskDescription] = useState('')
   const [taskFormat, setTaskFormat] = useState<'txt' | 'tex' | 'md'>('txt')
+  const [initialDraft, setInitialDraft] = useState('') // For paper writing tasks
   
   // Paper management state
-  const [paperFiles, setPaperFiles] = useState<File[]>([])
-  const [paperUrls, setPaperUrls] = useState<string[]>([''])
+  interface PaperEntry {
+    type: 'file' | 'text'
+    data: File | string
+    description: string
+    filename?: string // for text entries
+    id: string // unique identifier for download links
+  }
+  
+  const [paperEntries, setPaperEntries] = useState<PaperEntry[]>([])
+  const [showAddPaperModal, setShowAddPaperModal] = useState(false)
+  
+  // Temporary state for adding papers
+  const [newPaperType, setNewPaperType] = useState<'file' | 'text'>('file')
+  const [newPaperFile, setNewPaperFile] = useState<File | null>(null)
+  const [newPaperText, setNewPaperText] = useState('')
+  const [newPaperDescription, setNewPaperDescription] = useState('')
   
   // UI state
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<Message | null>(null)
   const [createdTaskName, setCreatedTaskName] = useState<string | null>(null)
 
-  function addPaperUrl() {
-    setPaperUrls([...paperUrls, ''])
+  function handleAddSinglePaper() {
+    let entry: PaperEntry | null = null
+    
+    if (newPaperType === 'file' && newPaperFile) {
+      entry = {
+        type: 'file',
+        data: newPaperFile,
+        description: newPaperDescription,
+        id: Date.now().toString()
+      }
+    } else if (newPaperType === 'text' && newPaperText.trim()) {
+      // Generate filename based on content preview
+      const filename = `text_${Date.now()}.txt`
+      entry = {
+        type: 'text',
+        data: newPaperText,
+        description: newPaperDescription,
+        filename: filename,
+        id: Date.now().toString()
+      }
+    }
+    
+    if (entry) {
+      setPaperEntries([...paperEntries, entry])
+      resetNewPaperForm()
+      setMessage({ type: 'success', text: 'Paper added successfully!' })
+    } else {
+      setMessage({ type: 'error', text: 'Please select a file or enter text content.' })
+    }
+  }
+  
+  function resetNewPaperForm() {
+    setNewPaperFile(null)
+    setNewPaperText('')
+    setNewPaperDescription('')
+    setNewPaperType('file')
+    // Reset file input
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    if (fileInput) fileInput.value = ''
   }
 
-  function updatePaperUrl(index: number, url: string) {
-    const newUrls = [...paperUrls]
-    newUrls[index] = url
-    setPaperUrls(newUrls)
-  }
-
-  function removePaperUrl(index: number) {
-    setPaperUrls(paperUrls.filter((_, i) => i !== index))
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) {
-      setPaperFiles([...paperFiles, ...Array.from(e.target.files)])
+  function downloadPaper(entry: PaperEntry) {
+    if (entry.type === 'file') {
+      // Create download link for file
+      const url = URL.createObjectURL(entry.data as File)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (entry.data as File).name
+      a.click()
+      URL.revokeObjectURL(url)
+    } else {
+      // Create download link for text content
+      const blob = new Blob([entry.data as string], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = entry.filename || 'paper.txt'
+      a.click()
+      URL.revokeObjectURL(url)
     }
   }
 
-  function removeFile(index: number) {
-    setPaperFiles(paperFiles.filter((_, i) => i !== index))
+  function removePaperEntry(index: number) {
+    setPaperEntries(paperEntries.filter((_, i) => i !== index))
+  }
+  
+  function updatePaperDescription(index: number, description: string) {
+    const newEntries = [...paperEntries]
+    newEntries[index].description = description
+    setPaperEntries(newEntries)
   }
 
   async function createTask() {
     if (!taskName.trim() || !taskDescription.trim()) {
       setMessage({ type: 'error', text: 'Please fill in task name and description' })
+      return
+    }
+
+    // For writing tasks, require an initial draft
+    if (taskType === 'writing' && !initialDraft.trim()) {
+      setMessage({ type: 'error', text: 'Please provide an initial draft for the paper writing task' })
       return
     }
 
@@ -64,7 +133,7 @@ export default function TaskCreationPage() {
       if (taskType === 'solving') {
         result = await createProblem(taskName, taskDescription, taskFormat)
       } else {
-        result = await createDraft(taskName, taskDescription)
+        result = await createDraft(taskName, taskDescription, initialDraft)
       }
       
       const actualTaskName = result.name // Server may sanitize the name
@@ -85,31 +154,36 @@ export default function TaskCreationPage() {
   async function uploadPapers(taskName: string) {
     const errors: string[] = []
 
-    // Upload files
-    for (const file of paperFiles) {
+    for (const entry of paperEntries) {
       try {
-        if (taskType === 'solving') {
-          await uploadProblemPaper(taskName, file)
-        } else {
-          await uploadDraftPaper(taskName, file)
+        if (entry.type === 'file') {
+          const file = entry.data as File
+          if (taskType === 'solving') {
+            await uploadProblemPaper(taskName, file)
+          } else {
+            await uploadDraftPaper(taskName, file)
+          }
+        } else if (entry.type === 'url') {
+          const url = entry.data as string
+          if (taskType === 'solving') {
+            await addProblemPaperFromUrl(taskName, url)
+          } else {
+            await addDraftPaperFromUrl(taskName, url)
+          }
+        } else if (entry.type === 'text') {
+          const content = entry.data as string
+          const filename = entry.filename || 'text-paper.txt'
+          if (taskType === 'solving') {
+            await uploadProblemTextContent(taskName, content, filename, entry.description)
+          } else {
+            await uploadDraftTextContent(taskName, content, filename, entry.description)
+          }
         }
       } catch (err: any) {
-        errors.push(`Failed to upload ${file.name}: ${err.message}`)
-      }
-    }
-
-    // Download from URLs
-    for (const url of paperUrls) {
-      if (url.trim()) {
-        try {
-          if (taskType === 'solving') {
-            await addProblemPaperFromUrl(taskName, url.trim())
-          } else {
-            await addDraftPaperFromUrl(taskName, url.trim())
-          }
-        } catch (err: any) {
-          errors.push(`Failed to download from ${url}: ${err.message}`)
-        }
+        const identifier = entry.type === 'file' ? (entry.data as File).name : 
+                          entry.type === 'url' ? (entry.data as string) : 
+                          entry.filename || 'text content'
+        errors.push(`Failed to upload ${identifier}: ${err.message}`)
       }
     }
 
@@ -123,18 +197,19 @@ export default function TaskCreationPage() {
     setTaskName('')
     setTaskDescription('')
     setTaskFormat('txt')
-    setPaperFiles([])
-    setPaperUrls([''])
+    setPaperEntries([])
     setMessage(null)
     setCreatedTaskName(null)
+    resetNewPaperForm()
+    setShowAddPaperModal(false)
   }
 
   function goToTask() {
     if (createdTaskName) {
       if (taskType === 'solving') {
-        navigate(`/solving/${createdTaskName}`)
+        navigate(`/solve?problem=${encodeURIComponent(createdTaskName)}`)
       } else {
-        navigate(`/writing/${createdTaskName}`)
+        navigate(`/write?draft=${encodeURIComponent(createdTaskName)}`)
       }
     }
   }
@@ -176,20 +251,10 @@ export default function TaskCreationPage() {
             />
           </div>
 
-          {taskType === 'solving' && (
-            <div className="input-group">
-              <label>Task Format:</label>
-              <select value={taskFormat} onChange={e => setTaskFormat(e.target.value as 'txt' | 'tex' | 'md')}>
-                <option value="txt">Plain Text (.txt)</option>
-                <option value="tex">LaTeX (.tex)</option>
-                <option value="md">Markdown (.md)</option>
-              </select>
-            </div>
-          )}
 
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              Task Description:
+              {taskType === 'solving' ? 'Task Description:' : 'Paper Writing Instructions:'}
             </label>
             <textarea
               value={taskDescription}
@@ -197,7 +262,7 @@ export default function TaskCreationPage() {
               placeholder={
                 taskType === 'solving'
                   ? "Describe the problem you want to solve. Be specific about the goals, constraints, and expected outcomes."
-                  : "Describe the paper you want to write. Include the research question, key contributions, and target venue."
+                  : "Describe the paper writing task. Include the research question, key contributions, target venue, and any specific requirements. This will be given to the AI in every round."
               }
               rows={6}
               style={{
@@ -211,71 +276,203 @@ export default function TaskCreationPage() {
             />
           </div>
 
-          {/* Paper Upload Section */}
-          <div style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add Reference Papers (Optional)</h3>
-            
-            {/* File Upload */}
+          {/* Initial Draft - Only for writing tasks */}
+          {taskType === 'writing' && (
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Upload PDF files:</label>
-              <input
-                type="file"
-                multiple
-                accept=".pdf"
-                onChange={handleFileChange}
-                style={{ marginBottom: '10px' }}
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                Initial Draft (LaTeX/Markdown):
+              </label>
+              <textarea
+                value={initialDraft}
+                onChange={e => setInitialDraft(e.target.value)}
+                placeholder="Paste your initial draft here (LaTeX or Markdown). This will be the starting point for iterative improvements."
+                rows={12}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  resize: 'vertical'
+                }}
               />
-              {paperFiles.length > 0 && (
-                <div>
-                  <strong>Files to upload:</strong>
-                  {paperFiles.map((file, index) => (
-                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '13px' }}>{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '2px' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Simplified Paper Management Section */}
+          <div style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>📚 Add Reference Papers (Optional)</h3>
+            
+            {/* Paper Type Dropdown */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                Paper Type:
+              </label>
+              <select 
+                value={newPaperType} 
+                onChange={e => setNewPaperType(e.target.value as 'file' | 'text')}
+                style={{ 
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="file">Upload File</option>
+                <option value="text">Paste Text</option>
+              </select>
             </div>
 
-            {/* URL Input */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Or add papers by URL:</label>
-              {paperUrls.map((url, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={e => updatePaperUrl(index, e.target.value)}
-                    placeholder="https://arxiv.org/pdf/..."
-                    style={{ flex: 1, padding: '6px 12px', border: '1px solid #ced4da', borderRadius: '4px' }}
-                  />
-                  {paperUrls.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removePaperUrl(index)}
-                      style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '4px' }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
+            {/* Upload/Text Input Area */}
+            {newPaperType === 'file' ? (
+              <div style={{ marginBottom: '16px' }}>
+                <input
+                  type="file"
+                  accept=".pdf,.txt,.md,.tex"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setNewPaperFile(e.target.files[0])
+                    }
+                  }}
+                  style={{ 
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px'
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                <textarea
+                  value={newPaperText}
+                  onChange={e => setNewPaperText(e.target.value)}
+                  placeholder="Paste your text content here (txt, md, or tex format supported)"
+                  rows={6}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Description Field */}
+            <div style={{ marginBottom: '16px' }}>
+              <input
+                type="text"
+                value={newPaperDescription}
+                onChange={e => setNewPaperDescription(e.target.value)}
+                placeholder="Description of why this paper is relevant (optional)"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            {/* Add Paper Button */}
+            <div style={{ marginBottom: '16px' }}>
               <button
                 type="button"
-                onClick={addPaperUrl}
-                className="btn btn-secondary"
-                style={{ fontSize: '12px', padding: '4px 8px' }}
+                onClick={handleAddSinglePaper}
+                className="btn btn-primary"
+                style={{ fontSize: '14px', padding: '8px 16px' }}
               >
-                + Add Another URL
+                ➕ Add Paper
               </button>
             </div>
+
+            {/* Papers List - Two items per row */}
+            {paperEntries.length > 0 && (
+              <div>
+                <h4 style={{ margin: '16px 0 12px 0', fontSize: '16px' }}>Uploaded Papers ({paperEntries.length})</h4>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px',
+                  maxHeight: '300px', 
+                  overflowY: 'auto' 
+                }}>
+                  {paperEntries.map((entry, index) => (
+                    <React.Fragment key={entry.id}>
+                      {/* Paper Download Link */}
+                      <div style={{ 
+                        padding: '8px 12px',
+                        background: 'white',
+                        borderRadius: '4px',
+                        border: '1px solid #dee2e6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span style={{ fontSize: '14px' }}>
+                          {entry.type === 'file' ? '📄' : '📝'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => downloadPaper(entry)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#0066cc',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            flex: 1,
+                            textAlign: 'left',
+                            padding: 0
+                          }}
+                          title="Click to download"
+                        >
+                          {entry.type === 'file' 
+                            ? (entry.data as File).name
+                            : entry.filename
+                          }
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removePaperEntry(index)}
+                          style={{ 
+                            background: 'none',
+                            border: 'none',
+                            color: '#dc3545',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            padding: '2px'
+                          }}
+                          title="Remove paper"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Description */}
+                      <div style={{ 
+                        padding: '8px 12px',
+                        background: '#f8f9fa',
+                        borderRadius: '4px',
+                        border: '1px solid #dee2e6',
+                        fontSize: '12px',
+                        color: '#6c757d'
+                      }}>
+                        {entry.description || 'No description'}
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Action Buttons */}

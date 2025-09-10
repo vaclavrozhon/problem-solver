@@ -3,7 +3,7 @@ Pydantic models for API request/response schemas.
 """
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 class SignupPayload(BaseModel):
     """User registration payload"""
@@ -20,6 +20,7 @@ class RunParams(BaseModel):
     provers: int = 2
     temperature: float = 0.4
     preset: str = "gpt5"
+    prover_configs: Optional[List[Dict[str, Any]]] = None
 
 class WritingParams(BaseModel):
     """Parameters for running paper writing tasks"""

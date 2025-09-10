@@ -1,0 +1,35 @@
+Ideas
+- Define, for a distribution P over full rankings and a candidate c, the tallies after eliminating a set S ⊆ C \ {c} as T_x(S) = P[the top-ranked among C \ S is x]. These are linear functionals of P.
+- If we add an α-fraction of ballots all ranking c first, then T_c(S) increases by α for all S, while T_j(S) for j ≠ c are unchanged. Hence the minimal α that guarantees c is never last at any elimination stage is
+  f_c(P) := max_{S ⊆ C\{c}} ( min_{j ∉ S ∪ {c}} T_j(S) − T_c(S) )_+.
+  Why useful: If f_c(P) ≤ ε then c is an ε-winner (sufficient certificate); conversely, any addition strategy cannot do better for the “never-last” condition by allocating mass away from c-first ballots, since that weakly increases min_{j≠c} T_j(S).
+- Necessary condition via pairwise margins: For any j ≠ c, considering S = C \ {c, j} (so R = {c, j}) gives T_j(S) − T_c(S) = P[j ≻ c] − P[c ≻ j]. Therefore f_c(P) ≥ max_j (P[j ≻ c] − P[c ≻ j])_+.
+
+Special case K = 3 (exact formula)
+- Let candidates be {a, b, c}. Then the only relevant S for c are ∅, {a}, {b}. Thus
+  f_c(P) = max{ (min{T_a(∅), T_b(∅)} − T_c(∅))_+, (P[a ≻ c] − P[c ≻ a])_+, (P[b ≻ c] − P[c ≻ b])_+ }.
+  Here T_x(∅) are first-place shares. Proof sketch: T_x({y}) with x ∈ {b, c} equals head-to-head shares between x and the remaining opponent, because R = {x, c} or {x, b}; for S = ∅ we compare first-round tallies. There are no other S.
+- Usefulness: For K = 3, identifying an ε-winner reduces to estimating three quantities (two pairwise margins w.r.t. c and the first-place deficit against the smaller of {a, b}).
+
+Sample-complexity implications
+- Upper bound for K = 3: With m = O((log(1/δ))/ε^2) samples, we can estimate first-place shares and pairwise margins within ±ε/4 (Hoeffding + union bound over a constant number of events). If min_c f̂_c ≤ ε/2, then with probability ≥ 1 − δ, the true f_c ≤ ε and the returned c is an ε-winner.
+- General K (existence, exponential in K): Estimating all T_x(S) uniformly within ±τ over all pairs (S, x ∉ S) requires m = O(((K 2^{K}) + log(1/δ))/τ^2) samples by a union bound. Then computing f̂_c exactly from these estimates yields a correct certificate whenever min_c f̂_c ≤ ε − 2τ.
+- General lower bound: Even with K = 2, the problem subsumes estimating a Bernoulli mean within ε to decide if a candidate is an ε-winner, implying m = Ω((1/ε^2) log(1/δ)). Therefore the dependence on ε and δ is necessary.
+- K-dependence lower bound (sketch): Distinguishing among ≈ K hypotheses where exactly one candidate is an ε-winner (constructed by small perturbations of P concentrating probability mass among disjoint top patterns) suggests m = Ω((log K)/ε^2) via Fano’s inequality. Details to be worked out.
+
+Examples
+- K = 3 toy distribution: Suppose first-place shares are (a, b, c) = (0.36, 0.34, 0.30), and pairwise margins are P[a ≻ c] − P[c ≻ a] = 0.07, P[b ≻ c] − P[c ≻ b] = 0.01. Then f_c(P) = max{0.04, 0.07, 0.01} = 0.07; c is an ε-winner iff ε ≥ 0.07.
+- K = 4 phenomenon: One can construct P where f_c(P) is driven by a 3-way residual set R of size 3 (not captured by first-place or pairwise deficits). E.g., c has small first-place share and loses many “top among {c, j, k}” contests due to a strong third candidate siphoning top positions when both j and k remain. This indicates that for K ≥ 4, relying only on pairwise margins and first-round shares is insufficient for certification.
+
+Obstacles
+- Exact computation/certification of f_c(P) for general K requires knowing T_x(S) for exponentially many S. This leads to exponential dependence on K in naïve sampling algorithms.
+- Deriving tight necessary and sufficient conditions in terms of only polynomially many statistics (e.g., pairwise margins, a bounded collection of multiway-top events) remains open.
+
+Next steps
+- Prove rigorously the K = 3 formula above (write out the short formal proof) and add it to output.md.
+- Seek structural reductions for K ≥ 4: is sup over S attained at sets where |C \ S| ≤ 3? If yes, certification reduces to O(K^3) multiway-top probabilities; otherwise produce a counterexample.
+- Develop a polynomial-time, polynomial-sample upper bound by proposing a relax-and-certify scheme: consider only all R of size ≤ r (e.g., r = 3 or 4), compute f_c^r = max over such R of (min_{j∈R\{c}} T_j(R) − T_c(R))_+. If f_c^r ≤ ε we certify; analyze how conservative this is and whether, under mild distributional assumptions (e.g., smoothness of rank distributions), r = 3 suffices.
+- Strengthen lower bounds in K via explicit Fano constructions tying ε-winner identity to a log K-bit index encoded in small perturbations of top-of-R events.
+
+Gaps in output.md
+- There is currently no output. We can add the precise K = 3 characterization and the general sufficient certificate f_c(P) ≤ ε with associated sample-complexity bounds, plus the Ω((1/ε^2) log(1/δ)) lower bound.

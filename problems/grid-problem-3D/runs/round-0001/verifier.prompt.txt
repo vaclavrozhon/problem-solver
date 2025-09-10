@@ -1,0 +1,100 @@
+--- SYSTEM ---
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+--- USER ---
+You receive multiple prover reports. Evaluate correctness, value, and pick promising directions. Update notes.md (append/replace) with useful ideas and update output.md (append/replace) ONLY with rigorously verified results.
+
+Prover reports (JSON):
+[{"prover_id": "01", "progress_md": "# Progress Notes for Round 0003\n\n## Ideas\nIn this round, we will focus on developing a systematic approach to categorize and count edge types based on their sign patterns in three dimensions. The goal is to establish a clear transition from the proof for $d=2$ to $d=3$, highlighting how the counting of edge types changes with the additional dimension. We will also explore how the color map $c_3$ behaves in three dimensions to ensure that we can argue for the existence of unique edge colors.\n\n## Lemmas from Literature\n1. **Inclusion-Exclusion Principle**: This principle can be instrumental in counting the number of edges that share the same color and distinguishing unique cases. It allows for systematic accounting of overlaps in edge types and colors.\n   - *Why useful here*: It helps to refine the counting arguments by ensuring that we do not double-count edges that may share colors.\n\n2. **Combinatorial Geometry Results**: Known results in combinatorial geometry regarding the distribution of points in higher dimensions can provide insights into the density of edges and their colors.\n   - *Why useful here*: It establishes a relationship between the number of vertices, edges, and the types of colors they can generate, which is crucial for proving uniqueness.\n\n## Examples\nConsider a small example with $n=3$:\n- Vertices: $V(G) = \\{(1,1,1), (1,1,2), (1,2,1), (2,1,1), (2,2,2), (3,3,3)\\}$.\n- Analyzing the edges, we can compute the colors using $c_3$ for various pairs. For instance, the edge between $(1,1,1)$ and $(1,1,2)$ gives $c_3 = ([0,+,0], 1, 1, 1)$, while the edge between $(1,2,1)$ and $(2,1,1)$ gives $c_3 = ([+,-,0], 1, 1, 1)$. By systematically checking all pairs, we can identify how many edges have the same color and pinpoint unique cases.\n\n## Obstacles\nA significant obstacle remains the complexity of the sign patterns in three dimensions. As we categorize edges based on their types, we need to ensure that we do not overlook any combinations that could lead to shared colors. Additionally, the potential increase in the number of edge types may complicate the counting argument further.\n\n## Next Steps\n1. **Draft a detailed proof for $d=3$**: This proof should explicitly outline how the counting changes when moving from $d=2$ to $d=3$. We will focus on the implications of the additional dimension on the edge types and their uniqueness.\n2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edges that may yield unique colors. This empirical exploration will help validate our theoretical claims.\n3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist, potentially using the Inclusion-Exclusion Principle.\n\n## Gaps in output.md\n- The output for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly outline how the counting of edge types changes and how we can ensure uniqueness in three dimensions. This gap needs to be addressed for completeness in the proof. Additionally, the examples provided in the earlier rounds need to be expanded with more detailed calculations to strengthen the argument for uniqueness."}]
+
+Current notes.md:
+# Progress Notes for Round 0001
+
+## Ideas
+To tackle the problem for the case where $d=3$, we need to extend the proof strategy used for $d=2$. The main focus will be on understanding how the color map $c_3$ behaves in three dimensions and how the types of edges can be categorized based on the sign patterns. We can utilize the combinatorial nature of the types and the minimum function to establish a unique coloring for edges in the induced subgraph.
+
+## Lemmas from Literature
+1. **Pigeonhole Principle**: If we have more edges than colors, at least one color must repeat. This principle will be useful in showing that if we have sufficiently many edges, some must be unique.
+   - *Why useful here*: It establishes a baseline for uniqueness in edge colors based on the number of edges and the number of possible color types.
+
+2. **Counting Arguments**: If we can count the number of edges of each type and relate this to the number of vertices, we can argue about the existence of unique edges.
+   - *Why useful here*: Helps in establishing bounds on the number of edges that can share the same color.
+
+## Examples
+Consider a small example with $n=2$:
+- Vertices: $V(G) = \{(1,1,1), (1,1,2), (1,2,1), (2,1,1), (2,2,2)\}$.
+- Analyzing the edges, we can compute the colors using $c_3$ and check for uniqueness. For instance, the edge between $(1,1,1)$ and $(1,1,2)$ gives $c_3 = ([0,+,0], 1, 1, 1)$.
+- By checking all pairs, we can see how many edges have the same color and identify unique cases.
+
+## Obstacles
+A potential obstacle is the complexity of the sign patterns in three dimensions. The interactions between the coordinates could lead to a larger number of edge types than anticipated, complicating the counting argument. We need to ensure that we can systematically account for all possible cases of edge types.
+
+## Next Steps
+1. **Extend the proof for $d=3$**: Build on the existing proof for $d=2$ and adapt it to handle the additional dimension. Focus on how the sign patterns interact in this higher-dimensional space.
+2. **Conduct further examples**: Test more combinations of vertices to see how the colors distribute and to identify unique edge colors systematically.
+3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist.
+
+## Gaps in output.md
+- The proof for $d=2$ might not directly translate to $d=3$. We need to explicitly state how the counting changes and how we can ensure uniqueness in three dimensions. This needs to be addressed in the output for completeness.
+# Progress Notes for Round 0002
+
+## Ideas
+To further develop the proof for the case where $d=3$, we need to focus on how the color map $c_3$ behaves specifically in three dimensions. A key aspect will be to analyze the interactions between the sign patterns and how they contribute to the uniqueness of edge colors in the induced subgraph. We can categorize edges based on their types and systematically explore the implications of these types on the edge color distribution.
+
+## Lemmas from Literature
+1. **Pigeonhole Principle**: This principle remains crucial as it provides a foundational argument for the uniqueness of edge colors when the number of edges exceeds the number of distinct color types. We should explicitly quantify the number of edges in $G[U]$ and compare it to the number of possible color types.
+   - *Why useful here*: It helps to establish that with enough edges, at least one must be unique.
+
+2. **Counting Arguments**: We need to refine our counting strategy to account for the increased complexity in three dimensions. Specifically, we should calculate the number of edges for each type and relate this to the number of vertices in $U$. This will help us argue about the existence of unique edges more robustly.
+   - *Why useful here*: It provides a systematic method to analyze edge color distributions and uniqueness.
+
+## Obstacles
+One major obstacle is the increased number of edge types in three dimensions due to the sign patterns. We need to ensure that our counting arguments can handle this complexity. A systematic approach to categorize and count edge types will be essential to overcome this challenge.
+
+## Next Steps
+1. **Extend the proof for $d=3$**: Begin drafting a proof by explicitly stating how the counting changes when moving from $d=2$ to $d=3$. We should focus on the implications of the additional dimension on the edge types and their uniqueness.
+2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edges that may have unique colors. This empirical exploration will help validate our theoretical claims.
+3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist. This may involve more detailed combinatorial arguments.
+
+## Gaps in output.md
+- The output for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly outline how the counting of edge types changes and how we can ensure uniqueness in three dimensions. This gap needs to be addressed for completeness in the proof.
+
+Current output.md (if any):
+

@@ -1,316 +1,207 @@
-# 🔬 Automatic Researcher
+# Automatic Researcher
 
-A fully automated system for solving mathematical research problems using GPT-5 models through a prover-verifier-summarizer loop with strict JSON schema enforcement and comprehensive debugging support.
+An AI-powered research system that can solve problems and write papers automatically using multiple AI agents working in coordinated rounds.
 
-## 🚀 Quick Start
-
-### One-Command Startup
-```bash
-# Set up your API key (one time only)
-echo "OPENAI_API_KEY=sk-your-key-here" > ~/.openai.env
-
-# Run the system (renamed from run_simple.py)
-python3 run.py
-```
-
-That's it! The script will:
-- Create/update a virtual environment with all dependencies
-- Start the Streamlit web interface (port 8501)
-- Open your browser automatically
-- Keep running until you press Ctrl+C
-
-### Direct Orchestrator Usage
-For command-line testing without the UI:
-```bash
-python3 orchestrator.py problems/your-problem --rounds 1 --start-round 1
-```
-
-## 🏗️ Architecture
-
-### Data Persistence
-All model outputs and debugging information are automatically saved:
+## 🏗️ Project Structure
 
 ```
-problems/
-├── your-problem/
-│   ├── task.tex                    # Problem statement
-│   ├── *.pdf                       # PDFs next to task are auto-included
-│   ├── papers/                     # Additional papers directory
-│   ├── progress.md                 # Cumulative progress (auto-generated)
-│   ├── summary.md                  # Aggregated summaries + user feedback
-│   └── runs/                       # All model outputs saved here
-│       ├── live_status.json        # Current phase and timing
-│       ├── round-0001/
-│       │   ├── prover.prompt.txt   # Full system+user prompts
-│       │   ├── prover.raw.json     # Complete API response with usage
-│       │   ├── prover.text.txt     # Extracted text for parsing
-│       │   ├── prover.out.json     # Structured prover output
-│       │   ├── verifier.prompt.txt # Full verifier prompts
-│       │   ├── verifier.raw.json   # Complete verifier response
-│       │   ├── verifier.text.txt   # Extracted verifier text
-│       │   ├── verifier.out.json   # Structured verifier output
-│       │   ├── verifier.feedback.md # Detailed feedback
-│       │   ├── summarizer.*        # Same pattern for summarizer
-│       │   ├── timings.json        # Performance metrics
-│       │   └── user.feedback.md    # Human-in-the-loop feedback
-│       └── round-0002/
-│           └── ...
+automatic-researcher/
+├── README.md                   # This file
+├── requirements.txt           # Python dependencies
+├── venv/                     # Python virtual environment
+├── orchestrator.py           # Main orchestrator entry point (102 lines)
+├── orchestrator_old.py       # Original monolithic orchestrator (backup)
+├── web_app.py               # Web application server
+├── backend/                 # FastAPI backend
+│   ├── main.py             # API endpoints and server logic
+│   ├── config.py           # Configuration settings
+│   ├── models.py           # Data models
+│   └── services/
+│       └── tasks.py        # Task management services
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── SolvingPage.tsx      # Problem solving interface
+│   │   │   ├── WritingPage.tsx      # Paper writing interface
+│   │   │   └── TaskCreationPage.tsx # Task creation interface
+│   │   ├── api.ts          # API client functions
+│   │   └── [other React files]
+│   ├── package.json        # Node.js dependencies
+│   └── [other frontend files]
+├── orchestrator/           # Modular orchestrator package
+│   ├── __init__.py        # Package initialization
+│   ├── models.py          # Pydantic data models (74 lines)
+│   ├── utils.py           # Utility functions (264 lines)
+│   ├── papers.py          # Paper processing (122 lines)
+│   ├── agents.py          # AI agent interactions (387 lines)
+│   └── runner.py          # Round execution logic (158 lines)
+├── prompts/               # AI agent prompts
+│   ├── prover.md          # Prover agent system prompt
+│   ├── verifier.md        # Verifier agent system prompt
+│   ├── summarizer.md      # Summarizer agent system prompt
+│   ├── paper_suggester.md # Paper suggester system prompt
+│   └── paper_fixer.md     # Paper fixer/writer system prompt
+├── problems/              # Problem-solving tasks
+│   └── [problem-name]/
+│       ├── task.md        # Problem description
+│       ├── notes.md       # Research notes
+│       ├── output.md      # Current findings
+│       ├── progress.md    # Round-by-round progress
+│       ├── summary.md     # Final summary
+│       ├── papers/        # Reference papers (PDFs)
+│       ├── papers_parsed/ # Extracted text from papers
+│       └── runs/          # Execution rounds
+│           ├── live_status.json      # Current status
+│           ├── run_metadata.json     # Run configuration
+│           └── round-XXXX/          # Individual rounds
+│               ├── prover-XX.*.txt  # Prover outputs
+│               ├── verifier.*.md    # Verifier feedback
+│               ├── summarizer.*.md  # Round summaries
+│               └── timings.json     # Performance metrics
+└── drafts/                # Paper writing tasks
+    └── [draft-name]/
+        ├── final_output.tex       # Current LaTeX draft
+        ├── final_output.pdf       # Compiled PDF (if successful)
+        ├── papers/               # Reference papers
+        ├── papers_parsed/        # Extracted text
+        ├── drafts/              # Draft versions
+        └── runs/                # Writing rounds
+            ├── live_status.json  # Current status
+            ├── run_metadata.json # Run configuration
+            └── round-XXXX/      # Individual rounds
+                ├── paper_suggester.*     # Suggester advice
+                ├── paper_fixer.*         # Writer output
+                ├── final_output.tex      # Updated draft
+                ├── paper.compile.*       # LaTeX compilation
+                └── timings.json          # Performance metrics
 ```
 
-### System Components
+## 🧩 Architecture Overview
 
-- **Streamlit UI**: Web dashboard with real-time updates and model preset selection
-- **Orchestrator**: Runs prover-verifier-summarizer loops with strict JSON schema enforcement
-- **Debugging Support**: Saves all prompts, raw responses, and extracted text for analysis
-- **Auto Git Commits**: Each round is automatically committed for version control
+### Core Components
 
-## 💡 Features
+**Orchestrator System** (Modular Architecture)
+- **orchestrator.py**: Main entry point (102 lines, down from 1537)
+- **orchestrator/models.py**: Pydantic models for structured AI outputs
+- **orchestrator/utils.py**: File operations, status management, JSON processing
+- **orchestrator/papers.py**: PDF extraction, paper parsing, context building
+- **orchestrator/agents.py**: AI agent interactions (OpenAI API calls)
+- **orchestrator/runner.py**: Round execution logic for research and writing
 
-- **GPT-5 Support**: Uses GPT-5 with maximum reasoning depth (`reasoning.effort=high`)
-- **Strict JSON Schema**: Enforces exact output format via Responses API
-- **Comprehensive Debugging**: Saves all prompts, raw responses, and parsed outputs
-- **PDF Extraction**: Automatically extracts and includes PDF content (PyMuPDF)
-- **Human-in-the-Loop**: Add feedback during rounds that persists across sessions
-- **Model Presets**: Quick switching between GPT-5 and GPT-4o-mini configurations
-- **Auto Git Integration**: Each round automatically committed with verdict
-- **Robust Error Handling**: Fail-soft JSON parsing, default values for missing fields
-- **Real-time Monitoring**: Live phase tracking with accurate elapsed time
+**Backend API** (FastAPI)
+- **backend/main.py**: REST API endpoints for frontend
+- **backend/services/tasks.py**: Task creation, deletion, management
+- **backend/models.py**: API request/response models
 
-## 📁 Adding Problems
+**Frontend Interface** (React + TypeScript)
+- **SolvingPage**: Problem-solving interface with rounds, conversations, files
+- **WritingPage**: Paper writing interface with draft management
+- **TaskCreationPage**: Create new problems or writing tasks
 
-Create a folder in `problems/` with:
-```bash
-mkdir problems/my-problem
-echo "Prove that P != NP" > problems/my-problem/task.tex
-# PDFs next to task.* are automatically included
-cp reference-paper.pdf problems/my-problem/
-# Or place PDFs in papers/ subdirectory
-mkdir problems/my-problem/papers/
-cp *.pdf problems/my-problem/papers/
-```
+### AI Agent Workflow
 
-Supported formats:
-- Task files: `task.tex`, `task.txt`, `task.md`
-- Reference materials: PDFs are automatically extracted (first 10 pages)
-- All `.txt` and `.md` files in problem directory are included
+**Problem Solving Mode:**
+1. **Prover(s)**: Generate research progress and hypotheses
+2. **Verifier**: Review prover outputs, provide feedback and verdict
+3. **Summarizer**: Create concise round summaries and highlight key points
 
-## 🎮 Usage
+**Paper Writing Mode:**
+1. **Paper Suggester**: Analyze current draft and provide improvement advice
+2. **Paper Fixer**: Apply suggestions and rewrite LaTeX content
+3. **LaTeX Compiler**: Attempt to compile the updated paper
 
-### Web Interface (http://localhost:8501)
+### Data Flow
 
-1. **Overview Tab**: 
-   - Dashboard with all problems
-   - Total rounds, running status, latest verdicts
-   - Click problem name to view details
+1. **Task Creation**: Users create problems or drafts through the web interface
+2. **Round Execution**: Orchestrator runs AI agents in sequence
+3. **Status Updates**: Real-time status updates via live_status.json
+4. **Result Storage**: All outputs saved in structured directories
+5. **Web Interface**: Frontend displays progress, conversations, and files
 
-2. **Detailed View Tab**:
-   - Select problem and model preset (gpt5 or fast)
-   - Click "▶ Run more rounds" to start
-   - View Prover ↔ Verifier ↔ Summarizer conversation
-   - Add human feedback that persists across rounds
-   - Monitor current phase with elapsed time
-   - See included files (task, PDFs, previous feedback)
+## 🚀 Key Features
 
-### Model Presets
+### Problem Solving
+- **Multi-prover support**: Run multiple provers in parallel for diverse approaches
+- **Iterative refinement**: Verifier provides feedback for continuous improvement
+- **Progress tracking**: Detailed round-by-round progress and summaries
+- **Paper integration**: Automatically parse and include reference papers
 
-- **gpt5 (default)**: Uses GPT-5 for prover/verifier, GPT-5-mini for summarizer
-- **fast (test)**: Uses GPT-4o-mini for all roles (cheaper, faster, less capable)
+### Paper Writing
+- **Draft management**: Track multiple draft versions
+- **LaTeX compilation**: Automatic compilation with error handling
+- **Structured feedback**: AI suggester provides specific improvement advice
+- **PDF generation**: Compiled papers available as clickable links
+
+### User Interface
+- **Real-time status**: Live updates on current phase and progress
+- **Conversation view**: Structured display of AI agent interactions (parsed JSON)
+- **File management**: Easy access to all generated files and papers
+- **Task management**: Create, run, delete, and reset tasks
+
+### Technical Improvements
+- **Modular architecture**: Orchestrator broken into logical, maintainable modules
+- **Proper round tracking**: Accurate remaining rounds based on user requests
+- **Clean UI**: Removed redundant sections, improved PDF handling
+- **Delete functionality**: Complete task deletion with proper cleanup
 
 ## 🔧 Configuration
 
 ### Environment Variables
-```bash
-# Required - store in ~/.openai.env
-OPENAI_API_KEY=sk-your-key-here
-
-# Optional - override model selection (set before starting)
-OPENAI_MODEL_PROVER=gpt-5        # Default from preset
-OPENAI_MODEL_VERIFIER=gpt-5      # Default from preset
-OPENAI_MODEL_SUMMARIZER=gpt-5-mini  # Default from preset
-```
+- `OPENAI_API_KEY`: OpenAI API key for AI agents
+- `AR_MODE`: Override mode (research/writing)
+- `AR_NUM_PROVERS`: Number of parallel provers (default: 1)
+- `AR_PROVER_TEMPERATURE`: Temperature for prover agents (default: 0.8)
+- `AR_GIT_AUTOCOMMIT`: Enable automatic Git commits after rounds
 
 ### Model Configuration
+- `OPENAI_MODEL_PROVER`: Model for prover agents (default: gpt-5)
+- `OPENAI_MODEL_VERIFIER`: Model for verifier agent (default: gpt-5)
+- `OPENAI_MODEL_SUMMARIZER`: Model for summarizer agent (default: gpt-5-mini)
+- `OPENAI_MODEL_PAPER_SUGGESTER`: Model for paper suggester (default: same as prover)
+- `OPENAI_MODEL_PAPER_FIXER`: Model for paper fixer (default: same as prover)
 
-Models are configured in `web_app.py`:
-```python
-MODEL_PRESETS = {
-    "gpt5": {
-        "prover": "gpt-5",      # Maximum reasoning
-        "verifier": "gpt-5",    # Maximum reasoning
-        "summarizer": "gpt-5-mini",
-    },
-    "fast": {
-        "prover": "gpt-4o-mini",
-        "verifier": "gpt-4o-mini", 
-        "summarizer": "gpt-4o-mini",
-    },
-}
-```
+## 📊 File Organization
 
-All GPT-5 calls use:
-- `reasoning={"effort": "high"}` - Maximum depth and cost
-- Strict JSON schema enforcement via Responses API
-- Medium verbosity via system prompts
+### Rounds Structure
+Each round creates a timestamped directory containing:
+- **Agent outputs**: Raw text, JSON responses, and parsed results
+- **Timing data**: Performance metrics for each agent
+- **Context files**: List of files used as context
+- **Progress updates**: Incremental progress and summaries
 
-## 📊 How It Works
+### Status Tracking
+- **live_status.json**: Current phase, round number, timestamp, models used
+- **run_metadata.json**: Original run configuration (rounds, preset, parameters)
+- **timings.json**: Cumulative performance data across agents
 
-1. **Prover**: 
-   - Receives problem context, previous progress, PDFs
-   - Generates mathematical exploration with mini-plans
-   - Returns structured JSON with progress_md, new_files, next_actions
+### Output Files
+- **progress.md**: Chronological progress across all rounds
+- **summary.md**: Final summary of results
+- **notes.md**: Research notes (updated by verifier)
+- **output.md**: Current findings and conclusions (updated by verifier)
 
-2. **Verifier**: 
-   - Audits prover's work for correctness and rigor
-   - Creates claim status tables (OK/Unclear/Broken)
-   - Returns verdict (promising/uncertain/unlikely) with feedback
+## 🎯 Usage Modes
 
-3. **Summarizer**: 
-   - Condenses round into human-readable summary
-   - Highlights key findings and next questions
-   - Aggregates into persistent summary.md
+### Research Mode (`--mode research`)
+Focus on problem-solving with iterative improvement:
+- Multiple provers can work in parallel
+- Verifier provides critical feedback
+- Summarizer highlights key developments
+- Early stopping when problem appears solved
 
-4. **Persistence**: 
-   - Each round auto-committed to git with verdict
-   - All raw responses saved for debugging
-   - Human feedback preserved across sessions
+### Paper Mode (`--mode paper`)
+Focus on writing and improving academic papers:
+- Paper suggester analyzes current draft
+- Paper fixer applies improvements
+- Automatic LaTeX compilation
+- PDF generation for review
 
-The system uses:
-- **GPT-5 Responses API** with `reasoning.effort=high` for maximum depth
-- **Strict JSON Schema** enforcement for reliable parsing
-- **Fail-soft error handling** to keep rounds running despite issues
-- **Unix timestamps** for timezone-proof elapsed time tracking
+## 🏃‍♂️ Getting Started
 
-## 🛠️ Troubleshooting
+1. **Setup**: Install dependencies and configure environment variables
+2. **Create Task**: Use web interface to create problem or writing task
+3. **Run Rounds**: Specify number of rounds and model preset
+4. **Monitor Progress**: Watch real-time updates in the web interface
+5. **Review Results**: Access all outputs, conversations, and generated files
 
-### Empty Prover/Verifier Output
-- Check `runs/round-XXXX/prover.raw.json` for error messages
-- Look at `prover.prompt.txt` to verify PDFs were included
-- Ensure OpenAI SDK is updated: `./venv/bin/pip install --upgrade openai>=1.40.0`
-
-### Incorrect Elapsed Time
-- System now uses Unix timestamps - refresh browser if seeing old format
-- Check `runs/live_status.json` for current phase timestamp
-
-### PDFs Not Being Included
-- Place PDFs either next to `task.*` or in `papers/` subdirectory
-- Check `runs/round-XXXX/context.files.json` for included files list
-- Ensure PyMuPDF is installed: `pip install pymupdf`
-
-### Model Access Issues
-- GPT-5 requires special access - check `prover.raw.json` for "model_not_found"
-- Use "fast" preset with GPT-4o-mini if GPT-5 unavailable
-- Connection errors show exact reason in UI when clicking "Run more rounds"
-
-### Debugging Failed Rounds
-Each round saves comprehensive debug info:
-```bash
-cat runs/round-0001/prover.prompt.txt   # See what was sent
-cat runs/round-0001/prover.raw.json     # Full API response
-cat runs/round-0001/prover.text.txt     # Extracted text
-cat runs/round-0001/timings.json        # Performance metrics
-```
-
-All outputs preserved even if rounds fail - nothing is lost.
-
-## Multi-Prover + Combined Verifier + Writer Workflow (Planned/Enabled)
-
-This system supports running multiple Provers in parallel, a single combined Verifier pass, an optional Writer pass that generates rigorous LaTeX, and a final Summarizer.
-
-### Controls
-- Provers in parallel: integer in [1, 10], default 2.
-- Model preset: unchanged.
-
-### Round Flow
-1) Provers (parallel)
-   - N independent Provers run with the same problem context.
-   - Context includes: `task.*`, non-PDF sources, parsed PDFs, `progress.md` (tail), `summary.md` (tail), persistent `notes.md`, current `outputs.tex` (if exists), and last round Verifier/Writer artifacts.
-   - Artifacts per prover i (1-indexed):
-     - `runs/round-XXXX/prover-ii.prompt.txt|raw.json|text.txt|out.json`
-
-2) Verifier (combined)
-   - Consumes all Prover outputs from this round, plus `notes.md` and `outputs.tex`.
-   - Produces a single combined verdict and feedback.
-   - Can update `notes.md` via structured fields (append or replace).
-   - Can decide to call the Writer.
-   - Artifacts:
-     - `runs/round-XXXX/verifier.prompt.txt|raw.json|out.json|feedback.md|summary.md`
-
-3) Writer (optional)
-   - Triggered only if the Verifier requests it.
-   - Input: only `notes.md` and the Verifier-provided task. Also receives existing `outputs.tex` content if present.
-   - Output: rigorous LaTeX (`outputs.tex` replace-only), plus a structured status.
-   - The system runs `pdflatex` locally after write; PDF (if compiled) is offered for download; errors are captured and included in artifacts and passed to next round.
-   - Artifacts:
-     - `runs/round-XXXX/writer.prompt.txt|raw.json|out.json`
-     - `outputs.tex` (replaced), `outputs.pdf` (if compilation succeeds), `outputs.compile.log` (always saved)
-
-4) Summarizer
-   - Reports what happened in this round: direction chosen by Verifier, whether Writer ran and its outcome, and key highlights.
-   - Artifacts:
-     - `runs/round-XXXX/summarizer.prompt.txt|raw.json|out.json|summary.md`
-
-### Persistent Files
-- `notes.md`: persistent research log curated by the Verifier.
-- `outputs.tex`: rigorous LaTeX document produced by the Writer (replace-only).
-- `outputs.pdf`: compiled PDF (if compilation succeeds).
-
-### Verifier Output Schema (combined)
-```json
-{
-  "feedback_md": "string",           
-  "summary_md": "string",            
-  "verdict": "promising|uncertain|unlikely",
-  "blocking_issues": ["string"],
-  "per_prover": [
-    {
-      "prover_id": "string",        
-      "brief_feedback": "string",
-      "score": "promising|uncertain|unlikely"
-    }
-  ],
-  "notes_update": {
-    "mode": "append|replace",        
-    "content_md": "string"           
-  },
-  "call_writer": {
-    "run": true,
-    "task_md": "string"              
-  }
-}
-```
-- Policy: Verifier is encouraged to use `append` for `notes_update` (replace is allowed when justified).
-
-### Writer Output Schema
-```json
-{
-  "status": "success|failed",
-  "action": "replace",               
-  "tex_content": "string",           
-  "errors_md": "string"              
-}
-```
-- Writer always replaces `outputs.tex` atomically when `status=success`.
-- On failure, `outputs.tex` is not changed; `errors_md` explains gaps/flaws.
-
-### Summarizer Output Schema
-```json
-{
-  "summary_md": "string",
-  "highlights": ["string"],
-  "next_questions": ["string"],
-  "metadata": {
-    "chosen_direction": "string",
-    "writer_ran": true
-  }
-}
-```
-
-### UI Behavior
-- Prover pane shows N sub-panels (Prover 01..NN) with raw and parsed artifacts.
-- Verifier pane shows the combined feedback and per-prover capsule verdicts; displays and applies `notes_update`.
-- Writer pane (only when run) shows the task, LaTeX diff/content, compile status, and downloadable `outputs.pdf`.
-- Summarizer pane reports the round narrative.
-
-### Notes and LaTeX Handling
-- `notes.md` is persistent and versioned by round; the Verifier’s `notes_update` is applied after the combined check.
-- `outputs.tex` is replace-only; the Writer must supply the full LaTeX document (with preamble/macros as needed). The system compiles with `pdflatex` (non-interactive); logs/errors are stored and surfaced.
+The system is designed for autonomous operation while providing full transparency into the AI reasoning process through structured outputs and comprehensive logging.

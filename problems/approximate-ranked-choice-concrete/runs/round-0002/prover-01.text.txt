@@ -1,0 +1,53 @@
+## Audit of current output and quick fixes
+
+- Additive-ballot normalization: Correctly used as P′ = (P + α Q)/(1+α) throughout Theorem 1 and Lemma 2. Good.
+- Tie-breaking: Theorem 1 implicitly ensures strict positivity of all margins in P′, so tie-breaking becomes irrelevant; this should be stated explicitly in the proof (to avoid any dependence on the fixed rule once the certificate fires).
+- Counting identity U: A simpler and fully explicit combinatorial proof would help. See Lemma A below.
+- Certify-or-abstain vs. unconditional guarantee: Theorem 1 proves a certify-or-abstain statement. It does not, and cannot, guarantee that the natural algorithm outputs an ε-winner w.p. ≥ 1−δ uniformly over all P without further assumptions on true margins. This gap relative to the problem’s “succeed” phrasing should be flagged in output.md.
+- K=3 corollary: The statement is sound; an explicit list of the O(1) functionals and a concrete constant in the sample bound would strengthen it. See Corollary B below.
+
+## Ideas
+
+1) Parametric path certificate (one-line why useful). A sharpened version of Theorem 1 that decouples the empirical slack τ and the uniform deviation η, yielding a data-dependent certificate and explicit α ≤ ε. This lets the algorithm compute a guaranteed ε̂ from the sample: ε̂ := max{0, min(τ−η, ε)}.
+
+2) Minimal α accounting (one-line why useful). Given uniform deviation bound η and observed margins, upper bound the minimal α (for the single-ranking Q) needed to realize σ on the true P. This quantifies robustness and can yield tighter guarantees than the fixed “2ε” trigger.
+
+3) Clean combinatorial proof of U = K(K−1) 2^{K−2} (one-line why useful). Streamlines Lemma 1’s union bound and removes reliance on the binomial-moment identity.
+
+4) K=3 lower bound via Le Cam (one-line why useful). Establishes Ω((log(1/δ))/ε^2) necessity for any method, matching our upper bound’s ε, δ dependence in the simplest nontrivial case.
+
+## Statements and proofs/sketches
+
+Lemma A (Counting of path functionals). Let F = { (A,y,x): A⊆[K], |A|≥2, y≠x∈A }. Then |F| = U = K(K−1) 2^{K−2}.
+Proof. For each ordered pair (y,x) with y≠x (K(K−1) choices), any A that contains both y and x is formed by choosing an arbitrary subset of the remaining K−2 candidates, so 2^{K−2} choices. Multiply.
+
+Lemma C (Parametric path-wise certificate). Fix σ=(e_1,…,e_{K−1},w) produced by IRV on the sample S. Suppose a uniform concentration event holds: |d_{r,y}(S) − d_{r,y}(P)| ≤ η for all r,y. Let τ := min_{r,y} d_{r,y}(S). If τ > η, then for any α ∈ [0, τ−η], the same σ is feasible on P′:=(P+αQ)/(1+α) where Q is the point mass on ranking (w, e_{K−1}, …, e_1); in particular, w is an (τ−η)-winner for P.
+Reason. For y≠w, d_{r,y}(P′) = d_{r,y}(P)/(1+α) ≥ (τ−η)/(1+α) > 0. For y=w, d_{r,w}(P′) = (d_{r,w}(P)+α)/(1+α) ≥ (τ−η+α)/(1+α) > 0. Hence all feasibility inequalities are strictly positive, so σ executes on P′ and w wins.
+
+Corollary B (Explicit K=3 certificate with constants). Let K=3, S be an m-sample, and suppose S’s elimination order is (e,o,w). Define
+- First round: M1 := min{ score_o(S;[3]) − score_e(S;[3]), score_w(S;[3]) − score_e(S;[3]) }.
+- Final pair: M2 := Pr_S[w ≻ o] − Pr_S[o ≻ w].
+Let τ := min{M1, M2}. If m ≥ (1/(2η^2)) (log(12) + log(1/δ)) and τ ≥ η + ε, then w is an ε-winner w.p. ≥ 1−δ. In particular, taking η=ε yields m ≥ (1/(2ε^2))(log 12 + log(1/δ)) and the simple trigger “all three margins ≥ 2ε.”
+Sketch. The class has at most 6 functionals (two first-round differences, one pairwise difference, and their negatives). Apply Hoeffding+union bound with 2U ≤ 12. Then apply Lemma C with τ−η ≥ ε.
+
+Example check (K=3). Let P place mass p_A = 0.51 on w≻o≻e and p_B = 0.49 on o≻w≻e. Then round 1 eliminates e (score_e=0), and in the final pair M2 = 0.02. With ε=0.01, η=0.01, τ=0.02, the certificate fires; adding α=0.01 of Q = (w,o,e) yields d_{2,w}(P′) = (0.02+0.01)/1.01 > 0 while d_{1,o}, d_{1,w} shrink but stay positive.
+
+Lemma D (Minimal α upper bound from sample). Under the uniform deviation bound η and given σ from S, define τ := min_{r,y} d_{r,y}(S). Then any α ≤ τ−η suffices to realize σ on P′ with Q as above. In particular, the data-driven bound α∗ := (τ−η)_+ is feasible and α∗ ≤ ε whenever τ ≥ η + ε.
+Proof. Immediate from Lemma C.
+
+Lemma E (K=3 Le Cam lower bound). Fix ε ∈ (0, 1/6). Consider two electorates on K=3 supported on {A: w≻o≻e, B: o≻w≻e}: P_+ with P_+(A)=1/2+ε, P_+(B)=1/2−ε; P_- with P_-(A)=1/2−ε, P_-(B)=1/2+ε. Then for target ε (same symbol) and any algorithm that, from m i.i.d. ballots, outputs a candidate who is an ε-winner of the true election with probability ≥ 1−δ for both P_+ and P_-, it must hold that m ≥ c log(1/δ)/ε^2 for an absolute constant c>0.
+Why sets of ε-winners are disjoint. Under P_+, e is eliminated immediately (score_e=0). The final pair margin is M2=2ε in favor of w. For ε<1/6, any α≤ε leaves round-1 elimination unchanged, and to make o beat w in the final pair requires α≥M2=2ε. Thus under P_+, the only ε-winner is w. Symmetrically, under P_- the only ε-winner is o. Hence any algorithm must identify which world it is in (binary testing). Information bound. The observations reduce to m i.i.d. draws from a Bernoulli with mean 1/2±ε (indicator of A). Standard tail or KL bounds (KL(P_+||P_-) ≈ 8ε^2 for small ε) imply m ≥ c log(1/δ)/ε^2 is necessary for error ≤ δ.
+
+## Obstacles and open items
+
+- Uniform-in-P success of the natural algorithm: Without assumptions on true path margins, no fixed m can guarantee that the sample winner is an ε-winner w.p. ≥ 1−δ uniformly over all electorates. Our results are certify-or-abstain; quantifying the rate at which the abstain event occurs requires margin conditions.
+- K-dependence lower bounds: While the union bound suggests an O(K/ε^2) price for certification, a matching lower bound requires constructing a packing of electorates whose ε-winner sets are nearly disjoint and whose induced ballot laws are pairwise close. Ensuring IRV consistency across many rounds while “hiding” the critical inequality remains delicate.
+- Tight α accounting when some d_{r,w}(S) are small: Lemma C tolerates small d_{r,w} using the +α boost, but for y≠w margins shrink by 1/(1+α). Balancing these may lead to slightly stronger, round-dependent α choices if one enriches Q beyond a single ranking; this complicates composition and is left open.
+
+## Next steps
+
+1) Integrate Lemma C (parametric certificate) and Lemma A (counting) into output.md, clarifying tie-breaking.
+2) Flesh out Lemma E with explicit constants via KL(P_+||P_-) and Chernoff bounds; include a short proof that e is not an ε-winner in either instance for ε<1/6.
+3) K=3: Provide an explicit list of the three functionals and compute the exact m bound m ≥ (1/(2ε^2))(log(12)+log(1/δ)).
+4) Toward K-dependent lower bounds: attempt a family where the first-round loser is unique but “hidden” among Θ(K) candidates by perturbing first-choice rates by ±ε while keeping later rounds fixed; analyze disjointness of ε-winner sets and pairwise divergences.
+5) Empirical margin estimator: recommend reporting ε̂ := max{0, τ−η} as a certified tolerance derived from the sample, together with m and δ; this is immediately supported by Lemma C.

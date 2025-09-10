@@ -263,7 +263,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             )}
           </div>
           <div style={{ fontSize: '10px', color: '#666' }}>
-            {file.type === 'paper' ? 'Original PDF' : formatFileSize(file.size)} • {file.modified}
+            {file.type === 'paper' && file.name.toLowerCase().endsWith('.pdf') ? 'Original PDF' : formatFileSize(file.size)} • {file.modified}
           </div>
           {file.description && (
             <div style={{ 

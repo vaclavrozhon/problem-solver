@@ -2,7 +2,7 @@
 API routes for task creation and paper management.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import List
 
 from ..models import NewTaskPayload, PaperUrlPayload
@@ -38,13 +38,13 @@ def delete_draft(draft: str):
 
 # Paper upload endpoints
 @router.post("/problems_public/{problem}/papers/upload")
-async def upload_problem_paper(problem: str, file: UploadFile = File(...), description: str = ""):
+async def upload_problem_paper(problem: str, file: UploadFile = File(...), description: str = Form("")):
     """Upload a paper PDF to a problem"""
     filename = await PaperService.upload_problem_paper(problem, file, description)
     return {"message": f"Paper '{filename}' uploaded successfully"}
 
 @router.post("/drafts_public/{draft}/papers/upload")
-async def upload_draft_paper(draft: str, file: UploadFile = File(...), description: str = ""):
+async def upload_draft_paper(draft: str, file: UploadFile = File(...), description: str = Form("")):
     """Upload a paper PDF to a draft"""
     filename = await PaperService.upload_draft_paper(draft, file, description)
     return {"message": f"Paper '{filename}' uploaded successfully"}

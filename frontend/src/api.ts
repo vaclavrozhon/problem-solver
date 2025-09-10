@@ -15,10 +15,19 @@ export async function getRounds(name: string) {
   return r.json();
 }
 
-export async function runRound(name: string, rounds: number, provers: number, temperature: number, preset: string) {
+export async function runRound(name: string, rounds: number, provers: number, temperature: number, preset: string, proverConfigs?: any[]) {
+  // Don't send temperature for GPT-5 models (they only support default)
+  const params: any = { rounds, provers, preset };
+  if (preset !== 'gpt5') {
+    params.temperature = temperature;
+  }
+  if (proverConfigs && proverConfigs.length > 0) {
+    params.prover_configs = proverConfigs;
+  }
+  
   const r = await req(`/problems_public/${encodeURIComponent(name)}/run`, {
     method: "POST",
-    body: JSON.stringify({ rounds, provers, temperature, preset }),
+    body: JSON.stringify(params),
   });
   return r.json();
 }
@@ -47,8 +56,17 @@ export async function listFiles(name: string) {
   return r.json();
 }
 
-export async function getFileContent(name: string, filePath: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`);
+export async function getFileContent(name: string, filePath: string, version?: string) {
+  let url = `/problems_public/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`;
+  if (version) {
+    url += `&version=${encodeURIComponent(version)}`;
+  }
+  const r = await req(url);
+  return r.json();
+}
+
+export async function getFileVersions(name: string, filePath: string) {
+  const r = await req(`/problems_public/${encodeURIComponent(name)}/file-versions?file_path=${encodeURIComponent(filePath)}`);
   return r.json();
 }
 
@@ -92,22 +110,23 @@ export async function getDraftFileContent(name: string, filePath: string) {
 }
 
 export async function deleteDraftRounds(name: string, deleteCount: number) {
-  console.log('deleteDraftRounds API call', { name, deleteCount })
-  const url = `/drafts_public/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`
-  console.log('DELETE URL:', url)
-  const r = await req(url, {
+  const r = await req(`/drafts_public/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
     method: "DELETE"
   });
-  console.log('DELETE response status:', r.status)
-  const result = await r.json();
-  console.log('DELETE response body:', result)
-  return result;
+  return r.json();
 }
 
 // Task deletion API functions
 export async function deleteProblem(problemName: string) {
   const r = await req(`/problems_public/${encodeURIComponent(problemName)}`, {
     method: "DELETE",
+  });
+  return r.json();
+}
+
+export async function resetProblem(problemName: string) {
+  const r = await req(`/problems_public/${encodeURIComponent(problemName)}/reset`, {
+    method: "POST",
   });
   return r.json();
 }
@@ -128,10 +147,15 @@ export async function createProblem(name: string, taskDescription: string, taskT
   return r.json();
 }
 
-export async function createDraft(name: string, taskDescription: string) {
+export async function createDraft(name: string, taskDescription: string, initialDraft: string) {
   const r = await req(`/drafts_public/create`, {
     method: "POST",
-    body: JSON.stringify({ name, task_description: taskDescription, task_type: "tex" }),
+    body: JSON.stringify({ 
+      name, 
+      task_description: taskDescription, 
+      initial_draft: initialDraft,
+      task_type: "tex" 
+    }),
   });
   return r.json();
 }
@@ -171,6 +195,43 @@ export async function addDraftPaperFromUrl(draftName: string, url: string) {
   const r = await req(`/drafts_public/${encodeURIComponent(draftName)}/papers/from-url`, {
     method: "POST",
     body: JSON.stringify({ url }),
+  });
+  return r.json();
+}
+
+// Text content upload functions
+export async function uploadProblemTextContent(problemName: string, content: string, filename: string, description?: string) {
+  // Create a blob and file from text content to upload as file
+  const blob = new Blob([content], { type: 'text/plain' });
+  const file = new File([blob], filename, { type: 'text/plain' });
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  if (description) {
+    formData.append('description', description);
+  }
+  
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  return r.json();
+}
+
+export async function uploadDraftTextContent(draftName: string, content: string, filename: string, description?: string) {
+  // Create a blob and file from text content to upload as file
+  const blob = new Blob([content], { type: 'text/plain' });
+  const file = new File([blob], filename, { type: 'text/plain' });
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  if (description) {
+    formData.append('description', description);
+  }
+  
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts_public/${encodeURIComponent(draftName)}/papers/upload`, {
+    method: "POST",
+    body: formData,
   });
   return r.json();
 }

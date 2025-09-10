@@ -1,0 +1,189 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (summary so far)
+- output.md (rigorously proven results so far)
+
+Guidelines:
+- notes.md: should be a readable running log of interesting work. Prefer appending. Replace only if old notes are clearly misleading. Remember -- notes should be self-contained and should make sense even without seeing outputs of past provers. 
+- output.md:  Think twice before you add something to this file. Everything here should be rigorous, almost publication-ready. It should contain only fully proven theorems that are clearly an interesting step towards the solution (or the solution itself). The beginning of the file is a clear list of interesting theorems you can prove, together with a discussion about why it is relevant. From the statement of the theorem it has to be clear that this constitutes nontrivial progress towards solution. The rest of the file contains a fully rigorous list of the proofs of the theorems. Keep only proven theorems with clear proofs. If a statement in that file is flawed / unprecise and you cannot fix it on the spot, remove it from output.md and instead add it to notes.md with explanation.
+- Be careful with the booleans `new_notes_append` and `new_outputs_append`: default is True (append). Use False only when deliberately rewriting everything.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. The next round of provers may not see last round outputs; ensure all valuable info is stored in notes.",
+  "new_notes_md": "Markdown (KaTeX allowed). Usually appended to notes.",
+  "new_notes_append": "True|False",
+  "new_outputs_md": "Markdown (KaTeX allowed). Usually appended to output.md.",
+  "new_outputs_append": "True|False",
+  "verdict": "success|partial success|nothing so far"
+}
+
+**Verdict definitions**:
+- **success**: Something that one could publish, even if it is not the full solution (e.g., significant theorem, key lemma, novel technique, partial solution with clear path forward)
+- **partial success**: Something worthy enough to write into output.md (e.g., correct but preliminary results, useful technical lemmas, validated approaches that advance understanding)
+- **nothing so far**: No meaningful mathematical progress or only exploratory work
+
+
+=== USER ===
+=== Task (txt) ===
+
+# Problem Statement
+
+We consider the problem of estimating the winner in an election run under **Ranked Choice Voting** (also known as *Instant-Runoff Voting*).  
+
+Suppose there are \(K\) candidates. Each voter submits a complete ranking of these candidates. The voting rule proceeds in rounds: in each round, every ballot is assigned to the top-ranked candidate who is still in contention. The candidate with the smallest number of votes is eliminated (with ties broken according to a fixed deterministic rule), and this candidate is crossed out from all ballots. The process repeats until only one candidate remains, who is declared the winner.
+
+Our goal is not to compute the exact winner from the full set of ballots, but rather to estimate a *robust* winner from a random sample of ballots. To make this precise, we introduce the notion of an **ε-winner**. A candidate \(c\) is called an ε-winner of an election profile if it is possible to add at most an ε-fraction of additional ballots to the election so that \(c\) becomes the winner under Ranked Choice Voting. In other words, \(c\) is “close” to being the true winner, in the sense that a small perturbation of the electorate would make \(c\) win. There may be more ε-winners. The real winner is ε-winner for any ε. 
+
+The sampling model is as follows. We assume there is a large population of voters, each ballot drawn independently from the empirical distribution of this population. The algorithm does not see all the ballots; instead, it may sample ballots at random, with replacement. The task of the algorithm is: given parameters \(\varepsilon\) and \(\delta\), and access to at most \(m\) random ballots, output a candidate \(\hat{c}\) such that with probability at least \(1-\delta\), the candidate \(\hat{c}\) is an ε-winner of the true election.
+
+There is a natural algorithm for this problem: Sample a subset of votes and run the ranked-choice algorithm on them; output the winner. How many samples are needed for this algorithm to succeed? We seek the best possible upper and lower bound. 
+
+
+
+=== Notes ===
+
+# Notes
+
+
+
+
+=== Current Output ===
+
+# Output
+
+No output yet.
+
+
+
+=== Prover 01 Output ===
+
+# Ideas
+- Formalize an IRV “ε-winner” certificate as a finite set of linear inequalities with slack that can be preserved after adding ε mass of appropriately chosen ballots. This yields a path-wise certification criterion for the natural algorithm (run IRV on the sample; use its elimination path and measured slacks to certify robustness).
+- Start with K=3 to validate the mechanism concretely, then state the general K claim and identify the exact class of linear forms and its cardinality to derive uniform concentration bounds.
+
+# Definitions and notation
+- Let P be the true distribution over the K! rankings; S be the empirical distribution on m sampled ballots (with replacement).
+- For a subset A ⊆ [K], define score_x(P; A) := probability that, under P, the top-ranked candidate among A on a random ballot is x. This is linear in P with coefficients in {0,1}.
+- For a fixed elimination order σ = (e_1, e_2, …, e_{K-1}, w) (where e_r is eliminated at round r and w is the last remaining), define A_r := [K] \ {e_1,…,e_{r-1}}.
+- For each round r and y ∈ A_r \ {e_r}, define the linear functional (inequality margin):
+  d_{r,y}(P) := score_y(P; A_r) − score_{e_r}(P; A_r).
+- The elimination order σ is feasible under P iff d_{r,y}(P) ≥ 0 for all r and all such y, with ties handled by the fixed rule consistent with σ.
+
+# Proposition (K = 3: sample-to-true ε-winner certificate)
+Claim: Suppose K=3 and the IRV winner on the sample S is c with elimination order (e, other, c). If, in S, both inequalities hold with slack ≥ 2ε:
+- First-choice elimination: score_e(S; {a,b,c}) ≤ min(score_a(S; {a,b,c}), score_b(S; {a,b,c})) − 2ε.
+- Final pairwise: m_{c,other}(S) := Pr_S[c ≻ other] − Pr_S[other ≻ c] ≥ 2ε.
+If additionally the empirical deviations for these statistics satisfy |score_x(S; [3]) − score_x(P; [3])| ≤ ε and |m_{c,other}(S) − m_{c,other}(P)| ≤ ε, then c is an ε-winner for P.
+
+Why useful here: Gives a concrete m via Hoeffding to ensure with high probability that the sample winner is an ε-winner for K=3.
+
+Sketch proof: Under the deviation bounds, in P we have score_e ≤ min(score_a, score_b) − ε and m_{c,other} ≥ ε. Consider adding ε mass of ballots all ranking c ≻ other ≻ e. In the mixed profile P' = (1−ε)P + εQ, the elimination gap against e for at least one of {a,b} increases by ε, others are unchanged but remain ≥ (1−ε)ε > 0; the pairwise margin becomes m'_{c,other} = (1−ε)m_{c,other}(P) + ε ≥ (1−ε)ε + ε > 0. Thus the elimination order and final majority persist, and c wins in P'. Therefore c is an ε-winner.
+
+Concentration: There are O(1) statistics here. Hoeffding yields m ≥ C (log(1/δ))/ε^2 suffices.
+
+# General K: path-wise certificate and concentration
+Claim (Certificate): Let σ be the elimination order produced by running IRV on S, with winner w. For every round r and every y ∈ A_r \ {e_r}, suppose the margins in S satisfy d_{r,y}(S) ≥ 2ε. If for all these linear forms |d_{r,y}(S) − d_{r,y}(P)| ≤ ε, then w is an ε-winner for P.
+
+Why useful here: Reduces the success of the natural algorithm to uniform concentration of a finite family of linear forms; yields a clean sample complexity bound once we bound the family’s size.
+
+Proof sketch: Under the deviation bounds, d_{r,y}(P) ≥ ε for all needed (r,y). Let Q place all ε mass on the single ranking that orders candidates according to σ (w at top, then e_{K-1}, …, with e_1 last). In P' = (1−ε)P + εQ, each inequality evolves as
+- d_{r,y}(P') = (1−ε)d_{r,y}(P) + ε d_{r,y}(Q), where d_{r,y}(Q) ∈ {0,1} since e_r is never top among A_r under Q and exactly one y_r (the highest in A_r per σ) has d_{r,y_r}(Q) = 1, all other y have 0. Hence all inequalities remain ≥ (1−ε)ε ≥ 0, and for y_r they receive an extra +ε. Therefore all constraints hold in P', making σ a valid elimination path and w the winner. So w is an ε-winner.
+
+Uniform concentration: Each d_{r,y} is the difference of two indicators of the form “top among A equals x,” so its range is in [−1,1]. The family of such differences, over all subsets A and ordered pairs (y, x) ∈ A×A with y ≠ x, has cardinality
+U = Σ_{s=2}^K binom(K,s) s(s−1) = K(K−1) 2^{K−2} (identity via moments of (1+x)^K).
+Thus by a union bound plus Hoeffding, with m ≥ C (log U + log(1/δ))/ε^2 = C' (K + log(1/δ))/ε^2, we have |d_{r,y}(S) − d_{r,y}(P)| ≤ ε simultaneously for all such forms with probability ≥ 1−δ. Consequently, on this event, whenever the sample path σ has margins ≥ 2ε, the sample winner is an ε-winner.
+
+Remark on adaptivity: The above uniform bound controls all d_{r,y} for all A, removing dependence on the random, sample-determined A_r.
+
+# Lower bounds (initial)
+- Even for K=3, any algorithm (hence the natural one) needs m = Ω((log(1/δ))/ε^2) to ensure that, with probability ≥ 1−δ, the output is an ε-winner. This follows by a two-point method on instances differing by pairwise margin 2ε while keeping the first-round elimination unchanged; distinguishing these requires Ω(1/ε^2) samples by Hoeffding/Le Cam.
+- K dependence: At least Ω((log K)/ε^2) samples are necessary for the natural algorithm by hiding the critical constraint among Θ(K) (or Θ(K^2)) possible comparisons and applying a union bound adversarially. A formal construction will be provided; intuitively, with m too small, some constraint along the sample’s elimination path will have empirical slack inflated by ≈ε, producing a non-ε-winner with constant probability.
+
+# Examples / sanity checks
+- K=3 toy profile: First-choice shares: e: 0.29, other: 0.35, c: 0.36; pairwise m_{c,other}(P) = 0.02 = ε. With ε-additions all ranking c ≻ other ≻ e, c wins; our condition captures this.
+- K=4: If S has all d_{r,y}(S) ≥ 2ε and m large enough for uniform ε accuracy, then setting Q to σ-order ballots suffices to preserve all inequalities in P'. Try to break: pick a round r and a y ≠ y_r; d_{r,y}(Q)=0, so P must carry the inequality unaided; but we ensured d_{r,y}(P) ≥ ε, which scales to (1−ε)ε > 0, so not broken.
+
+# Obstacles / gaps
+- Tightness of the K factor in the upper bound: we used log U = Θ(K) to get m = O((K + log 1/δ)/ε^2), but we did not supply a matching Ω(K/ε^2) lower bound. Constructing such a lower bound for the natural algorithm remains open here.
+- The certificate requires that the sample margins along its own path are ≥ 2ε. The natural algorithm might sometimes produce small margins; then the guarantee is vacuous though the algorithm could still succeed. Deriving a bound that does not condition on empirical slack could be possible via stability parameters of P, but is not yet developed here.
+
+# Next steps
+- Formalize and write a complete proof for the general K certificate (with explicit algebra for d_{r,y}(P') and the choice of Q), and the concentration bound using U = K(K−1)2^{K−2}.
+- Prove a K=3 lower bound instance rigorously via Le Cam’s method to pin down the constant in Ω((log 1/δ)/ε^2).
+- Attempt a general lower bound Ω((log K + log 1/δ)/ε^2) for the natural algorithm by constructing a hard family in which exactly one round’s critical inequality is within ε and is uniformly hidden among Θ(K) options.
+- Explore whether the log U argument can be sharpened (e.g., via symmetrization or chaining) to replace K by log K in the upper bound, or prove that Θ(K) is necessary.
+
+# Gaps relative to “Current Output”
+- No output.md exists yet; the above provides concrete, testable propositions for K=3 and a general certificate, plus a clean sample complexity upper bound m = O((K + log 1/δ)/ε^2) under an empirical slack condition.
+
+
+
+=== Prover 02 Output ===
+
+# Ideas
+
+- Notation. For a remaining set of candidates S and distribution P over full rankings: f_i(S) := P[ballot’s top among S is i]. In each IRV round on P, eliminate r(S) = argmin_i f_i(S) (ties via fixed rule). Let the sequence of remaining sets along the true IRV path be S_1 ⊋ S_2 ⊋ … ⊋ S_K, with |S_t| = K-t+1. Define per-round gap Δ(S) := (second-smallest_i f_i(S)) − (smallest_i f_i(S)). Let Γ := min_t Δ(S_t).
+- Empirical estimates. From m i.i.d. ballots, let \hat f_i(S) be the empirical frequency that i is top among S.
+- Goal. Analyze the natural algorithm “run IRV on the sample; output its winner ĉ”. Provide upper bounds on m for ĉ to be an ε-winner w.h.p., and a matching (up to factors) lower-bound blueprint.
+
+# Lemmas / Claims
+
+- Lemma 1 (Stability under margins). If for all rounds t and all i ∈ S_t, |\hat f_i(S_t) − f_i(S_t)| ≤ Δ(S_t)/3, then the empirical IRV elimination order equals the true order (hence the sample winner equals the true winner). Why useful: yields an exact-winner guarantee when Γ is bounded away from 0.
+  Sketch: For each S_t, the identity of argmin_i f_i(S_t) is preserved since any perturbation ≤ Δ(S_t)/3 cannot change which coordinate is strictly smallest.
+
+- Lemma 2 (One-round repair by adding ballots). For any set S and candidates a,b∈S, if f_a(S) ≤ f_b(S) and we add an α-fraction of new ballots all ranking a first among S, then in the new electorate P′ (mixture with weight α) we have f′_a(S) − f′_b(S) = [f_a(S) − f_b(S) + α]/(1+α). In particular, choosing α ≥ f_b(S) − f_a(S) ensures f′_a(S) ≥ f′_b(S). Why useful: provides a clean bound on how much additive mass is needed to flip a single elimination comparison.
+
+- Lemma 3 (Bounding the cost of a mistaken elimination). Suppose for a given S, the empirical min is r̂ while the true min is r. If max_i |\hat f_i(S) − f_i(S)| ≤ η, then f_{r̂}(S) − f_r(S) ≤ 2η. Hence, by Lemma 2, adding α ≤ 2η suffices to force elimination of r̂ instead of r at S. Why useful: quantifies the ε-cost per round of a wrong elimination due to sampling noise.
+
+# Main Proposition (Upper bound for ε-winner via the natural algorithm)
+
+Proposition. Let CH be the event that for every round’s remaining set in the true path (S_1,…,S_K) and in the empirical path (Ŝ_1,…,Ŝ_K), the deviations satisfy max_i |\hat f_i(S) − f_i(S)| ≤ η. On CH, the sample winner ĉ is an ε-winner with ε ≤ 2(K−1)η. Consequently, with probability ≥ 1−δ,
+- ε ≤ 2(K−1) η where η = sqrt{ (1/(2m)) log(4 K^2/δ) }.
+Equivalently, it suffices that
+- m ≥ (2 (K−1)^2 / ε^2) · log(4 K^2/δ)
+for the natural algorithm to output an ε-winner w.p. ≥ 1−δ.
+
+Proof sketch: Traverse the empirical elimination path backwards from ĉ. Whenever the empirical path’s next eliminated candidate at some Ŝ differs from the true eliminated candidate, apply Lemma 3 and then Lemma 2 to add ≤ 2η mass to force the empirical choice on the true electorate. There are ≤ K−1 rounds, so total added mass ≤ 2(K−1)η. For the probabilistic bound, each \hat f_i(S) is an average of m i.i.d. indicators; Hoeffding gives P(|\hat f_i(S)−f_i(S)|>η) ≤ 2e^{−2mη^2}. Across at most sum_t |S_t| + sum_t |Ŝ_t| ≤ K(K+1) ≤ 2K^2 coordinates, a union bound yields P(CH^c) ≤ 4 K^2 e^{−2 m η^2}. Solve for η in terms of δ.
+
+# Corollaries / Special cases
+
+- Exact-winner under margins. If Γ = min_t Δ(S_t) > 0, choosing η ≤ Γ/3 in Lemma 1 and union-bounding over the K(K+1)/2 true-path coordinates yields m ≥ (1/(2 Γ^2)) · log(2 K^2/δ) to recover the exact winner w.p. ≥ 1−δ.
+- Dimension-agnostic statement. The ε-winner guarantee above scales as m = O((K^2/ε^2) log(K/δ)), independent of hidden “subset” combinatorics.
+
+# Examples / Sanity checks
+
+- K=2 (plurality). The bound reduces to m = O((1/ε^2) log(1/δ)), matching the known optimal rate (up to constants), since K−1=1.
+- Near-tie chain. If each round’s min-vs-second-min gap is about 2ε/K, then our bound predicts η ≈ ε/K is necessary, hence m ≈ Ω(K^2/ε^2), consistent with intuition that many rounds may need “repair”.
+
+# Obstacles / Gaps
+
+- Tie-breaking: Our lemmas assume strict inequalities; with deterministic tie-breaking, the Δ(S) can be 0. The ε-winner guarantee remains valid because any elimination reversal due to a tie can be repaired with arbitrarily small α>0, fitting within the 2η per-round budget. For exact-winner recovery, Γ=0 prevents stability without further assumptions.
+- Adaptivity: While we union-bounded across coordinates for both true and empirical paths, those sets are data-dependent. We sidestepped exponential unions by noting there are ≤ K(K+1) coordinates realized along both paths. This is valid because Hoeffding’s bound applies to any fixed coordinate a posteriori, and union bound over a superset of at most 2K^2 coordinates controls all coordinates that could appear.
+- Lower bound: A formal minimax lower bound for the “sample-IRV” algorithm matching the O(K^2/ε^2) upper bound is not yet proven here. The sketched hard family would create a chain of K−1 near-ties so that typical sampling noise of order η flips Ω(K) eliminations, forcing >ε added mass to realize ĉ. This requires careful anti-concentration and coupling to ensure multiple mistaken eliminations happen with nontrivial probability.
+
+# Next steps
+
+- Formalize Lemma 2 with precise normalization for added ballots (mixture model) and extend to sequences of rounds rigorously (composition of additions while tracking renormalization by 1+α).
+- Give a full proof of the Proposition with explicit constants, including the case where some rounds are ties under P.
+- Construct and analyze a concrete lower-bound instance parameterized by K and ε to show that m = Ω((K^2/ε^2)) samples are necessary for the “run-IRV-on-sample” algorithm to output an ε-winner with high probability.
+- Empirical validation: small-K simulations to estimate the dependence on K and constants in the ε ≈ 2(K−1)η relationship.
+- Check literature for related stability/margin-of-victory results for IRV (e.g., audit margins) that might tighten the per-round 2η bound or reduce K-dependence via path-aware aggregation of deficits.
+
+# Gaps in output.md
+
+- No curated results yet. The lemmas and proposition above are candidates to be added after full proofs are written and constants verified.

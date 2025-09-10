@@ -1,0 +1,84 @@
+# Ideas
+
+- Define, for any subset of remaining candidates S ⊆ [K] and any a ∈ S, the top-within-S tally:
+  t_a(S) := Pr_{b∼P}[a is the top-ranked among S on ballot b]. These are linear functionals of the population distribution P over S_K; for each fixed (a,S), t_a(S) is the expectation of an indicator.
+- Adding up to ε mass of additional ballots corresponds to adding a nonnegative measure y on S_K with total mass ≤ ε. Under addition, the (unnormalized) round-t tallies update by s'_a(S) = t_a(S) + ∑_r y(r) 1[top_S(r)=a]. The IRV eliminations depend only on comparisons among these s'_a(S) for the relevant S’s.
+- Two complementary approaches to upper bounds:
+  1) Conservative “certifier” based only on adding c-first ballots. It yields a simple sufficient condition for c to be made winner by ε additions, reducing to checking all S containing c.
+  2) Exact optimization (for a fixed elimination order) via a linear program whose coefficients are the t_a(S). This characterizes the minimal ε needed for c to win, and suggests a sample-based estimator with uniform concentration guarantees over the family of functionals t_a(S).
+
+# Clean lemmas and why useful
+
+Lemma 1 (LP for a fixed elimination order). Fix an elimination order π of [K] with π(K)=c and define S_1=[K], S_{j+1}=S_j\{π(j)}. Let variables y(r)≥0 for r∈S_K and objective ε* = ∑_r y(r). Consider constraints, for each round j and each a∈S_j\{π(j)}:
+  t_{π(j)}(S_j) + ∑_r y(r) 1[top_{S_j}(r)=π(j)] ≤ t_a(S_j) + ∑_r y(r) 1[top_{S_j}(r)=a].
+Then the minimal ε needed to realize elimination order π with winner c equals the optimum ε* of this LP.
+- Why useful: Reduces the combinatorial IRV dynamics to linear inequalities in additive perturbations; enables sensitivity analysis and sample-based estimation through concentration for the t_a(S).
+- Proof sketch: The inequalities enforce that, at each round j, π(j) is (weakly) the minimum tally in S_j under the augmented profile; summing new ballots y(r) respects additivity across rounds because the top-within-S indicators are deterministic functions of r. Feasibility is necessary and sufficient to realize π under the deterministic tie-breaking rule. Minimizing ∑ y(r) is exactly minimizing added mass.
+
+Lemma 2 (Uniform convergence for all t_a(S)). The family F = {f_{a,S}(r) := 1[top_S(r)=a] : a∈S⊆[K]} has cardinality at most K·2^{K-1}. Given m i.i.d. ballots, with probability at least 1-δ,
+  sup_{a,S} |\hat t_a(S) - t_a(S)| ≤ τ
+whenever m ≥ C (log(K·2^{K-1}) + log(2/δ)) / τ^2 for a universal constant C.
+- Why useful: Ensures we can estimate all top-within-S tallies uniformly to accuracy τ with O((K + log(1/δ))/τ^2) dependence up to the 2^K factor from the number of subsets.
+- Proof: Hoeffding + union bound over |F| ≤ K·2^{K-1} indicators.
+
+Lemma 3 (Conservative certificate via c-first boosters). Define for c∈[K]
+  M_c := max_{S⊆[K]: c∈S} [ min_{a∈S} t_a(S) − t_c(S) ]_+.
+If ε ≥ M_c, then adding ε mass of ballots that rank c first (arbitrary completion below) guarantees that c is an IRV winner under the augmented profile, irrespective of tie-breaking among non-c candidates.
+- Why useful: Provides a checkable sufficient condition that depends only on the collection {t_a(S)} and avoids searching elimination orders.
+- Proof: Adding c-first ballots increases c’s top-within-S tally by ε for every S containing c, and does not decrease any other candidate’s tallies. If ε ≥ M_c then for every S⊇{c}, we have t'_c(S) ≥ min_{a∈S} t'_a(S), so c is never uniquely the lowest in any subset encountered along any elimination path; hence c cannot be eliminated, and thus is the final winner.
+
+Lemma 4 (Estimation error for M_c). If sup_{a,S} |\hat t_a(S)−t_a(S)| ≤ τ then |\hat M_c − M_c| ≤ 2τ.
+- Why useful: Gives a simple plug-in estimator \hat M_c with tight additive error control, leading to a clean sample complexity for a correct certificate.
+- Proof: For any fixed S, the quantity min_{a∈S} t_a(S) − t_c(S) changes by at most 2τ under τ-perturbations; taking max over S preserves this bound.
+
+# Algorithmic upper bound (certifier)
+
+- Input: ε, δ, access to m random ballots.
+- Procedure:
+  1) Estimate all \hat t_a(S) from the sample.
+  2) Compute \hat M_c for each c.
+  3) Output any c with \hat M_c ≤ ε − 2τ, where τ is chosen for the concentration bound.
+- Guarantee: Choose m ≥ C (log(K·2^{K-1}) + log(2/δ)) / τ^2 and set τ = ε/4. With probability ≥ 1−δ, every output c is an ε-winner (by Lemma 3 and Lemma 4). Hence
+  m = O((K·2^{K-1} + log(1/δ)) / ε^2)
+  samples suffice for a sound certifier.
+- Note: This is a sufficient-condition algorithm; it may abstain if no c satisfies the threshold, even if an ε-winner exists. It never produces a false positive with the stated probability.
+
+# Exact characterization via LP and a refined plan
+
+- For each candidate c, define
+  g_c(P) := min_{π: π(K)=c} OptVal_LP(π; {t_a(S)}),
+  the true minimal extra mass needed to make c a winner.
+- Sample-based estimator: Replace t_a(S) by \hat t_a(S) in the LP constraints and compute \hat g_c. Output a candidate with \hat g_c ≤ ε − margin.
+- Stability note: In our LP the only estimated quantities are the constants t_a(S); the coefficients of y(r) are exact indicator patterns. Thus the LP optimum is Lipschitz in the vector d of baseline deficits d_{j,a} := t_a(S_j)−t_{π(j)}(S_j). By standard LP sensitivity (duality), the change in optimum is bounded by the ℓ_1-norm of an optimal dual solution times the ℓ_∞ perturbation size. We conjecture a bound of the form |\hat g_c − g_c| ≤ C_K τ with C_K polynomial in K (likely O(K)), whenever sup_{a,S} |\hat t_a(S)−t_a(S)| ≤ τ. This would yield a sample complexity m = O((K·2^{K-1}+log(1/δ)) / (ε/C_K)^2).
+- Gap: We have not yet derived an explicit, audited constant C_K from the dual; this is a priority for the next round.
+
+# Special cases and examples
+
+- K=2 (majority): IRV reduces to plurality with two candidates. For c, g_c(P) = [1/2 − p_c]_+ where p_c is the share of ballots ranking c over the other. Sample complexity Θ((log(1/δ))/ε^2) is both necessary and sufficient.
+- K=3 toy profile: Suppose t_A({A,B,C})=0.34, t_B=0.33, t_C=0.33. Also t_A({A,B})=0.49, t_B=0.51; t_A({A,C})=0.52, t_C=0.48; t_B({B,C})=0.55, t_C=0.45. Compute M_A:
+  • S={A,B,C}: min=0.33, deficit 0.33−0.34 = 0 (no deficit).
+  • S={A,B}: min=0.49, deficit 0.49−0.49=0.
+  • S={A,C}: min=0.48, deficit 0.48−0.52=0.
+  Thus M_A=0; certifier declares A a 0-winner (indeed A already wins via IRV: eliminate C first, then A beats B pairwise). This illustrates the certificate can be tight.
+
+# Lower bounds (initial)
+
+- Baseline: Any algorithm must use m = Ω((log(1/δ))/ε^2) samples, even for K=2, by standard coin-flip mean estimation.
+- Dependence on K (heuristic): We conjecture an Ω(K/ε^2) lower bound in the worst case by constructing a packing of profiles where, for each of Θ(K) subsets S_j containing a fixed c, the gap min_{a∈S_j} t_a(S_j) − t_c(S_j) is either +Θ(ε) or −Θ(ε), and these choices are close to statistically independent under the sampling distribution. Distinguishing whether M_c ≤ 0 versus M_c ≥ Θ(ε) would then require estimating Θ(K) such gaps to accuracy Θ(ε), costing Ω(K/ε^2) samples by a direct-sum argument. Gap: A full construction over permutations ensuring consistency of the family {t_a(S)} remains to be written.
+
+# Obstacles and gaps
+
+- Exponential factor 2^{K}: The certifier’s union bound over all S is crude. It is open whether one can control M_c using only O(poly(K)) statistics (e.g., along a carefully chosen chain of subsets) while preserving correctness.
+- LP sensitivity constant C_K: We need an explicit bound (preferably O(K)) derived from the dual to turn \hat g_c into a sound estimator with polynomial-in-K sample complexity.
+- Computational complexity: Enumerating all π is factorial; our focus here is sample complexity, but a separation oracle for the dual (or column generation over S) might avoid enumerating all S/π and also reduce the effective number of estimated functionals needed for certification.
+
+# Next steps
+
+- Prove a formal sensitivity bound for the LP optimum in Lemma 1 with respect to perturbations of {t_a(S)}, aiming for |\hat g_c − g_c| ≤ O(K)·τ.
+- Investigate whether M_c can be exactly expressed as the optimum of a simpler min-max problem over subsets S (potentially reducing the number of required S), or whether there is an equivalent chain condition that only needs O(K) subsets per c.
+- Develop and verify a lower bound construction in the K≫1 regime to establish Ω(poly(K)/ε^2) sample complexity, even for certifiers.
+- Explore a two-tier algorithm: run the certifier; if it abstains, fall back to solving the LP for a small set of promising elimination orders inferred from the sample, and quantify the additional estimation needed.
+
+# Gaps relative to output.md
+
+- No output.md exists yet; the claims above (Lemma 1–4 and the certifier upper bound) are new and should be checked and, if correct, curated into output.md. We flagged the LP sensitivity as a gap to be filled before curating an LP-based upper bound with polynomial-in-K sample complexity.

@@ -1,0 +1,305 @@
+"""
+Problem-solving agent functions for the orchestrator system.
+
+This module contains functions for calling AI agents used in problem-solving mode:
+- Prover agents that generate mathematical proofs and reasoning
+- Verifier agents that check and validate proofs
+- Summarizer agents that create round summaries
+"""
+
+import os
+from pathlib import Path
+from typing import Optional
+
+from .models import (
+    ProverOutput, VerifierCombinedOutput, SummarizerOutput
+)
+from .utils import (
+    load_prompt, write_status, dump_io, normalize_schema_strict
+)
+from .papers import read_problem_context
+from .agents import (
+    complete_text, load_previous_response_id, save_response_id, 
+    load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
+    apply_output_update, parse_structured_output
+)
+
+# Get model configuration from environment
+MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
+MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
+MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
+TEMPERATURE_PROVER = float(os.environ.get("AR_PROVER_TEMPERATURE", "0.8"))
+
+
+def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: int, 
+                   prover_config: dict = None) -> ProverOutput:
+    """Call a single prover agent."""
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    round_dir.mkdir(parents=True, exist_ok=True)
+    
+    agent = f"prover-{prover_idx:02d}"
+    print(f"  [{agent}] Running (model: {MODEL_PROVER})...")
+    
+    # Load prompts and context
+    system_prompt = load_prompt("prover")
+    
+    # Apply per-prover configuration
+    prover_config = prover_config or {}
+    has_calculator = prover_config.get("calculator", False)
+    focus_type = prover_config.get("focus", "default")
+    
+    # Add focus instructions to system prompt
+    focus_prompts = load_prover_focus_prompts()
+    if focus_type in focus_prompts and focus_prompts[focus_type]["prompt"]:
+        system_prompt += "\n\n### Focus Instructions\n" + focus_prompts[focus_type]["prompt"].strip() + "\n"
+    
+    # Prepare tools if calculator access is enabled
+    tools = None
+    if has_calculator:
+        tools = ["code_interpreter"]
+        
+    problem_context = read_problem_context(problem_dir)
+    
+    # Build user message
+    user_parts = [problem_context]
+    
+    # Add previous rounds' summaries
+    for prev_idx in range(1, round_idx):
+        summary_file = problem_dir / "runs" / f"round-{prev_idx:04d}" / "summarizer.summary.md"
+        if summary_file.exists():
+            user_parts.append(f"\n\n=== Round {prev_idx} Summary ===\n")
+            user_parts.append(summary_file.read_text(encoding="utf-8"))
+    
+    # Add verifier feedback from previous round
+    if round_idx > 1:
+        prev_feedback = problem_dir / "runs" / f"round-{round_idx-1:04d}" / "verifier.feedback.md"
+        if prev_feedback.exists():
+            user_parts.append(f"\n\n=== Previous Round Feedback ===\n")
+            user_parts.append(prev_feedback.read_text(encoding="utf-8"))
+    
+    user_message = "\n".join(user_parts)
+    
+    # Prepare response format
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "prover_output",
+            "strict": True,
+            "schema": normalize_schema_strict(ProverOutput.model_json_schema())
+        }
+    }
+    
+    # Load previous response ID for reasoning state preservation
+    agent = f"prover-{prover_idx:02d}"
+    previous_response_id = load_previous_response_id(problem_dir, round_idx, agent, MODEL_PROVER)
+    
+    # Call the model
+    response_text, duration, response_id = complete_text(
+        MODEL_PROVER, system_prompt, user_message,
+        response_format=response_format,
+        temperature=TEMPERATURE_PROVER,
+        previous_response_id=previous_response_id,
+        tools=tools
+    )
+    
+    # Save response ID for future rounds
+    save_response_id(problem_dir, round_idx, agent, response_id, MODEL_PROVER)
+    
+    # Parse response with retry logic
+    response_obj = parse_structured_output(
+        ProverOutput, response_text, MODEL_PROVER,
+        system_prompt, user_message, response_format
+    )
+    
+    # Save outputs
+    dump_io(round_dir, agent, system_prompt, user_message,
+            response_text, response_obj, duration, MODEL_PROVER)
+    
+    # Save progress and proofs as text for verifier
+    parts = []
+    if response_obj.progress_md:
+        parts.append(response_obj.progress_md)
+    if getattr(response_obj, "proofs_md", "") and response_obj.proofs_md.strip():
+        parts.append("\n\n=== Proofs ===\n" + response_obj.proofs_md)
+    
+    (round_dir / f"{agent}.text.txt").write_text(
+        "\n".join(parts), encoding="utf-8"
+    )
+    
+    # Update notes.md with progress
+    if response_obj.progress_md.strip():
+        from .models import NotesUpdate
+        notes_update = NotesUpdate(action="append", content=response_obj.progress_md)
+        apply_notes_update(problem_dir, notes_update, round_idx)
+        print(f"  [{agent}] Updated notes.md")
+    
+    # Update proofs.md with proofs 
+    if response_obj.proofs_md.strip():
+        from .models import ProofsUpdate
+        proofs_update = ProofsUpdate(action="append", content=response_obj.proofs_md)
+        apply_proofs_update(problem_dir, proofs_update, round_idx)
+        print(f"  [{agent}] Updated proofs.md")
+    
+    print(f"  [{agent}] Complete ({duration:.1f}s)")
+    return response_obj
+
+
+def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) -> VerifierCombinedOutput:
+    """Call verifier for multiple provers."""
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    
+    write_status(problem_dir, "verifier", round_idx)
+    print(f"  [verifier] Running (model: {MODEL_VERIFIER})...")
+    
+    # Load prompts and context
+    system_prompt = load_prompt("verifier")
+    problem_context = read_problem_context(problem_dir)
+    
+    # Build user message
+    user_parts = [problem_context]
+    
+    # Add all provers' outputs
+    for prover_idx in range(1, num_provers + 1):
+        prover_file = round_dir / f"prover-{prover_idx:02d}.text.txt"
+        if prover_file.exists():
+            user_parts.append(f"\n\n=== Prover {prover_idx} Output ===\n")
+            user_parts.append(prover_file.read_text(encoding="utf-8"))
+    
+    user_message = "\n".join(user_parts)
+    
+    # Prepare response format
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "verifier_combined_output",
+            "strict": True,
+            "schema": normalize_schema_strict(VerifierCombinedOutput.model_json_schema())
+        }
+    }
+    
+    # Load previous response ID for reasoning state preservation
+    previous_response_id = load_previous_response_id(problem_dir, round_idx, "verifier", MODEL_VERIFIER)
+    
+    # Call the model
+    response_text, duration, response_id = complete_text(
+        MODEL_VERIFIER, system_prompt, user_message,
+        response_format=response_format,
+        previous_response_id=previous_response_id
+    )
+    
+    # Save response ID for future rounds
+    save_response_id(problem_dir, round_idx, "verifier", response_id, MODEL_VERIFIER)
+    
+    # Parse response with retry logic  
+    response_obj = parse_structured_output(
+        VerifierCombinedOutput, response_text, MODEL_VERIFIER,
+        system_prompt, user_message, response_format
+    )
+    
+    # Save outputs
+    dump_io(round_dir, "verifier", system_prompt, user_message,
+            response_text, response_obj, duration, MODEL_VERIFIER)
+    
+    # Save individual outputs
+    (round_dir / "verifier.feedback.md").write_text(
+        response_obj.feedback_md, encoding="utf-8"
+    )
+    (round_dir / "verifier.summary.md").write_text(
+        response_obj.summary_md, encoding="utf-8"
+    )
+    
+    # Apply file updates from verifier
+    if response_obj.notes_update:
+        apply_notes_update(problem_dir, response_obj.notes_update, round_idx)
+        print(f"  [verifier] Updated notes.md ({response_obj.notes_update.action})")
+    
+    if response_obj.proofs_update:
+        apply_proofs_update(problem_dir, response_obj.proofs_update, round_idx)
+        print(f"  [verifier] Updated proofs.md ({response_obj.proofs_update.action})")
+    
+    if response_obj.output_update:
+        apply_output_update(problem_dir, response_obj.output_update, round_idx)
+        print(f"  [verifier] Updated output.md ({response_obj.output_update.action})")
+    
+    print(f"  [verifier] Complete ({duration:.1f}s)")
+    return response_obj
+
+
+def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
+    """Call summarizer agent."""
+    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
+    
+    write_status(problem_dir, "summarizer", round_idx)
+    print(f"  [summarizer] Running (model: {MODEL_SUMMARIZER})...")
+    
+    # Load prompts and context
+    system_prompt = load_prompt("summarizer")
+    problem_context = read_problem_context(problem_dir)
+    
+    # Build user message
+    user_parts = [problem_context]
+    
+    # Add verifier summary
+    verifier_summary = round_dir / "verifier.summary.md"
+    if verifier_summary.exists():
+        user_parts.append("\n\n=== Verifier Summary ===\n")
+        user_parts.append(verifier_summary.read_text(encoding="utf-8"))
+    
+    # Add current state of 3-tier files for context
+    notes_file = problem_dir / "notes.md"
+    if notes_file.exists():
+        user_parts.append("\n\n=== Current Notes ===\n")
+        user_parts.append(notes_file.read_text(encoding="utf-8"))
+        
+    proofs_file = problem_dir / "proofs.md" 
+    if proofs_file.exists():
+        user_parts.append("\n\n=== Current Proofs ===\n")
+        user_parts.append(proofs_file.read_text(encoding="utf-8"))
+        
+    output_file = problem_dir / "output.md"
+    if output_file.exists():
+        user_parts.append("\n\n=== Current Output ===\n")
+        user_parts.append(output_file.read_text(encoding="utf-8"))
+    
+    user_message = "\n".join(user_parts)
+    
+    # Prepare response format
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "summarizer_output",
+            "strict": True,
+            "schema": normalize_schema_strict(SummarizerOutput.model_json_schema())
+        }
+    }
+    
+    # Load previous response ID for reasoning state preservation
+    previous_response_id = load_previous_response_id(problem_dir, round_idx, "summarizer", MODEL_SUMMARIZER)
+    
+    # Call the model
+    response_text, duration, response_id = complete_text(
+        MODEL_SUMMARIZER, system_prompt, user_message,
+        response_format=response_format,
+        previous_response_id=previous_response_id
+    )
+    
+    # Save response ID for future rounds
+    save_response_id(problem_dir, round_idx, "summarizer", response_id, MODEL_SUMMARIZER)
+    
+    # Parse response with retry logic
+    response_obj = parse_structured_output(
+        SummarizerOutput, response_text, MODEL_SUMMARIZER,
+        system_prompt, user_message, response_format
+    )
+    
+    # Save outputs
+    dump_io(round_dir, "summarizer", system_prompt, user_message,
+            response_text, response_obj, duration, MODEL_SUMMARIZER)
+    
+    # Save summary as text
+    (round_dir / "summarizer.summary.md").write_text(
+        response_obj.summary_md, encoding="utf-8"
+    )
+    
+    print(f"  [summarizer] Complete ({duration:.1f}s)")
+    return response_obj

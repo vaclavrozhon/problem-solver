@@ -306,20 +306,21 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
               AI-extracted text from PDF
             </div>
           </button>
-          {/* Description for parsed content */}
-          {file.description && (
-            <div style={{ 
-              fontSize: '10px', 
-              color: '#155724', 
-              background: '#d4edda',
-              padding: '3px 6px',
-              borderRadius: '3px',
-              fontStyle: 'italic',
-              marginTop: '2px'
-            }}>
-              {file.description}
-            </div>
-          )}
+        )}
+        
+        {/* Description for parsed content */}
+        {file.type === 'paper' && parsedFilePath && file.description && (
+          <div style={{ 
+            fontSize: '10px', 
+            color: '#155724', 
+            background: '#d4edda',
+            padding: '3px 6px',
+            borderRadius: '3px',
+            fontStyle: 'italic',
+            marginTop: '2px'
+          }}>
+            {file.description}
+          </div>
         )}
       </div>
     )

@@ -465,7 +465,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
           )}
           
           {/* Paper description field */}
-          {selectedFileInfo?.description && (selectedFileInfo.type === 'paper' || selectedFile?.startsWith('papers/')) && (
+          {(selectedFileInfo?.type === 'paper' || selectedFile?.startsWith('papers/')) && (
             <div style={{ 
               background: '#fff3cd',
               border: '1px solid #ffeaa7',
@@ -483,10 +483,11 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                 borderRadius: '3px',
                 padding: '8px',
                 fontSize: '13px',
-                color: '#333',
-                lineHeight: '1.4'
+                color: selectedFileInfo?.description ? '#333' : '#999',
+                lineHeight: '1.4',
+                fontStyle: selectedFileInfo?.description ? 'normal' : 'italic'
               }}>
-                {selectedFileInfo.description}
+                {selectedFileInfo?.description || 'No description provided'}
               </div>
             </div>
           )}

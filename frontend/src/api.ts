@@ -161,9 +161,10 @@ export async function createDraft(name: string, taskDescription: string, initial
 }
 
 // Paper management API functions
-export async function uploadProblemPaper(problemName: string, file: File) {
+export async function uploadProblemPaper(problemName: string, file: File, description: string = '') {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('description', description);
   
   const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
     method: "POST",

@@ -18,6 +18,7 @@ from .utils import (
     load_prompt, write_status, dump_io, normalize_schema_strict
 )
 from .papers import read_problem_context
+from .file_manager import get_file_attachments_for_prover
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
     load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
@@ -53,12 +54,19 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     if focus_type in focus_prompts and focus_prompts[focus_type]["prompt"]:
         system_prompt += "\n\n### Focus Instructions\n" + focus_prompts[focus_type]["prompt"].strip() + "\n"
     
-    # Prepare tools if calculator access is enabled
-    tools = None
+    # Get file attachments and descriptions for this prover
+    file_attachments, file_descriptions = get_file_attachments_for_prover(problem_dir, prover_config)
+    
+    # Prepare tools if calculator access is enabled or files are attached
+    tools = []
     if has_calculator:
-        tools = ["code_interpreter"]
+        tools.append({"type": "code_interpreter"})
+    if file_attachments:
+        tools.append({"type": "file_search"})
+    if not tools:
+        tools = None
         
-    problem_context = read_problem_context(problem_dir)
+    problem_context = read_problem_context(problem_dir, include_pdfs=True, file_descriptions=file_descriptions)
     
     # Build user message
     user_parts = [problem_context]
@@ -94,12 +102,13 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     previous_response_id = load_previous_response_id(problem_dir, round_idx, agent, MODEL_PROVER)
     
     # Call the model
-    response_text, duration, response_id = complete_text(
+    response_text, duration, response_id, usage = complete_text(
         MODEL_PROVER, system_prompt, user_message,
         response_format=response_format,
         temperature=TEMPERATURE_PROVER,
         previous_response_id=previous_response_id,
-        tools=tools
+        tools=tools,
+        attachments=file_attachments
     )
     
     # Save response ID for future rounds
@@ -113,7 +122,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     
     # Save outputs
     dump_io(round_dir, agent, system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_PROVER)
+            response_text, response_obj, duration, MODEL_PROVER, usage=usage)
     
     # Save progress and proofs as text for verifier
     parts = []
@@ -181,7 +190,7 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) 
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "verifier", MODEL_VERIFIER)
     
     # Call the model
-    response_text, duration, response_id = complete_text(
+    response_text, duration, response_id, usage = complete_text(
         MODEL_VERIFIER, system_prompt, user_message,
         response_format=response_format,
         previous_response_id=previous_response_id
@@ -198,7 +207,7 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) 
     
     # Save outputs
     dump_io(round_dir, "verifier", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_VERIFIER)
+            response_text, response_obj, duration, MODEL_VERIFIER, usage=usage)
     
     # Save individual outputs
     (round_dir / "verifier.feedback.md").write_text(
@@ -277,7 +286,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "summarizer", MODEL_SUMMARIZER)
     
     # Call the model
-    response_text, duration, response_id = complete_text(
+    response_text, duration, response_id, usage = complete_text(
         MODEL_SUMMARIZER, system_prompt, user_message,
         response_format=response_format,
         previous_response_id=previous_response_id
@@ -294,7 +303,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     
     # Save outputs
     dump_io(round_dir, "summarizer", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_SUMMARIZER)
+            response_text, response_obj, duration, MODEL_SUMMARIZER, usage=usage)
     
     # Save summary as text
     (round_dir / "summarizer.summary.md").write_text(

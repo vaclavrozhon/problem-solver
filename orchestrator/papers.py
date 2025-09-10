@@ -115,8 +115,50 @@ def get_parsed_papers_content(problem_dir: Path) -> str:
     return "".join(content)
 
 
-def read_problem_context(problem_dir: Path, include_pdfs: bool = True) -> str:
-    """Read the complete problem context including task and papers."""
+def read_problem_context(problem_dir: Path, include_pdfs: bool = True, file_descriptions: str = "") -> str:
+    """
+    Read the complete problem context including task and progress files.
+    
+    This version is designed for use with the Files API - paper content is not included
+    in the context but file descriptions are provided so the model knows what files
+    are available for search.
+    """
+    context_parts = []
+    
+    # Read task file
+    for ext in ['md', 'txt', 'tex']:
+        task_file = problem_dir / f"task.{ext}"
+        if task_file.exists():
+            context_parts.append(f"=== Task ({ext}) ===\n")
+            context_parts.append(task_file.read_text(encoding="utf-8"))
+            break
+    
+    # Include file descriptions if provided (for Files API)
+    if include_pdfs and file_descriptions:
+        context_parts.append("\n\n=== Reference Files ===\n")
+        context_parts.append(file_descriptions)
+        context_parts.append("\nYou may consult attached files using file search when relevant to the problem.")
+    
+    # Include notes if exists
+    notes_file = problem_dir / "notes.md"
+    if notes_file.exists():
+        context_parts.append("\n\n=== Notes ===\n")
+        context_parts.append(notes_file.read_text(encoding="utf-8"))
+    
+    # Include output if exists
+    output_file = problem_dir / "output.md"
+    if output_file.exists():
+        context_parts.append("\n\n=== Current Output ===\n")
+        context_parts.append(output_file.read_text(encoding="utf-8"))
+    
+    return "\n".join(context_parts)
+
+
+def read_problem_context_legacy(problem_dir: Path, include_pdfs: bool = True) -> str:
+    """
+    Legacy version that includes full paper content in the prompt.
+    Kept for backward compatibility with non-reasoning models.
+    """
     context_parts = []
     
     # Read task file

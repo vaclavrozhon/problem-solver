@@ -133,7 +133,7 @@ def extract_json_from_response(text: str) -> Optional[dict]:
 
 def dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
             response_text: str, response_obj: Any, duration_s: float,
-            model: str, error: str | None = None) -> None:
+            model: str, error: str | None = None, usage: dict | None = None) -> None:
     """Save all input/output for an agent interaction."""
     # Save prompts
     (round_dir / f"{agent}.prompt.txt").write_text(
@@ -175,10 +175,16 @@ def dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
     if timings_file.exists():
         timings = json.loads(timings_file.read_text(encoding="utf-8"))
     
-    timings[agent] = {
+    timings_entry = {
         "model": model,
         "duration_s": duration_s,
     }
+    
+    # Add usage information if available (from Responses API)
+    if usage:
+        timings_entry["usage"] = usage
+        
+    timings[agent] = timings_entry
     
     timings_file.write_text(json.dumps(timings, indent=2), encoding="utf-8")
 

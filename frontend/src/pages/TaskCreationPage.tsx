@@ -265,6 +265,9 @@ export default function TaskCreationPage() {
                   : "Describe the paper writing task. Include the research question, key contributions, target venue, and any specific requirements. This will be given to the AI in every round."
               }
               rows={6}
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
               style={{
                 width: '100%',
                 padding: '12px',
@@ -287,6 +290,9 @@ export default function TaskCreationPage() {
                 onChange={e => setInitialDraft(e.target.value)}
                 placeholder="Paste your initial draft here (LaTeX or Markdown). This will be the starting point for iterative improvements."
                 rows={12}
+                data-gramm="false"
+                data-gramm_editor="false"
+                data-enable-grammarly="false"
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -351,6 +357,9 @@ export default function TaskCreationPage() {
                   onChange={e => setNewPaperText(e.target.value)}
                   placeholder="Paste your text content here (txt, md, or tex format supported)"
                   rows={6}
+                  data-gramm="false"
+                  data-gramm_editor="false"
+                  data-enable-grammarly="false"
                   style={{
                     width: '100%',
                     padding: '8px',

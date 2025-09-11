@@ -1,1 +1,0 @@
-Still blocked: Conjecture 7.2’s exact statement and dependent definitions are missing. We reiterated the information required, outlined immediate post-intake steps (formalization, edge cases, small-instance search, structural lemmas), and reinforced documentation discipline. No updates to proofs.md or output.md.

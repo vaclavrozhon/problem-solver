@@ -77,7 +77,7 @@ def call_paper_suggester(problem_dir: Path, round_idx: int) -> PaperSuggesterOut
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "paper_suggester", MODEL_PAPER_SUGGESTER)
     
     # Call the model
-    response_text, duration, response_id = complete_text(
+    response_text, duration, response_id, usage, raw_response = complete_text(
         MODEL_PAPER_SUGGESTER, system_prompt, user_message,
         response_format=response_format,
         previous_response_id=previous_response_id
@@ -94,7 +94,7 @@ def call_paper_suggester(problem_dir: Path, round_idx: int) -> PaperSuggesterOut
     
     # Save outputs
     dump_io(round_dir, "paper_suggester", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_PAPER_SUGGESTER)
+            response_text, response_obj, duration, MODEL_PAPER_SUGGESTER, usage=usage, raw_response=raw_response)
     
     print(f"  [paper_suggester] Complete ({duration:.1f}s)")
     return response_obj
@@ -143,7 +143,7 @@ def call_paper_fixer(problem_dir: Path, round_idx: int,
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "paper_fixer", MODEL_PAPER_FIXER)
     
     # Call the model
-    response_text, duration, response_id = complete_text(
+    response_text, duration, response_id, usage, raw_response = complete_text(
         MODEL_PAPER_FIXER, system_prompt, user_message,
         response_format=response_format,
         previous_response_id=previous_response_id
@@ -160,7 +160,7 @@ def call_paper_fixer(problem_dir: Path, round_idx: int,
     
     # Save outputs
     dump_io(round_dir, "paper_fixer", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_PAPER_FIXER)
+            response_text, response_obj, duration, MODEL_PAPER_FIXER, usage=usage, raw_response=raw_response)
     
     # Try to compile the LaTeX (accept both field names)
     compile_success = False

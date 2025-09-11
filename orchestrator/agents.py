@@ -24,23 +24,23 @@ from .utils import extract_json_from_response
 
 def parse_structured_output(model_class, response_text: str, model: str, system_prompt: str, 
                            user_message: str, response_format: Any = None):
-    """Parse structured output with fallback and retry logic."""
+    """Parse structured output - simple, no repair attempts."""
+    # First check if we have any text at all
+    if response_text is None:
+        raise ValueError(f"GPT response text is None - text extraction failed from {model}")
+    
+    if not response_text.strip():
+        raise ValueError(f"GPT response text is empty from {model}")
+    
     try:
         return model_class.model_validate_json(response_text)
     except Exception as e:
-        # Try to salvage JSON substring
-        try:
-            json_only = extract_json_from_response(response_text)
-            return model_class.model_validate_json(json_only)
-        except Exception:
-            # One constrained repair retry
-            repair_prompt = (f"Your last message did not match the JSON schema due to: {e}. "
-                           f"Return ONLY a JSON object that conforms to the exact schema I provided.")
-            repair_text, _, _, _ = complete_text(
-                model, system_prompt, user_message + "\n\n" + repair_prompt,
-                response_format=response_format
-            )
-            return model_class.model_validate_json(extract_json_from_response(repair_text))
+        # No retries - fail fast with the actual response for debugging
+        response_preview = response_text[:500] + "..." if len(response_text) > 500 else response_text
+        raise ValueError(
+            f"Failed to parse structured output from {model}. "
+            f"Error: {e}. Response preview: {response_preview}"
+        ) from e
 
 # Initialize OpenAI client
 client = OpenAI()
@@ -64,12 +64,12 @@ def _validate_reasoning_summary(summary: str) -> str:
 
 REASONING_EFFORT = _validate_reasoning_effort(os.environ.get("AR_REASONING_EFFORT", "high"))
 REASONING_SUMMARY = _validate_reasoning_summary(os.environ.get("AR_REASONING_SUMMARY", "auto"))
-MAX_OUTPUT_TOKENS = int(os.environ.get("AR_MAX_OUTPUT_TOKENS", "8192"))
+MAX_OUTPUT_TOKENS = int(os.environ.get("AR_MAX_OUTPUT_TOKENS", "50000"))
 
 
 def is_o_model(name: str) -> bool:
-    """Check if model is an O-series model."""
-    return name.startswith("o1") or name.startswith("o3")
+    """O-series models are not supported in this setup."""
+    return False
 
 
 def is_reasoning_model(name: str) -> bool:
@@ -164,10 +164,11 @@ def load_prover_focus_prompts() -> dict:
 
 def complete_text(model: str, system_prompt: str, user_message: str,
                  response_format: Any = None, temperature: float = 0.2, 
-                 previous_response_id: str = None, tools: list = None, attachments: list = None) -> Tuple[str, float, str, dict]:
+                 previous_response_id: Optional[str] = None, tools: Optional[list] = None,
+                 vector_store_ids: Optional[list[str]] = None) -> Tuple[str, float, Optional[str], dict, Any]:
     """Complete text using OpenAI API with appropriate settings for the model.
     
-    Returns: (response_text, duration, response_id, usage) where response_id can be used
+    Returns: (response_text, duration, response_id, usage, raw_response) where response_id can be used
     for reasoning state preservation in subsequent calls and usage contains token counts.
     """
     start_time = time.perf_counter()
@@ -191,40 +192,109 @@ def complete_text(model: str, system_prompt: str, user_message: str,
             "max_output_tokens": MAX_OUTPUT_TOKENS,
         }
         
-        if response_format:
-            kwargs["response_format"] = response_format
-        
         if previous_response_id:
             kwargs["previous_response_id"] = previous_response_id
+        
+        # For Responses API, structured output is configured via text.format  
+        if response_format:
+            # Extract schema from response_format for Responses API
+            if isinstance(response_format, dict) and response_format.get("type") == "json_schema":
+                json_schema_wrapper = response_format.get("json_schema", {})
+                schema = json_schema_wrapper.get("schema", {})
+                name = json_schema_wrapper.get("name", "structured_output")
+                if schema:
+                    kwargs["text"] = {"format": {"type": "json_schema", "name": name, "schema": schema}, "verbosity": "high"}
+                    print(f"    Configured structured output with schema: {name}")
+            else:
+                print(f"    Warning: Unsupported response_format for Responses API: {response_format}")
         
         # Normalize incoming tools
         norm_tools = _normalize_tools(tools)
         
-        if attachments:
-            kwargs["attachments"] = attachments
-            # Ensure file_search is available whenever attachments are present
-            if not any(t["type"] == "file_search" for t in norm_tools):
-                norm_tools.append({"type": "file_search"})
+        # For Responses API, only allow supported tools (filter out code_interpreter)
+        if norm_tools:
+            allowed_tool_types = {"file_search"}
+            norm_tools = [t for t in norm_tools if t.get("type") in allowed_tool_types]
+            print(f"    Filtered tools for Responses API: {[t.get('type') for t in norm_tools]}")
+        
+        # For Responses API, vector stores are configured directly in the file_search tool
+        if vector_store_ids:
+            # Remove any existing file_search tool
+            norm_tools = [t for t in (norm_tools or []) if t.get("type") != "file_search"]
+            # Add file_search tool with vector_store_ids configuration
+            file_search_tool = {
+                "type": "file_search",
+                "vector_store_ids": vector_store_ids
+            }
+            norm_tools.append(file_search_tool)
+            print(f"    Configured file_search with vector stores: {vector_store_ids}")
         
         if norm_tools:
             kwargs["tools"] = norm_tools
 
-        # Execute with retries
-        def _call():
-            return client.responses.create(**kwargs)
-        
-        completion = _with_retries(_call)
+        # Execute API call
+        completion = client.responses.create(**kwargs)
 
-        # Extract text from Responses API format
-        text = getattr(completion, "output_text", None)
-        if text is None:
-            # Fallback: stitch text pieces for older SDK versions
-            text = ""
-            for item in completion.output:
+        # Store raw response for debugging FIRST (before any processing)
+        raw_response = None
+        try:
+            raw_response = completion.model_dump() if hasattr(completion, 'model_dump') else str(completion)
+            print(f"    DEBUG: Raw response captured, size: {len(str(raw_response))}")
+            
+            # Raw response will be saved automatically by dump_io in the round directory
+                
+        except Exception as e:
+            print(f"    DEBUG: Could not capture completion object: {e}")
+            raw_response = {"error": f"Could not capture: {e}"}
+        
+        # Extract text from Responses API format - FIXED FOR REASONING RESPONSES
+        print(f"    DEBUG: Completion object type: {type(completion)}")
+        print(f"    DEBUG: Available attributes: {[attr for attr in dir(completion) if not attr.startswith('_')]}")
+        
+        # For GPT-5 reasoning models, extract text from reasoning summaries
+        text = ""
+        output_items = getattr(completion, "output", [])
+        print(f"    DEBUG: Found {len(output_items)} output items")
+        
+        for i, item in enumerate(output_items):
+            print(f"    DEBUG: Item {i}: {type(item)}")
+            
+            # Extract reasoning summaries (GPT-5 reasoning format)
+            summary_items = getattr(item, "summary", [])
+            if summary_items:
+                print(f"    DEBUG: Found {len(summary_items)} summary items in item {i}")
+                for j, summary in enumerate(summary_items):
+                    if hasattr(summary, "text") and hasattr(summary, "type"):
+                        summary_text = getattr(summary, "text", "")
+                        summary_type = getattr(summary, "type", "")
+                        if summary_text and summary_type == "summary_text":
+                            text += summary_text + "\n\n"
+                            print(f"    DEBUG: Added {len(summary_text)} chars from summary {j}")
+            
+            # Fallback: try output_text attribute
+            direct_text = getattr(completion, "output_text", None)
+            if direct_text:
+                text += direct_text
+                print(f"    DEBUG: Added {len(direct_text)} chars from direct output_text")
+            
+            # Original content parsing as fallback
                 if hasattr(item, "content"):
-                    for piece in item.content:
-                        if hasattr(piece, "text"):
-                            text += piece.text
+                    content_items = getattr(item, "content", [])
+                    print(f"    DEBUG: Item {i} has {len(content_items)} content pieces")
+                    for j, piece in enumerate(content_items):
+                        piece_text = getattr(piece, "text", None)
+                        if piece_text:
+                            text += piece_text
+                            print(f"    DEBUG: Added {len(piece_text)} chars from content piece {j}")
+        
+        print(f"    DEBUG: Final extracted text: {'None' if text is None else len(text)} chars")
+        if text and len(text) > 0:
+            print(f"    DEBUG: Text preview: {text[:200]}...")
+            
+        # CRITICAL: If we still have no text but got reasoning summaries, this is a structured output failure
+        if not text and output_items:
+            print(f"    DEBUG: WARNING - Got response but no extractable text. This suggests structured output failed.")
+            text = "ERROR: GPT-5 produced reasoning summaries but no structured JSON output."
         
         duration = time.perf_counter() - start_time
         response_id = getattr(completion, "id", None)
@@ -245,21 +315,8 @@ def complete_text(model: str, system_prompt: str, user_message: str,
         except Exception:
             pass  # Don't fail on usage logging errors
             
-        return text, duration, response_id, usage_dict
+        return text, duration, response_id, usage_dict, raw_response
         
-    elif is_o_model(model):
-        # O-series models don't support system prompts or temperature
-        combined_message = f"{system_prompt}\n\n{user_message}" if system_prompt else user_message
-        messages = [{"role": "user", "content": combined_message}]
-        
-        def _call():
-            return client.chat.completions.create(
-                model=model,
-                messages=messages,
-                response_format=response_format
-            )
-        
-        completion = _with_retries(_call)
     else:
         # Standard models (GPT-4, etc.)
         messages = []
@@ -275,10 +332,7 @@ def complete_text(model: str, system_prompt: str, user_message: str,
         if response_format:
             kwargs["response_format"] = response_format
         
-        def _call():
-            return client.chat.completions.create(**kwargs)
-            
-        completion = _with_retries(_call)
+        completion = client.chat.completions.create(**kwargs)
     
     duration = time.perf_counter() - start_time
     
@@ -297,7 +351,16 @@ def complete_text(model: str, system_prompt: str, user_message: str,
     except Exception:
         pass  # Don't fail on usage logging errors
     
-    return completion.choices[0].message.content, duration, None, usage_dict
+    content_text = ""
+    try:
+        choices = getattr(completion, "choices", []) or []
+        if choices:
+            first = choices[0]
+            msg = getattr(first, "message", None)
+            content_text = getattr(msg, "content", "") or ""
+    except Exception:
+        content_text = ""
+    return content_text, duration, None, usage_dict, completion
 
 
 def _get_update_mode_and_content(u):
@@ -321,10 +384,10 @@ def apply_notes_update(problem_dir: Path, update: NotesUpdate, round_idx: int = 
     # Apply update with backward compatibility
     mode, content = _get_update_mode_and_content(update)
     if mode == "replace":
-        notes_file.write_text(content, encoding="utf-8")
+        notes_file.write_text(str(content or ""), encoding="utf-8")
     elif mode == "append":
         existing = notes_file.read_text(encoding="utf-8") if notes_file.exists() else ""
-        notes_file.write_text(existing + "\n\n" + content, encoding="utf-8")
+        notes_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
 
 
 def apply_proofs_update(problem_dir: Path, update: ProofsUpdate, round_idx: int = 0) -> None:
@@ -341,10 +404,10 @@ def apply_proofs_update(problem_dir: Path, update: ProofsUpdate, round_idx: int 
     # Apply update with backward compatibility
     mode, content = _get_update_mode_and_content(update)
     if mode == "replace":
-        proofs_file.write_text(content, encoding="utf-8")
+        proofs_file.write_text(str(content or ""), encoding="utf-8")
     elif mode == "append":
         existing = proofs_file.read_text(encoding="utf-8") if proofs_file.exists() else ""
-        proofs_file.write_text(existing + "\n\n" + content, encoding="utf-8")
+        proofs_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
 
 
 def apply_output_update(problem_dir: Path, update: OutputUpdate, round_idx: int = 0) -> None:
@@ -361,10 +424,10 @@ def apply_output_update(problem_dir: Path, update: OutputUpdate, round_idx: int 
     # Apply update with backward compatibility
     mode, content = _get_update_mode_and_content(update)
     if mode == "replace":
-        output_file.write_text(content, encoding="utf-8")
+        output_file.write_text(str(content or ""), encoding="utf-8")
     elif mode == "append":
         existing = output_file.read_text(encoding="utf-8") if output_file.exists() else ""
-        output_file.write_text(existing + "\n\n" + content, encoding="utf-8")
+        output_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
 
 
 def ensure_three_tier_files(problem_dir: Path) -> None:

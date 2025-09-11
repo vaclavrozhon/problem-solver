@@ -11,6 +11,17 @@ import sys
 import argparse
 from pathlib import Path
 
+# Load environment variables from .openai.env if it exists
+openai_env_file = Path.home() / ".openai.env"
+if openai_env_file.exists():
+    with open(openai_env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key] = value
+    print(f"Loaded environment from {openai_env_file}")
+
 # Add orchestrator package to path
 sys.path.insert(0, str(Path(__file__).parent))
 

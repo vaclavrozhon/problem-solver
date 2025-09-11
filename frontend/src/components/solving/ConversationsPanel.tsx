@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { ProblemComponentProps, RoundData } from './types'
-import { getRounds } from '../../api'
+import { getRounds, getFileContent } from '../../api'
 import { getVerdictDisplayInfo, organizeTimings, formatDuration } from './utils'
 
 // =============================================================================
@@ -32,6 +32,8 @@ interface ConversationsPanelProps extends ProblemComponentProps {
 interface RoundDisplayProps {
   /** Round data to display */
   round: RoundData
+  /** Problem name for fetching files */
+  problemName: string
   
   /** Whether to show expanded details */
   expanded?: boolean
@@ -198,6 +200,7 @@ export default function ConversationsPanel({
                   <RoundDisplay 
                     key={round.name} 
                     round={round}
+                    problemName={problemName}
                     onSelect={onRoundSelect}
                   />
                 ))}
@@ -218,7 +221,7 @@ export default function ConversationsPanel({
  * Individual round conversation display component
  * Shows the three-way conversation between prover(s), verifier, and summarizer
  */
-function RoundDisplay({ round, expanded = false, onSelect }: RoundDisplayProps) {
+function RoundDisplay({ round, problemName, expanded = false, onSelect }: RoundDisplayProps) {
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
@@ -246,6 +249,27 @@ function RoundDisplay({ round, expanded = false, onSelect }: RoundDisplayProps) 
   // EVENT HANDLERS
   // =============================================================================
   
+  /** Download a prompt file for a given agent within this round */
+  const downloadAgentPrompt = async (agentName: string) => {
+    try {
+      const path = `runs/${round.name}/${agentName}.prompt.txt`
+      const res = await getFileContent(problemName, path)
+      const content: string = res?.content ?? ''
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${agentName}.prompt.txt`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Failed to download prompt:', e)
+      alert('Failed to download prompt')
+    }
+  }
+
   /**
    * Handles clicking on the round header
    */
@@ -338,6 +362,14 @@ function RoundDisplay({ round, expanded = false, onSelect }: RoundDisplayProps) 
           marginBottom: '8px' 
         }}>
           <strong>🤖 Prover</strong>
+          <button
+            className="btn btn-link btn-sm"
+            style={{ padding: 0, fontSize: '11px' }}
+            onClick={() => {
+              const agentName = currentProver?.name || 'prover-01'
+              downloadAgentPrompt(agentName)
+            }}
+          >prompt</button>
           
           {/* Prover selector for multiple provers */}
           {hasMultipleProvers && (
@@ -381,6 +413,11 @@ function RoundDisplay({ round, expanded = false, onSelect }: RoundDisplayProps) 
       <div>
         <div style={{ marginBottom: '8px' }}>
           <strong>🔍 Verifier</strong>
+          <button
+            className="btn btn-link btn-sm"
+            style={{ padding: 0, fontSize: '11px', marginLeft: '8px' }}
+            onClick={() => downloadAgentPrompt('verifier')}
+          >prompt</button>
         </div>
         
         <div 
@@ -404,6 +441,11 @@ function RoundDisplay({ round, expanded = false, onSelect }: RoundDisplayProps) 
       <div>
         <div style={{ marginBottom: '8px' }}>
           <strong>📝 Summary</strong>
+          <button
+            className="btn btn-link btn-sm"
+            style={{ padding: 0, fontSize: '11px', marginLeft: '8px' }}
+            onClick={() => downloadAgentPrompt('summarizer')}
+          >prompt</button>
         </div>
         
         <div 

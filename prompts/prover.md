@@ -25,13 +25,9 @@ What counts as progress:
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
 - Remember: the verifier curates notes and outputs, you only suggest.
 
-**Three-tier output system**: 
-- **notes.md**: Informal reasoning, exploration, failed attempts, intuitions
-- **proofs.md**: Rigorous proofs with complete mathematical details  
-- **output.md**: Only the final, main results (managed by verifier)
+**Output**: Write your analysis as Markdown that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
 
 **Return strictly JSON**:
 {
-  "progress_md": "Your informal progress notes for notes.md in Markdown (KaTeX allowed). Include reasoning, examples, failed attempts, intuitions.",
-  "proofs_md": "Rigorous mathematical proofs for proofs.md in Markdown (KaTeX allowed). Only include complete, detailed proofs here."
+  "content": "Your complete analysis in Markdown (KaTeX allowed). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
 }

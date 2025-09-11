@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field, AliasChoices
 
 class ProverOutput(BaseModel):
     """Output from the prover agent."""
-    progress_md: str = Field(..., description="Informal progress notes for notes.md")
-    proofs_md: str = Field("", description="Rigorous proofs for proofs.md")
+    content: str = Field(..., description="Prover's analysis and output for the verifier")
 
 
 class VerifierOutput(BaseModel):

@@ -133,8 +133,10 @@ def extract_json_from_response(text: str) -> Optional[dict]:
 
 def dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
             response_text: str, response_obj: Any, duration_s: float,
-            model: str, error: str | None = None, usage: dict | None = None) -> None:
+            model: str, error: str | None = None, usage: dict | None = None, 
+            raw_response: dict | None = None) -> None:
     """Save all input/output for an agent interaction."""
+    print(f"[DEBUG] dump_io called for {agent}: response_text={len(response_text) if response_text else 0} chars, raw_response={'present' if raw_response else 'missing'}")
     # Save prompts
     (round_dir / f"{agent}.prompt.txt").write_text(
         f"=== SYSTEM ===\n{system_prompt}\n\n=== USER ===\n{user_message}",
@@ -163,11 +165,24 @@ def dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
     }
     if error:
         raw_data["error"] = error
+    if usage:
+        raw_data["usage"] = usage
     
     (round_dir / f"{agent}.raw.json").write_text(
         json.dumps(raw_data, indent=2),
         encoding="utf-8"
     )
+    
+    # Save the complete raw response from the API for debugging
+    if raw_response:
+        raw_file = round_dir / f"{agent}.response.full.json"
+        raw_file.write_text(
+            json.dumps(raw_response, indent=2),
+            encoding="utf-8"
+        )
+        print(f"[DEBUG] Saved raw response to {raw_file}")
+    else:
+        print(f"[DEBUG] No raw response to save for {agent}")
     
     # Update timings file
     timings_file = round_dir / "timings.json"
@@ -273,3 +288,102 @@ def compile_tex_string(problem_dir: Path, round_idx: int, tex_source: str,
         return False, "LaTeX compilation timed out", None
     except Exception as e:
         return False, f"LaTeX compilation error: {str(e)}", None
+
+
+def pre_dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str, 
+                model: str) -> None:
+    """Save input data before API call for debugging failures."""
+    round_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save prompts with pre- prefix to distinguish from normal dumps
+    (round_dir / f"{agent}.pre.prompt.txt").write_text(
+        f"=== SYSTEM ===\n{system_prompt}\n\n=== USER ===\n{user_message}",
+        encoding="utf-8"
+    )
+    
+    # Save metadata
+    pre_data = {
+        "agent": agent,
+        "model": model,
+        "timestamp": time.time(),
+        "system_prompt_length": len(system_prompt),
+        "user_message_length": len(user_message),
+        "status": "pre_api_call"
+    }
+    
+    (round_dir / f"{agent}.pre.meta.json").write_text(
+        json.dumps(pre_data, indent=2),
+        encoding="utf-8"
+    )
+    
+    print(f"[DEBUG] Pre-dumped inputs for {agent} (system: {len(system_prompt)} chars, user: {len(user_message)} chars)")
+
+
+def dump_failure(round_dir: Path, agent: str, system_prompt: str, user_message: str, 
+                error: str, model: str, stage: Optional[str] = None) -> None:
+    """Dump debug info when API calls or processing fails."""
+    round_dir.mkdir(parents=True, exist_ok=True)
+    
+    failure_data = {
+        "timestamp": time.time(),
+        "agent": agent,
+        "model": model, 
+        "stage": stage or "unknown",
+        "error": error,
+        "system_prompt_length": len(system_prompt),
+        "user_message_length": len(user_message),
+        "system_prompt": system_prompt,
+        "user_message": user_message
+    }
+    
+    (round_dir / f"{agent}.failure.json").write_text(
+        json.dumps(failure_data, indent=2), encoding="utf-8"
+    )
+    
+    print(f"[DEBUG] Dumped failure data for {agent} at stage '{stage}': {error}")
+
+
+def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int, 
+                         error_component: Optional[str] = None, 
+                         error_phase: Optional[str] = None,
+                         error: Optional[str] = None,
+                         extra: dict | None = None):
+    """Enhanced status writing with detailed error context."""
+    # Get model configuration from environment
+    model_prover = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
+    model_verifier = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
+    model_summarizer = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
+    model_paper_suggester = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", model_prover)
+    model_paper_fixer = os.environ.get("OPENAI_MODEL_PAPER_FIXER", model_prover)
+    
+    status = {
+        "phase": phase,
+        "round": round_idx,
+        "ts": int(time.time()),
+        "models": {
+            "prover": model_prover,
+            "verifier": model_verifier,
+            "summarizer": model_summarizer,
+            "paper_suggester": model_paper_suggester,
+            "paper_fixer": model_paper_fixer,
+        }
+    }
+    
+    # Add enhanced error information
+    if error:
+        status["error"] = error
+        if error_component:
+            status["error_component"] = error_component
+        if error_phase:
+            status["error_phase"] = error_phase
+    
+    if extra:
+        status.update(extra)
+    
+    status_file = problem_dir / "runs" / "live_status.json"
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        status_file.write_text(json.dumps(status, indent=2), encoding="utf-8")
+    except Exception as e:
+        print(f"Warning: Failed to write status: {e}")

@@ -12,13 +12,15 @@ from pathlib import Path
 from typing import Optional
 
 from .models import (
-    ProverOutput, VerifierCombinedOutput, SummarizerOutput
+    VerifierCombinedOutput, SummarizerOutput
 )
 from .utils import (
-    load_prompt, write_status, dump_io, normalize_schema_strict
+    load_prompt, write_status, dump_io, normalize_schema_strict,
+    pre_dump_io, dump_failure, enhanced_write_status
 )
 from .papers import read_problem_context
-from .file_manager import get_file_attachments_for_prover
+from .file_manager import FileManager
+from .vectorstore_manager import ensure_vector_store
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
     load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
@@ -33,8 +35,8 @@ TEMPERATURE_PROVER = float(os.environ.get("AR_PROVER_TEMPERATURE", "0.8"))
 
 
 def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: int, 
-                   prover_config: dict = None) -> ProverOutput:
-    """Call a single prover agent."""
+                   prover_config: dict = None) -> str:
+    """Call a single prover agent and return free text."""
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
     
@@ -54,18 +56,35 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     if focus_type in focus_prompts and focus_prompts[focus_type]["prompt"]:
         system_prompt += "\n\n### Focus Instructions\n" + focus_prompts[focus_type]["prompt"].strip() + "\n"
     
-    # Get file attachments and descriptions for this prover
-    file_attachments, file_descriptions = get_file_attachments_for_prover(problem_dir, prover_config)
+    # Build paper list and descriptions; ensure vector store
+    fm = FileManager(problem_dir)
+    available_papers = fm.get_available_paper_files()
+    # Optional access control via prover_config['paperAccess']
+    allowed_papers = []
+    if prover_config and prover_config.get('paperAccess') and prover_config['paperAccess']:
+        access = prover_config['paperAccess']
+        for p in available_papers:
+            key = str(p.relative_to(problem_dir)).replace("\\", "/")
+            if access.get(key, False):
+                allowed_papers.append(p)
+    else:
+        allowed_papers = available_papers
+
+    # Prefer vector store id passed in config (ensured by runner), fallback to ensuring here
+    vector_store_id = (prover_config or {}).get("vector_store_id")
+    if not vector_store_id and allowed_papers:
+        vector_store_id = ensure_vector_store(problem_dir, allowed_papers)
+    file_descriptions = fm.get_file_descriptions(allowed_papers)
     
-    # Prepare tools if calculator access is enabled or files are attached
+    # Prepare tools if calculator access is enabled or retrieval is available
     tools = []
     if has_calculator:
         tools.append({"type": "code_interpreter"})
-    if file_attachments:
+    if vector_store_id:
         tools.append({"type": "file_search"})
     if not tools:
         tools = None
-        
+            
     problem_context = read_problem_context(problem_dir, include_pdfs=True, file_descriptions=file_descriptions)
     
     # Build user message
@@ -87,70 +106,52 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     
     user_message = "\n".join(user_parts)
     
-    # Prepare response format
-    response_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "prover_output",
-            "strict": True,
-            "schema": normalize_schema_strict(ProverOutput.model_json_schema())
-        }
-    }
+    # Prover: free-text mode (no JSON schema)
+    response_format = None
     
     # Load previous response ID for reasoning state preservation
     agent = f"prover-{prover_idx:02d}"
     previous_response_id = load_previous_response_id(problem_dir, round_idx, agent, MODEL_PROVER)
     
-    # Call the model
-    response_text, duration, response_id, usage = complete_text(
-        MODEL_PROVER, system_prompt, user_message,
-        response_format=response_format,
-        temperature=TEMPERATURE_PROVER,
-        previous_response_id=previous_response_id,
-        tools=tools,
-        attachments=file_attachments
-    )
+    # Pre-dump inputs for debugging failures
+    pre_dump_io(round_dir, agent, system_prompt, user_message, MODEL_PROVER)
     
-    # Save response ID for future rounds
-    save_response_id(problem_dir, round_idx, agent, response_id, MODEL_PROVER)
+    try:
+        # Call the model (free-text)
+        response_text, duration, response_id, usage, raw_response = complete_text(
+            MODEL_PROVER, system_prompt, user_message,
+            response_format=response_format,
+            temperature=TEMPERATURE_PROVER,
+            previous_response_id=previous_response_id,
+            tools=tools,
+            vector_store_ids=[vector_store_id] if vector_store_id else None
+        )
+        
+        # Save response ID for future rounds
+        save_response_id(problem_dir, round_idx, agent, response_id, MODEL_PROVER)
+        
+        # Save raw response and text
+        dump_io(round_dir, agent, system_prompt, user_message,
+                response_text, None, duration, MODEL_PROVER, usage=usage, raw_response=raw_response)
+        
+    except Exception as e:
+        # Dump failure state with enhanced error context
+        dump_failure(round_dir, agent, system_prompt, user_message, str(e), MODEL_PROVER)
+        
+        # Update status with enhanced error information
+        enhanced_write_status(
+            problem_dir, "idle", round_idx,
+            error_component=agent,
+            error_phase="prover_execution", 
+            error=str(e)
+        )
+        
+        print(f"  [{agent}] FAILED: {e}")
+        raise
     
-    # Parse response with retry logic
-    response_obj = parse_structured_output(
-        ProverOutput, response_text, MODEL_PROVER,
-        system_prompt, user_message, response_format
-    )
-    
-    # Save outputs
-    dump_io(round_dir, agent, system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_PROVER, usage=usage)
-    
-    # Save progress and proofs as text for verifier
-    parts = []
-    if response_obj.progress_md:
-        parts.append(response_obj.progress_md)
-    if getattr(response_obj, "proofs_md", "") and response_obj.proofs_md.strip():
-        parts.append("\n\n=== Proofs ===\n" + response_obj.proofs_md)
-    
-    (round_dir / f"{agent}.text.txt").write_text(
-        "\n".join(parts), encoding="utf-8"
-    )
-    
-    # Update notes.md with progress
-    if response_obj.progress_md.strip():
-        from .models import NotesUpdate
-        notes_update = NotesUpdate(action="append", content=response_obj.progress_md)
-        apply_notes_update(problem_dir, notes_update, round_idx)
-        print(f"  [{agent}] Updated notes.md")
-    
-    # Update proofs.md with proofs 
-    if response_obj.proofs_md.strip():
-        from .models import ProofsUpdate
-        proofs_update = ProofsUpdate(action="append", content=response_obj.proofs_md)
-        apply_proofs_update(problem_dir, proofs_update, round_idx)
-        print(f"  [{agent}] Updated proofs.md")
-    
-    print(f"  [{agent}] Complete ({duration:.1f}s)")
-    return response_obj
+    # Save prover output as text for verifier/UI and return it
+    (round_dir / f"{agent}.text.txt").write_text(response_text or "", encoding="utf-8")
+    return response_text or ""
 
 
 def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) -> VerifierCombinedOutput:
@@ -189,25 +190,44 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int) 
     # Load previous response ID for reasoning state preservation
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "verifier", MODEL_VERIFIER)
     
-    # Call the model
-    response_text, duration, response_id, usage = complete_text(
-        MODEL_VERIFIER, system_prompt, user_message,
-        response_format=response_format,
-        previous_response_id=previous_response_id
-    )
+    # Pre-dump inputs for debugging failures
+    pre_dump_io(round_dir, "verifier", system_prompt, user_message, MODEL_VERIFIER)
     
-    # Save response ID for future rounds
-    save_response_id(problem_dir, round_idx, "verifier", response_id, MODEL_VERIFIER)
-    
-    # Parse response with retry logic  
-    response_obj = parse_structured_output(
-        VerifierCombinedOutput, response_text, MODEL_VERIFIER,
-        system_prompt, user_message, response_format
-    )
-    
-    # Save outputs
-    dump_io(round_dir, "verifier", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_VERIFIER, usage=usage)
+    try:
+        # Call the model
+        response_text, duration, response_id, usage, raw_response = complete_text(
+            MODEL_VERIFIER, system_prompt, user_message,
+            response_format=response_format,
+            previous_response_id=previous_response_id
+        )
+        
+        # Save response ID for future rounds
+        save_response_id(problem_dir, round_idx, "verifier", response_id, MODEL_VERIFIER)
+        
+        # Parse response with retry logic  
+        response_obj = parse_structured_output(
+            VerifierCombinedOutput, response_text, MODEL_VERIFIER,
+            system_prompt, user_message, response_format
+        )
+        
+        # Save outputs
+        dump_io(round_dir, "verifier", system_prompt, user_message,
+                response_text, response_obj, duration, MODEL_VERIFIER, usage=usage, raw_response=raw_response)
+                
+    except Exception as e:
+        # Dump failure state with enhanced error context
+        dump_failure(round_dir, "verifier", system_prompt, user_message, str(e), MODEL_VERIFIER)
+        
+        # Update status with enhanced error information
+        enhanced_write_status(
+            problem_dir, "idle", round_idx,
+            error_component="verifier",
+            error_phase="verifier_execution", 
+            error=str(e)
+        )
+        
+        print(f"  [verifier] FAILED: {e}")
+        raise
     
     # Save individual outputs
     (round_dir / "verifier.feedback.md").write_text(
@@ -285,25 +305,44 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     # Load previous response ID for reasoning state preservation
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "summarizer", MODEL_SUMMARIZER)
     
-    # Call the model
-    response_text, duration, response_id, usage = complete_text(
-        MODEL_SUMMARIZER, system_prompt, user_message,
-        response_format=response_format,
-        previous_response_id=previous_response_id
-    )
+    # Pre-dump inputs for debugging failures
+    pre_dump_io(round_dir, "summarizer", system_prompt, user_message, MODEL_SUMMARIZER)
     
-    # Save response ID for future rounds
-    save_response_id(problem_dir, round_idx, "summarizer", response_id, MODEL_SUMMARIZER)
-    
-    # Parse response with retry logic
-    response_obj = parse_structured_output(
-        SummarizerOutput, response_text, MODEL_SUMMARIZER,
-        system_prompt, user_message, response_format
-    )
+    try:
+        # Call the model
+        response_text, duration, response_id, usage, raw_response = complete_text(
+            MODEL_SUMMARIZER, system_prompt, user_message,
+            response_format=response_format,
+            previous_response_id=previous_response_id
+        )
+        
+        # Save response ID for future rounds
+        save_response_id(problem_dir, round_idx, "summarizer", response_id, MODEL_SUMMARIZER)
+        
+        # Parse response with retry logic
+        response_obj = parse_structured_output(
+            SummarizerOutput, response_text, MODEL_SUMMARIZER,
+            system_prompt, user_message, response_format
+        )
+        
+    except Exception as e:
+        # Dump failure state with enhanced error context
+        dump_failure(round_dir, "summarizer", system_prompt, user_message, str(e), MODEL_SUMMARIZER)
+        
+        # Update status with enhanced error information
+        enhanced_write_status(
+            problem_dir, "idle", round_idx,
+            error_component="summarizer",
+            error_phase="summarizer_execution", 
+            error=str(e)
+        )
+        
+        print(f"  [summarizer] FAILED: {e}")
+        raise
     
     # Save outputs
     dump_io(round_dir, "summarizer", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_SUMMARIZER, usage=usage)
+            response_text, response_obj, duration, MODEL_SUMMARIZER, usage=usage, raw_response=raw_response)
     
     # Save summary as text
     (round_dir / "summarizer.summary.md").write_text(

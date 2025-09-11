@@ -21,7 +21,16 @@ export interface RoundData {
   verdict?: 'success' | 'partial success' | 'promising' | 'uncertain' | 'unlikely' | 'nothing so far'
   
   /** Performance timings for each agent in seconds */
-  timings?: Record<string, { duration_s: number }>
+  timings?: Record<string, { duration_s: number }> & {
+    vector_store?: {
+      status: 'success' | 'failed' | 'skipped'
+      duration_s?: number
+      vector_store_id?: string
+      num_papers?: number
+      error?: string
+      reason?: string
+    }
+  }
   
   /** Array of prover outputs (can be multiple provers per round) */
   provers: Array<{ 
@@ -69,6 +78,12 @@ export interface ProblemStatus {
     
     /** Error message if the run failed */
     error?: string
+    
+    /** Component that failed (prover, verifier, summarizer) */
+    error_component?: string
+    
+    /** Phase where the error occurred (execution, parallel_execution, etc.) */
+    error_phase?: string
   }
   
   /** Per-round status details */

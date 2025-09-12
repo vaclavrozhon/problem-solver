@@ -1,0 +1,16 @@
+Overall, there is solid progress on Conjecture 1 and a useful negative direction for Conjecture 2. Key points to keep/develop and issues to fix:
+
+- Root-invariance (nowhere-dense): Prover 1’s Proposition 1 is correct and essentially a root-free restatement of Lemma 13 for saturated sets S_P. Prover 3’s π: X→Y (forgetful) framework gives a fully rigorous transfer: A⊆Y is nowhere dense iff π^{-1}(A) is nowhere dense in X; this settles the root-invariance of nowhere-denseness for all unrooted P. This is strong and clean; we should adopt this as the main line and place it in proofs.md.
+
+- Root-invariance (meagre): Prover 3’s Corollary 3 is correct: for A with the Baire property (in particular, Borel/analytic), meagreness of A in Y is equivalent to meagreness of π^{-1}(A) in X. This resolves Conjecture 1 for all “natural” graph properties P (bridges, cut vertices, edge-chromatic constraints, etc.). Prover 2’s Proposition B claims that “saturation preserves nowhere denseness” in general; this is suspect. Saturating a nowhere dense set can be dense meagre (e.g., like Q in R), so we cannot conclude it remains nowhere dense. Please retract/repair this and instead use the π-map argument.
+
+- “Ball-local/cylinder-based” metrics: Several provers (1,2,3,5) argue that any metric with the same cylinder base as d_• yields the same topology, hence identical Baire-category outcomes. Correct—this reduces to topological equivalence, so the proofs of Theorems 14–17 transfer verbatim. Prover 4’s FLP class further extends the no-go region; the ≤D case looks fine. However, the =D odd case has a flaw: constructing a finite D-regular gadget with a bridge by simply adding an edge between two D-regular graphs breaks regularity at the endpoints. A corrected gadget must pin all radius-1 neighborhoods and ensure degrees exactly D while making e* the unique interconnection; parity bookkeeping similar to the extended abstract (or a carefully designed regular “bridge gadget”) is needed. Please fix this construction.
+
+- Alternative/coarser topologies (Conjecture 2): Prover 1’s d_any (inf over re-rootings in both directions) is a natural coarser, root-insensitive candidate. The density lemma for 1-way infinite bridges under d_any is convincing and correctly argued. However, triangle inequality/topological properties of the quotient are not established; avoid claiming compact/Polish without proof. Next step: characterize the induced topology (Baire or not), then determine category of bridgeless vs. bridgeful sets.
+
+Concrete next steps:
+- Move Prover 3’s π-map lemmas (ND equivalence, meagreness for Baire-property sets) to proofs.md; these essentially settle Conjecture 1 for all natural P.
+- Repair Prover 4’s D-regular gadget or, alternatively, cite/paraphrase the parity-gadget forcing of Theorem 14(ii) to extend FLP no-go to =D odd rigorously.
+- For Conjecture 2, analyze the Baire property and basic open neighborhoods under d_any (or a similarly “rootless local” topology). Show whether both bridgeless and “has a 1-way infinite bridge” are dense; if the space is Baire, this precludes either being comeagre.
+- Add bounded re-rooting equivalence (Prover 5) to proofs.md; it’s a clean tool for section metrics.
+- Avoid claims that saturation preserves nowhere-denseness (Prover 2); rephrase using π.

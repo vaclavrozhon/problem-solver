@@ -1,3 +1,44 @@
-{
-  "progress_md": "# Progress Notes for Round 0002\n\n## Ideas\nTo further develop the proof for the case where $d=3$, we need to delve deeper into the implications of the edge types defined by the sign patterns. Specifically, we should categorize the edges based on their types and analyze how many edges can share the same type. This will help in establishing a framework to demonstrate that at least one edge must have a unique color in the induced subgraph $G[U]$.\n\n## Lemmas from Literature\n1. **Inclusion-Exclusion Principle**: This principle can be useful in counting the number of edges that share the same color and distinguishing unique cases.\n   - *Why useful here*: It allows us to systematically account for overlaps in edge types and colors, which is crucial for proving uniqueness.\n\n2. **Combinatorial Bounds**: We can leverage known results in combinatorial geometry regarding the distribution of points in higher dimensions to argue about the density of edges and their colors.\n   - *Why useful here*: It helps in establishing a relationship between the number of vertices, edges, and the types of colors they can generate.\n\n## Examples\nConsider a small example with $n=3$:\n- Vertices: $V(G) = \\{(1,1,1), (1,1,2), (1,2,1), (2,1,1), (2,2,2), (3,3,3)\\}$.\n- Analyzing the edges, we can compute the colors using $c_3$ for various pairs. For instance, the edge between $(1,1,1)$ and $(1,1,2)$ gives $c_3 = ([0,+,0], 1, 1, 1)$, while the edge between $(1,2,1)$ and $(2,1,1)$ gives $c_3 = ([+,-,0], 1, 1, 1)$. By systematically checking all pairs, we can identify how many edges have the same color and pinpoint unique cases.\n\n## Obstacles\nA significant obstacle remains the complexity of the sign patterns in three dimensions. As we categorize edges based on their types, we need to ensure that we do not overlook any combinations that could lead to shared colors. Additionally, the potential increase in the number of edge types may complicate the counting argument further.\n\n## Next Steps\n1. **Extend the proof for $d=3$**: Develop a systematic approach to categorize and count edge types based on their sign patterns. This should include a detailed analysis of how many edges can share the same color.\n2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edge pairs that may yield unique colors. This will help in validating our counting arguments.\n3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist, potentially using the Inclusion-Exclusion Principle.\n\n## Gaps in output.md\n- The proof for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly state how the counting changes and how we can ensure uniqueness in three dimensions. Additionally, the examples provided in the earlier round need to be expanded with more detailed calculations to strengthen the argument for uniqueness."
-}
+Ideas
+- Reduce the 3D problem to the solved 2D case on coordinate slices. If some coordinate-hyperplane contains at least two points of U, apply the 2D theorem on that slice and note the 3D color coincides with the 2D color plus the fixed equal coordinate, hence remains unique in G[U].
+- Handle the complementary case where every coordinate-hyperplane contains at most one point of U ("full injectivity"). Then any edge whose sign pattern has exactly one “minus” (or exactly one “plus”) already has uniquely determined endpoints for the color parameters, making the color unique. If no such mixed pattern exists, U is a chain under the product order; the top two points yield a type [+++] edge with multiplicity 1.
+
+Counting facts in 3D (used later)
+For p=(x,y,z) and U⊂[n]^3, write
+NE_3(p)= { q∈U : q_x>x, q_y>y, q_z>z }.
+
+Fact A (type [+++]). For (α,β,γ)∈[n]^3,
+# { e∈E(G[U]) : c_3(e)=([+++], (α,β,γ)) } = 1_{(α,β,γ)∈U} · |NE_3(α,β,γ)|.
+Proof. If c_3(e)=([+++],ℓ) then ℓ is the componentwise minimum and all three coordinates strictly increase; thus ℓ must be one endpoint, and the other endpoint is any q∈NE_3(ℓ). Conversely, each q∈NE_3(ℓ) with ℓ∈U yields such an edge.
+
+Fact B (type with exactly one minus). Fix the representative (+,+,−) (minus in z) and let ℓ=(α,β,γ). Define
+r_z(α,β,γ)= #{ v∈U : v_x=α, v_y=β, v_z>γ },
+s_{xy}(α,β,γ)= #{ u∈U : u_z=γ, u_x>α, u_y>β }.
+Then
+# { e∈E(G[U]) : c_3(e)=([++−], (α,β,γ)) } = r_z(α,β,γ) · s_{xy}(α,β,γ).
+Proof. Orient each such edge so its sign vector is (+,+,−). Then the lower corner is (v_x,v_y,u_z)=(α,β,γ), forcing v_x=α, v_y=β and u_z=γ, with u_x>α,u_y>β and v_z>γ. This gives a bijection between such edges and pairs (v,u) with v counted by r_z and u by s_{xy}.
+
+Slice–reduction lemma (3D→2D)
+Lemma 1. If U contains two points in a coordinate plane (say z=t), then G[U] has an edge of unique color under c_3.
+Proof. Consider U_t={ (x,y) : (x,y,t)∈U }⊂[n]^2. Apply the 2D theorem to U_t: there exists an edge with a 2D color unique in G[U_t]. The corresponding 3D edge lies in the plane z=t and has type with z–coordinate 0; its 3D color is exactly the 2D color together with the remembered equal coordinate t. No edge outside the plane has z–type 0, so the color is unique in G[U].
+
+Injective–planes case
+Definition. U satisfies (I) if for every α, each plane x=α contains ≤1 point of U, each plane y=α contains ≤1 point, and each plane z=α contains ≤1 point. Equivalently, the projections x,y,z are injective on U.
+
+Lemma 2 (uniqueness under (I)). If U satisfies (I) and |U|≥2, then G[U] contains a uniquely colored edge under c_3.
+Proof.
+- Case A: There exists a pair u,v with exactly one minus sign in its sign pattern (equivalently, exactly two pluses). WLOG take pattern (+,+,−). Let ℓ=(α,β,γ)=(min{x(u),x(v)}, min{y(u),y(v)}, min{z(u),z(v)}). Then r_z(α,β,γ)≤1 (since plane x=α has ≤1 point) and s_{xy}(α,β,γ)≤1 (since plane z=γ has ≤1 point). Because u,v realize this color, r_z=s_{xy}=1, so Fact B gives multiplicity 1.
+- Case B: There exists a pair with exactly one plus (two minuses). By symmetry (apply Fact B with coordinates permuted), the edge color is unique.
+- Case C: No pair has exactly one minus or exactly one plus. Then every pair has either (+++) or (---), so U is totally ordered by the product order. Let w be the second–largest element. Then NE_3(w)={top element}, hence by Fact A the [+++] color with lower corner w has multiplicity 1.
+In every case a unique color exists.
+
+Main theorem in 3D
+Theorem. For every U⊂[n]^3 with |U|≥2, there exist u_1,u_2∈U such that the edge u_1u_2 has a color that appears exactly once in G[U] under c_3.
+Proof. If some coordinate plane x=α or y=β or z=γ contains ≥2 points of U, apply Lemma 1 to that plane to obtain a unique color. Otherwise every such plane contains ≤1 point, so (I) holds; Lemma 2 yields a unique color.
+
+Examples (sanity checks)
+- Chain: U={(1,1,1),(2,2,2),(3,3,3)}. The edge between (2,2,2) and (3,3,3) has color ([+++],(2,2,2)) with multiplicity |NE_3(2,2,2)|=1.
+- Mixed signs under (I): U={(1,1,3),(2,2,2),(3,3,1)}. The pair (3,3,1)–(1,1,3) has pattern (+,+,−) with ℓ=(1,1,1); by (I), r_z=s_{xy}=1, hence multiplicity 1.
+- Slice case: U contains (1,1,5),(3,2,5),(4,4,5). Apply the 2D theorem on z=5 to find a unique color; it remains unique in 3D.
+
+Obstacles and next steps
+- The argument extends to dimension d≥3: either a coordinate hyperplane contains ≥2 points (reduce to d−1), or every such hyperplane contains ≤1 point (full injectivity), in which case any edge with exactly one coordinate reversing direction yields a unique color; if none exist, U is a chain and the top two points give a unique [+,…,+] color. Formalizing the general counting analogue of Fact B in d dimensions and writing the induction carefully would complete the d–dimensional result.

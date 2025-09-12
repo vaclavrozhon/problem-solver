@@ -1,0 +1,76 @@
+Ideas
+
+- Improve Theorem 3.7 (outstar-with-leaves property) by optimizing the “reservoir” thresholds. Replace the uniform threshold 2ℓ^k at every level by the sharp constant T* = ceil(ℓ^k · ℓ/(ℓ−1)), which is tight for the bottleneck step i = k−1. This lowers the additive overhead from 2kℓ^k to k·ceil(ℓ^k · ℓ/(ℓ−1)).
+- Improve the h-parameter in Theorem 3.6 (supergraph_of_normalized). The greedy ray-selection only needs h ≥ |V(B^+_{k,ℓ})| + kℓ·|L| + ℓ = (ℓ^{k+1}−1)/(ℓ−1) + kℓ^{k+1} + ℓ, not 3kℓ^{k+1}.
+- Slightly improve the k=2 “giant spider” bound by counting directed 2-walks instead of 2-paths. This yields a strictly better bound for small ℓ (e.g. δ^+ ≥ 6 suffices for ℓ=2), while asymptotically the constant tends to (3+√17)/2.
+
+Results and proofs
+
+1) A sharper outstar-with-leaves property
+
+Theorem A (refinement of Theorem 3.7). Let Π be a δ^+-common property, k ≥ 1 and ℓ ≥ 2. Set
+T* = ⌈ℓ^k · ℓ/(ℓ−1)⌉.
+If G is a digraph with δ^+(G) ≥ d(Π) + k·T*, then G contains a copy B of B^+_{k,ℓ} such that all leaves of B satisfy Π in G.
+
+Why useful here. This replaces the additive margin 2kℓ^k by k·T*; for ℓ ≥ 3 this is a factor improvement from 2 to ℓ/(ℓ−1) = 1 + 1/(ℓ−1).
+
+Sketch of proof. Redefine Γ(0) = {v: v has Π} and, for i ≥ 1,
+Γ(i) = {v : deg^+_{Γ(i−1)}(v) ≥ T*}.
+The lexicographic-minimum-vector argument proving Γ(k) ≠ ∅ goes through verbatim with thresholds T* (the only change is that we now assume δ^+(G) ≥ d(Π) + ∑_i T* = d(Π) + k·T*).
+From v ∈ Γ(k) build B iteratively. Suppose we have B_i ≅ B^+_{i,ℓ} with leaves L_i (|L_i| = ℓ^i) and |V(B_i)| = (ℓ^{i+1}−1)/(ℓ−1). To extend each leaf w ∈ L_i, we must choose ℓ new children in Γ(k−i−1), disjoint from V(B_i) and disjoint across different leaves. The total number of forbidden vertices when choosing for the j-th leaf is at most |V(B_i)| + ℓ(j−1). Thus it suffices that every w has at least M_i := |V(B_i)| + ℓ|L_i| available out-neighbours in Γ(k−i−1). A simple bound gives
+M_i = (ℓ^{i+1}−1)/(ℓ−1) + ℓ^{i+1} ≤ ℓ^{i+1} · ℓ/(ℓ−1) ≤ ℓ^k · ℓ/(ℓ−1) ≤ T*.
+Greedy choice works and yields B_{i+1} with leaves in Γ(k−i−1). At the end we obtain B = B_k with all leaves in Γ(0), i.e., all leaves satisfy Π.
+
+2) A better h in Theorem 3.6
+
+Lemma B (disjoint rays selection). Let L be a set of ℓ^k leaves, and for each w ∈ L let S(w) be a copy of S^-_{k,h} centred at w. If
+h ≥ |V(B)| + kℓ·|L| + ℓ,
+then one can choose, for every w ∈ L, a subgraph S′(w) ≅ S^-_{k,ℓ} such that all S′(w) are pairwise vertex-disjoint and each S′(w) is disjoint from B except at its centre w.
+
+Proof. Order L arbitrarily. Let U be the union of B and all previously chosen S′. When choosing S′(w), each vertex of U\{w} lies on at most one ray of S(w), so at most |U|−1 rays are blocked. If h ≥ |U|−1 + ℓ, we can pick ℓ unblocked rays. Since |U| ≤ |V(B)| + kℓ·|L| at all steps, the stated bound on h suffices.
+
+Corollary C (refined version of Theorem 3.6). Let k ≥ 1, ℓ ≥ 2 and put
+h0 := (ℓ^{k+1}−1)/(ℓ−1) + kℓ^{k+1} + ℓ.
+If δ^+(G) ≥ f(k,h0) + k·⌈ℓ^k · ℓ/(ℓ−1)⌉, then G contains T(k,ℓ) as a subgraph.
+
+Proof. Apply Theorem A with Π = “is a centre of S^-_{k,h0}” (δ^+-common by Proposition 3.5), obtaining B ≅ B^+_{k,ℓ} whose leaves L are centres of S^-_{k,h0}. Use Lemma B with |V(B)| = (ℓ^{k+1}−1)/(ℓ−1) and |L| = ℓ^k to extract the required disjoint S′(w), w ∈ L.
+
+Remarks.
+- The original proof used T = 2ℓ^k (sum 2kℓ^k) and h = 3kℓ^{k+1}. The present bounds improve both constants to k·ℓ^k·ℓ/(ℓ−1) and kℓ^{k+1} + O(ℓ^k), respectively. As f(k,·) from [1] grows quickly in its second argument, halving the leading constant in h transfers into an exponential improvement in the δ^+ threshold implicit in f.
+- For ℓ = 2 we have ℓ/(ℓ−1) = 2, so the T-part matches the original; for ℓ ≥ 3 we obtain a genuine reduction.
+
+3) Improved linear bound for S^-_{2,ℓ}
+
+Theorem D (refines Theorem 1.4 for small ℓ). For every ℓ ≥ 1, any digraph G with minimum out-degree d satisfying
+
+d > d_*(ℓ) := ( (3ℓ−1) + √(17ℓ^2 − 10ℓ + 1) ) / 2
+contains S^-_{2,ℓ} as a subgraph.
+
+Proof. Repeat the proof of Theorem 1.4 but count directed 2-walks instead of directed 2-paths. Partition V = A ⊔ B by A := {v : deg^−(v) ≥ 2ℓ}, B := {v : deg^−(v) < 2ℓ}. After handling the “easy” case deg^−_A(r) ≥ 2ℓ as in the paper, assume deg^−_A(v) ≤ 2ℓ−1 for all v ∈ A and, by deleting edges if necessary, deg^+(v) = d for all v.
+Let X ⇒ Y ⇒ Z denote the set of directed 2-walks with middle in Y and end in Z. Then
+|V ⇒ B ⇒ A| = |A ⇒ V ⇒ V| − |A ⇒ A ⇒ V| + |B ⇒ B ⇒ V| − |V ⇒ B ⇒ B|.
+Using deg^+(·) = d and deg^−(y) ≤ 2ℓ−1 for y ∈ B,
+|A ⇒ V ⇒ V| = |A| d^2,
+|A ⇒ A ⇒ V| ≤ e(G[A]) d ≤ (2ℓ−1) d |A|,
+|B ⇒ B ⇒ V| = e(G[B]) d,
+|V ⇒ B ⇒ B| ≤ e(G[B]) (2ℓ−1).
+Hence |V ⇒ B ⇒ A| ≥ |A| d(d−2ℓ+1). Averaging gives a ∈ A with |V ⇒ B ⇒ {a}| ≥ d(d−2ℓ+1). Let s be the maximum number of pairwise vertex-disjoint 2-walks of the form q_i → b_i → a with b_i ∈ B and all q_i distinct. Then the number of such 2-walks using b_i in S := {b_1,…,b_s} is at most (2ℓ−1)s, and by maximality every 2-walk to a through B\S starts in Q := {q_1,…,q_s}, giving d s ≥ d(d−2ℓ+1) − (2ℓ−1)s. Thus
+s ≥ d(d−2ℓ+1)/(d+2ℓ−1).
+If s ≥ ℓ we obtain S^-_{2,ℓ}. Solving s ≥ ℓ for d yields d > d_*(ℓ), as claimed.
+
+Numerics. The improvement is strict for each fixed ℓ; e.g. ℓ=2 gives d ≥ 6 (old bound ≈ 7.12), ℓ=3 gives d ≥ 10 (old bound ≈ 10.68), ℓ=4 gives d ≥ 14 (old bound ≈ 14.24). As ℓ → ∞ the constant approaches (3+√17)/2, matching the asymptotics of the original proof.
+
+Obstacles and limitations
+
+- The walk-based refinement in Theorem D cannot (by this method) beat the asymptotic constant (3+√17)/2, because the bottleneck is the unavoidable subtraction of contributions with small in-degree in B and the trivial per-source bound d.
+- For Theorem A the uniform threshold T* is essentially sharp for the greedy extension step: at i = k−1 one must accommodate simultaneously |V(B_{k−1})| + ℓ|L_{k−1}| ≈ ℓ^k · ℓ/(ℓ−1) forbidden vertices. Any further reduction would require a non-greedy (e.g. matching/nibble) selection across all leaves at once, which introduces codegree issues hard to control without extra structure.
+
+Next steps
+
+- Try a simultaneous (global) selection of children for all leaves using bipartite edge-coloring or the Rödl nibble, aiming to replace T* by (1+o(1))ℓ^k and reduce the additive overhead from k·ℓ^k·ℓ/(ℓ−1) to (1+o(1))kℓ^k.
+- Improve h further by a global packing of rays across all S(w), potentially lowering h from kℓ^{k+1} + O(ℓ^k) to (1+o(1))kℓ^{k+1}.
+- For k=2 explore hybrid arguments that exploit the distribution of deg^− on B to lower the constant toward 3, e.g. via a dyadic decomposition of B by in-degree and a refined double-counting across levels.
+
+References
+
+[1] Aboulker, Cohen, Havet, Lochet, Moura, Thomassé (2016). Subdivisions in digraphs of large out-degree.

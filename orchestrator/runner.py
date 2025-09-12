@@ -17,12 +17,9 @@ from .paper_agents import (
 )
 from .utils import write_status, auto_commit_round, gather_context_files
 from .agents import ensure_three_tier_files
-from .papers import ensure_papers_parsed
-from .vectorstore_manager import ensure_vector_store
-from .file_manager import FileManager
 
 
-def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_configs: list = None):
+def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_configs: list = None, focus_description: str = None):
     """Run a single research round with specified number of provers."""
     import time
     round_start_time = time.time()
@@ -31,8 +28,6 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
     
-    # Ensure papers are parsed
-    ensure_papers_parsed(problem_dir)
     
     # Ensure 3-tier file system exists
     ensure_three_tier_files(problem_dir)
@@ -43,50 +38,7 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
     import json
     context_file.write_text(json.dumps(context_files, indent=2), encoding="utf-8")
     
-    # Build/ensure vector store for this problem's papers (once per round)
-    fm = FileManager(problem_dir)
-    paper_paths = fm.get_available_paper_files()
-    
-    # Log vector store creation/usage
-    vector_store_status = None
-    if paper_paths:
-        print(f"  [vector_store] Setting up vector store for {len(paper_paths)} papers...")
-        try:
-            import time
-            vs_start = time.perf_counter()
-            vector_store_id = ensure_vector_store(problem_dir, paper_paths)
-            vs_duration = time.perf_counter() - vs_start
-            print(f"  [vector_store] Ready ({vs_duration:.1f}s) - ID: {vector_store_id}")
-            vector_store_status = {
-                "status": "success",
-                "duration_s": vs_duration,
-                "vector_store_id": vector_store_id,
-                "num_papers": len(paper_paths)
-            }
-        except Exception as e:
-            print(f"  [vector_store] Failed: {e}")
-            vector_store_id = None
-            vector_store_status = {
-                "status": "failed", 
-                "error": str(e),
-                "num_papers": len(paper_paths)
-            }
-    else:
-        print(f"  [vector_store] No papers available, skipping vector store creation")
-        vector_store_id = None
-        vector_store_status = {
-            "status": "skipped",
-            "reason": "no_papers"
-        }
-
-    # Save vector store status to timings
-    timings_file = round_dir / "timings.json"
-    timings = {}
-    if timings_file.exists():
-        timings = json.loads(timings_file.read_text(encoding="utf-8"))
-    
-    timings["vector_store"] = vector_store_status
-    timings_file.write_text(json.dumps(timings, indent=2), encoding="utf-8")
+    # Vector store removed; papers are appended as plain text in the prompt
 
     # Phase 1: Run provers (potentially in parallel)
     write_status(problem_dir, "prover", round_idx)
@@ -96,22 +48,19 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
     
     if num_provers == 1:
         # Single prover
-        try:
-            config = prover_configs[0] if prover_configs else {}
-            if vector_store_id:
-                config = {**config, "vector_store_id": vector_store_id}
-            prover_output = call_prover_one(problem_dir, round_idx, 1, 1, config)
-        except Exception as e:
-            import traceback
-            error_context = f"Single prover execution failed in round {round_idx}"
-            detailed_error = f"{error_context}: {str(e)}\n\nFull traceback:\n{traceback.format_exc()}"
-            print(f"  [prover] Error: {e}")
+        config = prover_configs[0] if prover_configs else {}
+        prover_output, success = call_prover_one(problem_dir, round_idx, 1, 1, config, focus_description)
+        
+        if not success:
+            error_context = f"Single prover failed in round {round_idx}"
+            detailed_error = f"{error_context}: {prover_output}"
+            print(f"  [prover] Error: Single prover failed")
             write_status(problem_dir, "idle", round_idx, {
                 "error": detailed_error,
                 "error_component": "prover",
-                "error_phase": "single_execution"
+                "error_phase": "single_execution_failure"
             })
-            raise
+            raise Exception(f"Single prover failed: {prover_output}")
     else:
         # Multiple provers in parallel
         print(f"  Running {num_provers} provers in parallel...")
@@ -119,34 +68,40 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
             futures = []
             for prover_idx in range(1, num_provers + 1):
                 config = prover_configs[prover_idx-1] if prover_idx-1 < len(prover_configs) else {}
-                if vector_store_id:
-                    config = {**config, "vector_store_id": vector_store_id}
                 future = executor.submit(
-                    call_prover_one, problem_dir, round_idx, prover_idx, num_provers, config
+                    call_prover_one, problem_dir, round_idx, prover_idx, num_provers, config, focus_description
                 )
                 futures.append(future)
             
-            # Wait for all to complete
+            # Wait for all to complete and track success/failure
+            successful_provers = 0
+            failed_provers = 0
+            
             for future in as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    import traceback
-                    error_context = f"Prover execution failed in round {round_idx}"
-                    detailed_error = f"{error_context}: {str(e)}\n\nFull traceback:\n{traceback.format_exc()}"
-                    print(f"  [prover] Error: {e}")
-                    print(f"  [prover] Detailed error logged to status")
-                    # Save detailed error to status
-                    write_status(problem_dir, "idle", round_idx, {
-                        "error": detailed_error,
-                        "error_component": "prover",
-                        "error_phase": "parallel_execution"
-                    })
-                    raise
+                output, success = future.result()
+                if success:
+                    successful_provers += 1
+                else:
+                    failed_provers += 1
+                    print(f"  [prover] One prover failed, but continuing with others...")
+            
+            # Check if all provers failed
+            if successful_provers == 0:
+                error_context = f"All {num_provers} provers failed in round {round_idx}"
+                detailed_error = f"{error_context}: No successful prover outputs to work with"
+                print(f"  [prover] Error: All provers failed")
+                write_status(problem_dir, "idle", round_idx, {
+                    "error": detailed_error,
+                    "error_component": "prover",
+                    "error_phase": "all_provers_failed"
+                })
+                raise Exception(f"All {num_provers} provers failed")
+            
+            print(f"  [prover] Results: {successful_provers} successful, {failed_provers} failed")
     
     # Phase 2: Run verifier
     try:
-        verifier_output = call_verifier_combined(problem_dir, round_idx, num_provers)
+        verifier_output = call_verifier_combined(problem_dir, round_idx, num_provers, focus_description)
     except Exception as e:
         import traceback
         error_context = f"Verifier execution failed in round {round_idx}"
@@ -203,8 +158,6 @@ def run_paper_round(problem_dir: Path, round_idx: int):
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
     
-    # Ensure papers are parsed
-    ensure_papers_parsed(problem_dir)
     
     # Ensure 3-tier file system exists
     ensure_three_tier_files(problem_dir)

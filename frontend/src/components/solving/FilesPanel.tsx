@@ -63,6 +63,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   const [editedDescription, setEditedDescription] = useState<string>('')
   const [saving, setSaving] = useState(false)
   
+  /** Round selection for metadata filtering */
+  const [selectedRound, setSelectedRound] = useState<string>('latest')
+  
   /** Upload paper state - inline form like TaskCreationPage */
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [newPaperType, setNewPaperType] = useState<'file' | 'text'>('file')
@@ -333,16 +336,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
     }
   }
   
-  /**
-   * Checks if a file is a parsed PDF (exists in papers_parsed directory)
-   */
-  const getParsedFilePath = (filePath: string): string | null => {
-    if (filePath.startsWith('papers/') && filePath.endsWith('.pdf')) {
-      const filename = filePath.replace('papers/', '').replace('.pdf', '.txt')
-      return `papers_parsed/${filename}`
-    }
-    return null
-  }
 
   /**
    * Formats file size for display
@@ -359,31 +352,54 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   // =============================================================================
 
   /**
-   * Categorizes files into input and output groups
+   * Categorizes files into input, output, and metadata groups
    */
   const categorizeFiles = () => {
     const inputFiles = files.filter(file => 
       file.path.startsWith('task.') || 
-      file.path.startsWith('papers/') ||
-      file.path.startsWith('papers_parsed/')
+      file.path.startsWith('papers/')
     )
     
     const outputFiles = files.filter(file => 
       file.name === 'notes.md' || 
       file.name === 'proofs.md' || 
-      file.name === 'output.md' ||
-      file.path.startsWith('runs/')
+      file.name === 'output.md'
     )
     
-    return { inputFiles, outputFiles }
+    // Get all rounds from runs/ directory
+    const allRounds = [...new Set(
+      files
+        .filter(file => file.path.startsWith('runs/'))
+        .map(file => {
+          const roundMatch = file.path.match(/runs\/(round-\d+)\//)
+          return roundMatch ? roundMatch[1] : null
+        })
+        .filter(Boolean)
+    )].sort().reverse() // Most recent first
+    
+    // Filter metadata files based on selected round
+    let metadataFiles = files.filter(file => file.path.startsWith('runs/'))
+    
+    if (selectedRound !== 'all' && selectedRound !== 'latest') {
+      // Filter to specific round
+      metadataFiles = metadataFiles.filter(file => 
+        file.path.startsWith(`runs/${selectedRound}/`)
+      )
+    } else if (selectedRound === 'latest' && allRounds.length > 0) {
+      // Show only the latest round
+      const latestRound = allRounds[0]
+      metadataFiles = metadataFiles.filter(file => 
+        file.path.startsWith(`runs/${latestRound}/`)
+      )
+    }
+    
+    return { inputFiles, outputFiles, metadataFiles, allRounds }
   }
 
   /**
    * Renders a file button
    */
   const renderFileButton = (file, isFirst = true) => {
-    const parsedFilePath = getParsedFilePath(file.path)
-    
     return (
       <div key={file.path} style={{ marginBottom: '6px' }}>
         {/* Original File */}
@@ -396,19 +412,13 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             width: '100%',
             textAlign: 'left',
             cursor: 'pointer',
-            borderRadius: file.type === 'paper' && parsedFilePath ? '4px 4px 0 0' : '4px',
-            fontSize: '12px',
-            borderBottom: file.type === 'paper' && parsedFilePath ? '1px solid #e0e0e0' : '1px solid #ddd'
+            borderRadius: '4px',
+            fontSize: '12px'
           }}
         >
           <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {getFileIcon(file)}
             {file.name}
-            {file.type === 'paper' && parsedFilePath && (
-              <span style={{ fontSize: '10px', color: '#28a745', fontWeight: 'normal' }}>
-                📄→📝
-              </span>
-            )}
           </div>
           <div style={{ fontSize: '10px', color: '#666' }}>
             {file.type === 'paper' && file.name.toLowerCase().endsWith('.pdf') ? 'Original PDF' : formatFileSize(file.size)} • {file.modified}
@@ -428,48 +438,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             </div>
           )}
         </button>
-        
-        {/* Parsed Content Button (if available) */}
-        {file.type === 'paper' && parsedFilePath && (
-          <button
-            onClick={() => loadFileContent(parsedFilePath, 'current', file)}
-            style={{
-              background: selectedFile === parsedFilePath ? '#e8f5e8' : '#f8f9fa',
-              border: '1px solid #ddd',
-              borderTop: 'none',
-              padding: '6px 12px',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-              borderRadius: '0 0 4px 4px',
-              fontSize: '11px'
-            }}
-            title="View parsed text content (AI-readable)"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#28a745' }}>
-              <span>📝</span>
-              <span>Parsed Text Content</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#666' }}>
-              AI-extracted text from PDF
-            </div>
-          </button>
-        )}
-        
-        {/* Description for parsed content */}
-        {file.type === 'paper' && parsedFilePath && file.description && (
-          <div style={{ 
-            fontSize: '10px', 
-            color: '#155724', 
-            background: '#d4edda',
-            padding: '3px 6px',
-            borderRadius: '3px',
-            fontStyle: 'italic',
-            marginTop: '2px'
-          }}>
-            {file.description}
-          </div>
-        )}
       </div>
     )
   }
@@ -478,7 +446,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    * Renders the file list sidebar
    */
   const renderFileList = () => {
-    const { inputFiles, outputFiles } = categorizeFiles()
+    const { inputFiles, outputFiles, metadataFiles, allRounds } = categorizeFiles()
     
     return (
       <div style={{ width: '300px', borderRight: '1px solid #ddd', paddingRight: '16px' }}>
@@ -674,7 +642,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             </div>
 
             {/* Output Files Section */}
-            <div>
+            <div style={{ marginBottom: '20px' }}>
               <h5 style={{ 
                 fontSize: '13px', 
                 fontWeight: 'bold', 
@@ -687,6 +655,67 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
               </h5>
               <div style={{ listStyle: 'none', padding: 0 }}>
                 {outputFiles.map((file) => renderFileButton(file))}
+              </div>
+            </div>
+
+            {/* Metadata Files Section */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h5 style={{ 
+                  fontSize: '13px', 
+                  fontWeight: 'bold', 
+                  color: '#7c3aed',
+                  margin: '0',
+                  padding: '4px 0',
+                  borderBottom: '1px solid #e5e7eb',
+                  flex: 1
+                }}>
+                  🔧 Metadata
+                </h5>
+              </div>
+              
+              {/* Round selector */}
+              {allRounds.length > 0 && (
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '12px' }}>
+                    Round:
+                  </label>
+                  <select 
+                    value={selectedRound} 
+                    onChange={e => setSelectedRound(e.target.value)}
+                    style={{ 
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '3px',
+                      fontSize: '11px',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="latest">Latest Round</option>
+                    <option value="all">All Rounds</option>
+                    {allRounds.map(round => (
+                      <option key={round} value={round}>
+                        {round.replace('round-', 'Round ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              <div style={{ listStyle: 'none', padding: 0 }}>
+                {metadataFiles.length > 0 ? (
+                  metadataFiles.map((file) => renderFileButton(file))
+                ) : (
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: '#666', 
+                    fontStyle: 'italic',
+                    padding: '8px 0'
+                  }}>
+                    No metadata files found
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -706,19 +735,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <h4 style={{ margin: 0 }}>
               {selectedFile}
-              {selectedFile.startsWith('papers_parsed/') && (
-                <span style={{ 
-                  marginLeft: '8px',
-                  fontSize: '12px',
-                  color: '#28a745',
-                  background: '#d4edda',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontWeight: 'normal'
-                }}>
-                  📝 Parsed Content
-                </span>
-              )}
             </h4>
             
             {/* Version selector for versioned files */}
@@ -804,32 +820,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             </div>
           </div>
           
-          {/* Parsed content info */}
-          {selectedFile.startsWith('papers_parsed/') && (
-            <div style={{ 
-              background: '#e8f5e8',
-              border: '1px solid #c3e6cb',
-              borderRadius: '4px',
-              padding: '12px',
-              marginBottom: '12px',
-              fontSize: '14px'
-            }}>
-              <div style={{ fontWeight: 'bold', color: '#155724', marginBottom: '4px' }}>
-                {selectedFile.endsWith('.pdf.txt') ? (
-                  <>📄 AI-Extracted PDF Content</>
-                ) : (
-                  <>📄 Text Content</>
-                )}
-              </div>
-              <div style={{ color: '#155724' }}>
-                {selectedFile.endsWith('.pdf.txt') ? (
-                  'This is the text content extracted from the original PDF file for AI analysis. The content has been processed to be machine-readable while preserving the paper\'s structure and information.'
-                ) : (
-                  'This is the text content uploaded for AI analysis and processing.'
-                )}
-              </div>
-            </div>
-          )}
           
           {/* Paper description field */}
           {(selectedFileInfo?.type === 'paper' || selectedFile?.startsWith('papers/')) && (
@@ -872,7 +862,12 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                   fontSize: '13px',
                   color: selectedFileInfo?.description ? '#333' : '#999',
                   lineHeight: '1.4',
-                  fontStyle: selectedFileInfo?.description ? 'normal' : 'italic'
+                  fontStyle: selectedFileInfo?.description ? 'normal' : 'italic',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  maxHeight: '120px',
+                  overflowY: 'auto'
                 }}>
                   {selectedFileInfo?.description || 'No description provided'}
                 </div>

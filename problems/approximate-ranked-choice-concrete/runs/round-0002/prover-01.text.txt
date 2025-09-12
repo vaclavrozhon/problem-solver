@@ -1,53 +1,85 @@
-## Audit of current output and quick fixes
+# Corrections, certificates, examples, and provable bounds
 
-- Additive-ballot normalization: Correctly used as P′ = (P + α Q)/(1+α) throughout Theorem 1 and Lemma 2. Good.
-- Tie-breaking: Theorem 1 implicitly ensures strict positivity of all margins in P′, so tie-breaking becomes irrelevant; this should be stated explicitly in the proof (to avoid any dependence on the fixed rule once the certificate fires).
-- Counting identity U: A simpler and fully explicit combinatorial proof would help. See Lemma A below.
-- Certify-or-abstain vs. unconditional guarantee: Theorem 1 proves a certify-or-abstain statement. It does not, and cannot, guarantee that the natural algorithm outputs an ε-winner w.p. ≥ 1−δ uniformly over all P without further assumptions on true margins. This gap relative to the problem’s “succeed” phrasing should be flagged in output.md.
-- K=3 corollary: The statement is sound; an explicit list of the O(1) functionals and a concrete constant in the sample bound would strengthen it. See Corollary B below.
+## 1) Correct sufficient certificate (uniform over sets)
+Lemma 1 (Uniform max-deficit certificate). Fix c. Define
+B(c) := max_{S⊇{c}} [ min_{a∈S\{c}} p_a(S) − p_c(S) ].
+If B(c) ≤ ε (with tie-breaking not eliminating c on ties after adding an infinitesimal slack), then c is an ε-winner. In particular, adding ε fraction of c-first ballots suffices.
 
-## Ideas
+Proof. Adding ε of c-first ballots increases p_c(S) by ε for every S containing c and leaves p_a(S) for a≠c unchanged (we compare absolute tallies, not normalized shares). Hence for every S⊇{c}: p′_c(S) = p_c(S)+ε ≥ min_{a≠c} p_a(S) = min_{a≠c} p′_a(S). So c is never strictly below the minimum at any round encountered by IRV under the augmented profile, and therefore cannot be eliminated. ∎
 
-1) Parametric path certificate (one-line why useful). A sharpened version of Theorem 1 that decouples the empirical slack τ and the uniform deviation η, yielding a data-dependent certificate and explicit α ≤ ε. This lets the algorithm compute a guaranteed ε̂ from the sample: ε̂ := max{0, min(τ−η, ε)}.
+Remark. This certificate is sufficient, not necessary: IRV’s elimination path under augmentation might visit a strict subset of the S, allowing smaller ε to suffice.
 
-2) Minimal α accounting (one-line why useful). Given uniform deviation bound η and observed margins, upper bound the minimal α (for the single-ranking Q) needed to realize σ on the true P. This quantifies robustness and can yield tighter guarantees than the fixed “2ε” trigger.
+Why useful here: It yields a verifiable condition turning the ε-winner question into finitely many inequalities over S⊇{c}.
 
-3) Clean combinatorial proof of U = K(K−1) 2^{K−2} (one-line why useful). Streamlines Lemma 1’s union bound and removes reliance on the binomial-moment identity.
 
-4) K=3 lower bound via Le Cam (one-line why useful). Establishes Ω((log(1/δ))/ε^2) necessity for any method, matching our upper bound’s ε, δ dependence in the simplest nontrivial case.
+## 2) Counterexample: single-chain certificates fail for K≥4
+We exhibit a profile on C={a,b,c,d} where the “single-chain” check (comparing only versus designated b_t along one chain) incorrectly certifies c, yet c does not win even after adding ε mass of c-first ballots.
 
-## Statements and proofs/sketches
+Ballot types and weights:
+- T1: c>a>d>b with weight x=0.34.
+- T2: a>d>c>b with weight y=0.29.
+- T3: d>c>a>b with weight z=0.34.
+- T4: b>a>d>c with weight δ=0.03.
+Total 1.
 
-Lemma A (Counting of path functionals). Let F = { (A,y,x): A⊆[K], |A|≥2, y≠x∈A }. Then |F| = U = K(K−1) 2^{K−2}.
-Proof. For each ordered pair (y,x) with y≠x (K(K−1) choices), any A that contains both y and x is formed by choosing an arbitrary subset of the remaining K−2 candidates, so 2^{K−2} choices. Multiply.
+Computed tallies:
+- Full set C: p_c(C)=x=0.34, p_a(C)=y=0.29, p_d(C)=z=0.34, p_b(C)=δ=0.03. First-round minimum is b.
+- On S={a,c,d}: T1→c, T2→a, T3→d, T4→a, so p_c=0.34, p_a=0.32, p_d=0.34. Minimum among others is a.
+- Pair {c,a}: c beats a, with p_c=x+z=0.68, p_a=y+δ=0.32.
+- Pair {c,d}: c loses to d, with p_c=x=0.34, p_d=y+z+δ=0.66.
 
-Lemma C (Parametric path-wise certificate). Fix σ=(e_1,…,e_{K−1},w) produced by IRV on the sample S. Suppose a uniform concentration event holds: |d_{r,y}(S) − d_{r,y}(P)| ≤ η for all r,y. Let τ := min_{r,y} d_{r,y}(S). If τ > η, then for any α ∈ [0, τ−η], the same σ is feasible on P′:=(P+αQ)/(1+α) where Q is the point mass on ranking (w, e_{K−1}, …, e_1); in particular, w is an (τ−η)-winner for P.
-Reason. For y≠w, d_{r,y}(P′) = d_{r,y}(P)/(1+α) ≥ (τ−η)/(1+α) > 0. For y=w, d_{r,w}(P′) = (d_{r,w}(P)+α)/(1+α) ≥ (τ−η+α)/(1+α) > 0. Hence all feasibility inequalities are strictly positive, so σ executes on P′ and w wins.
+IRV elimination: remove b first (0.03), then on {a,c,d} remove a (0.32), leaving final pair {c,d}, where c loses. Thus c is not the winner.
 
-Corollary B (Explicit K=3 certificate with constants). Let K=3, S be an m-sample, and suppose S’s elimination order is (e,o,w). Define
-- First round: M1 := min{ score_o(S;[3]) − score_e(S;[3]), score_w(S;[3]) − score_e(S;[3]) }.
-- Final pair: M2 := Pr_S[w ≻ o] − Pr_S[o ≻ w].
-Let τ := min{M1, M2}. If m ≥ (1/(2η^2)) (log(12) + log(1/δ)) and τ ≥ η + ε, then w is an ε-winner w.p. ≥ 1−δ. In particular, taking η=ε yields m ≥ (1/(2ε^2))(log 12 + log(1/δ)) and the simple trigger “all three margins ≥ 2ε.”
-Sketch. The class has at most 6 functionals (two first-round differences, one pairwise difference, and their negatives). Apply Hoeffding+union bound with 2U ≤ 12. Then apply Lemma C with τ−η ≥ ε.
+Yet the “chain” that checks S=C (vs b), then S={a,c,d} (vs a), then pair {c,a} would (incorrectly) conclude that c can be made an ε-winner with ε≈0.03: indeed at C we have p_c−p_b=0.31, at {a,c,d} we have p_c−p_a=0.02, and at {c,a} c wins handily. After adding ε=0.03 fraction of c-first ballots, c still loses versus d in the final pair, so the chain certificate is false.
 
-Example check (K=3). Let P place mass p_A = 0.51 on w≻o≻e and p_B = 0.49 on o≻w≻e. Then round 1 eliminates e (score_e=0), and in the final pair M2 = 0.02. With ε=0.01, η=0.01, τ=0.02, the certificate fires; adding α=0.01 of Q = (w,o,e) yields d_{2,w}(P′) = (0.02+0.01)/1.01 > 0 while d_{1,o}, d_{1,w} shrink but stay positive.
+Takeaway: Any certificate restricted to one elimination chain (and only comparing to chosen b_t rather than the round’s true minimum) is unsound for K≥4.
 
-Lemma D (Minimal α upper bound from sample). Under the uniform deviation bound η and given σ from S, define τ := min_{r,y} d_{r,y}(S). Then any α ≤ τ−η suffices to realize σ on P′ with Q as above. In particular, the data-driven bound α∗ := (τ−η)_+ is feasible and α∗ ≤ ε whenever τ ≥ η + ε.
-Proof. Immediate from Lemma C.
 
-Lemma E (K=3 Le Cam lower bound). Fix ε ∈ (0, 1/6). Consider two electorates on K=3 supported on {A: w≻o≻e, B: o≻w≻e}: P_+ with P_+(A)=1/2+ε, P_+(B)=1/2−ε; P_- with P_-(A)=1/2−ε, P_-(B)=1/2+ε. Then for target ε (same symbol) and any algorithm that, from m i.i.d. ballots, outputs a candidate who is an ε-winner of the true election with probability ≥ 1−δ for both P_+ and P_-, it must hold that m ≥ c log(1/δ)/ε^2 for an absolute constant c>0.
-Why sets of ε-winners are disjoint. Under P_+, e is eliminated immediately (score_e=0). The final pair margin is M2=2ε in favor of w. For ε<1/6, any α≤ε leaves round-1 elimination unchanged, and to make o beat w in the final pair requires α≥M2=2ε. Thus under P_+, the only ε-winner is w. Symmetrically, under P_- the only ε-winner is o. Hence any algorithm must identify which world it is in (binary testing). Information bound. The observations reduce to m i.i.d. draws from a Bernoulli with mean 1/2±ε (indicator of A). Standard tail or KL bounds (KL(P_+||P_-) ≈ 8ε^2 for small ε) imply m ≥ c log(1/δ)/ε^2 is necessary for error ≤ δ.
+## 3) Two-phase certification algorithm with sample complexity
+Algorithm (holdout certificate for the sample winner):
+- Phase 1: Draw m1 ballots, run IRV to get ĉ (no guarantee needed in this phase).
+- Phase 2: Draw m2 fresh ballots. For all S⊇{ĉ} and a∈S\{ĉ}, estimate p̃_a(S), p̃_{ĉ}(S). Compute B̃(ĉ)=max_{S⊇{ĉ}}(min_{a∈S\{ĉ}} p̃_a(S)−p̃_{ĉ}(S)). If B̃(ĉ) ≤ ε/2, output ĉ.
 
-## Obstacles and open items
+Proposition 2. If m2 ≥ (2/ε^2)·ln(2K·2^{K−1}/δ), then with probability ≥1−δ, whenever Phase 2 outputs ĉ, that ĉ is an ε-winner.
 
-- Uniform-in-P success of the natural algorithm: Without assumptions on true path margins, no fixed m can guarantee that the sample winner is an ε-winner w.p. ≥ 1−δ uniformly over all electorates. Our results are certify-or-abstain; quantifying the rate at which the abstain event occurs requires margin conditions.
-- K-dependence lower bounds: While the union bound suggests an O(K/ε^2) price for certification, a matching lower bound requires constructing a packing of electorates whose ε-winner sets are nearly disjoint and whose induced ballot laws are pairwise close. Ensuring IRV consistency across many rounds while “hiding” the critical inequality remains delicate.
-- Tight α accounting when some d_{r,w}(S) are small: Lemma C tolerates small d_{r,w} using the +α boost, but for y≠w margins shrink by 1/(1+α). Balancing these may lead to slightly stronger, round-dependent α choices if one enriches Q beyond a single ranking; this complicates composition and is left open.
+Proof. Condition on Phase 1. For each fixed (S,a), the indicator g_{S,a}(ballot)=1[top_S(ballot)=a] has mean p_a(S). The total number of such functions with ĉ fixed is at most K·2^{K−1} (each S⊇{ĉ}, each a∈S). Hoeffding plus union bound yields a uniform deviation |p̃_a(S)−p_a(S)| ≤ ε/4 simultaneously for all those (S,a) with probability ≥1−δ if m2≥(2/ε^2)ln(2K·2^{K−1}/δ). Then B(ĉ) ≤ B̃(ĉ)+ε/2 ≤ ε, so Lemma 1 applies. ∎
 
-## Next steps
+Comments:
+- This cleanly bypasses adaptivity: we fix ĉ and the family {g_{S,a}} before Phase 2.
+- Sample complexity m2 scales as O((K+log(1/δ))/ε^2). Computationally, Phase 2 is exponential in K due to enumerating S.
 
-1) Integrate Lemma C (parametric certificate) and Lemma A (counting) into output.md, clarifying tie-breaking.
-2) Flesh out Lemma E with explicit constants via KL(P_+||P_-) and Chernoff bounds; include a short proof that e is not an ε-winner in either instance for ε<1/6.
-3) K=3: Provide an explicit list of the three functionals and compute the exact m bound m ≥ (1/(2ε^2))(log(12)+log(1/δ)).
-4) Toward K-dependent lower bounds: attempt a family where the first-round loser is unique but “hidden” among Θ(K) candidates by perturbing first-choice rates by ±ε while keeping later rounds fixed; analyze disjointness of ε-winner sets and pairwise divergences.
-5) Empirical margin estimator: recommend reporting ε̂ := max{0, τ−η} as a certified tolerance derived from the sample, together with m and δ; this is immediately supported by Lemma C.
+
+## 4) K=3: a provable guarantee under a mild separation condition
+Let C={c,a,b}. Write x*=argmax_{x∈{a,b}} p_x(C).
+
+Proposition 3 (K=3 with separation). Suppose |p_a(C)−p_b(C)| ≥ γ. Draw m i.i.d. ballots and run IRV on them to get ĉ. If m ≥ (8/ε^2)·ln(18/δ) and γ ≥ ε/2 (so that α:=√(ln(18/δ)/(2m)) ≤ ε/4 ≤ γ/2), then with probability ≥1−δ the output ĉ is an ε-winner of the true election.
+
+Proof. Uniformly over the 9 quantities {p_x(S)} with S∈{C,{c,a},{c,b}} and x∈S, Hoeffding+union bound gives |p̂_x(S)−p_x(S)| ≤ α. Let x̂ be the more popular of {a,b} in the sample on S=C. By α ≤ γ/2, we have x̂=x*. On the sample profile, since ĉ is the IRV winner, ĉ is not the minimum at C, and ĉ beats x̂ in the final pair. Hence p̂_{ĉ}(C) ≥ min_{y∈{a,b}} p̂_y(C), and p̂_{ĉ}({ĉ,x̂}) ≥ p̂_{x̂}({ĉ,x̂}). Transferring to truth: p_{ĉ}(C) ≥ min_{y} p_y(C) − 2α and p_{ĉ}({ĉ,x*}) ≥ p_{x*}({ĉ,x*}) − 2α. Adding ε≥2α mass of ĉ-first ballots makes ĉ safe at C and win against x*; since x* is the true final opponent, ĉ wins IRV. ∎
+
+Remarks.
+- Without the separation |p_a(C)−p_b(C)| ≥ γ, the sample may misidentify the true final opponent, and bounding the (true) pair versus the actual final opponent from the sample winner alone is generally impossible.
+- This strengthens and corrects the K=3 discussion: the guarantee hinges on identifying the true final opponent at C.
+
+
+## 5) Lower bounds: refined statements to formalize
+- Two-candidate baseline. For K=2, deciding whether the output is an ε-winner reduces to distinguishing Bernoulli means within ε/2; any algorithm needs m=Ω((1/ε^2)·log(1/δ)).
+- Log-K Fano lower bound. Construct K instances over ballots where for each i the unique ε/4-winner is i, with pairwise KL divergence Θ(ε^2). Then any algorithm that finds an ε/2-winner with error ≤δ needs m=Ω((log K)/ε^2). We will provide an explicit IRV-compatible family and verify uniqueness of ε/4-winner in each.
+
+Why useful: Matches the O((K+log(1/δ))/ε^2) upper order up to a linear vs logarithmic dependence on K, suggesting near-optimality unless Ω(K/ε^2) can be shown.
+
+
+## 6) Obstacles and failed approaches
+- One-phase “natural algorithm” (run IRV on the sample and directly output ĉ) for K≥4 remains challenging: the property “ĉ is winner on the sample” does not imply the uniform certificate B̂(ĉ)≤0; there can exist S not on the sample path where ĉ is below the minimum among others, and these S may become relevant under the true augmented process.
+- Attempted simplification “pairs suffice” is false in general: B(c) can be attained at a non-pair S because top-of-S constraints link more than two candidates (we have explicit constructions where triple deficits exceed any pair deficit). Hence checking only head-to-heads is insufficient.
+
+
+## 7) Next steps
+- Prove and record a compact “uniform certificate ⇒ ε-winning” theorem with explicit tie handling (reserve ε/100 slack) suitable for proofs.md.
+- Optimize the holdout bound constants; tighten M in the union bound to ≤(K−1)2^{K−2} by noting that for each S we only need the minimum among others rather than all a.
+- Explore whether B(c) is always achieved on an “IRV-reachable” set S along some elimination order; if true, it could reduce the 2^{K−1} blowup to polynomially many S. Either prove or give a counterexample.
+- Formalize the Fano lower bound with a concrete K-ary construction tailored to IRV.
+- For K=3, investigate whether the separation assumption can be relaxed by a small extra ε budget that simultaneously covers both possible final opponents.
+
+
+## 8) Small verification example (K=3)
+Let C={c,a,b}. Suppose p_a(C)=0.37, p_b(C)=0.31, p_c(C)=0.32 (so x*=a). Head-to-heads: p_c({c,a})=0.51, p_c({c,b})=0.60. Then B(c)=max{ (0.31−0.32), (0.49−0.51), (0.40−0.60) }^+=0.01, attained at S=C. Adding ε=0.01 of c-first ballots makes c an IRV winner (remains above both at C, then beats a head-to-head). This illustrates the certificate and that the worst S need not be a pair.

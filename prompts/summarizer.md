@@ -8,6 +8,7 @@ Include:
 **Return strictly JSON**:
 {
   "summary_md": "Readable summary of the round (≤200 words)",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
   "highlights": [],
   "next_questions": []
 }

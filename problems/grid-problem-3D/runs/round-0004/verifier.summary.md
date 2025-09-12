@@ -1,0 +1,1 @@
+Adopt the minimal d=3 proof: slice-lifting from the provided d=2 theorem plus the top-two-levels lemma when each last-coordinate slice is a singleton. Prover 2’s counterexample is a misapplication; the lemma remains valid. We append a general-d induction (c_d) to proofs.md. Overall verdict: promising.

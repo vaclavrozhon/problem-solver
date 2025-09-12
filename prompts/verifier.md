@@ -14,8 +14,9 @@ Inputs:
 
 **Three-tier file system guidelines**:
 - **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
-- **proofs.md**: Complete rigorous mathematical proofs with full details. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
-- **output.md**: ONLY the main problem results. Think twice before adding anything. Should contain a concise summary of the most important theorems that directly advance the main problem. Extremely selective.
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: ONLY the main problem results. Extremely selective.
+Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. 
 
 Tasks:
 1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.

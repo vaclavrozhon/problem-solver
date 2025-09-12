@@ -1,0 +1,47 @@
+# Ideas
+- Strengthen the coarse O(n + nH) analysis with two precise, checkable components:
+  1) an explicit constant for total starting-sequence cost, γ = 6√2 + 8 ≈ 16.485;
+  2) a clean conversion from merge-cost to comparisons (exactly ρ−1 merges).
+- Isolate and prove the “follow-up merge” property that under the Python patch (#5), any #4/#5 merge is immediately followed by another merge in the same ending sequence (needed for s-token nonnegativity).
+
+# Lemma A (Starting sequences: explicit constant)
+Statement. Let a starting sequence (initiated by pushing a run of length r) perform k−1 ≥ 1 merges #2 of pre-existing runs with lengths r_1,…,r_k. Its total merge-cost C satisfies C ≤ γ r, with
+γ = 2∑_{j≥1} j·2^{−j/2} = 2·x/(1−x)^2 for x=2^{−1/2} = 6√2 + 8 ≈ 16.4853.
+Hence total starting-sequence cost over the whole algorithm is ≤ γ·n.
+Proof. At the last #2, r > r_k. Corollary (exponential growth along stack) gives r ≥ r_k ≥ 2^{(k−1−i)/2} r_i. Thus
+C ≤ ∑_{i=1}^k (k+1−i) r_i ≤ r∑_{i=1}^k (k+1−i)2^{(i+1−k)/2} = 2r∑_{j=1}^k j 2^{−j/2} < 2r∑_{j≥1} j 2^{−j/2}.
+Since ∑_{j≥1} jx^j = x/(1−x)^2, with x=2^{−1/2},
+2∑_{j≥1} j 2^{−j/2} = 2·x/(1−x)^2 = 2·(1/√2)/(( (√2−1)/√2 )^2) = 2·(1/√2)·(2/(√2−1)^2) = 6√2+8.
+Summing over pushes (∑ r = n) gives ≤ γ n.
+
+# Lemma B (Exact number of merges and comparison conversion)
+Statement. If the greedy run decomposition has ρ runs, any execution of TimSort performs exactly ρ−1 merges, regardless of order.
+Proof. Each merge reduces the stack size by 1; starting from ρ runs and ending at 1 run, exactly ρ−1 merges occur.
+Corollary. With standard merging (no galloping), merging runs of sizes a,b uses ≤ a+b−1 comparisons; over all merges,
+comparisons ≤ (total merge-cost) − (ρ−1).
+Adding O(n) for run detection yields comparisons ≤ (merge-cost) + O(n).
+
+# Lemma C (Height bound after starting sequence)
+Statement. Let r be the length of the just-pushed run; let h be the stack height after its starting sequence. Then h ≤ 4 + 2 log_2(n/r).
+Proof. Runs at depths ≥3 are untouched in the starting sequence; by exponential growth in the pre-push tail, r̄_3 ≤ 2^{2−h/2} n. At the end of the starting sequence, #2 no longer applies, so r̄_1=r ≤ r̄_3. Hence r ≤ 2^{2−h/2} n.
+
+# Lemma D (Follow-up merge after #4/#5 under the patch)
+Statement. In patched Python TimSort, any ending-sequence merge triggered by #4 or #5 must be followed by another merge (still in the ending sequence).
+Proof. After #4 or #5, the top two runs merge into R̄_1 with length r̄_1 = r_1+r_2. Since the stack below is unchanged (R̄_i = R_{i+1} for i≥2), we have in case #4 (r_1+r_2 ≥ r_3) that r̄_1 ≥ r̄_2; in case #5 (r_2+r_3 ≥ r_4) that r̄_1+r̄_2 ≥ r̄_3. In either case, one of #3 or #4 is immediately true in the new stack, so the inner loop continues with another merge. Thus no ending sequence can terminate right after a #4/#5 merge.
+Consequence. s-tokens spent by elements of R_2 in #4/#5 are replenished immediately at the next merge’s height drop, ensuring s-token nonnegativity.
+
+# Consequence for O(n + nH)
+- Starting sequences: ≤ γ n by Lemma A.
+- Ending sequences: For an element in a run of length r, its height is nonincreasing and decreases at most O(1+log(n/r)) times (Lemma C). Each decrease credits (2 c + 1 s) tokens; by Lemma D and the spend rules, token balances never go negative. Hence total ending-sequence merge-cost ≤ C∑ r (1+log_2(n/r)) = O(n + nH).
+- By Lemma B, comparisons ≤ merge-cost + O(n). Therefore total comparisons = O(n + nH).
+
+# Examples
+- Two runs (x, n−x): H ≤ 1; one merge; comparisons ≤ n = O(n + nH).
+- Equal runs (ℓ_i = n/ρ): H = log_2 ρ; bound gives O(n log ρ) comparisons.
+
+# Obstacles
+- The target with leading constant 1 (nH + O(n)) is false for TimSort (Buss–Knop). The sharp, tight upper bound is (3/2)·n·H + O(n), proven via the potential Φ(r)=(3/2)r log_2 r and grouping; omitted here but aligns with AJNP.
+
+# Next steps
+- Insert Lemma A (with γ = 6√2+8), Lemma B, Lemma C, and Lemma D proofs into proofs.md, then conclude comparisons = O(n + nH).
+- Add the potential-method pieces (balanced merges, forbidden patterns, pairing, grouping) to reach the sharp (3/2)·n·H + O(n) bound.

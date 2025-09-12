@@ -92,7 +92,8 @@ export default function StatusPanel({
     rounds: 1,
     provers: 1,
     preset: 'gpt5',
-    temperature: 0.4 // Legacy - not used for GPT-5
+    temperature: 0.4, // Legacy - not used for GPT-5
+    focusDescription: ''
   })
   
   // Focus options for prover configuration
@@ -153,7 +154,8 @@ export default function StatusPanel({
         runConfig.provers, 
         temperature, 
         runConfig.preset, 
-        runConfig.proverConfigs
+        runConfig.proverConfigs,
+        runConfig.focusDescription
       )
       
       setMessage({
@@ -303,7 +305,19 @@ export default function StatusPanel({
       )
     }
 
-    const verdictInfo = getVerdictDisplayInfo(status.overall.last_verdict)
+    // Get the latest verdict from completed rounds
+    const getLatestVerdict = () => {
+      if (!status?.rounds || status.rounds.length === 0) return undefined
+      
+      // Find the latest completed round with a verdict
+      const completedRoundsWithVerdicts = status.rounds
+        .filter(round => round.status === 'completed' && round.verdict)
+        .sort((a, b) => b.number - a.number) // Sort by round number, latest first
+      
+      return completedRoundsWithVerdicts.length > 0 ? completedRoundsWithVerdicts[0].verdict : undefined
+    }
+    
+    const verdictInfo = getVerdictDisplayInfo(getLatestVerdict())
     const progress = calculateProgress(problemInfo)
 
     return (
@@ -400,11 +414,11 @@ export default function StatusPanel({
         )}
 
         {/* Last verdict */}
-        {status.overall.last_verdict && (
+        {verdictInfo && (
           <div style={{ marginBottom: '12px' }}>
             <strong>Last Verdict:</strong>
             <span style={{ marginLeft: '8px', color: verdictInfo.color }}>
-              {verdictInfo.emoji} {status.overall.last_verdict}
+              {verdictInfo.emoji} {getLatestVerdict()}
             </span>
           </div>
         )}
@@ -529,6 +543,36 @@ export default function StatusPanel({
         </div>
       </div>
 
+      {/* Focus Description */}
+      <div style={{ marginBottom: '12px' }}>
+        <label htmlFor="focus-description-input" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+          Focus Description (Optional)
+        </label>
+        <textarea
+          id="focus-description-input"
+          value={runConfig.focusDescription || ''}
+          onChange={e => updateRunConfig({ focusDescription: e.target.value })}
+          placeholder="Describe what the prover and verifier should focus on during this round (e.g., 'Focus on the algorithmic complexity analysis', 'Pay special attention to edge cases')"
+          disabled={!canStart}
+          rows={3}
+          style={{
+            width: '100%',
+            padding: '8px',
+            border: '1px solid #ced4da',
+            borderRadius: '4px',
+            fontSize: '14px',
+            resize: 'vertical',
+            fontFamily: 'inherit'
+          }}
+          data-gramm="false"
+          data-gramm_editor="false"
+          data-enable-grammarly="false"
+        />
+        <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+          This description will be included in the prompts for all provers and the verifier to help guide their analysis.
+        </div>
+      </div>
+
       {/* Temperature (only for non-GPT-5) */}
       {runConfig.preset !== 'gpt5' && (
         <div style={{ marginBottom: '12px' }}>
@@ -558,20 +602,6 @@ export default function StatusPanel({
         </div>
       )}
 
-      {/* GPT-5 temperature notice */}
-      {runConfig.preset === 'gpt5' && (
-        <div style={{ 
-          fontSize: '12px', 
-          color: '#666', 
-          background: '#f0f8ff',
-          padding: '10px',
-          borderRadius: '4px',
-          border: '1px solid #b3d9ff',
-          marginBottom: '16px'
-        }}>
-          ℹ️ GPT-5 uses default temperature (temperature setting not available)
-        </div>
-      )}
 
       {/* Prover Configurations */}
         <div style={{ marginBottom: '16px' }}>

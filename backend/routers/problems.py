@@ -90,6 +90,24 @@ def get_problem_status_public(problem: str):
                 except Exception:
                     pass
                 
+                try:
+                    # Load verdict from verifier output
+                    verifier_file = round_dir / "verifier.out.json"
+                    if verifier_file.exists():
+                        verifier_data = json.loads(verifier_file.read_text(encoding="utf-8"))
+                        round_info["verdict"] = verifier_data.get("verdict")
+                except Exception:
+                    pass
+                
+                try:
+                    # Load one-line summary from summarizer output
+                    summarizer_file = round_dir / "summarizer.out.json"
+                    if summarizer_file.exists():
+                        summarizer_data = json.loads(summarizer_file.read_text(encoding="utf-8"))
+                        round_info["one_line_summary"] = summarizer_data.get("one_line_summary")
+                except Exception:
+                    pass
+                
                 round_details.append(round_info)
     
     # Determine overall status
@@ -190,12 +208,30 @@ def get_problem_rounds_public(problem: str):
                 except:
                     pass
             
+            # Load one-line summary from summarizer output
+            summarizer_out_file = round_dir / "summarizer.out.json"
+            if summarizer_out_file.exists():
+                try:
+                    summarizer_data = json.loads(summarizer_out_file.read_text(encoding="utf-8"))
+                    round_data["one_line_summary"] = summarizer_data.get("one_line_summary")
+                except:
+                    pass
+            
             # Load timings
             timings_file = round_dir / "timings.json"
             if timings_file.exists():
                 try:
                     timings = json.loads(timings_file.read_text(encoding="utf-8"))
                     round_data["timings"] = timings
+                except:
+                    pass
+            
+            # Load verdict from verifier output
+            verifier_out_file = round_dir / "verifier.out.json"
+            if verifier_out_file.exists():
+                try:
+                    verifier_data = json.loads(verifier_out_file.read_text(encoding="utf-8"))
+                    round_data["verdict"] = verifier_data.get("verdict")
                 except:
                     pass
             
@@ -253,6 +289,8 @@ def run_problem_public(problem: str, params: RunParams):
     }
     if params.prover_configs:
         metadata["prover_configs"] = params.prover_configs
+    if params.focus_description:
+        metadata["focus_description"] = params.focus_description
     metadata_file.write_text(json.dumps(metadata, indent=2))
     
     # Save prover configurations for the orchestrator to read
@@ -379,25 +417,6 @@ def list_problem_files_public(problem: str):
                         "description": description
                     })
         
-        # Add papers_parsed directory files
-        parsed_dir = problem_dir / "papers_parsed"
-        if parsed_dir.exists():
-            for parsed_file in parsed_dir.iterdir():
-                if parsed_file.is_file():
-                    # Look for description file in papers directory
-                    desc_file = papers_dir / f"{parsed_file.stem}.description.txt"
-                    description = ""
-                    if desc_file.exists():
-                        description = desc_file.read_text(encoding="utf-8").strip()
-                    
-                    files.append({
-                        "name": f"papers_parsed/{parsed_file.name}",
-                        "path": f"papers_parsed/{parsed_file.name}",
-                        "type": "text",
-                        "size": parsed_file.stat().st_size,
-                        "modified": time.ctime(parsed_file.stat().st_mtime),
-                        "description": description
-                    })
         
         # Add runs directory files (for completeness)
         runs_dir = problem_dir / "runs"

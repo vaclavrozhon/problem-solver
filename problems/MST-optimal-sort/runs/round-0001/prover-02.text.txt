@@ -1,0 +1,86 @@
+# Ideas
+
+- Prove a one-sided domination MST_log ≤ C·Reg_log via a scale-by-scale component count (Kruskal-style integral) and a very sparse auxiliary graph that only uses two kinds of short edges: (i) time-adjacent (i,i−1), and (ii) value-adjacent (|π(i)−π(j)|=1). This yields a clean per-scale bound that integrates to a sum of logs dominated by Reg_log.
+- Show the reverse domination fails by constructing an infinite family with small per-step vertical variation (so MST_log is Θ(n)) but large t_i for most i (so Reg_log is Θ(n log n)). A simple “by residue classes” (C-striding) permutation works.
+
+# Main Lemma (Kruskal integral for log-weights)
+
+Let P be any finite point set in a normed plane with distance d(·,·) and define G(t) as the graph on P with edges {u,v} whenever d(u,v) ≤ t. Let κ(t) be the number of connected components of G(t). For the MST in the complete graph with edge weights f(d)=log(1+d),
+
+∑_{e in MST} log(1+length(e)) = ∫_{0}^{∞} (κ(t)−1)·(dt/(1+t)).
+
+Sketch proof. Sort MST edges by increasing length ℓ_1≤⋯≤ℓ_{n−1}. Then log(1+ℓ_j)=∫_0^{ℓ_j} dt/(1+t). Summing and swapping sum/integral gives ∫_0^∞ m(t) dt/(1+t) where m(t)=|{j:ℓ_j≥t}|. Kruskal’s algorithm implies m(t)=κ(t)−1: after inserting all edges of length ≤t the MST forest has exactly κ(t) components. (Standard; details omitted.)
+
+# A sparse subgraph that upper-bounds κ(t)
+
+Work with the L∞ norm (all norms are equivalent up to constants; see below). For t≥0, build H(t) on {p_i=(i,π(i))} by adding, for each i≥2, the following edges to earlier vertices only when they have L∞-length ≤t:
+- Time edge: connect p_i to p_{i−1} if |π(i)−π(i−1)|≤t.
+- Value-neighbor edge: if there exists j<i with |π(i)−π(j)|=1 and i−j=t_i≤t, connect p_i to that j.
+
+Let Δ_i:=|π(i)−π(i−1)| and recall t_i:=min{i−j: j<i, |π(i)−π(j)|=1}, or t_i=i−1 if no such j exists. Then, processing vertices in the order i=1,…,n, the only moments when p_i could fail to attach to the existing H(t)-forest are those with both Δ_i>t and t_i>t. Hence, with H(t) built this way,
+
+κ_{H}(t) ≤ 1 + |{i≥2: Δ_i>t and t_i>t}|.
+
+Since H(t) is a subgraph of G(t) (it only omits edges, never adds), κ(t)≤κ_H(t). Combining with the integral lemma,
+
+MST_log(L∞) ≤ ∫_0^∞ |{i≥2: Δ_i>t and t_i>t}| · (dt/(1+t))
+= ∑_{i=2}^n ∫_0^{min(Δ_i,t_i)} dt/(1+t)
+= ∑_{i=2}^n log(1 + min(Δ_i, t_i)).
+
+Finally, since r_i:=min(d_i+t_i, i) satisfies r_i ≥ t_i for every i, we have min(Δ_i, t_i) ≤ t_i ≤ r_i, hence
+
+MST_log(L∞) ≤ ∑_{i=2}^n log(1 + r_i) = Reg_log(π).
+
+# Norm invariance up to a universal constant
+
+For any norm ‖·‖, there exist constants a,b>0 with a‖·‖∞ ≤ ‖·‖ ≤ b‖·‖∞. For any spanning tree T,
+
+∑ log(1+‖e‖) ≤ ∑ log(1+b‖e‖∞) ≤ (n−1)log(1+b) + ∑ log(1+‖e‖∞).
+
+Choosing T to be an L∞-MST and using MST_log(L∞) ≤ Reg_log gives
+
+MST_log(‖·‖) ≤ (n−1)log(1+b) + Reg_log(π).
+
+Since Reg_log(π) ≥ (n−1)log 2, we obtain a clean multiplicative bound
+
+MST_log(‖·‖) ≤ C_1 · Reg_log(π)
+
+for a universal C_1 depending only on the choice of norm (e.g., C_1 = 1 + log(1+b)/log 2).
+
+Conclusion (Q1): Reg dominates MST up to a universal constant. In fact, with L∞, MST_log ≤ Reg_log holds pointwise.
+
+# Separation against the converse (Reg ≰ C·MST)
+
+Define, for a fixed constant C≥2 and for each n, the permutation π_n that lists integers by residue classes modulo C in increasing residue order, and within each class in increasing order:
+
+π_n = (1, 1+C, 1+2C, …; 2, 2+C, 2+2C, …; …; C, 2C, 3C, …).
+
+Let m_r be the size of residue class r (m_r = ⌊(n−r)/C⌋+1). Then for all adjacent times we have |π(i)−π(i−1)| ≤ C, so the time-adjacent path is a spanning tree whose total MST_log cost is
+
+MST_log(π_n) ≤ (n−1)·log(1+C) = Θ(n).
+
+On the other hand, for any r≥2 and any k≤m_r, the element v=r+kC has a previous true value-neighbor v−1 in residue class r−1 at the same index k. That neighbor occurred exactly m_{r−1} steps earlier, so t_i = m_{r−1} = Θ(n/C). Consequently r_i ≥ t_i and
+
+Reg_log(π_n) ≥ ∑_{r=2}^C m_r · log(1+m_{r−1}) = Θ(n log(n/C)).
+
+For fixed C, this is Θ(n log n). Therefore
+
+Reg_log(π_n) / MST_log(π_n) ≍ log(n/C) → ∞ as n→∞.
+
+Conclusion (Q2, Q3): There is no universal C_2 with Reg_log ≤ C_2·MST_log. We exhibit an infinite family with Reg_log/MST_log diverging like Θ(log n).
+
+# Examples and sanity checks
+
+- Identity or reverse permutations: Δ_i=1, t_i=1 for all i>1. Then MST_log=Θ(n) and Reg_log=Θ(n). The bound MST_log ≤ Reg_log is tight up to constants.
+- Random permutation: Using the component integral and known spacing of adjacent-by-value positions, both MST_log and Reg_log are Θ(n log n) in expectation.
+
+# Obstacles and remarks
+
+- A per-index bound of the form log(1+‖p_i−p_j‖) ≤ O(log(1+r_i)) for a fixed choice of j<i fails for small i (e.g., i=2) where log(1+‖p_2−p_1‖) can be Θ(log n) but log(1+r_2) is O(1). The integral/charging-by-scale circumvents this by aggregating over scales.
+- The domination MST_log ≤ Reg_log is exact for L∞ (no multiplicative loss) but requires only a constant factor for arbitrary norms because of norm equivalence inside the logarithm.
+
+# Next steps
+
+- Tight constants: For L∞, is MST_log = ∑ log(1+min(Δ_i,t_i)) always attainable (i.e., tight) or can we sharpen the upper bound? A lower bound of similar flavor might characterize MST_log up to additive O(n).
+- Refined probabilistic analysis: For random π, estimate E[MST_log] and E[Reg_log] with explicit leading constants via the integral identity and exact distribution of |pos(v)−pos(v+1)|.
+- Structural characterization: Identify permutation classes where MST_log is Θ(n) but Reg_log ranges from Θ(n) to Θ(n log n), beyond the residue-class example.

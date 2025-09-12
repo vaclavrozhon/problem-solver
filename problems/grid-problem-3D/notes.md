@@ -1,72 +1,51 @@
-# Progress Notes for Round 0001
+# Research Notes
 
-## Ideas
-To tackle the problem for the case where $d=3$, we need to extend the proof strategy used for $d=2$. The main focus will be on understanding how the color map $c_3$ behaves in three dimensions and how the types of edges can be categorized based on the sign patterns. We can utilize the combinatorial nature of the types and the minimum function to establish a unique coloring for edges in the induced subgraph.
 
-## Lemmas from Literature
-1. **Pigeonhole Principle**: If we have more edges than colors, at least one color must repeat. This principle will be useful in showing that if we have sufficiently many edges, some must be unique.
-   - *Why useful here*: It establishes a baseline for uniqueness in edge colors based on the number of edges and the number of possible color types.
 
-2. **Counting Arguments**: If we can count the number of edges of each type and relate this to the number of vertices, we can argue about the existence of unique edges.
-   - *Why useful here*: Helps in establishing bounds on the number of edges that can share the same color.
+3D unique color under c3: strategy and notes
 
-## Examples
-Consider a small example with $n=2$:
-- Vertices: $V(G) = \{(1,1,1), (1,1,2), (1,2,1), (2,1,1), (2,2,2)\}$.
-- Analyzing the edges, we can compute the colors using $c_3$ and check for uniqueness. For instance, the edge between $(1,1,1)$ and $(1,1,2)$ gives $c_3 = ([0,+,0], 1, 1, 1)$.
-- By checking all pairs, we can see how many edges have the same color and identify unique cases.
+- Coloring c3(e)=(T,ℓ) records the sign type modulo global sign and the full componentwise minimum ℓ, including the equal coordinates (E(T)). This prevents loss of information across slices.
 
-## Obstacles
-A potential obstacle is the complexity of the sign patterns in three dimensions. The interactions between the coordinates could lead to a larger number of edge types than anticipated, complicating the counting argument. We need to ensure that we can systematically account for all possible cases of edge types.
+- Dichotomy:
+  1) Slice case: If a coordinate slice (e.g., z=t) contains ≥2 points, apply the proven d=2 theorem on that slice. Because c3 remembers the fixed coordinate value t in ℓ and has E(T) including that coordinate, uniqueness in the slice implies global uniqueness (edges off the slice have z in J(T) or different ℓ_z).
+  2) Coordinatewise injective case: If every coordinate slice contains ≤1 point, then all coordinates are distinct across U. Two subcases:
+     - If an incomparable pair exists, pick any mixed-sign type (some + and some −). A product multiplicity r·s argument (fixing a representative sign vector) shows both factors are ≤1 under injectivity and equal 1 for the realized color, hence multiplicity 1.
+     - If no mixed-sign edges exist, U is a chain in the product order. Injectivity forces strict increase in each coordinate along the chain. The [+++]-type at the penultimate element has exactly one NE neighbor, so multiplicity 1.
 
-## Next Steps
-1. **Extend the proof for $d=3$**: Build on the existing proof for $d=2$ and adapt it to handle the additional dimension. Focus on how the sign patterns interact in this higher-dimensional space.
-2. **Conduct further examples**: Test more combinations of vertices to see how the colors distribute and to identify unique edge colors systematically.
-3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist.
+- Multiplicity (useful facts):
+  - [+++]-type with lower corner α has multiplicity 1_{α∈U}·|NE_3(α)|.
+  - One-odd-coordinate types (e.g., [++−]) factor as r·s, where r counts points on the α-anchored line increasing in the odd coordinate and s counts points in the fixed-level plane strictly NE in the other two coordinates. Under injectivity, r,s≤1.
 
-## Gaps in output.md
-- The proof for $d=2$ might not directly translate to $d=3$. We need to explicitly state how the counting changes and how we can ensure uniqueness in three dimensions. This needs to be addressed in the output for completeness.
-# Progress Notes for Round 0002
+- This yields a short complete proof in 3D. The same method scales to dimension d by induction: either reduce on a coordinate hyperplane or use the injective case (unique mixed-sign color, or chain gives unique [+,…, +]).
 
-## Ideas
-To further develop the proof for the case where $d=3$, we need to focus on how the color map $c_3$ behaves specifically in three dimensions. A key aspect will be to analyze the interactions between the sign patterns and how they contribute to the uniqueness of edge colors in the induced subgraph. We can categorize edges based on their types and systematically explore the implications of these types on the edge color distribution.
+Plan for d=3 under color c_3(T, \ell):
 
-## Lemmas from Literature
-1. **Pigeonhole Principle**: This principle remains crucial as it provides a foundational argument for the uniqueness of edge colors when the number of edges exceeds the number of distinct color types. We should explicitly quantify the number of edges in $G[U]$ and compare it to the number of possible color types.
-   - *Why useful here*: It helps to establish that with enough edges, at least one must be unique.
+- Slice reduction: If some z-slice U_z[t] contains at least two points, apply the proven d=2 theorem on that slice (with the 2D color remembering which coordinates are equal). The 3D color of the chosen in-slice edge has T_z=0 and records t in \ell_z, so any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness lifts from 2D to 3D.
 
-2. **Counting Arguments**: We need to refine our counting strategy to account for the increased complexity in three dimensions. Specifically, we should calculate the number of edges for each type and relate this to the number of vertices in $U$. This will help us argue about the existence of unique edges more robustly.
-   - *Why useful here*: It provides a systematic method to analyze edge color distributions and uniqueness.
+- Complementary case: If every z-slice contains at most one point of U, list vertices by increasing z: v_1,\dots,v_m with z_1<\cdots<z_m. The edge v_{m-1}v_m has \ell_z=z_{m-1}. No other edge has this \ell_z value: any edge with \ell_z=z_{m-1} must use v_{m-1} and a partner above z_{m-1}, which is uniquely v_m. Thus c_3(v_{m-1}v_m) is unique.
 
-## Obstacles
-One major obstacle is the increased number of edge types in three dimensions due to the sign patterns. We need to ensure that our counting arguments can handle this complexity. A systematic approach to categorize and count edge types will be essential to overcome this challenge.
+- This resolves d=3 without extra counting. For higher d, the same idea suggests induction: either a (d−1)-dimensional slice contains ≥2 points (reduce to d−1), or every slice along the last coordinate has ≤1 point and the edge between the top two levels locks in a unique last-coordinate entry in \ell.
 
-## Next Steps
-1. **Extend the proof for $d=3$**: Begin drafting a proof by explicitly stating how the counting changes when moving from $d=2$ to $d=3$. We should focus on the implications of the additional dimension on the edge types and their uniqueness.
-2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edges that may have unique colors. This empirical exploration will help validate our theoretical claims.
-3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist. This may involve more detailed combinatorial arguments.
 
-## Gaps in output.md
-- The output for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly outline how the counting of edge types changes and how we can ensure uniqueness in three dimensions. This gap needs to be addressed for completeness in the proof.
-# Progress Notes for Round 0003
+d=3 unique color under c_3: concise plan
 
-## Ideas
-In this round, we will focus on developing a systematic approach to categorize and count edge types based on their sign patterns in three dimensions. The goal is to establish a clear transition from the proof for $d=2$ to $d=3$, highlighting how the counting of edge types changes with the additional dimension. We will also explore how the color map $c_3$ behaves in three dimensions to ensure that we can argue for the existence of unique edge colors.
+- Slice lifting: If some z-slice U_t has at least two points, apply the proven d=2 theorem on that slice. Because c_3 records that z is equal (z∈E(T)) and stores ℓ_z=t, any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness in the slice implies global uniqueness.
+- Complementary case: If every z-slice has at most one point, list points by increasing z as v_1<⋯<v_m. The edge v_{m-1}v_m has ℓ_z=z(v_{m-1}). No other edge can realize ℓ_z=z(v_{m-1}) (it would need the unique point at z(v_{m-1}) paired with a point above it, which is uniquely v_m). Thus c_3(v_{m-1}v_m) is unique.
+- This yields a short complete proof in 3D. The same split suggests a straightforward induction in general dimension d: either reduce on a (d−1)-slice and lift, or use the top-two-level argument on the last coordinate.
 
-## Lemmas from Literature
-1. **Inclusion-Exclusion Principle**: This principle can be instrumental in counting the number of edges that share the same color and distinguishing unique cases. It allows for systematic accounting of overlaps in edge types and colors.
-   - *Why useful here*: It helps to refine the counting arguments by ensuring that we do not double-count edges that may share colors.
 
-2. **Combinatorial Geometry Results**: Known results in combinatorial geometry regarding the distribution of points in higher dimensions can provide insights into the density of edges and their colors.
-   - *Why useful here*: It establishes a relationship between the number of vertices, edges, and the types of colors they can generate, which is crucial for proving uniqueness.
+d=3 finalized proof under c_3:
+- Slice lifting: If some z-slice U_z[t] has at least two points, apply the d=2 theorem on that slice. Because c_3 stores z in E(T) and ℓ_z=t, uniqueness in the slice implies global uniqueness (any color match must lie in the same slice and match the 2D label).
+- If every z-slice has at most one point, order vertices by z. The edge between the second-highest and highest z-levels has lower-corner z equal to the second-highest realized z value, forcing endpoints uniquely; hence its color is unique.
 
-## Obstacles
-A significant obstacle remains the complexity of the sign patterns in three dimensions. As we categorize edges based on their types, we need to ensure that we do not overlook any combinations that could lead to shared colors. Additionally, the potential increase in the number of edge types may complicate the counting argument further.
+Note: A purported counterexample against the top-two-level lemma (e.g., multiple [+++] edges with identical ℓ from a lower vertex) does not contradict the lemma; the top-two edge’s ℓ_z is distinct and forces uniqueness.
 
-## Next Steps
-1. **Draft a detailed proof for $d=3$**: This proof should explicitly outline how the counting changes when moving from $d=2$ to $d=3$. We will focus on the implications of the additional dimension on the edge types and their uniqueness.
-2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edges that may yield unique colors. This empirical exploration will help validate our theoretical claims.
-3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist, potentially using the Inclusion-Exclusion Principle.
+Next: Extend to general dimension d. Define c_d analogously; either a (d−1)-slice has ≥2 points (reduce and lift), or every last-coordinate slice has ≤1 point and the edge between the top two last-coordinate levels is unique by the same ℓ-last argument. Optionally, use a general A_+·A_- multiplicity to handle mixed-sign types and explore quantitative bounds on the number of unique colors.
 
-## Gaps in output.md
-- The output for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly outline how the counting of edge types changes and how we can ensure uniqueness in three dimensions. This gap needs to be addressed for completeness in the proof. Additionally, the examples provided in the earlier rounds need to be expanded with more detailed calculations to strengthen the argument for uniqueness.
+Clarification: the top-two-levels lemma
+
+Assume every z-slice U∩{z=t} has size ≤1, and let the realized z-values be z_1<⋯<z_m (m≥2). Consider the edge between the unique points at z_{m-1} and z_m. Any edge f with the same color must have the same lower-corner z-entry, ℓ_z(f)=z_{m-1}. This forces one endpoint to be the unique point at z=z_{m-1} and the other to be at some z>z_{m-1}. Since z_m is the only realized level above z_{m-1}, the partner is uniquely the point at z_m. Hence f is exactly this top-two edge, so its color is unique.
+
+Note the lemma uses the second-highest realized level (z_{m-1}). Examples showing multiple [+++] edges with the same lower corner at a lower level (e.g., using the minimum z) do not contradict this lemma.
+
+Plan forward: (i) Keep the d=3 proof as slice-lifting + top-two z-levels. (ii) Extend to general d via the same dichotomy on the last coordinate. The multiplicity framework A_+·A_- provides a useful general tool but is not needed for the minimal existence proof.

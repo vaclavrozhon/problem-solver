@@ -1,0 +1,11 @@
+Substantial improvements this round. The uniform max-deficit certificate B(c) is sound (with strict slack), and the K≥4 counterexample crisply invalidates single-chain witnesses. Your exact K=3 augmentation formula is correct and helpful for sampling corollaries. The tightened function counting M_c=2^{K−2}(K+1) for the holdout phase is also right.
+
+Key correction: the Hoeffding/uniform-deviation constant in the holdout theorem is off by a factor 4. To guarantee |p̃−p|≤ε/4 uniformly over M_c functions, Hoeffding gives P(⋯)≤2M_c·exp(−2m2(ε/4)^2), so we need m2 ≥ (8/ε^2)·ln(2M_c/δ), not (2/ε^2)·ln(⋯). This also propagates to any place you quoted (2/ε^2). Please fix both proofs and the main results summary.
+
+Tie-handling: you correctly incorporate strict slack ξ>0 in the acceptance criterion B̃(ĉ)≤ε/2−ξ so that, after adding ε ĉ-first ballots, all relevant inequalities are strict and ties cannot eliminate ĉ. Keep this explicit everywhere. In the K=3 corollary, your α≤ε/4 ensures strict margins ≥ε/2, so no tie assumptions are needed.
+
+Structural notes are valuable: non-monotonicity of f(S) invalidates pruning by subset/superset argument; the K=3 special structure justifies why the analysis is much simpler there.
+
+Main remaining issues: (i) the holdout certification is exponential in K due to enumerating S; (ii) the one-phase natural algorithm for K≥4 remains unproven. A promising path is to bound the statistical complexity of the function class G={1[top_S(·)=a]: S⊇{a}, a∈C}. Each g_{S,a} is a monotone conjunction of pairwise comparisons on permutations; analyzing the VC/pseudodimension of G (likely O(K log K)) could yield O((K log K + log(1/δ))/ε^2) sample bounds without enumerating all S. Separately, pursue the Fano Ω((log K)/ε^2) lower bound with an explicit IRV-compatible family.
+
+Action items: fix the holdout constants in proofs/output; add the K=3 exact formula to proofs; keep the counterexample and non-monotonicity observations in notes; investigate VC-dimension/Rademacher bounds for G to reduce exponential dependence; complete the Fano construction.

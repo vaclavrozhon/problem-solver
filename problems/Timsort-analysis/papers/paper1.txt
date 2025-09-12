@@ -1,0 +1,1297 @@
+\documentclass[a4paper,USenglish]{lipics-v2019}
+
+\usepackage{amsmath,amssymb,xspace}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage[nodisplayskipstretch]{setspace} \setstretch{1}
+\usepackage{comment}
+\usepackage[boxruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{tikz,tikz-qtree}
+\usetikzlibrary{matrix,fit}
+\usetikzlibrary{arrows,decorations.pathreplacing,calc}
+\usepackage{graphicx}
+\usepackage[nomessages]{fp}
+
+\usepackage{lipsum}
+
+\usepackage{listings,xcolor}
+
+\usepackage{breakurl}
+\usepackage{pdfpages}
+\usepackage{float,xspace}
+\usepackage{hyperref}
+
+\usepackage{microtype}
+
+% \usepackage{minted}
+
+\usepackage{marginnote}
+\renewcommand*{\marginfont}{\scriptsize\color{gray}}
+
+\nolinenumbers
+
+
+% \usepackage{caption}
+% \usepackage{subcaption}
+% \usepackage{subfig} 
+
+
+%\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+%\renewcommand{\algorithmicensure}{\textbf{Output:}}
+%\algrenewcomment[1]{\(\triangleright\) \textit{#1}}
+
+%declarations de macro
+\newcommand{\HS}{\textsc{HuffmanSort}\xspace}
+\newcommand{\NMS}{\textsc{NaturalMergeSort}\xspace}
+\newcommand{\MS}{\textsc{MergeSort}\xspace}
+\newcommand{\MinS}{\textsc{MinimalSort}\xspace}
+\newcommand{\TS}{\textsc{TimSort}\xspace}
+\newcommand{\STS}{\textsc{TimSort}\xspace}
+\newcommand{\QS}{\textsc{QuickSort}\xspace}
+\newcommand{\CR}{\textsc{countRuns}\xspace}
+\newcommand{\CS}{\textsc{CountingSort}\xspace}
+\newcommand{\GMS}{\textsc{Greedy\-Merge\-Sort}\xspace}
+\renewcommand{\SS}{$\alpha$-\textsc{StackSort}\xspace}
+\newcommand{\caseX}{$\#$\textsc{X}\xspace}
+\newcommand{\kleene}{\rlap{\phantom{\caseX}}^\ast}
+
+\newcommand{\Python}{{Python}\xspace}
+\newcommand{\Java}{{Java}\xspace}
+
+\DeclareMathOperator{\sort}{\textbf{sort}}
+\DeclareMathOperator{\runs}{\textbf{runs}}
+\DeclareMathOperator{\timruns}{\textbf{timRuns}}
+\DeclareMathOperator{\merge}{\textbf{merge}}
+\DeclareMathOperator{\update}{\textbf{update}}
+\DeclareMathOperator{\optimal}{\textbf{Opt}}
+\DeclareMathOperator{\lengths}{\textbf{L}}
+
+\renewcommand{\H}{\mathcal{H}}
+\renewcommand{\O}{\mathcal{O}}
+\renewcommand{\S}{\mathcal{S}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\C}{\mathcal{C}}
+\newcommand{\R}{\mathcal{R}}
+\newcommand{\rs}{\mathsf{r}}
+\newcommand{\T}{\mathcal{T}}
+
+\newcommand{\cost}{\textbf{c}}
+\newcommand{\vcost}{\textbf{cost}}
+\newcommand{\finishproof}{\vspace{-\baselineskip}}
+
+\DeclareMathOperator{\pop}{\text{pop}}
+\DeclareMathOperator{\push}{\text{push}}
+\DeclareMathOperator{\height}{\texttt{height}}
+\DeclareMathOperator{\rundecomp}{\texttt{runs}}
+\DeclareMathOperator{\runstack}{\R}
+
+
+\newcommand{\cSTS}{$\alpha$-\STS}
+\newcommand{\stack}{\mathcal{X}}
+\newcommand{\true}{\textbf{true}}
+\newcommand{\pot}{\mathsf{pot}}
+\newcommand{\false}{\textbf{false}}
+\newcommand{\strat}{\mathfrak{S}}
+
+\newcommand{\who}[1]{\noindent {\color{blue}\fbox{Who?~#1}}}
+\newcommand{\rmk}[1]{\noindent {\color{red}\centerline{\fbox{\begin{minipage}{.8\textwidth}Rmk:~#1\end{minipage}}}}}
+
+\newcommand{\carine}[1]{{\textbf{\color{blue} -- #1 -- }}}
+\newcommand{\capi}[1]{{\color{blue} #1}}
+\newcommand{\cyril}[1]{{\textbf{\color{green!50!black} -- #1 -- }}}
+\newcommand{\nicolas}[1]{{\textbf{\color{purple} -- #1 -- }}}
+\newcommand{\vincent}[1]{{\textbf{\color{pink!50!red!90!gray} -- #1 -- }}}
+\newcommand{\juge}[1]{{\color{gray}#1}}
+
+\newcommand{\ctok}{$\diamondsuit$\xspace}
+\newcommand{\stok}{$\heartsuit$\xspace}
+\newcommand{\ptok}{$\clubsuit$\xspace}
+
+\renewcommand{\gets}{\ensuremath{\leftarrow}}
+\newenvironment{disjunction}{\begin{itemize}}{\vspace{-\baselineskip}\end{itemize}}
+\setlength{\itemsep}{\smallskipamount}
+
+\theoremstyle{plain}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+
+\theoremstyle{definition}
+\newtheorem{remark2}[theorem]{Remark}
+
+
+% Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{On the Worst-Case Complexity of TimSort} 
+
+\bibliographystyle{plainurl}% the recommnded bibstyle
+
+%\author{Nicolas Auger}{Universit\'e Paris-Est, LIGM (UMR 8049), CNRS, ENPC, ESIEE Paris, UPEM, F-77454 Marne-la-Vall\'ee, France}{}{}{}
+
+\author{Nicolas Auger, Vincent Jugé, Cyril Nicaud, and Carine Pivoteau}{Universit\'e Paris-Est, LIGM (UMR 8049), UPEM, F77454 Marne-la-Vall\'ee, France}{}{}{}
+
+\authorrunning{N. Auger, V. Jugé, C. Nicaud, and C. Pivoteau} %mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et. al.'
+
+\Copyright{Nicolas Auger, Vincent Jugé, Cyril Nicaud, and Carine Pivoteau}%mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
+
+\subjclass{\ccsdesc[100]{Theory of computation~Sorting and searching}}% mandatory: Please choose ACM 2012 classifications from https://www.acm.org/publications/class-2012 or https://dl.acm.org/ccs/ccs_flat.cfm . E.g., cite as "General and reference $\rightarrow$ General literature" or \ccsdesc[100]{General and reference~General literature}. 
+
+\keywords{Sorting algorithms, Merge sorting algorithms, TimSort, Analysis of algorithms}% mandatory: Please provide 1-5 keywords
+
+% Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\EventEditors{}%Yossi Azar, Hannah Bast, and Grzegorz Herman}
+\EventNoEds{1}
+\EventLongTitle{}%26th Annual European Symposium on Algorithms (ESA 2018)}
+\EventShortTitle{}%ESA 2018}
+\EventAcronym{}%ESA}
+\EventYear{}%2018}
+\EventDate{}%August 20--22, 2018}
+\EventLocation{}%Helsinki, Finland}
+\EventLogo{}
+\SeriesVolume{}%112}
+\ArticleNo{} % “new number” (=<article-no>) goes here! 
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\TS is an intriguing sorting algorithm designed in 2002 for Python, 
+whose worst-case complexity was announced, but not proved until our recent preprint.
+In fact, there are two slightly different versions of \TS that are currently implemented in Python and in Java respectively. 
+We propose a pedagogical and insightful proof that the Python version runs in time~$\O(n \log n)$. 
+The approach we use in the analysis also applies to the Java version, although not without very involved technical details. 
+As a byproduct of our study, we uncover a bug in the Java implementation that can cause the sorting method to fail during the execution. 
+We also give a proof that Python's \TS running time is in $\O(n + n \H)$,
+where $\H$ is the entropy of the distribution of runs (i.e. maximal monotonic sequences), which is quite a natural parameter here and part of the explanation for the good behavior of \TS on partially sorted inputs. Finally, we evaluate precisely the worst-case running time of Python's \TS,
+and prove that it is equal to $1.5 n \H + \mathcal{O}(n)$.
+\end{abstract}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}\label{intro}
+\TS is a sorting algorithm designed in 2002 by Tim Peters~\cite{Peters2015},
+for use in the \Python programming language. It was thereafter implemented in
+other well-known programming languages such as \Java. The algorithm includes many implementation optimizations, a few heuristics and some refined tuning, but its high-level principle is rather simple:
+The sequence $S$ to be sorted is first decomposed greedily into monotonic runs (i.e. 
+nonincreasing or nondecreasing subsequences of~$S$ as depicted on Figure~\ref{fig:runs}), which are then merged pairwise according to some specific rules.
+
+\begin{figure}[h]
+\centerline{$
+S=(~\underbrace{12,10,7,5}_{\text{first run}},
+~\underbrace{7,10,14,25,36}_{\text{second run}},
+~\underbrace{3,5,11,14,15,21,22}_{\text{third run}},
+~\underbrace{20,15,10,8,5,1}_{\text{fourth run}}~)
+$}
+\caption{A sequence and its {\em run decomposition} computed by \TS: for each run, the first two elements determine if it is increasing or decreasing, then it continues with the maximum number of consecutive elements that preserves the monotonicity.\label{fig:runs}}
+\end{figure}
+
+The idea of starting with a decomposition into runs is not new, and already appears in Knuth's \NMS~\cite{Knuth98}, where increasing runs are sorted using the same mechanism as in \MS. 
+Other merging strategies combined with decomposition into runs appear in the literature, such as the \MinS of~\cite{Ta09} (see also~\cite{BaNa13} for other considerations on the same topic). 
+All of them have nice properties: they run in $\O(n\log n)$ and even $\O(n+n\log\rho)$, where $\rho$ is the number of runs, which is optimal in the model of sorting by comparisons~\cite{Mannila1985}, using the classical counting argument for lower bounds. 
+And yet, among all these merge-based algorithms, \TS was favored in several very popular programming languages, which suggests that it performs quite well in practice. 
+
+\TS running time was implicitly assumed to be $\O(n\log n)$, but our unpublished preprint~\cite{AuNiPi15} contains, to our knowledge, the first proof of it. This was more than ten years after \TS started being used instead of \QS in several major programming languages. 
+The growing popularity of this algorithm invites for a careful theoretical investigation. In the present paper, we make a thorough analysis which provides a better understanding of the inherent qualities of the merging strategy of \TS. 
+Indeed, it reveals that, even without its refined heuristics,\footnote{These heuristics are useful in practice, but do not improve the worst-case complexity of the algorithm.} this is an effective sorting algorithm, computing and merging runs on the fly, using only local properties to make its decisions. 
+
+% As the analysis we made in~\cite{AuNiPi15} was a bit involved and clumsy, w
+We first propose in Section~\ref{sec:analysis1} a new pedagogical and self-contained exposition that \TS runs in time $\O(n + n \log n)$, which we want both clear and insightful.
+In fact, we prove a stronger statement: on an input consisting of $\rho$ runs
+of respective lengths $r_1,\ldots,r_\rho$, we establish that \TS runs
+in $\O(n + n \H) \subseteq \O(n + n \log \rho) \subseteq \O(n + n \log n)$,
+where $\H = H(r_1/n,\ldots,r_\rho/n)$ and
+$H(p_1,\ldots,p_\rho) = - \sum_{i=1}^\rho p_i \log_2(p_i)$ is the binary Shannon entropy.
+
+We then refine this approach, in Section~\ref{sec:analysis2},
+to derive precise bounds on the worst-case running time of \TS,
+and we prove that it is equal to $1.5 n \H + \mathcal{O}(n)$.
+This answers positively a conjecture of~\cite{BuKno18}.
+% 
+% 
+% 
+% 
+% Using the same approach, we also establish in Section~\ref{sec:analysis2} that it runs in $\O(n+n\log \rho)$, a question left open in our preprint and also in a recent work\footnote{In~\cite{BuKno18}, the authors refined the analysis of~\cite{AuNiPi15} to obtain very precise bounds for the complexity of \TS and of similar algorithms.} on \TS~\cite{BuKno18}.
+Of course, the first result follows from the second, but since we believe that each one is interesting on its own, we devote one section to each of them.
+% Besides, 
+% the second result provides with an explanation to why \TS is a very good sorting algorithm, worth considering in most situations where in-place sorting is not needed.
+
+To introduce our last contribution, we need to look into the evolution of the algorithm: there are actually not one, but two main versions of \TS. The first version of the algorithm contained a flaw, which was spotted in~\cite{GoRoBoBuHa15}: while the input was correctly sorted, the algorithm did not behave as announced (because of a broken invariant).
+This was discovered by De Gouw and his co-authors while trying to prove formally the correctness of \TS. 
+They proposed a simple way to patch the algorithm, which was quickly adopted in Python, leading to what we consider to be the real \TS. This is the one we analyze in Sections~\ref{sec:analysis1} and~\ref{sec:analysis2}. 
+On the contrary, Java developers chose to stick with the first version of \TS, and adjusted some tuning values (which depend on the broken invariant; this is explained in Sections~\ref{presentation} and~\ref{sec:java}) to prevent the bug exposed by~\cite{GoRoBoBuHa15}. Motivated by its use in Java, we explain in Section~\ref{sec:java} how, at the expense of very complicated technical details, the elegant proofs of the Python version can be twisted to prove the same results for this older version. While working on this analysis, we discovered yet another error in the correction made in~Java. Thus, we compute yet another patch, even if we strongly agree that the algorithm proposed and formally proved in~\cite{GoRoBoBuHa15} (the one currently implemented in Python) is a better option.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{TimSort core algorithm}\label{presentation}
+
+
+\begin{algorithm}[t]
+\begin{small}
+\SetArgSty{texttt}
+\DontPrintSemicolon
+\SetKwInOut{Input}{Input}
+\Input{A sequence $S$ to sort}
+\KwResult{The sequence $S$ is sorted into a single run, which  remains on the 
+stack.}
+\BlankLine
+\SetKwInput{KwData}{Note}
+\KwData{The function {\tt merge\_force\_collapse} repeatedly pops the last two runs on the stack~$\runstack$, merges them and pushes the resulting run back on the stack.}
+\BlankLine
+$\rundecomp \gets $ a run decomposition of $S$\;
+$\runstack \gets $ an empty stack\;
+\While(\tcp*[f]{main loop of \TS}){$\rundecomp\neq \emptyset$\label{algline:begin_loop}}{
+  remove a run $r$ from $\rundecomp$ and push $r$ onto $\runstack$\;
+  {\tt merge\_collapse}($\runstack$)\;\label{algline:end_loop}
+}
+\If(\tcp*[f]{the height of $\runstack$ is its number of runs}){$\height(\runstack) \neq 1$}{
+  {\tt merge\_force\_collapse}($\runstack$)
+}
+\end{small}
+\caption{\TS \hfill(Python 3.6.5) \label{alg:TimSortMainLoop}}
+\end{algorithm}
+
+The idea of \TS is to design a merge sort that can exploit the possible  
+``non randomness'' of the data, without having to detect it beforehand and 
+without damaging the performances on random-looking data. This follows the ideas 
+of adaptive sorting (see~\cite{Mannila1985} for a survey on taking presortedness 
+into account when designing and analyzing sorting algorithms).
+
+The first feature of \TS is to work on the natural decomposition of the input  
+sequence into maximal runs. In order to get larger subsequences, \TS allows both 
+nondecreasing and decreasing runs, unlike most merge sort algorithms. 
+
+Then, the merging strategy of \TS~(Algorithm~\ref{alg:TimSortMainLoop}) is quite simple yet very efficient. The runs are considered in the order  
+given by the run decomposition and successively pushed onto a stack. 
+If some conditions on the size of the topmost runs of the stack are not satisfied after a new run has been pushed, this can trigger a series of merges between pairs of runs at the top or right under. 
+And at the end, when all the runs in the initial decomposition 
+have been pushed, the last operation is to merge the remaining runs two by two, starting
+at the top of the stack, to get a sorted sequence.
+The conditions on the stack and the merging rules are implemented in the  
+subroutine called~{\tt merge\_collapse} detailed in Algorithm~\ref{alg:merge_collapse}. 
+This is what we consider to be \TS core mechanism and this is the main focus of our analysis. 
+
+\begin{algorithm}[t]
+\begin{small}
+\SetArgSty{texttt}
+\DontPrintSemicolon
+\SetKwInOut{Input}{Input}
+\Input{A stack of runs $\runstack$}
+\KwResult{The invariant of Equations~\eqref{eq:inv1} and~\eqref{eq:inv2} is established.}
+\BlankLine
+\SetKwInput{KwData}{Note}
+\KwData{The runs on the stack are denoted by $\runstack[1]\dots\runstack[\height(\runstack)]$, from top to bottom. The length of run $\runstack$[i] is denoted by $\rs_i$. The blue highlight indicates that the condition was not present in the original version of \TS (this will be discussed in section~\ref{sec:java}).}
+\BlankLine
+\While{$\height(\runstack)>1$}{
+  $n \gets \height(\runstack) - 2$ 
+    \BlankLine
+  \If{
+  ($n > 0$ and $\rs_{3}\leqslant \rs_{2} + \rs_{1}$)
+  \textcolor{blue}{ or ($n > 1$ and $\rs_{4} \leqslant \rs_{3} + \rs_{2}$)}\,\label{algline:new_cond}}{
+    \If{$\rs_{3} < \rs_{1}$}{
+      merge runs $\runstack$[2] and $\runstack$[3] on the stack\;
+    }
+    \lElse{merge runs $\runstack$[1] and $\runstack$[2] on the stack}
+  }
+  \ElseIf{$\rs_{2} \leqslant \rs_{1}$}{
+    merge runs $\runstack$[1] and $\runstack$[2] on the stack
+  }
+  \lElse{
+    break
+  }
+}
+\end{small}
+\caption{The {\tt merge\_collapse} procedure \hfill(Python 3.6.5)\label{alg:merge_collapse}}
+\end{algorithm}
+
+Another strength of \TS is the use of many effective heuristics to save
+time, such as ensuring that the initial runs are not to small thanks to an insertion sort 
+or using a special technique called ``galloping'' to optimize the merges. 
+However, this does not interfere with our analysis and we will not discuss this matter any further.
+
+Let us have a closer look at Algorithm~\ref{alg:merge_collapse} which is a pseudo-code transcription
+of the {\tt merge\_collapse} procedure found in the latest version of Python (3.6.5). 
+To illustrate its mechanism, an example of execution of the main loop of \TS (lines~\ref*{algline:begin_loop}-\ref*{algline:end_loop} of Algorithm~\ref{alg:TimSortMainLoop}) is given in Figure~\ref{fig:ts-python-exec}. 
+As stated in its note~\cite{Peters2015}, Tim Peter's idea was that: 
+\begin{quote}
+``The thrust of these rules when they trigger merging is to balance the run
+lengths as closely as possible, while keeping a low bound on the number of
+runs we have to remember.''    
+\end{quote}
+To achieve this, the merging conditions of {\tt merge\_collapse} are designed  
+to ensure that the following invariant\footnote{Actually, in~\cite{Peters2015}, the invariant is only stated for the 3 topmost runs of the stack.} is true at the end of the procedure:
+\begin{eqnarray}
+    \rs_{i+2}&>&\rs_{i+1}+\rs_{i}, \label{eq:inv1}\\
+    \rs_{i+1}&>&\rs_{i}.\label{eq:inv2}
+\end{eqnarray}
+This means that the runs lengths $\rs_i$ 
+on the  stack grow at least as fast as the Fibonacci numbers and, therefore, 
+that the height of the stack stays logarithmic (see Lemma~\ref{lm:h-is-small}, section~\ref{sec:analysis1}). 
+
+Note that the bound on the height of the stack is not enough to justify the $\O(n\log n)$ running time of \TS. Indeed, without the smart strategy used to merge the runs ``on the fly'', it is easy to build an example using a stack containing at most two runs and that gives a $\Theta(n^2)$ complexity: just assume that all runs have size two, push them one by one onto a stack and perform a merge each time there are two runs in the stack. 
+
+We are now ready to proceed with the analysis of \TS complexity. As mentioned earlier, Algorithm~\ref{alg:merge_collapse} does not correspond to the first implementation of \TS in Python, nor to the current one in Java, but to the latest Python version. The original version will be discussed in details later, in Section~\ref{sec:java}.   
+
+\begin{figure}[t]
+\begin{center}
+\begin{small}
+\setlength{\tabcolsep}{1pt}
+\begin{tabular}{ccccccccccccccc}
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 24}\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 18}\\24\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 50}\\18\\24\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 50\\42\\ };
+\node [above] at (A.north) {$\#2$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 92\\ };
+\node [above] at (A.north) {$\#3$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 28}\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 20}\\28\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 6}\\20\\28\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 4}\\6\\20\\28\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 8}\\4\\6\\20\\28\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 8\\10\\20\\28\\92\\ };
+\node [above] at (A.north) {$\#2$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 18\\20\\28\\92\\ };
+\node [above] at (A.north) {$\#5$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 38\\28\\92\\ };
+\node [above] at (A.north) {$\#4$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { 66\\92\\ };
+\node [above] at (A.north) {$\#3$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[every node/.style={align=center,text width=1em}]
+\matrix (A) [matrix of nodes,nodes={draw}] { {\bf 1}\\66\\92\\ };
+\node [above] at (A.north) {$\#1$};
+\end{tikzpicture}
+\end{tabular}
+\begin{tikzpicture}
+\draw[decorate,thick,decoration={brace,amplitude=4pt,mirror}] (-3.8,0.2) -- (-2.3,0.2); 
+\draw[decorate,thick,decoration={brace,amplitude=4pt,mirror}] (2.0,0.2) -- (5.3,0.2); 
+\draw (-3.05,-0.1) node{\scriptsize {\tt merge\_collapse}};
+\draw (3.65,-0.1) node{\scriptsize {\tt merge\_collapse}};
+\node[text width=\textwidth]{};
+\end{tikzpicture}
+\end{small}
+\end{center}
+\vspace{-6mm}
+\caption{ The successive states of the stack~$\runstack$ (the values are the  
+lengths of the runs) during an execution of the main loop of \TS 
+(Algorithm~\ref{alg:TimSortMainLoop}), with the lengths of the runs in 
+$\rundecomp$ being $(24, 18, 50, 28, 20, 6, 4, 8, 1)$. 
+The label $\#1$ indicates that a run has just been pushed onto the stack. 
+The other labels refer to the different merges cases of {\tt merge\_collapse} as translated in Algorithm~\ref{alg:TS translated}.
+\label{fig:ts-python-exec}}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{TimSort runs in \texorpdfstring{$\O(n\log n)$}{Lg}}\label{sec:analysis1}
+
+At the first release of \TS~\cite{Peters2015}, a time complexity of $\O(n\log n)$ was 
+announced with no element of proof given. It seemed to remain unproved until 
+our recent preprint~\cite{AuNiPi15}, where we provide a confirmation of this fact, using 
+a proof which is not difficult but a bit tedious. This result was  refined later in~\cite{BuKno18}, where the authors provide lower and upper bounds, including explicit multiplicative constants, for different merge sort algorithms.
+
+Our main concern is to provide an insightful proof of the complexity of \TS, in order to highlight how well designed is the strategy used to choose the order in which the merges are performed.
+The present section is more detailed than the following ones as we want it to be
+self-contained once \TS has been translated into Algorithm~\ref{alg:TS translated} (see below).
+
+\begin{algorithm}[t]
+\begin{small}
+\SetArgSty{texttt}
+\DontPrintSemicolon
+\SetKwInOut{Input}{Input}
+\Input{A sequence to $S$ to sort}
+\KwResult{The sequence $S$ is sorted into a single run,  which remains on the 
+stack.}
+\SetKwInput{KwData}{Note}
+\KwData{At any time, we denote the height of the stack $\runstack$ by $h$
+and its $i$\textsuperscript{th} top-most run (for $1 \leqslant i 
+\leqslant h$)  
+by $R_i$. The size of this run is denoted by $r_i$.}
+\BlankLine
+\BlankLine
+$\rundecomp \gets $ the run decomposition of $S$\;
+$\runstack \gets $ an empty stack\;
+\While(\tcp*[f]{main loop of \TS}){$\rundecomp\neq \emptyset$}{
+  remove a run $r$ from $\rundecomp$ and push $r$ onto 
+$\runstack$\tcp*[r]{\#1$\;$} 
+  \While{\true}{\label{algline:inner_while_translated}
+    \lIf{$h \geqslant 3$ and $r_1 > r_3$}{
+        merge the runs $R_2$ and $R_3$ \tcp*[f]{\#2}
+    }
+    \lElseIf{$h \geqslant 2$ and $r_1 \geqslant r_2$}{
+        merge the runs $R_1$ and $R_2$ \tcp*[f]{\#3}
+    }
+    \lElseIf{$h \geqslant 3$ and $r_1+r_2 \geqslant r_3$}{
+        merge the runs $R_1$ and $R_2$ \tcp*[f]{\#4}
+    }
+    \textcolor{blue}{\lElseIf{$h \geqslant 4$ and $r_2+r_3 \geqslant r_4$}{ \label{algline:new_cond_translated}
+        merge the runs $R_1$ and $R_2$ \tcp*[f]{\#5}
+    }}
+    \lElse{break}
+  }
+}
+\lWhile{$h \neq 1$}{
+  merge the runs $R_1$ and $R_2$%two top-most runs on the stack $\runstack$
+}
+\end{small}
+\caption{TimSort: translation of Algorithm~\ref{alg:TimSortMainLoop} and Algorithm~\ref{alg:merge_collapse}\label{alg:TS translated}}
+\end{algorithm}
+
+As our analysis is about to demonstrate, in terms of worst-case complexity, the good performances of \TS do not rely on the way merges are performed. 
+Thus we choose to ignore their many optimizations and consider that merging two runs of lengths~$r$ and~$r'$ requires both $r+r'$ element moves and $r+r'$ element comparisons.
+Therefore, to quantify the running time of \TS, we only take into account the number of comparisons performed.
+
+In particular, aiming at computing precise bounds on the running time of \TS, we
+follow~\cite{golin1993queue,AuNiPi15,BuKno18,munro2018nearly} and define the
+\emph{merge cost} for merging two runs of lengths $r$ and $r'$ as $r + r'$,
+i.e., the length of the resulting run. Henceforth, we will identify the time spent for
+merging two runs with the merge cost of this merge.
+
+\vfill
+
+\begin{theorem}\label{thm:complexity n + n H}
+Let $\C$ be the class of arrays of length $n$, whose run decompositions
+consist of $\rho$ monotonic runs of
+respective lengths $r_1,\ldots,r_\rho$.
+Let $H(p_1,\ldots,p_\rho) = - \sum_{i=1}^\rho p_i \log_2(p_i)$ be the binary Shannon entropy,
+and let $\H = H(r_1/n,\ldots,r_\rho/n)$.
+
+The running time of \TS on arrays in $\C$ is
+$\mathcal{O}(n + n \H)$. 
+\end{theorem}
+
+From this result, we easily deduce the following complexity bound on \TS,
+which is less precise but more simple.
+
+\begin{theorem}\label{thm:complexity n log n}
+The running time of \TS on arrays of length $n$ that consist of $\rho$ monotonic runs is
+$\O(n + n\log \rho)$, and therefore $\O(n \log n)$.
+\end{theorem}
+
+\begin{proof}
+The function $f : x \mapsto - x \ln(x)$ is concave on the interval $\mathbb{R}_{>0}$ of positive real numbers,
+since its second derivative is $f''(x) = - 1/x$. Hence, when $p_1,\ldots,p_\rho$ are
+positive real numbers that sum up to one, we have
+$H(p_1,\ldots,p_\rho) = {\textstyle\sum_{i=1}^\rho f(p_i)/\ln(2)} \leqslant \rho f(1/\rho)/\ln(2) = \log_2(\rho)$.
+In particular, this means that $\H \leqslant \log_2(\rho)$, and therefore that
+\TS runs in time $\O(n + n\log \rho)$.
+Since $\rho \leqslant n$, it further follows that $\O(n + n\log \rho) \subseteq \O(n + n\log n) = \O(n \log n)$, which completes the proof.
+\end{proof}
+
+Before proving Theorem~\ref{thm:complexity n + n H},
+we first show that it is optimal up to a multiplicative constant,
+by recalling the following variant of a result from~\cite[Theorem~2]{BaNa13}.
+
+\begin{proposition}\label{proposition:optimality}
+For every algorithm comparing only pairs of elements,
+there exists an array in the class $\C$ whose sorting
+requires at least $n \H - 3 n$ element comparisons.
+\end{proposition}
+
+\begin{proof}
+In the comparison model, at least $\log_2(|\C|)$ element comparisons
+are required for sorting all arrays in $\C$.
+Hence, we prove below that $\log_2(|\C|) \geqslant n \H - 3 n$.
+
+Let $\pi = (\pi_1,\ldots,\pi_\rho)$ be a partition of the set $\{1,\ldots,n\}$
+into $\rho$ subsets of respective sizes $r_1,\ldots,r_\rho$;
+we say that $\pi$ is \emph{nice} if $\max \pi_i > \min \pi_{i+1}$ for all $i \leqslant \rho-1$.
+Let us denote by $\mathcal{P}$ the set of partitions $\pi$ of $\{1,\ldots,n\}$ such that $|\pi_i| = r_i$
+for all $i \leqslant \rho$, and by $\mathcal{N}$ the set of nice partitions.
+
+Let us transform every partition $\pi \in \mathcal{P}$ into a nice partition as follows.
+First, by construction of the run decomposition of an array, we know that $r_1,\ldots,r_{\rho-1} \geqslant 2$,
+and therefore that $\min \pi_i < \max \pi_i$ for all $i \leqslant \rho-1$.
+Then, for all $i \leqslant \rho-1$, if $\max \pi_i < \min \pi_{i+1}$, we exchange the partitions to which belong $\max \pi_i$ and $\min \pi_{i+1}$, i.e., we move $\max \pi_i$ from the set $\pi_i$ to $\pi_{i+1}$,
+and $\min \pi_{i+1}$ from $\pi_{i+1}$ to $\pi_i$. Let $\pi^\ast$ be the partition obtained after
+these exchanges have been performed.
+
+Observe that $\pi^\ast$ is nice, and that at most $2^{\rho-1}$ partitions $\pi \in \mathcal{P}$
+can be transformed into $\pi^\ast$. This proves that $2^{\rho-1}|\mathcal{N}| \geqslant |\mathcal{P}|$.
+Let us further identify every nice partition $\pi^\ast$ with an array in $\C$,
+which starts with the elements of $\pi^\ast_1$ (listed in increasing order),
+then of $\pi^\ast_2, \ldots, \pi^\ast_\rho$.
+We thereby define an injective map from $\mathcal{N}$ to $\C$,
+which proves that $|\C| \geqslant |\mathcal{N}|$.
+
+Finally, variants of the Stirling formula indicate that
+$(k/e)^k \leqslant k! \leqslant e \sqrt{k} (k/e)^k$ for all $k \geqslant 1$.
+This proves that
+\begin{align*}
+\log_2(|\C|) & \geqslant \log_2(|\C|) \geqslant (1 - \rho) + \log_2(|\mathcal{P}|) \\
+& \geqslant (1 - \rho) + n \log_2(n) - \rho \log_2(e) - {\textstyle\sum_{i=1}^\rho} (r_i+1/2) \log_2(r_i) \\
+& \geqslant n \H + (1 - \rho - \rho \log_2(e)) - 1/2 {\textstyle\sum_{i=1}^\rho} \log_2(r_i).
+\end{align*}
+By concavity of the function $x \mapsto \log_2(x)$, it follows that
+$\textstyle\sum_{i=1}^\rho \log_2(r_i) \leqslant \rho \log_2(n/\rho)$.
+One checks easily that the function $x \mapsto x \log_2(n/x)$ takes its maximum value at $x = n/e$,
+and since $n \geqslant \rho$, we conclude that
+$\log_2(|\C|) \geqslant n \H - (1+\log_2(e)+\log_2(e)/e) n \geqslant n \H - 3 n$.
+\end{proof}
+
+We focus now on proving Theorem~\ref{thm:complexity n + n H}.
+The first step consists in rewriting Algorithm~\ref{alg:TimSortMainLoop} and 
+Algorithm~\ref{alg:merge_collapse} in a form that is easier to deal with. This is done in Algorithm~\ref{alg:TS translated}. 
+
+\begin{claim}
+For any input, Algorithms~\ref{alg:TimSortMainLoop} and~\ref{alg:TS translated} perform the same comparisons. 
+\end{claim}
+
+\begin{proof}
+The only difference is that Algorithm~\ref{alg:merge_collapse} was changed into the \texttt{while} loop of lines~5 to~10 in Algorithm~\ref{alg:TS translated}.
+Observing the different cases, it is straightforward to verify that merges involving the same runs take place in the same order in both algorithms.
+Indeed, if $r_3 < r_1$, then $r_3 \leqslant r_1 + r_2$, and therefore line 5 is triggered in Algorithm~\ref{alg:merge_collapse}, so that
+both algorithms merge the $2$\textsuperscript{nd} and $3$\textsuperscript{rd} runs.
+On the contrary, if $r_3 \geqslant r_1$, then both algorithms merge the $1$\textsuperscript{st} and $2$\textsuperscript{nd} runs if and only if
+$r_2 \leqslant r_1$ or $r_3 \leqslant r_1 + r_2$ ({\color{blue}or $r_4 \leqslant r_2 + r_3$}).
+\end{proof}
+
+\begin{remark2}\label{rem:main-loop}
+Proving Theorem~\ref{thm:complexity n log n} only requires
+analyzing the \emph{main loop} of the algorithm (lines~3 to 10).
+Indeed, computing the run decomposition (line~1) can be done on the fly,
+by a greedy algorithm, in time linear in $n$, and the \emph{final loop} (line~11) might be performed in the main loop by adding a fictitious run of length $n+1$ at the end of the decomposition.
+
+In the sequel, for the sake of readability, we also omit
+checking that $h$ is large enough to trigger the cases \#2 to \#5.
+Once again, such omissions are benign, since
+adding fictitious runs of respective lengths $8n$, $4n$, $2n$ and $n$
+(in this order) at the beginning of the decomposition
+would ensure that $h \geqslant 4$ during the whole loop.
+\end{remark2}
+
+% In Algorithm~\ref{alg:TS translated}, we can see that the merges performed during Case \#2 allow a very large run to be pushed and ``absorbed'' onto the stack without being merged all the way down, but by collapsing the stack under this run instead. Meanwhile, the purpose of Cases \#3--\#5 is mainly to re-establish the invariant~\eqref{eq:inv1} and~\eqref{eq:inv2}, ensuring an exponential growth of the run lengths within the stack.
+% Along this process, the cost of keeping the stack in good shape is compensated by the absorption of these large runs which naturally calls for an \emph{amortized complexity} analysis.
+
+We sketch now the main steps of our proof, i.e., the amortized analysis of the main loop.
+A first step is to establish the invariant~\eqref{eq:inv1} and~\eqref{eq:inv2},
+ensuring an exponential growth of the run lengths within the stack.
+
+Elements of the input array are easily identified by their starting position in the array, so we consider them as well-defined and distinct entities (even if they have the same value). 
+The \emph{height} of an element in the stack of runs is the number of runs that are
+below it in the stack: the elements belonging to the run~$R_i$ in the stack
+$\S = (R_1,\ldots, R_h)$ have height $h-i$, and we recall that the length of the run $R_i$ is denoted
+by $r_i$.
+% To simplify the presentation, we also distinguish two kinds of tokens, the \ctok-tokens and the \stok-tokens, which can both be used to pay for comparisons.
+
+\begin{lemma}\label{lm:invariant I}
+At any step during the main loop of \TS, we have~$r_i+r_{i+1}<r_{i+2}$ for all $i \in \{3,\ldots,h-2\}$.
+\end{lemma}
+
+\begin{proof}
+We proceed by induction. The proof consists in verifying that, if the
+invariant holds at some point, then it still holds when an update of the stack occurs in one of the five situations labeled \#1 to \#5 in the algorithm.
+This can be done by a straightforward case analysis.
+We denote by $\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{\overline{h}})$ the new state of the stack after the update:
+\begin{disjunction}
+  \item If Case \#1 just occurred, a new run $\overline{R}_1$ was pushed.
+  This implies that none of the conditions of Cases \#2 to \#5 hold in $\S$, otherwise merges would have continued.  In particular, we have $r_2+r_3<r_4$.
+  As $\overline{r}_i=r_{i-1}$ for all $i\geqslant 2$, and since the invariant holds for $\S$, it also
+  holds for $\overline{\S}$.
+  
+  \item If one of the Cases \#2 to \#5 just occurred, $\overline{r}_i=r_{i+1}$ for all $i\geqslant 3$. Since the invariant holds for $\S$, it must also hold for $\overline{\S}$.
+\end{disjunction}
+\end{proof}
+
+\begin{corollary}\label{cor:invariant I'}
+During the main loop of \TS, whenever a run is about to be pushed onto the stack, we have
+$r_i \leqslant 2^{(i+1-j)/2} r_j$ for all integers $i \leqslant j \leqslant h$.
+\end{corollary}
+
+\begin{proof}
+Since a run is about to be pushed, none of the conditions of Cases \#2 to \#5 hold in the stack $\S$.
+Hence, we have $r_1 < r_2$, $r_1 + r_2 < r_3$ and $r_2 + r_3 < r_4$, and Lemma~\ref{lm:invariant I}
+further proves that $r_i + r_{i+1} < r_{i+2}$ for all $i \in \{3,\ldots,h-2\}$.
+In particular, for all $i \leqslant h-2$, we have $r_i < r_{i+1}$, and thus
+$2 r_i \leqslant r_i + r_{i+1} \leqslant r_{i+2}$.
+It follows immediately that $r_i \leqslant 2^{-k} r_{i+2k} \leqslant 2^{-k} r_{i+2k+1}$
+for all integers $k \geqslant 0$, which is exactly the statement of Corollary~\ref{cor:invariant I'}.
+\end{proof}
+
+Corollary~\ref{cor:invariant I'} will be crucial in proving that the main loop of \TS can be performed
+for a merge cost $\O(n + n \H)$. However, we do not prove this upper bound directly.
+Instead, we need to distinguish several situations that may occur within the main loop.
+
+Consider the sequence of Cases \#1 to \#5 triggered during the execution of the main loop of \TS.
+It can be seen as a word on the alphabet $\{\#1,\ldots,\#5\}$ that starts with \#1, which completely encodes the execution of the algorithm. 
+We split this word at every \#1, so that each piece corresponds to an iteration of the main loop. 
+Those pieces are in turn split into two parts, at the first occurrence of a symbol \#3, \#4 or \#5.
+The first half is called a \emph{starting sequence} and is made of a \#1 followed by the maximal number of \#2's. 
+The second half is called an \emph{ending sequence}, it starts with \#3, \#4 or \#5 (or is empty) and it contains no occurrence of \#1 (see Figure~\ref{fig:sequence} for an example).
+
+\begin{figure}[H]
+\smallskip
+\centerline{$
+\underbrace{\#1\;\#2\;\#2\;\#2}_{\text{starting seq.}}
+~~\underbrace{\#3\;\#2\;\#5\;\#2\;\#4\;\#2}_{\text{ending seq.}}
+~~~\underbrace{\#1\;\#2\;\#2\;\#2\;\#2\;\#2}_{\text{starting seq.}}
+~~\underbrace{\#5\;\#2\;\#3\;\#3\;\#4\;\#2}_{\text{ending seq.}}
+$}
+\caption{The decomposition of the encoding of an execution into starting and ending sequences.\label{fig:sequence}}
+\end{figure}
+
+We bound the merge cost of starting sequences first, and will deal with ending sequences afterwards.
+
+\begin{lemma}\label{lm:starting}
+The cost of all merges performed during the starting sequences is~$\O(n)$.
+\end{lemma}
+
+\begin{proof}
+More precisely, for a stack $\S=(R_1,\ldots,R_h)$, we prove that a starting sequence beginning with a push of a run~$R$ of size $r$ onto $\S$ uses at most $\gamma r$ comparisons in total,
+where~$\gamma$ is the real constant $2 \sum_{j \geqslant 1} j / 2^{j/2}$. 
+After the push, the stack is $\overline{\S} = (R,R_1,\ldots,R_h)$ and,
+if the starting sequence contains $k \geqslant 1$ letters, i.e. $k-1$ occurrences of \#2, 
+then this sequence amounts to merging the runs $R_1$, $R_2$, \ldots, $R_k$.
+Since no merge is performed if $k = 1$, we assume below that $k \geqslant 2$.
+
+More precisely, the total cost of these merges is
+\[
+C = (k-1)r_1+(k-1)r_2 + (k-2)r_3+\ldots + r_k \leqslant {\textstyle\sum_{i=1}^k} (k+1-i)r_i.
+\]
+The last occurrence of Case \#2 ensures that $r > r_k$,
+hence applying Corollary~\ref{cor:invariant I'} to the stack $\S = (R_1,\ldots,R_h)$ shows that
+$r \geqslant r_k \geqslant 2^{(k-1-i)/2} r_i$ for all $i = 1,\ldots,k$.
+It follows that
+\[
+C / r \leqslant {\textstyle\sum_{i=1}^k} (k+1-i)2^{(i+1-k)/2} =
+2 {\textstyle\sum_{j=1}^k} j 2^{-j/2} < \gamma.
+\]
+
+This concludes the proof, since each run is the beginning of exactly one starting sequence, and the sum of their lengths is $n$.
+\end{proof}
+
+Now, we must take care of run merges that take place during ending sequences.
+The cost of merging two runs will be taken care of by making run elements pay tokens:
+whenever two runs of lengths $r$ and $r'$ are merged, $r+r'$ tokens are paid
+(not necessarily by the elements of those runs that are merged).
+In order to do so, and to simplify the presentation, we also distinguish two kinds of tokens,
+the \ctok-tokens and the \stok-tokens, which can both be used to pay for comparisons.
+
+Two \ctok-tokens and one \stok-token are credited to an element when its run is pushed onto the stack
+or when its height later decreases \emph{because of a merge that took place during an ending sequence}:
+in the latter case, all the elements of $R_1$ are credited when $R_1$ and $R_2$ are merged, and
+all the elements of $R_1$ and $R_2$ are credited when $R_2$ and $R_3$ are merged.
+% 
+Tokens are spent to pay for comparisons, depending on % \juge{which case of Algorithm~\ref{alg:TS translated} is triggered:}
+the case triggered:
+\begin{itemize}
+\item Case \#2: every element of $R_1$ and $R_2$ pays 1 \ctok.
+This is enough to cover the cost of merging $R_2$ and $R_3$, 
+because $r_1 > r_3$ in this case, and therefore $r_2+r_1 \geqslant r_2 + r_3$.
+\item Case \#3: every element of $R_1$ pays 2 \ctok. In this case $r_1\geqslant r_2$, and the cost is $r_1+r_2 \leqslant 2r_1$.
+\item Cases \#4 and \#5: every element of $R_1$ pays 1 \ctok
+and every element of $R_2$ pays 1 \stok. The cost $r_1+r_2$ is exactly the number of tokens spent.
+\end{itemize}
+
+\begin{lemma}\label{lm:balance}
+The balances of \ctok-tokens and \stok-tokens of each element remain non-negative throughout  the main loop of \TS.
+\end{lemma}
+
+\begin{proof}
+In all four cases \#2 to \#5, because the height of the elements of $R_1$ and possibly the height of those of $R_2$ decrease,
+the number of credited \ctok-tokens after the merge is at least the number of \ctok-tokens spent.
+The \stok-tokens are spent in Cases \#4 and \#5 only: every element of $R_2$ pays one \stok-token, and then belongs to the topmost run $\overline{R}_1$ of the new stack $\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{h-1})$ obtained after  merging $R_1$ and $R_2$. Since 
+$\overline{R}_{i} = R_{i+1}$ for $i\geqslant 2$, the condition of Case~\#4 implies that $\overline{r}_1\geqslant \overline{r}_2$ and
+the condition of Case~\#5 implies that $\overline{r}_1+\overline{r}_2\geqslant \overline{r}_3$: in both cases, the next modification of the stack $\overline{\S}$ is another merge, which belongs to the same ending sequence.
+
+This merge decreases the height of $\overline{R}_1$, and therefore decreases the height of the elements of $R_2$, who will regain one \stok-token without losing any, since the topmost run of the stack never
+pays with \stok-tokens. This proves that, whenever an element pay one \stok-token, the next modification is another merge during which it regains its \stok-token. This concludes the proof by direct induction.
+\end{proof}
+
+Finally, consider some element belonging to a run $R$.
+Let $\S$ be the stack just before pushing the run $R$, and let
+$\overline{S} = (\overline{R}_1,\ldots,\overline{R}_h)$ be the
+stack just after the starting sequence of the run $R$
+(i.e., the starting sequence initiated when $R$ is pushed onto $\S$) is over.
+Every element of $R$ will be given at most $2h$ \ctok-tokens and $h$ \stok-tokens during the main loop
+of the algorithm.
+
+\begin{lemma}\label{lm:h-is-small}
+The height of the stack when the starting sequence of the run $R$ is over
+satisfies the inequality $h \leqslant 4 + 2 \log_2(n/r)$.
+\end{lemma}
+
+\begin{proof}
+Since none of the runs $\overline{R}_3,\ldots,\overline{R}_h$
+has been merged during the starting sequence of $R$,
+applying Corollary~\ref{cor:invariant I'} to the stack $\S$ proves that
+$\overline{r}_3 \leqslant 2^{2-h/2} \overline{r}_h \leqslant 2^{2-h/2} n$.
+The run $R$ has not yet been merged either, which means that $r = \overline{r}_1$.
+Moreover, at the end of this starting sequence, the conditions of case \#2 do not hold anymore,
+which means that $\overline{r}_1 \leqslant \overline{r}_3$.
+It follows that $r = \overline{r}_1 \leqslant \overline{r}_3 \leqslant 2^{2-h/2} n$,
+which entails the desired inequality.
+\end{proof}
+
+Collecting all the above results is enough to prove Theorem~\ref{thm:complexity n + n H}.
+First, as mentioned in Remark~\ref{rem:main-loop},
+computing the run decomposition can be done in linear time. Then, we proved
+that the starting sequences of the main loop have a merge cost $\O(n)$,
+and that the ending sequences have a merge cost
+$\O(\sum_{i=1}^\rho (1+\log(n/r_i))r_i) = \O(n + n \H)$.
+Finally, the additional
+merges of line~11 may be taken care of by Remark~\ref{rem:main-loop}.
+This concludes the proof of the theorem.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Refined analysis and precise worst-case complexity}\label{sec:analysis2}
+
+The analysis performed in Section~\ref{sec:analysis1} proves that \TS sorts arrays in time
+$\O(n + n \H)$. Looking more closely at the constants hidden in the $\O$ notation,
+we may in fact prove that the cost of merges performed during an execution of \TS
+is never greater than $6 n \H + \O(n)$.
+However, the lower bound provided by Proposition~\ref{proposition:optimality}
+only proves that the cost of these merges must be at least $n \H + \O(n)$.
+In addition, there exist sorting algorithms~\cite{munro2018nearly}
+whose merge cost is exactly $n \H + \O(n)$.
+
+Hence, \TS is optimal only up to a multiplicative constant.
+We focus now on finding the least real constant $\kappa$ such that
+the merge cost of \TS is at most $\kappa n \H + \O(n)$,
+thereby proving a conjecture of~\cite{BuKno18}.
+
+\begin{theorem}\label{thm:complexity 1.5 n + n H}
+The merge cost of \TS on arrays in $\C$ is at most $\kappa n \H + \O(n)$,
+where $\kappa = 3/2$. Furthermore, $\kappa = 3/2$ is the least real constant
+with this property.
+\end{theorem}
+
+The rest of this Section is devoted to proving Theorem~\ref{thm:complexity 1.5 n + n H}.
+The theorem can be divided into two statements: one that states that \TS is asymptotically
+optimal up to a multiplicative constant of $\kappa = 3/2$, and one that states that $\kappa$ is optimal.
+The latter statement was proved in~\cite{BuKno18}. Here, we borrow their proof for the sake of completeness.
+
+\begin{proposition}\label{pro:kappa-optimal-BuKno18}
+There exist arrays of length $n$ on which the merge cost of \TS is at least $3/2 n \log_2(n) + \O(n)$.
+\end{proposition}
+
+\begin{proof}
+The dynamics of \TS when sorting an array involves only the lengths of the monotonic runs in which
+the array is split, not the actual array values. Hence, we identify every array with the sequence
+of its run lengths. Therefore, every sequence of run lengths $\langle r_1,\ldots,r_\rho \rangle$ such that
+$r_1,\ldots,r_{\rho-1} \geqslant 2$, $r_\rho \geqslant 1$ and $r_1+\ldots+r_\rho = n$ represents
+at least one possible array of length $n$.
+
+We define inductively a sequence of run lengths $\R(n)$ as follows:
+\[\R(n) = \begin{cases}\langle n \rangle & \text{if } 1 \leqslant n \leqslant 6, \\
+\R(k) \cdot \R(k-2) \cdot \langle 2\rangle & \text{if } n = 2k \text{ for some } k \geqslant 4, \\
+\R(k) \cdot \R(k-1) \cdot \langle 2\rangle & \text{if } n = 2k+1 \text{ for some } k \geqslant 3,
+\end{cases}\]
+where the concanetation of two sequences $s$ and $t$ is denoted by $s \cdot t$.
+
+Then, let us apply the main loop of TimSort
+on an array whose associated monotonic runs
+have lengths $\mathbf{r} = \langle r_1,\ldots,r_\rho \rangle$,
+starting with an empty stack.
+We denote the associated merge cost by $c(\mathbf{r})$ and,
+if $\overline{\S} = (\overline{R}_1,\ldots,
+\overline{R}_{\overline{h}})$ is the stack obtained
+after the main loop has been applied,
+we denote by $s(\mathbf{r})$ the sequence
+$\langle \overline{r}_1,\ldots,\overline{r}_{\overline{h}}\rangle$.
+
+An immediate induction shows that, if
+$r_1 \geqslant r_2+\ldots+r_\rho+1$, then
+$c(\mathbf{r}) = c(\langle r_2,\ldots,r_\rho\rangle)$ and
+$s(\mathbf{r}) = \langle r_1 \rangle \cdot s(\langle r_2,\ldots,r_\rho\rangle)$. Similarly, if $r_1 \geqslant r_2+\ldots+r_\rho+1$ and
+$r_2 \geqslant r_3+\ldots+r_\rho+1$, then
+$c(\mathbf{r}) = c(\langle r_3,\ldots,r_\rho\rangle)$ and
+$s(\mathbf{r}) = \langle r_1,r_2 \rangle \cdot s(\langle r_3,\ldots,r_\rho\rangle)$.
+
+Consequently, and by another induction on $n$, it holds that
+$s(\R(n)) = \langle n \rangle$ and that
+\[c(\R(n)) = \begin{cases} 0 & \text{if } 1 \leqslant n \leqslant 6, \\
+c(\R(k)) + c(\R(k-2)) + 3k & \text{if } n = 2k \text{ for some } k \geqslant 4, \\
+c(\R(k)) + c(\R(k-1)) + 3k+2 & \text{if } n = 2k+1 \text{ for some } k \geqslant 3.
+\end{cases}\]
+
+Let $u_x = c(\R(\lfloor x \rfloor))$
+and $v_x = (u_{x-4} - 15/2)/x - 3 \log_2(x) / 2$.
+An immediate induction shows that $c(\R(n)) \geqslant c(\R(n+1))$
+for all integers $n \geqslant 0$, which means that $x \mapsto u_x$
+is non-decreasing. Then, we have 
+$u_n = u_{n/2} + u_{(n-3)/2} + \lceil 3n/2 \rceil$
+for all integers $n \geqslant 6$, and therefore
+$u_x \geqslant 2 u_{x/2-2} + 3(x-1)/2$ for all real numbers $x \geqslant 6$. Consequently, for $x \geqslant 11$, it holds that
+\[x v_x = u_{x-4} - 3 x \log_2(x) / 2 - 15/2 \geqslant
+2 u_{x/2-4} + 3(x-5)/2 - 3 x \log_2(x) / 2 - 15/2 = x v_{x/2}.\]
+This proves that $v_x \geqslant v_{x/2}$, from which it follows
+that $v_x \geqslant \inf\{v_t \,:\, 11/2 \leqslant t < 11\}$.
+Since $v_t = -15/(2t) -3 \log_2(t)/2 \geqslant -15/11 - 3 \log_2(11)/2 \geqslant -7$ for all $t \in [11/2,11)$,
+we conclude that
+$v_x \geqslant -7$ for all $x \geqslant 11$, and thus that
+\[c(\R(n)) = u_n \geqslant (n+4) v_{n+4} + 3 (n+4) \log_2(n+4) / 2 \geqslant 3 n \log_2(n) / 2 - 7 (n+4),\] thereby proving
+Proposition~\ref{pro:kappa-optimal-BuKno18}.
+\end{proof}
+
+It remains to prove the first statement of Theorem~\ref{thm:complexity 1.5 n + n H}. Our initial step towards
+this statement consists in refining Lemma~\ref{lm:invariant I}.
+This is the essence of Lemmas~\ref{lm:invariant II} to~\ref{lm:invariant IV}.
+
+\begin{lemma}\label{lm:invariant II}
+At any step during the main loop of \TS, if $h \geqslant 4$,
+we have~$r_2<r_4$ and~$r_3<r_4$.
+\end{lemma}
+
+\begin{proof}
+We proceed by induction. The proof consists in verifying that, if the
+invariant holds at some point, then it still holds when an update of the stack occurs in one of the five situations labeled \#1 to \#5 in the algorithm.
+This can be done by a straightforward case analysis.
+We denote by $\S=(R_1,\ldots, R_h)$ the stack just before
+the update, and by
+$\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{\overline{h}})$ 
+the new state of the stack after the update:
+\begin{disjunction}
+  \item If Case \#1 just occurred, a new run $\overline{R}_1$ was pushed.
+  This implies that the conditions of Cases \#2 and \#4 did not hold in $\S$, otherwise merges would have continued. In particular, we have $\overline{r}_2=r_1<r_3=\overline{r}_4$ and
+  $\overline{r}_3=r_2<r_1+r_2<r_3=\overline{r}_4$.
+  
+  \item If one of the Cases \#2 to \#5 just occurred, it holds that $\overline{r}_2 \leqslant r_2+r_3$, that $\overline{r}_3=r_4$ and that $\overline{r}_4=r_5$. Since Lemma~\ref{lm:invariant I} proves that $r_3+r_4<r_5$, it follows that
+  $\overline{r}_2 \leqslant r_2+r_3 < r_3+r_4 < r_5 = \overline{r}_4$
+  and that $\overline{r}_3 = r_4<r_3+r_4<r_5 = \overline{r}_4$.
+\end{disjunction}
+\end{proof}
+
+\begin{lemma}\label{lm:invariant III}
+At any step during the main loop of \TS, and for all
+$i \in \{3,\ldots,h\}$, it holds that
+$r_2+\ldots+r_{i-1} < \phi \, r_i$.
+\end{lemma}
+
+\begin{proof}
+Like for Lemmas~\ref{lm:invariant I} and~\ref{lm:invariant II},
+we proceed by induction and verify that, if the
+invariant holds at some point, then it still holds when an update of the stack occurs in one of the five situations labeled \#1 to \#5 in the algorithm.
+Let us denote by $\S=(R_1,\ldots, R_h)$ the stack just before
+the update, and by
+$\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{\overline{h}})$ 
+the new state of the stack after the update:
+\begin{disjunction}
+  \item If Case \#1 just occurred, then we proceed by induction on
+  $i \geqslant 3$. First, for $i = 3$,  since the conditions for Cases \#3 and \#4 do not hold in $\S$, we know that $\overline{r}_2 = r_1 < r_2 = \overline{r}_3$ and that
+  $\overline{r}_2 + \overline{r}_3 = r_1+r_2 < r_3 = \overline{r}_4$.
+  Then, for $i \geqslant 5$, Lemma~\ref{lm:invariant I} states that $r_{i-2}+r_{i-1} < r_i$, and therefore
+  \begin{enumerate}[(i)]
+   \item if $\overline{r}_{i-1} \leqslant \phi^{-1} \, \overline{r}_i$, then
+  $\overline{r}_2+\ldots+\overline{r}_{i-1} < (\phi + 1) \overline{r}_{i-1} = \phi^2 \overline{r}_{i-1} \leqslant \phi \overline{r}_i$, and
+  \item if $\overline{r}_{i-1} \geqslant \phi^{-1} \, \overline{r}_i$, then
+  $\overline{r}_{i-2} \leqslant (1-\phi^{-1}) \ \overline{r}_i = \phi^{-2} \, \overline{r}_i$, and thus
+  $\overline{r}_2+\ldots+\overline{r}_{i-1} < (\phi+1) \, \overline{r}_{i-2} + \overline{r}_{i-1} \leqslant
+  \phi \, \overline{r}_{i-2} + \overline{r}_i \leqslant (\phi^{-1} + 1) \overline{r}_i = \phi \, \overline{r}_i$.
+  \end{enumerate}
+  Hence, in that case, it holds that $\overline{r}_2+\ldots+\overline{r}_{i-1} < \phi \, \overline{r}_i$ for all $i \in \{3,\ldots,h\}$.
+  
+  \item If one of the Cases \#2 to \#5 just occurred, it holds that $\overline{r}_2 \leqslant r_2+r_3$ and that $\overline{r}_j = r_{j+1}$ for all $j \geqslant 3$. It follows that
+  $\overline{r}_2+\ldots+\overline{r}_{i-1} \leqslant
+  r_2+\ldots+r_i < \phi \, r_{i+1} = \overline{r}_i$.
+\end{disjunction}
+\end{proof}
+
+\begin{remark}
+We could also have derived directly Lemma~\ref{lm:invariant II} from
+Lemma~\ref{lm:invariant III}, by noting that
+$\phi^2 \, r_2 = (\phi+1) r_2 < \phi \, r_2 + \phi \, r_3 < \phi^2 \, r_4$.
+\end{remark}
+
+\begin{lemma}\label{lm:invariant IV}
+After every merge that occurred during an ending sequence,
+we have~$r_1 < \phi^2 r_2$.
+\end{lemma}
+
+\begin{proof}
+Once again, we proceed by induction.
+We denote by $\S=(R_1,\ldots, R_h)$ the stack just before an update occurs, and by
+$\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{\overline{h}})$ 
+the new state of the stack after after the update:
+\begin{disjunction}
+  \item If Case \#2 just occurred, then
+  this update is not the first one within the ending sequence,
+  hence~$\overline{r}_1 = r_1 < \phi^2 \, r_2 < \phi^2 (r_2 + r_3) = \phi^2 \, \overline{r}_2$.
+  
+  \item If one of the Cases \#2 to \#5 just occurred,
+  then $r_1 \leqslant r_3$ and Lemma~\ref{lm:invariant III} proves that
+  $r_2 < \phi \, r_3$, which proves that
+  $\overline{r}_1 = r_1 + r_2 < (\phi+1) r_3 = \phi^2 \, \overline{r}_2$.
+\end{disjunction}
+\end{proof}
+
+\begin{lemma}\label{lm:invariant V}
+After every merge triggered by Case $\#2$,
+we have~$r_2 < \phi^2 r_1$.
+\end{lemma}
+
+\begin{proof}
+We denote by $\S=(R_1,\ldots, R_h)$ the stack just before an update triggered by Case \#2 occurs, and by
+$\overline{\S}=(\overline{R}_1,\ldots, \overline{R}_{\overline{h}})$
+the new state of the stack after after the update.
+It must hold that $r_1 > r_3$ and
+Lemma~\ref{lm:invariant III} proves that $r_2 < \phi \, r_3$. It follows that
+$\overline{r}_2 = r_2 + r_3 < (\phi+1) r_3 = \phi^2 \, r_3 < \phi^2 \, r_1 = \phi^2 \, \overline{r}_1$.
+\end{proof}
+
+Our second step towards proving the first statement of
+Theorem~\ref{thm:complexity 1.5 n + n H}
+consists in identifying which sequences of merges
+an ending sequence may be made of.
+More precisely, in the proof of Lemma~\ref{lm:balance},
+we proved that every merge triggered by a case
+$\#4$ or $\#5$ must be followed
+by another merge, i.e.,
+it cannot be the final merge of an ending sequence.
+
+We present now a variant of this result,
+which involves distinguishing between merges triggered
+by a case $\#2$ and those triggered by a case $\#3$, $\#4$ or $\#5$.
+Hence, we denote by $\caseX$ every $\#3$, $\#4$ or $\#5$.
+
+\begin{lemma}\label{lm:(X2)*X*}
+No ending sequence contains two conscutive $\#2$'s,
+nor does it contain a subsequence of the form \caseX \caseX $\#2$.
+\end{lemma}
+
+\begin{proof}
+Every ending sequence starts with an update \caseX,
+where \caseX is equal to \#3, \#4 or \#5. Hence,
+it suffices to prove that no ending sequence
+contains a subsequence $\mathbf{t}$ of the form 
+\caseX\caseX\#2 or \caseX\#2\;\#2.
+
+Indeed, for the sake of contradiction, assume that it does,
+and let $\S = (R_1,\ldots,R_h)$ be the stack just before
+$\mathbf{t}$ starts.
+We distinguish two cases, depending on the value of $\mathbf{t}$:
+\begin{disjunction}
+\item If $\mathbf{t}$ is the sequence $\caseX\;\caseX\;\#2$,
+it must hold that $r_1+r_2 < r_4$ and that
+$r_1+r_2+r_3 \geqslant r_5$, as illustrated in Figure~\ref{fig:XX2}~(top).
+Since Lemma~\ref{lm:invariant I} proves that $r_3 + r_4 < r_5$,
+it follows that $r_1+r_2+r_3 \geqslant r_5 > r_3+r_4 > r_1+r_2+r_3$,
+which is impossible.
+ 
+\item If $\mathbf{t}$ is the sequence $\caseX\;\#2\;\#2$, it must hold that
+$r_1 < r_3$ and that
+$r_1+r_2 \geqslant r_5$, as illustrated in Figure~\ref{fig:XX2}~(bottom).
+Since Lemmas~\ref{lm:invariant I} and~\ref{lm:invariant II} prove that $r_3+r_4 < r_5$ and that $r_2 < r_4$,
+it comes that
+$r_1+r_2 \geqslant r_5 > r_3+r_4 > r_1+r_2$,
+which is also impossible.\vspace{-0.2mm}
+\end{disjunction}
+\end{proof}
+
+\begin{figure}[ht]
+\begin{center}
+\vspace{-2mm}
+\begin{small}
+\begin{tikzpicture}[scale=0.45]
+\foreach \i in {0,...,3}{
+ \draw[thick] (9*\i,0) -- (9*\i+2,0) -- (9*\i+2,5) -- (9*\i,5) -- cycle;
+ \foreach \j in {1,...,5}{
+   \node[anchor=south] at (9*\i+1,5-\j-0.05) {$r_\j$};
+ }
+}
+\foreach \i in {0,...,2}{
+ \FPeval{\k}{clip(4-\i)}
+ \foreach \j in {1,...,\k}{
+   \draw[thick] (9*\i,\j) -- (9*\i+2,\j);
+ }
+}
+\draw[thick] (9*3,2) -- (9*3+2,2);
+
+\draw[very thick,->,>=stealth] (2.1,2.5) -- (8.9,2.5);
+\draw[very thick,->,>=stealth] (11.1,2.5) -- (17.9,2.5);
+\draw[very thick,->,>=stealth] (20.1,2.5) -- (26.9,2.5);
+% \node[anchor=north] at (5.5,2.5+0.05) {$r_1<r_3$};
+\node[anchor=south] at (5.5,2.5-0.05) {merge \caseX};
+\node[anchor=north] at (14.5,2.5+0.05) {$r_1+r_2<r_4$};
+\node[anchor=south] at (14.5,2.5-0.05) {merge \caseX};
+\node[anchor=north] at (23.5,2.5+0.05) {$r_1+r_2+r_3 \geqslant r_5$};
+\node[anchor=south] at (23.5,2.5-0.05) {merge $\#2$};
+
+\node[anchor=south] at (10,3.5) {\tiny+};
+\node[anchor=south] at (19,3.5) {\tiny+};
+\node[anchor=south] at (19,2.5) {\tiny+};
+\node[anchor=south] at (28,3.5) {\tiny+};
+\node[anchor=south] at (28,2.5) {\tiny+};
+\node[anchor=south] at (28,0.5) {\tiny+};
+\end{tikzpicture}
+
+\bigskip\bigskip
+
+\begin{tikzpicture}[scale=0.45]
+\foreach \i in {0,...,3}{
+ \draw[thick] (9*\i,0) -- (9*\i+2,0) -- (9*\i+2,5) -- (9*\i,5) -- cycle;
+ \foreach \j in {1,...,5}{
+   \node[anchor=south] at (9*\i+1,5-\j-0.05) {$r_\j$};
+ }
+}
+\foreach \i in {0,...,1}{
+ \FPeval{\k}{clip(4-\i)}
+ \foreach \j in {1,...,\k}{
+   \draw[thick] (9*\i,\j) -- (9*\i+2,\j);
+ }
+}
+\draw[thick] (9*2,1) -- (9*2+2,1);
+\draw[thick] (9*2,3) -- (9*2+2,3);
+\draw[thick] (9*3,3) -- (9*3+2,3);
+
+\draw[very thick,->,>=stealth] (2.1,2.5) -- (9*1-0.1,2.5);
+\draw[very thick,->,>=stealth] (9*1+2.1,2.5) -- (9*2-0.1,2.5);
+\draw[very thick,->,>=stealth] (9*2+2.1,2.5) -- (9*3-0.1,2.5);
+\node[anchor=north] at (9*0.5+1,2.5+0.05) {$r_1 \leqslant r_3$};
+\node[anchor=south] at (9*0.5+1,2.5-0.05) {merge \caseX};
+\node[anchor=south] at (9*1+9*0.5+1,2.5-0.05) {merge $\#2$};
+\node[anchor=north] at (9*2+9*0.5+1,2.5+0.05) {$r_1+r_2 \geqslant r_5$};
+\node[anchor=south] at (9*2+9*0.5+1,2.5-0.05) {merge $\#2$};
+
+\node[anchor=south] at (9*1+1,3.5) {\tiny+};
+\node[anchor=south] at (9*2+1,3.5) {\tiny+};
+\node[anchor=south] at (9*2+1,1.5) {\tiny+};
+\node[anchor=south] at (9*3+1,3.5) {\tiny+};
+\node[anchor=south] at (9*3+1,1.5) {\tiny+};
+\node[anchor=south] at (9*3+1,0.5) {\tiny+};
+\end{tikzpicture}
+\end{small}
+\end{center}
+\vspace{-2mm}
+\caption{Applying successively merges
+\caseX\#2\;\#2
+or \caseX\caseX\#2
+to a stack is impossible.}
+\label{fig:XX2}
+\end{figure}
+
+Our third step consists in modifying the cost allocation
+we had chosen in Section~\ref{sec:analysis1}, which
+is not sufficient to prove Theorem~\ref{thm:complexity 1.5 n + n H}.
+Instead, we associate to
+every run $R$ its \emph{potential}, which depends only on the length
+$r$ of the run, and is defined as
+$\pot(r) = 3 r \log_2(r) / 2$. We also call \emph{potential} of a
+set of runs the sum of the potentials of the runs it is formed of,
+and \emph{potential variation} of a (sequence of) merges
+the increase in potential caused by these merge(s).
+
+We shall prove that the potential variation of every ending
+sequence dominates its merge cost, up to a small error term.
+In order to do this, let us study more precisely individual merges.
+Below, we respectively denote by $\Delta_{\pot}(\mathbf{m})$
+and $\cost(\mathbf{m})$ the potential variation and the
+merge cost of a merge $\mathbf{m}$. Then, we say that
+$\mathbf{m}$ is a \emph{balanced} merge if
+$\cost(\mathbf{m}) \leqslant \Delta_{\pot}(\mathbf{m})$.
+
+In the next Lemmas, we prove that most merges are balanced
+or can be grouped into sequences of merges that are balanced
+overall.
+
+\begin{lemma}\label{lm:delta-cost I}
+Let $\mathbf{m}$ be a merge between two runs $R$ and $R'$.
+If $\phi^{-2} \, r \leqslant r' \leqslant \phi^2 \, r$,
+then $\mathbf{m}$ is balanced.
+\end{lemma}
+
+\begin{proof}
+Let $x = r / (r+r')$: we have~$\Phi < x < 1-\Phi$, where $\Phi = 1/(1+\phi^2)$.
+Then, observe that $\Delta(\mathbf{m}) = 3 (r+r') H(x) / 2$,
+where $H(x) = - x \log_2(x) - (1-x) \log_2(x)$
+is the binary Shannon entropy of a Bernoulli law of parameter $x$.
+Moreover, the function $z \mapsto H(z) = H(1-z)$
+is increasing on $[0,1/2]$. It follows that $H(x) \geqslant
+H(\Phi) \approx 0.85 > 2/3$, and therefore that $\Delta(\mathbf{m}) > r+r' = \cost(\mathbf{m})$. 
+\end{proof}
+
+\begin{lemma}\label{lm:delta-cost II}
+Let $\mathbf{m}$ be a merge that belongs to some ending sequence.
+If $\mathbf{m}$ is a merge $\#2$, then $\mathbf{m}$ is balanced and,
+if $\mathbf{m}$ is followed by another merge $\mathbf{m}'$,
+then $\mathbf{m}'$ is also balanced.
+\end{lemma}
+
+\begin{proof}
+Lemma~\ref{lm:(X2)*X*} ensures that
+$\mathbf{m}$ was preceded by another merge $\mathbf{m}^\star$,
+which must be a merge \caseX.
+Denoting by $\S = (R_1,\ldots,R_h)$ the stack just before the merge
+$\mathbf{m}^\star$ occurs,
+the update $\mathbf{m}$ consists in merging
+the runs $R_3$ and $R_4$.
+Then, it comes that $r_1 \leqslant r_3$ and that $r_1+r_2 > r_4$,
+while Lemma~\ref{lm:invariant II} and~\ref{lm:invariant III} respectively
+prove that $r_3 < r_4$ and that $r_2 < \phi \, r_3$.
+Hence, we both have $r_3 < r_4$ and
+$r_4 < r_1 + r_2 < (1 + \phi) r_3 = \phi^2 \, r_3$, and Lemma~\ref{lm:delta-cost II} proves that $\mathbf{m}$ is balanced.
+
+Then, if $\mathbf{m}$ is followed by another merge $\mathbf{m}'$,
+Lemma~\ref{lm:(X2)*X*} proves that $\mathbf{m}'$ is also a merge \caseX, between runs of respective lengths $r_1+r_2$ and $r_3+r_4$.
+Note that $r_1 \leqslant r_3$ and that $r_1+r_2 > r_4$. Since
+Lemma~\ref{lm:invariant II} proves that $r_2 < r_4$ and that $r_3 < r_4$, it follows that
+$2(r_1+r_2) > 2 r_4 > r_3 + r_4 > r_1+r_2$ and,
+using the fact that $2 < 1 + \phi = \phi^2$,
+Lemma~\ref{lm:delta-cost II} therefore proves that $\mathbf{m}$ is balanced.
+\end{proof}
+
+\begin{lemma}\label{lm:delta-cost III}
+Let $\mathbf{m}$ be a merge \caseX
+between two runs $R_1$ and $R_2$ such that $r_1 < \phi^{-2} \, r_2$.
+Then, $\mathbf{m}$ is followed by another merge $\mathbf{m}'$, and
+$\cost(\mathbf{m}) + \cost(\mathbf{m}') \leqslant \Delta_{\pot}(\mathbf{m}) + \Delta_{\pot}(\mathbf{m}')$.
+\end{lemma}
+
+\begin{proof}
+Let $\mathbf{m}^\star$ be the update the immediately precedes
+$\mathbf{m}$. Let also $\S^\star = (R^\star_1,\ldots,R^\star_{h^\star})$, $\S = (R_1,\ldots,R_h)$ and
+$\S' = (R'_1,\ldots,R'_{h'})$ be the respective states
+of the stack just before $\mathbf{m}^\star$ occurs,
+just before $\mathbf{m}$ occurs and just after $\mathbf{m}$ occurs.
+
+Since $r_1 < \phi^{-2} \, r_2$,
+Lemma~\ref{lm:invariant V} proves that
+$\mathbf{m}^\star$ is either an update \#1 or a merge \caseX.
+In both cases, it follows that $r_2 < r_3$ and that $r_2+r_3 < r_4$.
+Indeed, if $\mathbf{m}^\star$ is an update \#1, then we must have
+$r_2 = r^\star_1 < r^\star_2 = r_3$ and
+$r_2+r_3 = r^\star_1+r^\star_2 < r^\star_3 = r_4$, and if
+$\mathbf{m}'$ is a merge \caseX, then Lemmas~\ref{lm:invariant I} and~\ref{lm:invariant II}
+respectively prove that $r_2+r_3 = r^\star_3+r^\star_4 < r^\star_5 = r_4$ and that $r_2 = r^\star_3 < r^\star_4 = r_3$.
+
+Then, since $\mathbf{m}$ is a merge \caseX, we also know that
+$r_1 \leqslant r_3$. Since $r_1 < \phi^{-2} \, r_2$ and $r_2+r_3 < r_4$, this means that $r_1 + r_2 \geqslant r_3$.
+It follows that
+$r'_2 = r_3 \leqslant r_1+ r_2 = r'_1$ and that
+$r'_1 = r_1 + r_2 \leqslant r_2 + r_3 < r_4 = r'_3$.
+Consequently, the merge $\mathbf{m}$ must be followed by a merge
+$\mathbf{m}'$, which is triggered by case \#3.
+
+Finally, let $x = r_1 / (r_1+r_2)$ and $y = (r_1+r_2) / (r_1+r_2+r_3)$.
+It comes that $\cost(\mathbf{m})+\cost(\mathbf{m}') = (r_1+r_2+r_3)(1+y)$ and that
+$\Delta_{\pot}(\mathbf{m}) + \Delta_{\pot}(\mathbf{m}') = 3 (r_1+r_2+r_3) \left(y H(x) + H(y)\right)\!/ 2$, where
+we recall that $H$ is the binary Shannon entropy function, with
+$H(t) = - t \log_2(t) - (1-t) \log_2(t)$.
+The above inequalities about $r_1$, $r_2$ and $r_3$ prove that $0 \leqslant 2 - 1/y \leqslant x \leqslant 1/(1+\phi^2)$.
+Since $H$ is increasing on the interval $[0,1/2]$, and since
+$1+\phi^2 \geqslant 2$, it follows that
+$\Delta_{\pot}(\mathbf{m}) + \Delta_{\pot}(\mathbf{m}') \geqslant 3 (r_1+r_2+r_3) \left(y H(2 - 1/y) + H(y)\right)\!/ 2$.
+
+Hence, let $F(y) = 3 \left(y H(2 - 1/y) + H(y)\right)\!/2 - (1+y)$.
+We shall prove that $F(y) \geqslant 0$ for all $y \geqslant 0$
+such that
+$0 \leqslant 2 - 1/y \leqslant 1/(1+\phi^2)$, i.e., such that
+$1/2 \leqslant y \leqslant 
+(1+\phi^2)/(1+2\phi^2)$.
+To that mean, observe that
+$F''(y) = 3 /\!\left((1-y)(1-2y) \ln(2)\right) < 0$
+for all $y \in (1/2,1)$. Thus, $F$ is concave on
+$(1/2,1)$.
+Since $F(1/2) = 0$ and $F(3/4) = 1/2$, it follows that
+$F(y) \geqslant 0$ for all $y \in [1/2,3/4]$.
+Checking that $(1+\phi^2)/(1+2\phi^2) < 3/4$ completes the proof.
+\end{proof}
+
+\begin{lemma}\label{lm:delta-cost IV}
+Let $\mathbf{m}$ be the first merge of the ending sequence
+associated with a run $R$. Let $R_1$ and $R_2$ be the runs
+that $\mathbf{m}$ merges together.
+If $r_1 > \phi^2 \, r_2$, it holds that
+$\cost(\mathbf{m}) \leqslant \Delta_{\pot}(\mathbf{m}) + r$.
+\end{lemma}
+
+\begin{proof}
+By definition of $\mathbf{m}$,
+we have~$R = R_1$, and thus $r = r_1 \geqslant r_2$.
+Hence, it follows that
+$\Delta_{\pot}(\mathbf{m}) = r \log((r+r_2)/r) +
+r_2 \log((r+r_2)/r_2) \geqslant r_2 \log((r+r_2)/r_2) \geqslant
+r_2 = \cost(\mathbf{m}) - r$.
+\end{proof}
+
+\begin{proposition}\label{pro:delta-cost}
+Let $\mathbf{s}$ be the ending sequence associated with a run $R$,
+and let $\Delta_{\pot}(\mathbf{s})$ and $\cost(\mathbf{s})$
+be its potential variation and its merge cost.
+It holds that~$\cost(\mathbf{s}) \leqslant \Delta_{\pot}(\mathbf{s}) + r$.
+\end{proposition}
+
+\begin{proof}
+Let us group the merges of $\mathbf{s}$ as follows:
+\begin{enumerate}[(i)]
+ \item if $\mathbf{m}$ is an unbalanced merge \caseX between two runs $R_1$ and $R_2$ such that $r_1 < r_2$, then $\mathbf{m}$ is followed by another merge $\mathbf{m}'$, and we group $\mathbf{m}$
+ and $\mathbf{m}'$ together;\label{delta-cost:case:1}
+ \item otherwise, and if $\mathbf{m}$ has not been grouped
+ with its predecessor, it forms its own group.
+\end{enumerate}
+In case~\eqref{delta-cost:case:1}, Lemma~\ref{lm:delta-cost IV} ensures that $\mathbf{m}'$ itself cannot be grouped with another merge.
+This means that our grouping is unambiguous.
+
+Then, let $\mathbf{g}$ be such a group,
+with potential variation $\Delta_{\pot}(\mathbf{g})$ and
+merge cost $\cost(\mathbf{g})$.
+Lemmas~\ref{lm:delta-cost I} to~\ref{lm:delta-cost IV}
+prove that $\cost(\mathbf{g}) \leqslant \Delta_{\pot}(\mathbf{g}) + r$ if $\mathbf{g}$ is formed of the first merge of $\mathbf{s}$ only,
+and that $\cost(\mathbf{g}) \leqslant \Delta_{\pot}(\mathbf{g})$
+in all other cases. Proposition~\ref{pro:delta-cost} follows.
+\end{proof}
+
+Collecting all the above results is enough to prove Theorem~\ref{thm:complexity 1.5 n + n H}.
+First, like in Section~\ref{sec:analysis1},
+computing the run decomposition and merging runs in
+starting sequences has a cost $\O(n)$,
+and the final merges of line~11 may be taken care of by Remark~\ref{rem:main-loop}.
+Second, by Proposition~\ref{pro:delta-cost},
+ending sequences have a merge cost dominated by
+$\Delta_{\pot} + n$, where $\Delta_{\pot}$
+is the total variation of potential during the algorithm.
+Observing that
+$\Delta_{\pot} = -3/2 \sum_{i=1}^\rho r_i \log_2(r_i/n) = - 3 n \H / 2$
+concludes the proof of the theorem.
+

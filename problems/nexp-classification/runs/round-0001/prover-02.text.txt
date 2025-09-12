@@ -1,0 +1,60 @@
+Ideas
+
+- Transfer-matrix types for radius-1 oriented paths: For any input segment P with input string s1…sk, define its type as the Boolean β×β transfer matrix M_P with M_P[a,b]=1 iff there exists an output labeling y1…yk such that y1=a, yk=b, (si,yi)∈Cin–out for all i, and (yi,yi+1)∈Cout–out for all i<k. For a single node with input σ, set M_σ[a,b]=1 iff a=b and (σ,a)∈Cin–out. Let A be the β×β Boolean adjacency with A[x,y]=1 iff (x,y)∈Cout–out. Then for any two segments P,Q, M_{PQ}=M_P·A·M_Q (Boolean product). For a word s1…sk, M_{s1…sk}=M_{s1} if k=1, and M_{s1}·A·M_{s2}·A·…·A·M_{sk} otherwise.
+- Replacement lemma (matrix form): If two segments P,P′ have the same transfer matrix, then they are interchangeable inside any global instance without affecting feasibility and the outputs outside the segment can be kept fixed; only the interior is relabeled. This makes types (matrices) the exact observable interface in radius-1.
+- Type automaton construction: Define transitions T_σ(M)=M·A·M_σ. The set of reachable types is the least fixpoint closure from {M_0,M_1} under T_0,T_1. Number of states ≤2^{β^2}. Each transition is computable in poly(β) time. Construct the reachable sub-automaton in time 2^{O(β^2)}·poly(β), i.e., EXPTIME in the encoding size N≈Θ(β^2).
+- Middle-gap feasible function (type-based): With r=1, define f_type: T×Σ_in^2×T→Σ_out^2 that maps (τL,S,τR) to the 2 outputs (x,y) assigned to the 2-node middle window S=(σ1,σ2). Feasibility requires that for all choices τa,τb,τc,τd∈T and S1,S2∈{0,1}^2, if S1 is labeled by (x,y)=f_type(τa,S1,τb) and S2 by (u,v)=f_type(τc,S2,τd) and they are locally legal (U_{σ1}[x,x]=U_{σ2}[y,y]=1 and A[x,y]=1; similarly for S2), then for the bridging segment types Mb=τb and Mc=τc there exist a0,aN,c0,cN∈Σ_out such that A[y,a0]=1, Mb[a0,aN]=1, A[aN,c0]=1, Mc[c0,cN]=1, and A[cN,u]=1. This condition depends only on matrices, not on particular words.
+- NEXPTIME test for Θ(n) vs O(log* n): Nondeterministically guess f_type (a table of size |T|^2·|Σ_in|^2 with entries in Σ_out^2). Verify the above local-consistency and bridge-closure conditions for all tuples (τa,τb,τc,τd,S1,S2). Each check is a constant number of Boolean matrix products and entry inspections (poly(β)); enumerating all tuples is 2^{poly(β)}. Total deterministic verification cost is EXPTIME in N; guessing the table gives a NEXPTIME procedure. If a feasible f_type exists, the problem is o(n) (indeed O(log* n)); if no such f_type exists, the complexity is Θ(n).
+- Toward O(1) vs Ω(log* n): For radius-1, oriented paths, constant-time algorithms cannot compute MIS. Using type matrices, we propose an exponential-size certificate: per-type periodic-output selections and local interface rules. For each reachable type τ, choose a nonempty set C(τ)⊆Σ_out of periodic outputs admissible under τ, meaning there is some c∈C(τ) such that for arbitrarily long repeats of τ there exists an output labeling repeating c that is locally legal. This holds iff there exists c with U_σ[c,c]=1 for the 1-letter constituents and cA c holds along edges; more precisely, periodicity reduces to the existence of a 1-cycle in the output graph restricted by the per-letter filters. Interface rules: choose, for each (τL,S,τR), boundary outputs (x,y) as before with the requirement that for all long contexts of type τL and τR (captured by matrices), the chosen x,y are elements of the corresponding C(τL), C(τR), and the same bridge-closure as above holds and moreover x,y are compatible with constant-time propagation (no dependence on distant choices). The exact compression lemma to show sufficiency of such an exponential certificate (and to reduce universal quantification to matrix checks) is outlined under Next steps.
+
+Examples
+
+- Tiny β=2 sanity check: Let Σ_out={a,b}. Suppose Cin–out allows both outputs on both inputs, and Cout–out allows only (a,a),(b,b) (i.e., constant runs). Then A=diag(1,1), M_0=M_1=diag(1,1). All reachable types are exactly the two diagonal matrices; T has size 1 (the all-ones diagonal). A feasible f_type exists: pick any locally valid x,y for S1,S2; bridges exist since A is identity. The algorithm declares O(log* n) (indeed O(1) in this trivial case). If instead Cout–out forbids both self-loops, then A=0 and no nonempty segment is type-feasible; the instance is unsatisfiable except for length-1 segments, and classification collapses to Θ(n) (needs global detection of impossibility).
+
+Rigorous statements and proofs
+
+Lemma 1 (concatenation law).
+Let P,Q be segments. Then M_{PQ}=M_P·A·M_Q, where · is Boolean product.
+Proof. An entry (M_{PQ})[a,d]=1 iff ∃ boundary labels b,c with y1=a on P’s left end, yp=b its right end, z1=c Q’s left end, zq=d its right end, such that P admits (a→b), Q admits (c→d), and A[b,c]=1 for the bridge. This is exactly (M_P·A·M_Q)[a,d]=1.
+
+Lemma 2 (replacement by equal matrices).
+Let an instance G contain a segment P with transfer matrix M, and P′ another segment with the same matrix M. If G has a legal labeling L, then replacing P by P′ yields a graph G′ that has a legal labeling L′ that agrees with L outside P and on the two boundary outputs of P, and is locally legal everywhere.
+Proof. Let a,b be the boundary outputs of L at P’s ends. Since L restricted to P is legal, M[a,b]=1. As M_{P′}=M, there exists an interior labeling of P′ that starts at a and ends at b and satisfies the local constraints. Assign it; outside outputs remain as in L. All node and edge checks internal to P′ hold by construction; edges crossing the boundaries are unchanged (end outputs a,b are preserved), so remain legal. ∎
+
+Lemma 3 (type automaton construction).
+Define T_σ(M)=M·A·M_σ for σ∈{0,1}, M_σ[a,b]=1 iff a=b and (σ,a)∈Cin–out. From seeds {M_0,M_1}, the reachable closure under T_0,T_1 equals the set of all segment types. Its size ≤2^{β^2}. It can be built in time 2^{O(β^2)}·poly(β).
+Proof. The seed matrices are exactly the types of length-1 segments. Every longer segment matrix is an iterated application of the recurrence in Lemma 1. Conversely any matrix reached by the closure corresponds to some input word. The bound and construction follow. ∎
+
+Definition (type-feasible middle-gap function).
+Let T be the reachable types. A mapping f_type: T×{0,1}^2×T→Σ_out^2 is type-feasible if, for every (τa,τb,τc,τd,S1,S2), writing (x,y)=f_type(τa,S1,τb) and (u,v)=f_type(τc,S2,τd), the following hold:
+(i) Local windows: U_{S1[1]}[x,x]=U_{S1[2]}[y,y]=1 and A[x,y]=1; similarly U_{S2[1]}[u,u]=U_{S2[2]}[v,v]=1 and A[u,v]=1.
+(ii) Bridge existence: Let Mb=τb, Mc=τc. There exist a0,aN,c0,cN∈Σ_out with A[y,a0]=1, Mb[a0,aN]=1, A[aN,c0]=1, Mc[c0,cN]=1, A[cN,u]=1.
+
+Proposition 4 (NEXPTIME decision of Θ(n) vs O(log* n)).
+Given (Cin–out,Cout–out), there is a NEXPTIME algorithm that accepts iff there exists a type-feasible f_type. If accepted, the problem has complexity O(log* n); otherwise it is Θ(n).
+Proof. Nondeterministically guess f_type. Verify (i) and (ii) for all tuples (τa,τb,τc,τd,S1,S2): each check is a bounded number of Boolean matrix products and lookups, hence poly(β). The domain size is |T|^4·4 ≤ 2^{O(β^2)}. Building T is EXPTIME. Thus deterministic verification is EXPTIME, and the overall nondeterministic procedure is NEXPTIME. Soundness/completeness follows by the usual feasible-function method (with Lemma 2 replacing pumping): if a feasible function exists then labelling disjoint windows via f_type and solving bridges yields an O(log* n) algorithm, and if none exists then by the gap theorem the complexity is Θ(n).
+
+Obstacles
+
+- Top gap (O(1) vs Ω(log* n)) within NEXPTIME: The classical witness (periodic feasible function over all primitive words of length ≤K) is doubly exponential. We need a compression lemma that reduces this to an exponential certificate in our radius-1, oriented-path setting via transfer matrices.
+- Periodicity characterization: For a type τ, define admissible periodic outputs C(τ) as those c with arbitrarily long repetitions feasible under inputs of type τ. This reduces to checking that c survives all one-symbol filters (U_σ[c,c]=1) occurring in τ and the edge loop A[c,c]=1; but ‘occurring in τ’ must be formalized at the type level without unfolding words.
+
+Next steps
+
+1) Formalize per-type admissible periodic outputs.
+- Given τ, define the set of edge-labeled paths in the type automaton that realize τ; characterize, via matrix algebra, the set S(τ)⊆{0,1} of input symbols that appear with nonzero frequency in any representative of τ of sufficient length. Show S(τ) is well-defined and computable from τ and the transitions T_σ.
+- Define C(τ)={c∈Σ_out | (∀σ∈S(τ)) U_σ[c,c]=1 and A[c,c]=1}. Lemma to prove: τ admits arbitrarily long periodic outputs with period c iff c∈C(τ).
+
+2) Interface compression.
+- Replace per-word periodic output assignments by per-type selections C(τ) plus a type-based boundary map f_type_const: T×{0,1}^2×T→Σ_out^2 with the extra constraint that the two outputs chosen are consistent with C(τ) on adjacent long regions. Verify bridges as in the middle-gap check, plus the additional constraint that chosen boundary symbols lie in C(τb),C(τc).
+- Prove that existence of such selections implies an O(1)-round algorithm (decompose into short windows and long periodic regions), and conversely that O(1) solvability implies existence of such a selection. All checks are matrix-computable, yielding NEXPTIME.
+
+3) Sanity automata.
+- Implement and test on small β with exhaustive enumeration to validate that the type automaton, feasibility checks, and bridge conditions match the known classifications on toy instances.
+
+Why useful here
+
+- Lemma 1–2 provide a strictly smaller type space (2^{β^2}) and a clean replacement property tailored to radius-1 on oriented paths, enabling EXPTIME verification steps.
+- Proposition 4 supplies a concrete NEXPTIME procedure for separating Θ(n) from O(log* n).
+- The proposed compression for O(1) vs Ω(log* n) outlines an exponential-size certificate verifiable via matrix checks, plausibly yielding a full NEXPTIME trichotomy.
+

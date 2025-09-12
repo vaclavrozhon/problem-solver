@@ -1,0 +1,49 @@
+# Ideas
+- Provide an explicit K = 4 ranking profile where the chain-based two-type certificate (min over pivots) requires ε ≥ 0.15, yet a three-type augmentation (c-first and a-first only) makes c win with total mass ≈ 0.12. This cleanly separates two-type from optimal, showing two-type is not tight for K ≥ 4.
+- Use a small set of ranking types to ensure all required top-of-S tallies and pairwise tallies are internally consistent.
+- Outline a general “few-type LP” approach: for a fixed targeted elimination chain and a chosen small set of added-top types T, the minimal augmentation is a low-dimensional LP; this offers a path to improved certificates beyond two-type.
+
+# Example and Proposition (Two-type is suboptimal for K = 4)
+Fix C = {a,b,c,d} and target c. Consider the following full-ranking distribution (probabilities sum to 1):
+- A_b: 0.06 on a ≻ b ≻ d ≻ c
+- A_d: 0.12 on a ≻ d ≻ c ≻ b
+- B:   0.35 on b ≻ a ≻ c ≻ d
+- C:   0.22 on c ≻ b ≻ d ≻ a
+- D_c: 0.085 on d ≻ c ≻ b ≻ a
+- D_a: 0.05 on d ≻ a ≻ c ≻ b
+- D_b: 0.115 on d ≻ b ≻ c ≻ a
+Compute relevant tallies:
+- First round S1 = C: (t_a,t_b,t_c,t_d) = (0.18, 0.35, 0.22, 0.25).
+- Second round S2 = {b,c,d}: t_b(S2) = 0.35 + 0.06 = 0.41; t_c(S2) = 0.22; t_d(S2) = 0.12 + 0.25 = 0.37.
+- Alternate second round S2′ = {a,b,c}: t_a(S2′) = 0.06 + 0.12 + 0.05 = 0.23; t_b(S2′) = 0.35 + 0.115 = 0.465; t_c(S2′) = 0.22 + 0.085 = 0.305.
+- Pairwise c vs b: t_c({b,c}) = 0.12 + 0.22 + 0.085 + 0.05 = 0.475; hence D_{b,c} = t_b − t_c = 0.525 − 0.475 = 0.05.
+
+Chain-based two-type certificate, pivot b.
+- Baseline chain: e1 = a (since min{a,d} = a), S2 = {b,c,d} and e2 = d.
+- A_b(0) = max{ [0.18 − 0.22]_+, [0.37 − 0.22]_+ } = 0.15.
+- B_b(0) = max{ [0.18 − 0.35]_+, [0.37 − 0.41]_+ } = 0.
+- D_{b,c}(0) = 0.05. Thus ε_b^{(2)}(0; c) = 0 + max{0.15, 0.05} = 0.15.
+Other pivots are worse: pivot d gives ε_d^{(2)} = 0.04 + max{0.19, 0.04 − 0.14} = 0.23; pivot a is ≥ 0.63 (details in Obstacles/Checks). Hence min_b ε_b^{(2)} = 0.15.
+
+Three-type augmentation beating ε_b^{(2)}.
+Add α of c-first and β_a of a-first ballots (no b-first). Choose β_a = 0.0701 and α = 0.0501. Then:
+- Round 1 (S1): a′ = 0.18 + β_a ≈ 0.2501, c′ = 0.22 + α ≈ 0.2701, b′ = 0.35, d′ = 0.25. The unique minimum is d (0.25), so d is eliminated.
+- Round 2 (S2′ = {a,b,c}): a′(S2′) = 0.23 + β_a ≈ 0.3001, b′(S2′) = 0.465, c′(S2′) = 0.305 + α ≈ 0.3551. Thus a is eliminated.
+- Final (c vs b): t′_c({b,c}) − t′_b({b,c}) = (0.475 + α) − 0.525 = α − 0.05 > 0 by choice of α. Hence c wins with strict margins.
+Total mass α + β_a ≈ 0.1202 < 0.15. Therefore, the two-type certificate is not tight for K ≥ 4.
+
+Proof sketch completeness.
+- All tallies used follow from the explicit ranking distribution; the subset tallies are computed as the probability that the listed ranking places the designated candidate top among the subset. Pairwise tallies use the usual “c above b” counts.
+- The three-type feasibility constraints are the standard linear IRV round inequalities on the affected subsets; we verified each round’s strict separations and the final pairwise win.
+- Minimality of two-type for pivot b follows from the chain-based theorem: within two types {c,b}, the minimum equals B_b + max{A_b, B_b + D_{b,c}} = 0.15.
+
+# Obstacles and checks
+- Why two-type fails: Here c’s binding deficit is at S2 = {b,c,d}, where d has 0.37 while c has 0.22, driving A_b = 0.15. Steering the first elimination to remove d (by adding a-first ballots) avoids this large deficit and yields a cheaper path even after accounting for the final pairwise deficit.
+- Soundness of calculations: we checked all relevant subset tallies (S1, S2, S2′) and pairwise c vs b; other pivots (a, d) give higher two-type costs (pivot a: A_a = max{0.25−0.22, 0.465−0.305} = 0.16, B_a = max{0.25−0.18, 0.465−0.23} = 0.235, D_{a,c} = 0.58−0.42 = 0.16, so ε_a^{(2)} = 0.235 + max{0.16, 0.395} = 0.63; pivot d: computed above as 0.23).
+- Generalization: Optimizing over three (or a few) added-top types for a fixed targeted chain is a small LP with linear constraints whose number scales with the chain length; this suggests a tractable family of improved certificates beyond two-type.
+
+# Next steps
+- Formalize a “few-type targeted-chain LP” certificate: for a chosen pivot y and a steering set T ⊆ C\{y,c}, solve min ∑_{t∈T∪{c,y}} x_t subject to per-round linear inequalities on the chain (with γ-slack) and the final pairwise constraint; minimize over small T (e.g., |T| ≤ 1 or 2). Prove a Lipschitz sampling bound using the structure of these constraints.
+- Develop a systematic recipe to search for steering candidates s that can reduce the dominant deficit round (like S2 above) with minimal collateral increases elsewhere.
+- Sampling: For a fixed plan (chain and T), only O(K) subset tallies on the chain plus O(|T|) pairwise tallies are needed; use Hoeffding + union bound with m = Θ((log K + log(1/δ))/ε^2) and a margin ≥ 6τ as in prior lemmas.
+- Lower bounds: Extend the Ω((log K)/ε^2) construction to a family where two-type is suboptimal but few-type is exact, stressing the necessity of searching over steering sets.

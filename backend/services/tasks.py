@@ -28,7 +28,6 @@ class TaskService:
         # Create problem directory structure
         task_path.mkdir(parents=True)
         (task_path / "papers").mkdir()
-        (task_path / "papers_parsed").mkdir()
         (task_path / "runs").mkdir()
         
         # Create task file with appropriate extension
@@ -55,7 +54,6 @@ class TaskService:
         # Create draft directory structure
         task_path.mkdir(parents=True)
         (task_path / "papers").mkdir()
-        (task_path / "papers_parsed").mkdir()
         (task_path / "runs").mkdir()
         (task_path / "drafts").mkdir()
         
@@ -133,7 +131,7 @@ TODO: Write introduction
                 progress_file.unlink()
             
             # Preserve task description files and papers
-            # task.txt, papers/, papers_parsed/ remain unchanged
+            # task.txt, papers/ remain unchanged
             
             return True
         except Exception as e:

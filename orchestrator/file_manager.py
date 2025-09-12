@@ -1,8 +1,8 @@
 """
-File management for OpenAI Files API integration.
+Local paper management.
 
-This module handles uploading files to OpenAI's Files API and managing
-file attachments for the Responses API with file_search tool.
+This module manages local text papers and optional description sidecars.
+No uploads to OpenAI; no attachments; no vector stores.
 """
 
 import os
@@ -12,10 +12,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from openai import OpenAI
-
-# Initialize OpenAI client
-client = OpenAI()
+from openai import OpenAI  # kept for future use; not used here
 
 @contextmanager
 def _cache_lock(cache_file: Path, timeout: float = 10.0):
@@ -37,7 +34,7 @@ def _cache_lock(cache_file: Path, timeout: float = 10.0):
             pass
 
 class FileManager:
-    """Manages file uploads and attachments for OpenAI Files API."""
+    """Manages local paper files and descriptions."""
     
     def __init__(self, problem_dir: Path):
         self.problem_dir = problem_dir
@@ -70,62 +67,9 @@ class FileManager:
                 hash_obj.update(chunk)
         return hash_obj.hexdigest()
     
-    def _is_file_uploaded(self, file_path: Path) -> Optional[str]:
-        """Check if file is already uploaded and return file_id if cached."""
-        try:
-            file_hash = self._get_file_hash(file_path)
-            cache_key = str(file_path.relative_to(self.problem_dir))
-            
-            if cache_key in self.file_cache:
-                cached_entry = self.file_cache[cache_key]
-                if cached_entry.get('hash') == file_hash:
-                    # Verify the file still exists in OpenAI
-                    try:
-                        client.files.retrieve(cached_entry['file_id'])
-                        return cached_entry['file_id']
-                    except Exception:
-                        # File no longer exists, remove from cache
-                        del self.file_cache[cache_key]
-                        self._save_cache()
-            
-            return None
-        except Exception as e:
-            print(f"Error checking if file is uploaded: {e}")
-            return None
+    # Upload-related methods removed; we only work with local files
     
-    def upload_file(self, file_path: Path, description: str = "") -> Optional[str]:
-        """Upload a file to OpenAI Files API and return file_id."""
-        try:
-            # Check if already uploaded
-            file_id = self._is_file_uploaded(file_path)
-            if file_id:
-                print(f"  File already uploaded: {file_path.name} -> {file_id}")
-                return file_id
-            
-            # Upload the file
-            with open(file_path, 'rb') as f:
-                file_obj = client.files.create(
-                    file=f,
-                    purpose="assistants"
-                )
-            
-            # Cache the result
-            file_hash = self._get_file_hash(file_path)
-            cache_key = str(file_path.relative_to(self.problem_dir))
-            self.file_cache[cache_key] = {
-                'file_id': file_obj.id,
-                'hash': file_hash,
-                'description': description,
-                'uploaded_at': file_obj.created_at
-            }
-            self._save_cache()
-            
-            print(f"  Uploaded: {file_path.name} -> {file_obj.id}")
-            return file_obj.id
-            
-        except Exception as e:
-            print(f"Error uploading file {file_path}: {e}")
-            return None
+    # Removed upload_file; not needed
     
     def get_file_descriptions(self, file_paths: List[Path]) -> str:
         """Generate description text for files that will be attached."""
@@ -159,23 +103,7 @@ class FileManager:
             return "Available files for reference:\n" + "\n".join(descriptions)
         return ""
     
-    def prepare_attachments(self, file_paths: List[Path]) -> List[Dict]:
-        """Prepare file attachments for Responses API."""
-        attachments = []
-        
-        for file_path in file_paths:
-            file_id = self._is_file_uploaded(file_path)
-            if not file_id:
-                # Upload if not already uploaded
-                file_id = self.upload_file(file_path)
-            
-            if file_id:
-                attachments.append({
-                    "file_id": file_id,
-                    "tools": [{"type": "file_search"}]
-                })
-        
-        return attachments
+    # Removed prepare_attachments; not needed
     
     def get_available_paper_files(self) -> List[Path]:
         """Get all available paper files in the problem directory with allowed suffixes."""
@@ -195,72 +123,30 @@ class FileManager:
             except Exception as e:
                 print(f"Error reading papers directory: {e}")
         
-        # Check papers_parsed directory
-        parsed_dir = self.problem_dir / "papers_parsed"  
-        if parsed_dir.exists():
-            try:
-                for file_path in parsed_dir.iterdir():
-                    if (file_path.is_file() and 
-                        file_path.suffix.lower() in ALLOWED_SUFFIXES):
-                        paper_files.append(file_path)
-            except Exception as e:
-                print(f"Error reading papers_parsed directory: {e}")
         
         return sorted(paper_files)
     
-    def cleanup_unused_files(self):
-        """Clean up uploaded files that no longer exist locally."""
-        to_remove = []
-        
-        for cache_key, cached_entry in self.file_cache.items():
-            file_path = self.problem_dir / cache_key
-            if not file_path.exists():
-                try:
-                    # Delete from OpenAI
-                    client.files.delete(cached_entry['file_id'])
-                    to_remove.append(cache_key)
-                    print(f"  Cleaned up: {cache_key}")
-                except Exception as e:
-                    print(f"Error cleaning up file {cache_key}: {e}")
-        
-        # Remove from cache
-        for key in to_remove:
-            del self.file_cache[key]
-        
-        if to_remove:
-            self._save_cache()
+    # Removed cleanup for remote files
 
 
-def get_file_attachments_for_prover(problem_dir: Path, prover_config: Optional[Dict] = None) -> Tuple[List[Dict], str]:
-    """
-    Get file attachments and descriptions for a specific prover based on their configuration.
-    
-    Args:
-        problem_dir: Problem directory path
-        prover_config: Prover configuration with paperAccess settings
-        
-    Returns:
-        Tuple of (attachments, description_text)
-    """
-    file_manager = FileManager(problem_dir)
-    available_papers = file_manager.get_available_paper_files()
-    
-    # Filter papers based on prover configuration
-    allowed_papers = []
-    if prover_config and prover_config.get('paperAccess') and prover_config['paperAccess']:
-        # paperAccess exists and is not empty - filter based on explicit permissions
-        paper_access = prover_config['paperAccess']
-        for paper_file in available_papers:
-            # Normalize key by relative path to handle both papers/ and papers_parsed/
-            paper_key = str(paper_file.relative_to(problem_dir)).replace("\\", "/")
-            if paper_access.get(paper_key, False):
-                allowed_papers.append(paper_file)
-    else:
-        # If no specific configuration or paperAccess is empty, allow all papers
-        allowed_papers = available_papers
-    
-    # Prepare attachments and descriptions
-    attachments = file_manager.prepare_attachments(allowed_papers)
-    descriptions = file_manager.get_file_descriptions(allowed_papers)
-    
-    return attachments, descriptions
+def get_paper_text_with_descriptions(problem_dir: Path) -> str:
+    """Return a concatenation of all papers: description first, then text."""
+    fm = FileManager(problem_dir)
+    papers = fm.get_available_paper_files()
+    parts: List[str] = []
+    for p in papers:
+        rel = str(p.relative_to(problem_dir)).replace("\\", "/")
+        desc = ""
+        desc_file = p.with_suffix(".description.txt") if p.suffix != ".description.txt" else None
+        if desc_file and desc_file.exists():
+            try:
+                desc = desc_file.read_text(encoding="utf-8").strip()
+            except Exception:
+                desc = ""
+        if desc:
+            parts.append(f"=== Paper Description ({rel}) ===\n{desc}\n")
+        try:
+            parts.append(f"=== Paper ({rel}) ===\n{p.read_text(encoding='utf-8')}\n")
+        except Exception:
+            continue
+    return "\n".join(parts)

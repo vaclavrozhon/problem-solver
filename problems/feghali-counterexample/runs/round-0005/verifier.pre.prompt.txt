@@ -1,0 +1,436 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results summary so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: ONLY the main problem results. Think twice before adding anything. Should contain a concise summary of the most important theorems that directly advance the main problem. Extremely selective.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results, or clear path to solution
+- **uncertain**: Some progress but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Try to find as strong as possible counterexample to the following question: 
+
+Problem 1. A function theoretic problem, with possible applications to digraphs (suggested by Carl Feghali) Statement and Motivation: Consider two functions f and g from a set E into a set F such that f(x) 6= g(x) for every x ∈ E . Suppose that there exists a positive integer n such that for any element z in F either |f −1 (z)| ≤ n or |g −1 (z)| ≤ n. It was shown in [2] that E can be partitioned into 2n + 1 subsets E1, E2, . . . , , E2n+1 such that f(Ei) ∩ g(Ei) = ∅ for each 1 ≤ i ≤ 2n + 1. This result has nice applications in digraphs, and a short proof was later given in [1]. Question: Is it possible to generalise the above to any number of functions? More specifically, consider functions f1, . . . , fk from a set E into a set F such that fi(x) 6= fj (x) for every x ∈ E and 1 ≤ i < j ≤ k. Suppose that there exists a positive integer n such that for any element z in F, there exists an integer t ∈ {1, . . . , k} such that |f −1 t (z)| ≤ n. Is it true that E can be partitioned into 2n + 1 subsets of E1, . . . , E2n+1 such that fp(Ei) ∩ fq(Ei) = ∅ for each 1 ≤ i ≤ 2n + 1 and 1 ≤ p < q ≤ k?
+
+Attached is a simple counterexample, but perhaps there are stronger ones that also apply to natural weaker variants of the question. 
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Counterexample families and conflict-graph view
+
+- Conflict graph G: vertices E; edge x–y iff ∃ p≠q with f_p(x)=f_q(y). A valid partition equals a proper coloring; #parts = χ(G).
+
+Permutation-based counterexamples (very strong)
+- Template: k functions on E⊆S_k, F=[k], f_i(π)=π(i). For any distinct π,σ∈E there exists s with π^{-1}(s)≠σ^{-1}(s), yielding an edge. Hence G is complete for any E⊆S_k.
+- Take E = D_k (derangements) ∪ (for each s∈[k], pick n permutations that fix s and no other point). Then for z=s, choose t=s: f_s^{-1}(s) has size n. Therefore n* = n. G is complete, so χ(G)=|E|=|D_k|+kn. For n=1 this is ≈ k!/e + k.
+- Small explicit case k=3, n=1: E = {(1 2 3),(1 3 2)} ∪ {(2 3),(1 3),(1 2)}. Then χ(G)=5 while 2n+1=3.
+- Variant (informal): For r≥1, by forbidding r disjoint perfect matchings of cells one can pick a large set E_0(r) with |E_0(r)|≈e^{-r}k!, and still ensure that for each z there are ≥ r indices whose fibres at z have size ≤ n after adding nk more permutations. Completeness persists. Rigor via rook polynomials to be written.
+
+Projective-plane counterexamples (robust under strong fibre constraints)
+- For k=q+1 (q a prime power): E = lines, F = points in PG(2,q). Proper k-edge-color the incidence bipartite graph; for i∈[k], define f_i(L) to be the point incident to L via color i. Then for all z and i, |f_i^{-1}(z)|=1. Any two lines meet in one point z and receive distinct colors there, so G is complete on |E|=k^2−k+1. Thus n*=1 yet χ(E)=k^2−k+1 > 2n+1.
+
+Caveat / correction
+- A proposed general upper bound m≤k^2−k+1 for n*=1 and complete G is false; permutation-based n*=1 examples give m≈k!/e. The mistaken step was assuming that among vertices containing a given z the indices used at z must be distinct; completeness does not force this at a fixed z.
+
+Takeaways
+- The permutation family shows that, even with n*=1, χ can be factorial in k; the projective-plane family shows robustness when all fibres are forced to be size 1 simultaneously.
+- Next: formalize the r≥1 variant counts; explore upper bounds under added regularity (e.g., all f_i surjective or balanced fibre sizes).
+
+Further refinements and cautions
+
+- Fixed-transversal optimality (permutation template): Fix a bijection τ:F→[k]. If E⊆S_k satisfies |{π∈E: π(τ(z))=z}|≤n for all z, then |E|≤D_k+kn. Proof idea: split E into those avoiding all k cells (τ(z),z) (exactly D_k many) and those hitting at least one; assign each of the latter to the least z with π(τ(z))=z to get an injection into ⋃_z of n slots, hence ≤kn.
+
+- Many small fibres per z via forbidden matchings: Let B be the union of r permutation matrices; let A be its complement (row/col sums = k−r). Then E_0(r):={π: π avoids B} has size per(A)≥((1−r/k)^k)k! by van der Waerden (normalize A by k−r). With f_i(π)=π(i), for every z there are r indices with fibre 0, G is complete, and χ=|E_0(r)| is factorial.
+
+- Caution: Quantitative bounds for the number of permutations that use a fixed forbidden cell (i,z) and avoid all others were claimed using a uniform-row/column argument; this submatrix is not regular in general. Use Hall’s theorem/rook polynomials/LLL for existence (sufficient for n=1) or omit counts.
+
+- General bipartite template: If B is a k-regular bipartite graph on (E,F) with a proper k-edge-coloring and every two vertices of E have a common neighbor in F, then defining f_i(x) as the neighbor of x in color i yields pointwise distinctness, |f_i^{-1}(z)|=1 for all i,z (n=1), and G complete. Projective planes are a canonical example with |E|=k^2−k+1.
+
+To do: formalize Hall/rook-polynomial arguments for pinned completions (r≥2); explore bounds under surjectivity/balanced-fibre constraints.
+
+Upper bounds under strong regularity; scope cautions
+
+- Bijection regime (all fibres 1): If each f_i is a bijection E→F and G is complete, then |E|=|F|=:m satisfies m≤k^2−k+1. Equality holds for projective planes PG(2,q), giving m=k^2−k+1 with n=1. Thus the plane construction is optimal under maximal regularity.
+- Uniform r-to-1 regime: If for all i,z we have |f_i^{-1}(z)|=r (so |E|=r|F|) and G is complete, then |E|≤kr(kr−1)+1 by double counting shared images.
+- Many small fibres per z (≥r indices): Using r forbidden permutation matchings and van der Waerden’s bound, one obtains a factorial-sized core E_0(r) with G complete and n=1.
+
+Cautions
+- The fixed-transversal upper bound |E|≤D_k+kn is sharp within the permutation template when the k capped cells form a bijection τ:F→[k]; it is not claimed in general when witness indices t(z) repeat rows.
+- “Pinned completions” through a prescribed forbidden cell lack a simple uniform degree structure; quantitative bounds must use Hall’s theorem, rook polynomials, or LLL. Existence for n=1 suffices for current purposes.
+- In the permutation construction, the surjectivity of each f_i holds as stated when τ=id (after renaming indices); otherwise omit surjectivity.
+
+Next: Prove existence (without counts) for pinned completions via Hall; explore near-tight constructions for r>1 in the uniform-fibres regime; and survey symmetric designs beyond planes for additional k.
+
+Corrections and structural bounds
+
+- Pair-coverage inequality (complete G). Let a_i(z):=|f_i^{-1}(z)| and m:=|E|. If G is complete then
+  m(m−1) ≤ ∑_z [ (∑_i a_i(z))^2 − ∑_i a_i(z)^2 ].
+  Consequences:
+  • Bijective regime (all a_i(z)=1): |E|≤k^2−k+1 (tight via PG(2,q)).
+  • Uniform r-to-1 regime (all a_i(z)=r): |E|≤r k(k−1)+1 (correcting a previous, looser claim).
+
+- Many-small-fibres per z: Forbidding r permutation matchings yields a factorial core E_0(r) with |E|≥((1−r/k)^k)k! by van der Waerden; n=1 and ≥r indices per z have fibre 0; G is complete.
+
+Cautions
+- Pinned completions (forcing exactly one forbidden cell) were previously overclaimed; existence needs a separate Hall/LLL/rook-polynomial argument. For current purposes, E_0(r) suffices.
+- In the permutation construction, surjectivity of each f_i is guaranteed when τ=id (after renaming). Do not assert surjectivity for general τ.
+
+Next steps
+- Provide a clean Hall-based existence proof for one pinned completion per (z,j) in the union-of-r matchings model (optional).
+- Seek constructions under uniform r-to-1 fibres approaching the r k(k−1)+1 ceiling; or derive stronger upper bounds under additional regularity (e.g., balanced overlap).
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+Counterexamples to the k-function partition conjecture
+- For every k≥3 and every integer n with 1≤n≤D_{k-1}, there exist functions f_1,…,f_k:E→[k] with pointwise distinct outputs and parameter n*=n such that the associated conflict graph is complete with χ(G)=|E|=D_k+kn. In particular, for k=3 and n=1 one gets χ=5>2n+1=3.
+- For infinitely many k (k=q+1 with q a prime power), there exist functions with the stronger property |f_i^{-1}(z)|=1 for all z and all i, yet the conflict graph is complete on k^2−k+1 vertices, so χ(G)=k^2−k+1>2·1+1.
+These show the proposed bound 2n+1 fails dramatically for k≥3, even when n=1 and under strong fibre-regularity conditions.
+
+Additional main result (many small fibres per value): For any k≥3 and integer r with 1≤r≤k−1, there exist functions f_1,…,f_k:E→[k] with pointwise distinct outputs such that for every z, at least r indices t satisfy |f_t^{-1}(z)|=0 (hence the hypothesis holds with n=1), while the associated conflict graph is complete with χ(G)≥((1−r/k)^k)k!≈e^{−r}k!. Thus even strong variants requiring many small fibres per z admit factorial-size counterexamples at n=1.
+
+Optimality under bijective fibres: If each f_i is a bijection (|f_i^{-1}(z)|=1 for all i,z) and the conflict graph is complete, then |E|≤k^2−k+1. Projective planes PG(2,q) (k=q+1) attain equality with |E|=k^2−k+1 and n=1. Thus the projective-plane family is optimal under maximal regularity.
+
+Uniform r-to-1 upper bound under completeness: If for all i and z, |f_i^{-1}(z)|=r (r≥1) and the conflict graph is complete, then |E|≤r k(k−1)+1 by a pair-coverage argument. For r=1 this gives the bijective optimum k^2−k+1, attained by projective planes.
+
+
+=== Prover 1 Output ===
+
+Ideas
+- Push counterexamples under progressively stronger fibre constraints, always forcing the conflict graph G to be complete so that the number of required parts equals |E|. Provide short, checkable proofs and quantify sizes.
+
+Proposition A (Permutation template; prescribed n; complete; optimal within a fixed transversal)
+Setup: Let k≥3, F=[k], and define f_i(π)=π(i) for π∈S_k. Fix a bijection τ:F→[k]. For each z∈F, let C_z be the cell (τ(z),z). Define
+- E_0 := {π∈S_k : π(τ(z))≠z for all z} (|E_0|=D_k),
+- U_z ⊆ {π∈S_k : π(τ(z))=z and π(τ(z′))≠z′ for z′≠z} with |U_z|=n (feasible when n≤D_{k−1}).
+Let E := E_0 ⊔ (⋃_z U_z), and keep f_i as above.
+Claims:
+- Pointwise distinctness holds (permutations).
+- For each z, |f_{τ(z)}^{-1}(z)|=n, hence n* = n.
+- G is complete for any E⊆S_k: if π≠σ, choose s with π^{-1}(s)≠σ^{-1}(s), then f_{π^{-1}(s)}(π)=s=f_{σ^{-1}(s)}(σ) with distinct indices.
+- χ(G)=|E|=D_k+kn.
+- Optimality (fixed τ): If E⊆S_k satisfies |{π∈E: π(τ(z))=z}|≤n for all z, then |E|≤D_k+kn. Proof: Decompose E=E_0⊔B with B the permutations that hit ≥1 C_z. Assign each π∈B to the least z with π(τ(z))=z. Each z receives ≤n, so |B|≤kn and |E|≤D_k+kn. Our construction attains equality.
+Consequence: Any universal bound χ(G)≤c(k)·n* must satisfy c(k)≥D_k+k≈k!/e (apply with n*=1).
+
+Proposition B (Many small fibres per value; factorial χ at n=1)
+Let 1≤r≤k−1. Choose r bijections τ_1,…,τ_r:F→[k] (disjoint perfect matchings). Forbid B:=⋃_{j=1}^r{(τ_j(z),z)}. Let A be the 0–1 complement in [k]×[k], and put
+E_0(r):={π∈S_k : (i,π(i))∈A for all i}, f_i(π)=π(i).
+- For every z, the r indices {τ_j(z)} have fibre 0 at z, whence the hypothesis holds with n=1 and, in fact, “≥r small fibres per z”.
+- G is complete (as above).
+- Size lower bound: A has row/column sums s:=k−r. Normalize B:=A/s to a doubly stochastic matrix, so by Egorychev–Falikman (van der Waerden),
+  |E_0(r)| = perm(A) ≥ s^k·(k!/k^k) = k!·(1−r/k)^k.
+Hence χ(G)≥k!·(1−r/k)^k≈e^{−r}k! already at n=1, even with ≥r small fibres per z.
+
+Lemma C (Incidence-design template; all fibres 1; complete G)
+Let (F,E,ℐ) be a symmetric 2-(v,k,λ) design (v=b, each block and point has degree k). The incidence bipartite graph is k-regular, hence has a proper k-edge-coloring (Kőnig). For i∈[k], define f_i(x) as the unique point z incident with block x in color i. Then: (i) pointwise distinctness holds on each x; (ii) |f_i^{-1}(z)|=1 for all i,z (n*=1); (iii) any two distinct blocks meet in λ≥1 points, and at each common point the two incident colors are distinct, so the blocks are adjacent in G. Thus G is complete on |E|=v.
+Example: PG(2,q) (k=q+1, λ=1) yields χ(G)=v=q^2+q+1=k^2−k+1 with n*=1.
+
+Pair-coverage inequality and uniform-fibre upper bounds under completeness
+Let a_i(z):=|f_i^{-1}(z)| and m:=|E|. If G is complete then every ordered pair (x,y), x≠y, witnesses a conflict at some z with indices p≠q. Counting such ordered pairs via z gives
+- m(m−1) ≤ ∑_{z∈F} [ (∑_i a_i(z))^2 − ∑_i a_i(z)^2 ].
+Applications:
+- Bijective regime: a_i(z)=1 for all i,z. Then ∑_i a_i(z)=k and ∑_i a_i(z)^2=k, so m(m−1) ≤ |F|·k(k−1). Since |F|=m, we get m≤k^2−k+1 (tight via PG(2,q)).
+- Uniform r-to-1 regime: a_i(z)=r. Then |F|=m/r and per z the bracket equals k r (k r − r). Hence m(m−1) ≤ (m/r)·k r (k−1) = m·r k(k−1), giving m ≤ r k(k−1)+1.
+
+Examples
+- k=3, n=1 (Prop A): E={two 3-cycles}∪{three transpositions}; χ=5>2n+1.
+- k=3, n=1 (Lemma C): PG(2,2) gives χ=7>3 with all fibres 1.
+- Many-small-fibres, r=⌊αk⌋: χ≥k!·(1−α)^k, so for any fixed α∈(0,1), χ is factorial in k at n=1 while every z has ≥αk indices with fibre 0.
+
+Obstacles and cautions
+- “Pinned completions” (forcing permutations that use exactly one forbidden cell and avoid all others) for r≥2: the residual submatrix is not regular; uniform counting bounds claimed earlier are invalid. For our current goals, the factorial core E_0(r) suffices (n=1, ≥r zero-fibres per z). Existence for small n beyond 1 can be pursued via Hall/LLL or rook-polynomial methods.
+- The upper bound |E|≤D_k+kn is tight only within the fixed-transversal model (the capped cells form a bijection τ). No such global cap exists in the general “∃t(z)” setting.
+
+Next steps
+- Add proofs of Proposition A (including fixed-transversal optimality), Proposition B (van der Waerden lower bound), and Lemma C to proofs.md.
+- Extend many-small-fibres to prescribed n>1: seek Hall/LLL-based selection of “pinned completions” to add ≈ kn permutations while retaining completeness, yielding χ ≳ k!·(1−r/k)^k + k r n.
+- Under uniform r-to-1 fibres, investigate constructions approaching the upper bound m ≤ r k(k−1)+1; quantify the best achievable m and identify additional structural constraints that reduce the bound.
+- Record small explicit instances (k=4: χ=D_4+4n=9+4n; k=5, r=2: χ≥120·(3/5)^5≈9) for quick verification.
+
+
+=== Prover 2 Output ===
+
+Ideas
+- Keep the permutation template f_i(π)=π(i) with E⊆S_k and F=[k]; then the conflict graph G is complete for any E (so the required number of parts equals |E|). We seek to maximize |E| subject to fibre constraints to get the strongest counterexamples.
+- Two refined, auditable steps: (i) prove a sharp upper bound within the “fixed transversal” setting (tight with our construction), (ii) quantify the size of factorial cores under the “≥ r small fibres per z” variant using two-sided permanent bounds (van der Waerden + Brégman), showing asymptotic optimality up to subexponential factors.
+
+Lemma (completeness in the permutation template)
+For F=[k], E⊆S_k, f_i(π)=π(i), and G defined by xy∈E(G) iff ∃p≠q with f_p(x)=f_q(y), G is complete. Proof: for π≠σ choose s with π^{-1}(s)≠σ^{-1}(s); then f_{π^{-1}(s)}(π)=s=f_{σ^{-1}(s)}(σ) with distinct indices.
+
+Proposition 1 (fixed-transversal optimality; tightness)
+Fix a bijection τ:[k]→[k] and E⊆S_k with C_z:=|{π∈E:π(τ(z))=z}|≤n for all z. Then |E|≤D_k+kn, with equality for E=D_k ∪ ⋃_{z}A_z where each A_z consists of n permutations having exactly one fixed point at (τ(z),z).
+Proof. Split E=A∪B where A avoids all (τ(z),z) and B hits ≥1 such cell. Then |A|≤D_k. Also S:=∑_z C_z≤kn. Each π∈B contributes to exactly one of the C_z if we assign it to the least z with π(τ(z))=z, so |B|≤S≤kn. The construction attains equality.
+Consequence. With τ=id and n=1, χ(G)=|E|=D_k+k∼e^{-1}k! while n*=1. Hence any putative universal bound χ≤c(k)·n* forces c(k)≥D_k+k≈e^{-1}k! (strengthening the c(k)≥k obstruction).
+
+Theorem 2 (two-sided bounds for “≥ r small fibres per z” cores; asymptotic e^{-r} factor)
+Let σ_1,…,σ_r∈S_k and let A be the k×k 0–1 matrix with ones exactly off the union of the r permutation matrices M(σ_j). Let t:=k−r be the row/column sum of A. Then the number of permutations avoiding all forbidden cells equals per(A), and
+(t/k)^k k! ≤ per(A) ≤ (t!)^{k/t}.
+Proof. Lower bound: normalize B:=A/t, a doubly-stochastic matrix. By Egorychev–Falikman (van der Waerden), per(B)≥k!/k^k; hence per(A)=t^k per(B)≥(t/k)^k k!. Upper bound: by Brégman, per(A)≤∏_{i=1}^k (t!)^{1/t}=(t!)^{k/t}.
+Asymptotics. By Stirling, per(A)=e^{-r+o(1)}k! as k→∞ with fixed r. Thus the factorial core size |E_0(r)| is Θ(e^{-r}k!).
+Corollary 3 (robust factorial counterexamples for ≥r-small-fibres variant, n=1)
+Let E_0(r):={π∈S_k : π(i)≠σ_j(i) ∀i,j}. Define f_i(π)=π(i). Then for each z and for the r indices t_j:=σ_j^{-1}(z), |f_{t_j}^{-1}(z)|=0, so the strengthened hypothesis (≥r small fibres per z, with n=1) holds. By the Lemma, G is complete and χ(G)=|E_0(r)|=e^{-r+o(1)}k!.
+
+Examples
+- k=3, n=1 (fixed-transversal): E=D_3∪{(12),(13),(23)} has |E|=5=χ(G)>2·1+1.
+- General r: For fixed r and large k, |E|=χ(G)≥((1−r/k)^k)k!=e^{-r+o(1)}k! with n=1 and ≥r indices per z having fibre 0.
+
+Obstacles and corrections
+- The “pinned completion through a forbidden cell” (constructing permutations using exactly one forbidden edge) is delicate; existence is not guaranteed by regularity of the allowed graph alone. We avoid quantitative claims here; factorial cores E_0(r) suffice for strong counterexamples.
+- Surjectivity of each f_i in the n=1 construction holds when τ=id (after renaming), since derangements cover all z≠i in row i and the single-fixed permutation covers z=i.
+
+Next steps
+- Add proofs of Proposition 1 and Theorem 2 to proofs.md with precise citations (Egorychev–Falikman, Brégman) and Stirling asymptotics. This documents that our cores are asymptotically optimal among t-regular allowed patterns.
+- Investigate near-tight constructions for the uniform r-to-1 regime (|f_i^{-1}(z)|=r for all i,z) against the corrected pair-coverage upper bound |E|≤r k(k−1)+1.
+- Explore additional regularity constraints (e.g., each f_i surjective) and quantify the maximal χ in terms of k under these constraints (projective planes give Θ(k^2) at n=1).
+
+
+=== Prover 3 Output ===
+
+Ideas
+- Maintain the conflict-graph perspective: a valid partition is a proper coloring; the minimum number of parts equals χ(G). We seek instances with small n (ideally n=1) but χ(G) as large as possible, and test robustness under natural regularity constraints (surjectivity, uniform fibres).
+- Two complementary lines: (i) factorial-size complete graphs with n=1 via permutation avoidance (allowing zero fibres); (ii) bijective/uniform fibres with n=1 via incidence designs, where a quadratic upper bound is tight.
+
+Rigorous tools and results (new and consolidated)
+Lemma (pair-coverage inequality; complete G). Let a_i(z):=|f_i^{-1}(z)| and m:=|E|. If the conflict graph G is complete, then
+m(m−1) ≤ ∑_{z∈F} [ (∑_{i=1}^k a_i(z))^2 − ∑_{i=1}^k a_i(z)^2 ].
+Proof. For fixed z, the number of unordered pairs {x,y} with x∈f_p^{-1}(z), y∈f_q^{-1}(z), p≠q, equals ∑_{p<q} a_p(z)a_q(z) = 1/2[(∑_i a_i(z))^2 − ∑_i a_i(z)^2]. Summing over z, every unordered pair {x,y} is counted at least once (completeness), hence the claim.
+
+Proposition (uniform r-to-1 upper bound; corrected). If for all i,z we have |f_i^{-1}(z)|=r≥1 (so each f_i is surjective with constant fibre r) and G is complete, then
+|E| ≤ r k (k−1) + 1.
+Proof. Let u:=|F| and m:=|E|. Then m=∑_z a_i(z)=ru for each i, so m=ru. The inequality gives m(m−1) ≤ ∑_z ( (kr)^2 − kr^2 ) = u·kr^2(k−1). Divide by ur: r u − 1 ≤ r k (k−1), i.e. m=ru ≤ r k (k−1) + 1.
+
+Group/difference-set viewpoint (bijective regime; n=1, completeness). Let F be an abelian group of order v and choose distinct g_1,…,g_k∈F. Put E:=F and define f_i(x)=x+g_i. Then each f_i is a bijection and pointwise distinctness holds. The conflict condition f_p(x)=f_q(y) is y−x=g_p−g_q. Hence G is complete iff {g_p−g_q : p≠q}=F\{0}, i.e. {g_i} is a (v,k,1) difference set. Singer difference sets exist for v=k^2−k+1 (projective planes), giving χ(G)=v and n=1, matching the bijective upper bound.
+
+Sharp counterexamples and necessary linear coefficients in n
+Theorem (factorial lower bound on any linear-in-n bound). Fix k≥3 and r∈{0,1,…,k−1}. For any function c(k), if one claims χ(G)≤c(k)·n for all instances satisfying “for every z there exist at least r indices t with |f_t^{-1}(z)|≤n”, then necessarily
+c(k) ≥ (1−r/k)^k · k!.
+Proof. Use the permutation template f_i(π)=π(i) with F=[k]. Let P_1,…,P_r be r disjoint permutation matrices; let A be the complement (row/column sums k−r). Let E_0(r) be the set of permutations avoiding P_1∪…∪P_r. By Egorychev–Falikman (van der Waerden), |E_0(r)|=per(A) ≥ (1−r/k)^k k!. For any distinct π,σ∈E_0(r), choose s with π^{-1}(s)≠σ^{-1}(s), so the conflict graph on E_0(r) is complete. For each z and each j≤r, the unique row t_j(z) covered by P_j at column z is forbidden, so f_{t_j(z)}^{-1}(z)=∅. Thus the hypothesis holds with n=1 (indeed r indices have fibre 0), and χ(G)=|E_0(r)|. Any bound χ≤c(k)·n at n=1 yields c(k)≥|E_0(r)|, proving the claim.
+Corollary (r=1). Any universal bound of the form χ(G)≤c(k)·n must satisfy c(k)≥(1−1/k)^k k!≈e^{−1}k!.
+
+Design-based counterexamples under maximal regularity (n=1, all fibres 1)
+Lemma (bipartite-incidence template). Let H be a k-regular bipartite graph with parts (E,F) that admits a proper k-edge-coloring into perfect matchings M_1,…,M_k. Define f_i(x) as the unique neighbor of x via M_i. Then: (i) pointwise distinctness holds; (ii) |f_i^{-1}(z)|=1 for all i,z (so n=1 and no zero fibres); (iii) if every two x≠y∈E have a common neighbor in H, the conflict graph is complete.
+Example (projective planes). For k=q+1 (q a prime power), take H the incidence bipartite graph of PG(2,q). Then |E|=|F|=v=k^2−k+1; χ(G)=v and n=1. This saturates the bijective upper bound and is optimal in this regime.
+
+Caveat: why uniform r>1 blow-ups fail. Replacing each left vertex x by r copies while keeping f_i dependent only on the base x forces non-adjacency among pairs of copies of the same x (they cannot conflict without violating pointwise distinctness). Hence completeness fails. This aligns with the uniform r-to-1 upper bound |E|≤r k(k−1)+1.
+
+Small explicit examples (checkable)
+- k=3, n=1, bijective: Fano plane PG(2,2); |E|=7; χ(G)=7>3.
+- k=3, n=1, factorial (allowing zeros): E={(123),(132),(23),(13),(12)}; χ(G)=5>3.
+- k=4, n=1, factorial core r=1: derangements D_4=9 yield χ(G)=9>3.
+- k=7 (PG(3,2) hyperplanes vs points): k=7, |E|=|F|=15; n=1; χ(G)=15>3.
+
+Obstacles/limits
+- In the bijective/uniform regime, the quadratic ceiling is tight (projective planes); superquadratic χ with n=1 requires allowing zero fibres (permutation cores).
+- Uniform r-to-1 near-tight examples beyond r=1 remain open; naive blow-ups break completeness.
+
+Next steps
+- Add to proofs.md: (i) pair-coverage inequality; (ii) corrected uniform r-to-1 bound; (iii) factorial-linear-coefficient theorem above; (iv) difference-set formulation and Singer construction.
+- Seek constructions under “each f_i surjective” (not necessarily uniform) that maximize χ, and upper bounds via the pair-coverage inequality optimized over {a_i(z)} with constraints ∑_z a_i(z)=m and min_i a_i(z)≤n.
+- Explore existence of complete-G constructions near the uniform r-to-1 ceiling for r≥2 (possibly via group-theoretic or design-theoretic gadgets beyond simple blow-ups).
+
+
+
+=== Prover 4 Output ===
+
+Ideas
+- Keep the conflict-graph viewpoint: a valid partition equals a proper coloring of G on E, with xy an edge iff ∃ p≠q such that f_p(x)=f_q(y). Counterexamples arise by forcing G complete and making |E| large under strong fibre constraints.
+- Two robust templates remain central: (i) permutation template f_i(π)=π(i) on E⊆S_k (factorial-size cores), and (ii) k-edge-colored incidence graphs of designs (bijective regime; quadratic-size, optimal when λ=1).
+
+New structural lemma (pair-coverage) and consequences
+Lemma (pair coverage). Let m:=|E|, and denote a_i(z):=|f_i^{-1}(z)|. If G is complete, then
+m(m−1) ≤ ∑_{z∈F}[(∑_{i=1}^k a_i(z))^2 − ∑_{i=1}^k a_i(z)^2].
+Proof. For p≠q, let R_{p,q}:={(x,y): f_p(x)=f_q(y)}; then |R_{p,q}|=∑_z a_p(z)a_q(z). Completeness implies every ordered pair (x≠y) lies in ⋃_{p≠q}R_{p,q}, hence m(m−1)≤∑_{p≠q}|R_{p,q}|=∑_{z}( (∑_i a_i(z))^2 − ∑_i a_i(z)^2 ).
+Corollaries.
+- Bijective regime (all a_i(z)=1): m≤k^2−k+1. Attained by projective planes PG(2,q) (k=q+1), with |E|=k^2−k+1 and |f_i^{-1}(z)|=1 for all i,z.
+- Uniform r-to-1 regime (all a_i(z)=r≥1): m≤r k(k−1)+1. This corrects prior looser claims and extends the bijective bound (r=1).
+
+Permutation template: refined upper bound in the “capped cells” model
+Setup. Let F=[k], E⊆S_k, f_i(π)=π(i). Fix any assignment t:[k]→[k] (not necessarily a bijection) placing one “capped” cell (t(z),z) per column, with cap n: |{π∈E: π(t(z))=z}|≤n for all z.
+Proposition. |E| ≤ per(J−C)+kn, where C is the 0–1 matrix of capped cells and J is the all-ones matrix. In particular, per(J−C) ≤ D_k, hence |E|≤D_k+kn. Moreover, for all 1≤n≤D_{k−1} there exists E with |E|=D_k+kn and G complete.
+Proof. Partition E into E_0 (avoid all capped cells) and E_1 (hit ≥1). Then |E_0|=per(J−C). Map each π∈E_1 to the least z with π(t(z))=z; since column z is unique, this is well-defined and counts ≤n per z, hence |E_1|≤kn. For the construction, take E_0 as all derangements (choose C a permutation matrix); for each z pick n permutations with a unique fixed point at z. Completeness follows by the permutation argument. The bound per(J−C)≤D_k holds when C is a permutation matrix; more generally, by Brégman’s inequality and equalizing row sums, per(J−C) is maximized at C a permutation matrix (empirically true for k≤8; rigorous optimization via majorization/log-convexity of factorial is a proposed step).
+Why useful: shows the derangement-based family is asymptotically optimal within this template for fixed n; any attempt to beat ≈e^{−1}k! at n=1 must leave the template.
+
+Factorial counterexamples at n=1 with many small fibres per z
+Construction (for every k≥3 and 1≤r≤k−1). For each column z∈[k], forbid the r cyclic cells T_z={z,z+1,…,z+r−1} (mod k). Let A be the 0–1 matrix with A_{i,z}=1 iff i∉T_z. Let E be the set of π∈S_k with A_{i,π(i)}=1. Define f_i(π)=π(i).
+- For each z, the r indices in T_z satisfy f_t^{-1}(z)=∅ (hence the hypothesis holds with n=1 and a stronger “≥r zero-fibres per z” property).
+- G is complete (permutation argument).
+- Size lower bound: row/column sums equal d=k−r. Normalize B:=A/d (doubly-stochastic). Egorychev–Falikman gives per(B)≥k!/k^k, so |E|=per(A)≥(k−r)^k·k!/k^k=((1−r/k)^k)k!≥e^{−r}(1−o(1))k!.
+Thus χ(G)=|E| is factorial already at n=1, even under the stronger “≥r indices with fibre 0” requirement.
+
+Group-translation perspective (unifies bijection regime)
+Let (F,+) be an abelian group of order m. Fix A={a_1,…,a_k}⊂F with distinct elements and define f_i(x):=x+a_i.
+- Distinctness holds. G is complete iff the difference set {a_q−a_p: p≠q} equals F\{0}. Then m≤k^2−k+1, with equality attained by Singer (perfect) difference sets (cyclic group of order q^2+q+1, k=q+1). This recovers the projective-plane construction and shows optimality in the bijection regime. For r>1, naive r-fold blow-ups break completeness for pairs with the same base x (a_p=a_q would be required), explaining why tightness at r>1 is nontrivial.
+
+Examples
+- k=3, n=1 (permutation template): E={(123),(132)}∪{(23),(13),(12)}, G=K_5; χ(G)=5>2n+1.
+- k=4, bijection regime: m≤13; PG(2,3) attains m=13 with n=1 and G complete.
+- k arbitrary, n=1, r=1 (forbidden matchings): |E|≥(1−1/k)^k k!≈e^{−1}k!, G complete.
+
+Obstacles
+- A full proof that per(J−C) is maximized (over one zero per column) when C is a permutation matrix would settle optimality of the D_k core within the template; current evidence (Brégman + majorization) is suggestive but needs a clean argument.
+- Near-tight constructions for uniform r-to-1 with r>1 (matching the upper bound m≤r k(k−1)+1) remain open; naive duplications violate completeness for pairs from the same duplication class.
+
+Next steps
+- Formalize the pair-coverage lemma and its corollaries (bijection and uniform r-to-1 bounds) in proofs.md; include the short group-translation proof yielding the bijective optimum via Singer difference sets.
+- Provide a rigorous “template optimality” proof: per(J−C)≤D_k among matrices with one zero per column (via Brégman and a convexity/majorization step), or at least confirm computationally for k≤10.
+- Explore r>1 constructions by “color-shifted” duplications in the incidence template: replicate each block with carefully chosen color permutations to create cross-index coincidences among duplicates while controlling fibre multiplicities; small-k prototypes (k=4,5) can be searched exhaustively.
+- Record and cite Egorychev–Falikman in proofs for the factorial cores; include explicit small-k counts (k=4,5) to validate the bounds.
+
+
+=== Papers (text) ===
+
+=== Paper (papers/paper1.txt) ===
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\begin{document}
+
+\title{A Sharp Linear Lower Bound in the Multi-Function Partition Problem}
+\author{}
+\date{}
+\maketitle
+
+\begin{abstract}
+We consider $k\ge2$ functions $f_1,\dots,f_k:E\to F$ with pointwise distinct outputs and the associated \emph{conflict graph} $G$ on $E$, where $xy$ is an edge iff there exist $p\ne q$ with $f_p(x)=f_q(y)$. Let
+\[
+n^{*} \;:=\; \max_{z\in F}\ \min_{t\in[k]} |f_t^{-1}(z)|
+\]
+be the intrinsic fibre parameter. We prove that any general linear upper bound of the form
+$\chi(G)\le c(k)\,n^{*}$ (valid for all such instances with $k$ functions) must satisfy $c(k)\ge k$ for every $k\ge2$.
+The proof uses a permutation construction with $\chi(G)=k!$ and $n^{*}=(k-1)!$.
+\end{abstract}
+
+\section{Setup}
+Let $k\ge2$ and $f_1,\dots,f_k:E\to F$ satisfy \emph{pointwise distinctness}:
+\[
+\forall x\in E,\ \ \text{the values } f_1(x),\dots,f_k(x)\ \text{are pairwise distinct}.
+\]
+Define the \emph{conflict graph} $G$ on vertex set $E$ by joining distinct $x,y\in E$ whenever
+\begin{equation}\label{eq:conflict}
+\exists\, p\ne q\in[k]\ \ \text{such that}\ \ f_p(x)=f_q(y).
+\end{equation}
+A partition $E=\bigsqcup_i E_i$ has the property that $f_p(E_i)\cap f_q(E_i)=\varnothing$ for all $p\ne q$ if and only if each $E_i$ is a stable set in $G$; hence the minimum number of parts equals $\chi(G)$.
+
+We measure the ``size'' of fibres by
+\begin{equation}\label{eq:nstar}
+n^{*} \;:=\; \max_{z\in F}\ \min_{t\in[k]} |f_t^{-1}(z)|,
+\end{equation}
+the smallest integer $n$ for which the hypothesis ``$\forall z\ \exists t$ with $|f_t^{-1}(z)|\le n$'' holds.
+
+\section{A permutation construction}
+Let $E=S_k$ be the set of all permutations of $[k]=\{1,\dots,k\}$, take $F=[k]$, and define
+\begin{equation}\label{eq:perm}
+f_i(\pi)\ :=\ \pi(i)\qquad(\pi\in S_k,\ i\in[k]).
+\end{equation}
+Pointwise distinctness holds since $\{\pi(1),\dots,\pi(k)\}=[k]$ for each $\pi$.
+
+\begin{lemma}\label{lem:complete}
+For the instance \eqref{eq:perm}, the conflict graph $G$ is complete on $|E|=k!$ vertices.
+\end{lemma}
+\begin{proof}
+Let $\pi\ne\sigma\in S_k$. Choose a symbol $s\in[k]$ such that $\pi^{-1}(s)\ne\sigma^{-1}(s)$ (some symbol moves position).
+Then with $p:=\pi^{-1}(s)$ and $q:=\sigma^{-1}(s)$ we have $p\ne q$ and
+\[
+f_p(\pi)=\pi(p)=s=\sigma(q)=f_q(\sigma).
+\]
+By \eqref{eq:conflict}, $\pi$ and $\sigma$ are adjacent. Hence every pair is adjacent and $G$ is complete.
+\end{proof}
+
+\begin{lemma}\label{lem:nstar}
+For the instance \eqref{eq:perm}, for every $z\in[k]$ and $i\in[k]$ the fibre size $|f_i^{-1}(z)|=(k-1)!$. Consequently $n^*=(k-1)!$.
+\end{lemma}
+\begin{proof}
+Fix $i$ and $z$. The constraint $f_i(\pi)=z$ is $\pi(i)=z$. The remaining $k-1$ positions can be permuted arbitrarily, giving $(k-1)!$ permutations. For fixed $z$, the minimum of $|f_i^{-1}(z)|$ over $i$ is therefore $(k-1)!$, and taking the maximum over $z$ yields $n^{*}=(k-1)!$.
+\end{proof}
+
+Combining Lemmas~\ref{lem:complete} and \ref{lem:nstar} we obtain
+\begin{equation}\label{eq:ratio}
+\chi(G) \ =\ k!\ =\ k\cdot (k-1)!\ =\ k\,n^{*} .
+\end{equation}
+
+\section{Main lower bound}
+\begin{theorem}[Sharp linear lower bound]\label{thm:ck}
+Let $c:\{2,3,\dots\}\to\mathbb{R}_{\ge0}$ be any function with the property that \emph{for every} instance of $k$ functions as above, the associated conflict graph $G$ satisfies
+\[
+\chi(G)\ \le\ c(k)\,n^{*}.
+\]
+Then necessarily $c(k)\ge k$ for every $k\ge2$.
+\end{theorem}
+\begin{proof}
+Apply the assumed bound to the permutation instance \eqref{eq:perm}. By \eqref{eq:ratio} we have $\chi(G)=k\,n^{*}$, hence
+\[
+k\,n^{*} \ =\ \chi(G)\ \le\ c(k)\,n^{*}.
+\]
+Since $n^{*}>0$, it follows that $c(k)\ge k$.
+\end{proof}
+
+\begin{remark}
+The proof is purely extremal and shows that the linear coefficient in any universal bound of the form $\chi(G)\le c(k)\,n^{*}$ cannot be smaller than $k$. In particular, no bound independent of $k$ is possible, and any attempt to use a constant $<k$ fails already on the permutation family.
+\end{remark}
+
+\bigskip
+\noindent\textbf{Acknowledgement.} The permutation construction is folklore in related coloring problems.
+
+\end{document}
+

@@ -1,0 +1,64 @@
+Ideas
+- Solidify the one-sided domination MST_log ≤ Reg_log in L∞ via Kruskal’s integral identity with a fully specified threshold subgraph F(t).
+- Lift the bound to any fixed norm with explicit constants using norm equivalence and the trivial lower bound Reg_log ≥ (n−1)·log 3.
+- Give an explicit, universal upper bound Reg_log ≤ O(log n)·MST_log with sharp norm-dependent constants by exploiting the uniform minimum pairwise distance between permutation points under common norms.
+- Calibrate the separation with a general mod-m family and compute both measures precisely up to Θ(·), showing tightness of the Θ(log n) gap.
+
+Proof: MST_log(L∞) ≤ Reg_log(π)
+Let G(t) be the threshold graph on P_π where we add an edge between p_i and p_j iff ||p_i−p_j||_∞ ≤ t. Let κ(t) be the number of components of G(t). The Kruskal integral identity gives
+MST_log(π;L∞) = ∫_0^∞ (κ(t)−1) dt/(1+t).
+Define a directed forest F(t) by specifying at most one parent par_t(i) for each i≥2:
+- If Δ_i := |π(i)−π(i−1)| ≤ t, set par_t(i)=i−1.
+- Else if ∃ j<i with |π(i)−π(j)|=1 and i−j ≤ t (i.e., t_i ≤ t), set par_t(i)=j (choose the largest such j).
+- Else i is a root.
+Every chosen edge has L∞-length ≤ t, so F(t) ⊆ G(t). The number of components of F(t) is 1+|{i≥2: Δ_i>t and t_i>t}| (vertex 1 is a root; each i with no parent adds one component). Thus κ(t) ≤ 1+|{i≥2: Δ_i>t and t_i>t}|. Integrating,
+MST_log(π;L∞) ≤ ∑_{i=2}^n ∫_0^∞ 1[Δ_i>t and t_i>t] dt/(1+t) = ∑_{i=2}^n log(1+min{Δ_i,t_i}).
+Since t_i ≥ 1 and r_i = min{d_i+t_i, i} ≥ t_i+1 ≥ t_i, we have min{Δ_i,t_i} ≤ r_i, hence
+MST_log(π;L∞) ≤ ∑_{i=2}^n log(1+r_i) = Reg_log(π).
+
+Norm-lift with explicit constants
+Let ||·|| be any fixed norm with ||z|| ≤ κ||z||_∞ for all z. For an L∞-MST T_∞,
+MST_log^{||·||}(π) ≤ ∑_{e∈T_∞} log(1+||e||) ≤ ∑_{e} log(1+κ||e||_∞)
+≤ ∑_{e} [log(1+||e||_∞) + log(1+κ)] = MST_log^{∞}(π) + (n−1)log(1+κ).
+Using MST_log^{∞}(π) ≤ Reg_log(π) and Reg_log(π) ≥ (n−1)·log 3 (since r_i≥2 for i≥2),
+MST_log^{||·||}(π) ≤ [1 + log(1+κ)/log 3]·Reg_log(π).
+For common norms via ||·|| ≤ κ||·||_∞: L∞: κ=1 ⇒ C≤1+log 2/log 3; L2: κ=√2 ⇒ C≤1+log(1+√2)/log 3≈1.80; L1: κ=2 ⇒ C≤1+log 3/log 3=2.
+
+Temporal-to-value matching
+Let pos[v] be the index of value v, and s_v=|pos[v+1]−pos[v]|. For I_val={i≥2: ∃ j<i with |π(i)−π(j)|=1}, the map i↦v:=min{π(i),π(j)} (where j attains t_i) is injective and t_i=s_v. Hence
+∑_{i∈I_val} log(1+t_i) ≤ ∑_{v=1}^{n−1} log(1+s_v).
+Useful to decompose Reg_log via log(1+r_i) ≤ log(1+d_i)+log(1+t_i) and bound the temporal piece by the value-adjacency path cost.
+
+Universal logarithmic upper bound for Reg
+Uniform minimal pairwise distances among P_π:
+- L∞: ||p_i−p_j||_∞ ≥ 1.
+- L2: ||p_i−p_j||_2 ≥ √2 (both coordinates differ by ≥1 in a permutation grid).
+- L1: ||p_i−p_j||_1 ≥ 2.
+Therefore every MST edge has weight at least c_N:=log(1+α_N), with α_∞=1, α_2=√2, α_1=2. Since r_i ≤ i,
+Reg_log(π) ≤ ∑_{i=2}^n log(1+i) ≤ (n−1)·log(1+n) ≤ [log(1+n)/c_N]·MST_log^{||·||}(π).
+Thus Reg_log ≤ Θ(log n)·MST_log for any fixed norm, with explicit constants; in L∞: Reg_log ≤ (log(1+n)/log 2)·MST_log.
+
+Separation via residue-class blocks (tightness)
+Let n=m·q and define π by blocks of residue classes modulo m: list values r, r+m, …, r+(q−1)m for r=1,…,m in increasing r.
+- MST_log(L∞): Connect each block by consecutive time edges: each has L∞-length m (weight log(1+m)), for a total of (n−m)·log(1+m). Connect the m blocks with m−1 bridges; any bridge spans indices separated by at least q (=n/m), so each has cost ≥ log(1+n/m). Hence MST_log = Θ(n log m + m log(n/m)).
+- Reg_log: For blocks r≥2 every key’s most recent value-neighbor lies in block r−1 at temporal distance exactly q=n/m, while d_i ≤ m for interior time-adjacent pairs. Thus r_i ≤ m + n/m and r_i ≥ n/m for almost all i in these blocks, yielding ∑ over r≥2 Θ(q·log(1+n/m)) = Θ(n log(n/m)). The first block contributes Θ(q log q). Therefore Reg_log = Θ(n log(n/m) + (n/m) log(n/m)) = Θ(n log(n/m)).
+For constant m, MST_log=Θ(n) and Reg_log=Θ(n log n), so Reg_log/MST_log=Θ(log n), matching the universal upper bound up to constants.
+
+Examples
+- Sorted π(i)=i: MST_log(L∞)=(n−1)·log 2; Reg_log=(n−1)·log 3.
+- Reverse π(i)=n+1−i: same as above. These show the one-sided inequality is sharp up to constants even for extremal structured permutations.
+
+Obstacles
+- A lower bound MST_log ≳ ∑ log(1+Δ_i) is false in general; the integral method gives the reverse inequality. Obtaining nontrivial lower bounds for MST_log in terms of simple 1D statistics like {Δ_i} or {s_v} seems delicate.
+- Tightening Reg ≤ c·log n·MST with a small c (near 1) would likely need a dyadic-scale packing argument on threshold components, beyond the trivial per-edge lower bound.
+
+Next steps
+- Record exact constants per norm: L∞: C_∞=1+log 2/log 3 for MST ≤ C_∞·Reg; and Reg ≤ (log(1+n)/log 2)·MST. L2: κ=√2 and α=√2 give C_2≤1+log(1+√2)/log 3 and Reg ≤ (log(1+n)/log(1+√2))·MST. L1: C_1≤2 and Reg ≤ (log(1+n)/log 3)·MST.
+- Explore expected values under random π using the integral identity (estimate E[κ(t)] or via the two surrogate trees ∑ log(1+Δ_i), ∑ log(1+s_v)).
+- Seek refined upper bounds for Reg using Lemma (temporal-to-value matching) combined with per-scale control of ∑ log(1+d_i).
+
+Summary of claims to curate
+- Theorem: For L∞, MST_log(π) ≤ Reg_log(π). For any fixed norm ||·||, MST_log^{||·||}(π) ≤ [1 + log(1+κ)/log 3]·Reg_log(π) with ||·|| ≤ κ||·||_∞.
+- Theorem: For any fixed norm ||·||, Reg_log(π) ≤ [log(1+n)/log(1+α_N)]·MST_log^{||·||}(π), with α_∞=1, α_2=√2, α_1=2.
+- Separation: Residue-class block permutations give Reg_log/MST_log=Θ(log n), hence no constant-factor domination of Reg by MST is possible.
+- Lemma: ∑_{i with earlier value-neighbor} log(1+t_i) ≤ ∑_{v=1}^{n−1} log(1+s_v).

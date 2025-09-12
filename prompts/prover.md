@@ -6,7 +6,7 @@ Inputs:
 - task statement 
 - notes.md (informal progress & exploratory work; optional) 
 - proofs.md (rigorously proven results & detailed proofs; optional) 
-- output.md (main results summary only; optional) 
+- output.md (main results, rigorously presented; optional) 
 - summary of past rounds (optional) 
 - possibly some reference papers.
 
@@ -15,7 +15,7 @@ What counts as progress:
 - Explore small examples & try to break your own claims with toy counterexamples.
 - Prove special cases or nontrivial bounds.
 - If an approach fails, explain crisply why.
-- Point out flaws in notes.md, proofs.md, or output.md (but do not rewrite these files yourself).
+- Point out flaws in notes.md, proofs.md, or output.md (but you are not rewriting these files yourself, that's verifier's job).
 
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
@@ -23,7 +23,6 @@ What counts as progress:
 - Do not output Markdown code fences, only raw JSON. 
 - Length: at least ~200 words. 
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
-- Remember: the verifier curates notes and outputs, you only suggest.
 
 **Output**: Write your analysis as Markdown that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
 

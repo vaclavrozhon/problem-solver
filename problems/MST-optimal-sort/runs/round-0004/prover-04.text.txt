@@ -1,0 +1,75 @@
+# Ideas
+
+- Strengthen and generalize the L∞ domination to arbitrary nondecreasing weight functions via Kruskal’s integral identity; this makes the log case a corollary and clarifies the role of the sparse H(t) construction.
+- Sharpen norm-lifting constants cleanly for L_p norms by using 1+||e|| ≤ b(1+||e||∞) with b = sup_{||z||∞=1} ||z||.
+- Record a tidy “per-edge lower bound” lemma exploiting the permutation-grid property (both coordinates differ) to improve constants for the universal Reg ≤ Θ(log n)·MST bound.
+- Parameterize the mod-m separation family as m=m(n) to give a continuum of achievable ratios Θ(log(n/m)).
+
+# Results and proofs
+
+## 1) General weight domination in L∞
+
+Let φ: [0,∞)→[0,∞) be C^1, nondecreasing, with φ(0)=0. Define MST_φ^∞(π) as the MST total weight with edge w(u,v)=φ(||u−v||∞).
+
+Proposition 1. For all π,
+MST_φ^∞(π) ≤ ∑_{i=2}^n φ(min{Δ_i, t_i}) ≤ ∑_{i=2}^n φ(r_i).
+
+Proof. Kruskal integral identity (layer-cake):
+MST_φ^∞(π) = ∫_0^∞ (κ_G(t)−1) φ′(t) dt,
+where G(t) has an edge between points at L∞-distance ≤ t and κ_G(t) is its component count. As in the notes, construct H(t) by adding the time edge (i−1,i) if Δ_i≤t and the value-neighbor edge (i,j) (latest j<i with |π(i)−π(j)|=1) if t_i≤t. Then H(t)⊆G(t), and κ_G(t)≤κ_H(t)≤1+|{i≥2: Δ_i>t and t_i>t}|. Therefore
+MST_φ^∞(π) ≤ ∫_0^∞ |{i: min(Δ_i,t_i)>t}| φ′(t) dt = ∑_{i=2}^n ∫_0^{min(Δ_i,t_i)} φ′(t) dt = ∑_{i=2}^n φ(min{Δ_i,t_i}).
+Since φ is nondecreasing and r_i ≥ t_i, the second inequality follows. ∎
+
+Corollary 1. With φ(x)=log(1+x), MST_log^∞(π) ≤ ∑_i log(1+min{Δ_i,t_i}) ≤ Reg_log(π).
+
+
+## 2) Norm lifting with refined constants
+
+Let N be a norm on R^2 and b_N := sup_{||z||∞=1} ||z||_N ≥ 1. For any edge e,
+1 + ||e||_N ≤ 1 + b_N||e||∞ ≤ b_N(1 + ||e||∞).
+Hence log(1+||e||_N) ≤ log b_N + log(1+||e||∞). Summing over an L∞-MST T∞:
+MST_log^N(π) ≤ (n−1)·log b_N + MST_log^∞(π) ≤ (1 + (log b_N)/log 3) · Reg_log(π),
+since Reg_log(π) ≥ (n−1) log 3.
+
+For L_p in R^2, b_p = 2^{1/p}. Thus
+MST_log^{(p)}(π) ≤ (1 + (log 2)/(p·log 3)) · Reg_log(π).
+
+
+## 3) Universal logarithmic upper bound (explicit constants)
+
+Permutation-grid geometry: for distinct i≠j, both coordinates differ by ≥1. Thus
+- L∞: ||p_i−p_j||∞ ≥ 1 ⇒ per-edge weight ≥ log 2.
+- L2: ||p_i−p_j||_2 ≥ √2 ⇒ per-edge weight ≥ log(1+√2).
+- L1: ||p_i−p_j||_1 ≥ 2 ⇒ per-edge weight ≥ log 3.
+More generally, with α_N := inf_{z∈S} ||z||_N where S={z: ||z||∞≥1 and both coordinates ≠0}, every MST edge weighs ≥ c_N:=log(1+α_N).
+Since r_i ≤ i, Reg_log(π) ≤ ∑_{i=2}^n log(1+i) ≤ (n−1)·log(1+n). Therefore, for any fixed norm N,
+Reg_log(π) ≤ (log(1+n)/c_N) · MST_log^N(π).
+In particular: L∞ c_∞=log 2, L2 c_2=log(1+√2), L1 c_1=log 3.
+
+
+## 4) Parametric separation via mod m
+
+Let m=m(n)≥2 and partition values by residues mod m, listing classes 0,1,…,m−1, each internally increasing. Denote m_r the size of class r.
+- MST_log^N(π)=Θ(n): span each class by time edges (constant cost per edge), add O(m) bridges of cost O(log n) each.
+- Reg_log(π) ≥ ∑_{r=1}^{m−1} m_r·log(1+m_{r−1}) = Θ(n·log(n/m)) when classes are balanced (m_r≈n/m).
+Thus Reg_log/MST_log = Θ(log(n/m)). Choosing m constant gives Θ(log n), while m=n^ε gives Θ((1−ε) log n).
+
+
+# Examples
+
+- Monotone permutations: MST_log = Θ(n), Reg_log = Θ(n); both comparisons tight with constants above.
+- Parity blocks (m=2): MST_log=Θ(n), Reg_log=Θ(n log n) ⇒ ratio Θ(log n).
+- Riffle-like alternating extremes (1,n,2,n−1,…): both measures Θ(n), consistent with the bounds.
+
+
+# Obstacles
+
+- Improving MST_log ≤ C·Reg_log to C=1 for norms other than L∞ seems hard: the L∞-based H(t) argument matches the metric; norm-lifting inevitably introduces a factor log b_N/log 3.
+- A per-scale counting inequality |{i: r_i>t}| ≲ κ(t) remains delicate; naive proofs risk double counting or ignoring indices without an earlier neighbor. The integral approach with φ′ weights is safer.
+
+
+# Next steps
+
+- Record Proposition 1 and the refined norm-lift constants in proofs.md; they generalize the current log-specific proofs and improve constants for L_p.
+- Optional: compute E[MST_log^∞] to leading constant by evaluating E[∑ log(1+min{Δ_i,t_i})] or via E[κ(t)] in the threshold graph; this would quantify typical-case constants.
+- Investigate whether a direct L2-threshold argument (using t↦√(1+t^2) reparameterization) can yield MST_log^2 ≤ Reg_log with a smaller constant than norm-lifting; currently open.

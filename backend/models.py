@@ -21,6 +21,7 @@ class RunParams(BaseModel):
     temperature: float = 0.4
     preset: str = "gpt5"
     prover_configs: Optional[List[Dict[str, Any]]] = None
+    focus_description: Optional[str] = None
 
 class WritingParams(BaseModel):
     """Parameters for running paper writing tasks"""

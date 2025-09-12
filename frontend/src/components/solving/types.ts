@@ -21,16 +21,7 @@ export interface RoundData {
   verdict?: 'success' | 'partial success' | 'promising' | 'uncertain' | 'unlikely' | 'nothing so far'
   
   /** Performance timings for each agent in seconds */
-  timings?: Record<string, { duration_s: number }> & {
-    vector_store?: {
-      status: 'success' | 'failed' | 'skipped'
-      duration_s?: number
-      vector_store_id?: string
-      num_papers?: number
-      error?: string
-      reason?: string
-    }
-  }
+  timings?: Record<string, { duration_s: number }>
   
   /** Array of prover outputs (can be multiple provers per round) */
   provers: Array<{ 
@@ -43,6 +34,9 @@ export interface RoundData {
   
   /** Summarizer's digest of the round */
   summary: string
+  
+  /** One-line summary from summarizer for UI display */
+  one_line_summary?: string
   
   /** Round number for sorting and identification */
   number?: number
@@ -95,6 +89,7 @@ export interface ProblemStatus {
     models?: Record<string, string>
     timings?: Record<string, any>
     completed_at?: number
+    one_line_summary?: string
   }>
   
   /** AI models being used for this problem */
@@ -220,6 +215,9 @@ export interface RunParameters {
   
   /** Per-prover configurations */
   proverConfigs?: ProverConfig[]
+  
+  /** Focus description for this research round */
+  focusDescription?: string
 }
 
 /**

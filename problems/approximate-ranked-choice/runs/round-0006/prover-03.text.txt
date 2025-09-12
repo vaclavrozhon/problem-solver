@@ -1,0 +1,71 @@
+Ideas
+- Strengthen the “chain two-type” method by adding a single steering type to change the first elimination when it is cheap to do so. This yields a three-type, closed-form, sufficient certificate that strictly improves the chain bound in some K ≥ 4 instances (matches the provided separation example) and remains sample-efficient.
+- Provide a rigorous verification of the K = 4 separation profile and the effect of the proposed two-type augmentation (a-first and c-first) that beats the pivot-b chain two-type cost.
+- Give a general three-type steering lemma with an explicit formula and proof; derive a sampling corollary with a safe Lipschitz margin.
+
+Example (fully checked): K = 4 separation revisited
+Ranking-support distribution (probabilities sum to 1):
+- 0.06: a ≻ b ≻ d ≻ c
+- 0.12: a ≻ d ≻ c ≻ b
+- 0.35: b ≻ a ≻ c ≻ d
+- 0.22: c ≻ b ≻ d ≻ a
+- 0.085: d ≻ c ≻ b ≻ a
+- 0.05: d ≻ a ≻ c ≻ b
+- 0.115: d ≻ b ≻ c ≻ a
+Baseline first-round shares: (t_a,t_b,t_c,t_d)=(0.18,0.35,0.22,0.25). After removing a: S2={b,c,d} gives (t_b,t_c,t_d)=(0.41,0.22,0.37). After removing d: S2′={a,b,c} gives (t_a,t_b,t_c)=(0.23,0.465,0.305). Pairwise {b,c}: t_c=0.475, t_b=0.525 (margin −0.05).
+- Best pivot-b chain cost: e1=a (min among {a,d}), e2=d. Then A_b(0)=max{[0.18−0.22]_+, [0.37−0.22]_+}=0.15, B_b(0)=0, D_{b,c}=0.05. Chain two-type cost Φ_b=0.15.
+- Augmentation beating chain: add β_a=0.0701 of a-first ballots completed a ≻ c ≻ b ≻ d, and α=0.0501 of c-first ballots.
+  • Round 1 (C): (a,b,c,d) → (0.2501, 0.35, 0.2701, 0.25); d is uniquely minimal (0.25 < 0.2501), so d is eliminated.
+  • Round 2 (S2′={a,b,c}): (a,b,c) → (0.3001, 0.465, 0.3551); a is eliminated.
+  • Final {b,c}: t′_c − t′_b = (0.475 + α + β_a) − 0.525 = α + β_a − 0.05 > 0.
+Total mass ≈ 0.1202 < 0.15. This shows pivot-b chain two-type is not tight for K ≥ 4.
+
+Three-type steering lemma (sufficient certificate, closed form)
+Setup. Fix target c and pivot b ≠ c. Let y be the baseline round-1 loser, and let d be a distinct candidate we wish to eliminate first. Remove d to form S2′ := C\{d} and define the baseline (with the fixed tie-breaker) chain e′_2,…,e′_{K−2} over S2′ by iteratively removing argmin_{e∈S′_j\{b,c}} t_e(S′_j). Introduce a slack γ > 0. Consider adding only three ballot types: α of c-first, β of b-first, and β_y of y-first; choose y-first completions to rank c ≻ b so they contribute favorably to the final.
+Define (positive parts understood, with +γ inside where indicated):
+- Steering cost s := [t_d(C) − t_y(C) + γ]_+ (to make d the first elimination).
+- Chain thresholds on S2′ not involving y:
+  A′_0 := max_{j ≥ 2, e′_j ≠ y} [t_{e′_j}(S′_j) − t_c(S′_j) + γ]_+,
+  B′_0 := max_{j ≥ 2, e′_j ≠ y} [t_{e′_j}(S′_j) − t_b(S′_j) + γ]_+.
+- Keep-y-above-others until y’s scheduled elimination:
+  Y := max_{j ≥ 2, e′_j ≠ y} [t_{e′_j}(S′_j) − t_y(S′_j) + γ]_+.
+- When e′_j = y (i.e., the round where y is eliminated on S′), account for y’s uplift in the c and b constraints:
+  a^* := max_{j ≥ 2, e′_j = y} (t_y(S′_j) − t_c(S′_j)),
+  b^* := max_{j ≥ 2, e′_j = y} (t_y(S′_j) − t_b(S′_j)).
+- Final-round gap: D := t_b({b,c}) − t_c({b,c}) + γ.
+Theorem (three-type steering certificate). If
+  β_y ≥ β_y^* := max{s, Y},
+  β ≥ B^*(β_y) := max{ B′_0, [β_y + b^* + γ]_+ },
+  α ≥ A^*(β_y) := max{ A′_0, [β_y + a^* + γ]_+ },
+  α − β ≥ D,
+then the IRV run on the augmented profile eliminates d first, then e′_2,…,e′_{K−2} in order on S2′, and c strictly beats b in the final. The minimal total mass over α,β,β_y that satisfies these constraints equals
+  E(β_y) = β_y + B^*(β_y) + max{ A^*(β_y), B^*(β_y) + D },
+and, since E is nondecreasing in β_y, the optimal choice is β_y = β_y^*, giving the closed-form bound
+  ε_steer(b,y,d; γ) = β_y^* + B^*(β_y^*) + max{ A^*(β_y^*), B^*(β_y^*) + D }.
+
+Proof.
+- Round 1: β_y ≥ s ensures p′_y ≥ p_d + γ, and the fixed tie-breaker plus the unchanged p_x for x ∉ {b,c,y} imply d is the unique minimum (p_b, p_c ≥ p_d already). Optionally, small α,β can further separate d from b,c.
+- Subsequent rounds j ≥ 2, e′_j ≠ y: A′_0 and B′_0 ensure e′_j is strictly below c and b, respectively. Y ensures y remains strictly above e′_j until the scheduled round where y is eliminated; all other survivors x ∉ {b,c,y,e′_j} satisfy t_x(S′_j) ≥ t_{e′_j}(S′_j) by construction and are unaffected by α,β,β_y. Hence e′_j remains the (tie-broken) minimum.
+- When e′_j = y: the constraints α ≥ [β_y + a^* + γ]_+ and β ≥ [β_y + b^* + γ]_+ ensure c and b strictly exceed y even after the uplift β_y; other survivors exceed y as in baseline. Thus y is eliminated at that round.
+- Final: α − β ≥ D makes c strictly beat b on {b,c}.
+Feasibility is established. Minimization over α,β for fixed β_y is achieved by taking β = B^*(β_y) and α = max{A^*(β_y), B^*(β_y)+D}; E(β_y) is nondecreasing in β_y as a sum/max of nondecreasing functions, hence the optimum at β_y^*. ∎
+
+Special cases and checks
+- If y never appears as e′_j (i.e., y is never the round-j loser on S2′), then a^*=b^*=−∞ and ε_steer simplifies to s + B′_0 + max{A′_0, B′_0 + D} (steer once, then apply the chain two-type cost on S2′).
+- In the K=4 separation above: y=a, d=d, γ=0. Then s=0.07, Y=0 (no j with e′_j ≠ y), a^*=0.23−0.305=−0.075, b^*=0.23−0.465=−0.235, A′_0=B′_0=0, D=0.05. Hence β_y^*=0.07, B^*=0, A^*=0, and ε_steer=0.07+0+max{0,0.05}=0.12, matching the constructed augmentation (≈0.1202 with slack).
+
+Sampling corollary (data-dependent, polynomial sample size)
+Let Θ be the collection of tallies used by ε_steer: round-1 shares p_x (x ∈ {b,c,y,d}), pairwise {b,c} tallies, and, on the chain S2′ (which we identify on a held-out sample with a margin check), all t_{e′_j}(S′_j), t_b(S′_j), t_c(S′_j), and t_y(S′_j) needed to compute A′_0, B′_0, Y, a^*, b^*. Then |Θ| = O(K^2).
+- Chain-identification: using m_1 samples, estimate S2′ and its chain on a held-out subsample; if the empirical min-gaps on S2′ exceed 3τ_1, the empirical chain equals the true chain with probability ≥ 1−δ_1 (standard Hoeffding + union bound over O(K^2) tallies).
+- Cost evaluation: using an independent m_2 samples, estimate the tallies in Θ to sup error ≤ τ_2 with probability ≥ 1−δ_2 by Hoeffding + union bound over |Θ|.
+Lipschitz: Each component (s, Y, a^*, b^*, A′_0, B′_0, D) is 2-Lipschitz in the sup norm of the involved tallies; the map (β_y^*, B^*, A^*, D) ↦ ε_steer has Lipschitz ≤ 1 + max{1, 1+1} ≤ 3. Composing yields a safe global Lipschitz constant ≤ 8. Thus declaring c certified via steering if \hat ε_steer ≤ ε − 8τ_2 is sound with probability ≥ 1 − (δ_1+δ_2). Choosing τ_1,τ_2 = Θ(ε) gives m_1 = Θ((K log K + log(1/δ))/ε^2), m_2 = Θ((K log K + log(1/δ))/ε^2).
+
+Obstacles
+- Tightness: ε_steer is sufficient, not necessary. It improves the chain bound when s is small and the post-steer chain deficits A′_0,B′_0 are small. There are profiles where further steering (adding additional types) reduces the mass beyond ε_steer; constructing such K ≥ 4 instances (≥ 3 types strictly better than any two-type plan) is left as an explicit next step.
+- Dual sensitivity (general LP): The sup ||λ||_1 bound remains open for the full ranking LP (negative dual terms prevent a simple K or K−1 bound). The few-type steering LP inherits a small, explicit structure amenable to direct sensitivity via compositional Lipschitz bounds as above, avoiding the full dual analysis.
+
+Next steps
+- Add the three-type steering theorem and sampling corollary (with L ≤ 8) to proofs.md; include the K = 4 separation with explicit completions and full tally checks.
+- Empirically search (small-support LP) for K ≥ 4 profiles where a 3-type plan strictly improves over all 2-type plans (across all choices of two top types), providing a concrete separation.
+- Formalize the Ω((log K)/ε^2) lower bound via Fano by packing over favorable pivots b while keeping first-round and chain tallies identical; compute KL divergences for small-support constructions.
+- Investigate margin-dependent dual bounds for fixed-order LPs restricted to few types (e.g., {c,b,y}) to further tighten sampling constants and possibly avoid sample-splitting via robust stability checks.

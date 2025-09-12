@@ -1,0 +1,1 @@
+We consolidated a rigorous coarse bound for Python’s patched TimSort: comparisons = O(n + nH), with explicit constants (starting sequences ≤ γ n, γ = 6√2+8; ending sequences ≤ 12 n + 6 nH). We also recorded the immediate follow-up after #4/#5 (needed for s-tokens) and the sentinel trick. The sharp bound (3/2)·nH + O(n), tight, is prepared via potential-method lemmas.

@@ -1,0 +1,55 @@
+Ideas
+
+- Fix F_i := E·S_i (Boolean semiring), and T_w := F_{i_1}⋯F_{i_k}. Then concatenation is T_{uv}=T_u·T_v and repetition is T_{w^m}=T_w^m. This convention avoids seam E-factors and is convenient for “period m” reasoning on long periodic blocks.
+- Middle-gap decision (O(log* n) vs Θ(n)) is finalized: nondeterministically guess f_type: T×{00,01,10,11}×T→Σ_out^2; verify local constraints and the scalar bridge (under the length filter τ_b,τ_c∈R_K∪R_{K+1}) with constant-size Boolean matrix products. Verification is EXPTIME; the overall procedure is NEXPTIME.
+- Top-gap (O(1) vs Ω(log* n)): add two EXPTIME-checkable pieces toward a full certificate.
+  (A) Necessary aperiodicity: if some reachable period type τ has index of imprimitivity d(τ)>1, then Ω(log* n).
+  (B) Sufficient “SCC-constant” certificate: if every SCC C of the type automaton admits a constant output x_C (allowed by both S_0,S_1 and with E[x_C,x_C]=1), and some f_type passes the middle-gap check, then O(1).
+  Additionally, we state an “eventual diagonal” lemma and a residue computation routine that will be the backbone for a more general sufficient certificate based on anchors in aperiodic SCCs.
+
+Rigorous lemmas and proofs
+
+Lemma 1 (replacement; radius 1).
+Let F_i := E·S_i and T_w := ∏ F_{i_j}. Two input segments P,Q with T_P=T_Q are interchangeable: in any larger instance, replacing P by Q preserves extendibility and the labeling outside. Moreover, concatenation satisfies T_{uv}=T_u·T_v.
+Proof. In radius 1, the observable interface of a segment is the Boolean relation mapping its left boundary output to its right boundary output; this is exactly T_w. Equal relations yield identical extendibility. Composition follows by construction of T.
+
+Lemma 2 (middle-gap decision; NEXPTIME).
+Let T be the reachable type set found by BFS from I under δ(M,i)=M·F_i, and K:=|T|. Let R_ℓ be the set of types realized by exactly ℓ inputs (R_{ℓ+1}={M·F_i: M∈R_ℓ, i∈{0,1}}). Guess f_type: T×{00,01,10,11}×T→Σ_out^2. Verify:
+(i) Locality: for each (τ_L,S,τ_R) and (x,y)=f_type(τ_L,S,τ_R), S[1] allows x, E[x,y]=1, and S[2] allows y.
+(ii) Bridge: for all τ_b,τ_c∈R_K∪R_{K+1} and S1,S2, with f_type(·,S1,τ_b)=(ℓ_1,ℓ_2), f_type(τ_c,S2,·)=(r_1,r_2), we have (E·M_{τ_b}·E·M_{τ_c}·E)[ℓ_2,r_1]=1 (equivalently under F_i: (T_{τ_b}·T_{τ_c}·E)[ℓ_2,r_1]=1).
+If some f_type passes, the LCL is O(log* n); else Θ(n). Verification is EXPTIME in β; the algorithm is NEXPTIME.
+
+Lemma 3 (eventual diagonal; graph-theoretic periodicity).
+Let A be a Boolean adjacency matrix of a finite directed graph G and v a node in an SCC H. The set L(v):={m≥0: (A^m)[v,v]=1} is ultimately periodic with period equal to gcd of all directed cycle lengths in H. In particular, there exists N such that (A^m)[v,v]=1 for all m≥N if and only if H is aperiodic (gcd=1).
+Proof sketch. Classical: in a strongly connected digraph, lengths of closed walks at a vertex form an ultimately periodic set whose period equals the index of imprimitivity (gcd of cycle lengths). This is the Boolean analogue of the Perron–Frobenius theory and follows from decomposition of walks by elementary cycles plus Frobenius normal form. Computation of the gcd per SCC is standard by DFS computing back-edge lengths; the threshold N can be bounded (e.g., Wielandt’s bound) and found by dynamic programming on the SCC (we only need its existence for correctness; algorithmically, periodicity/residue membership is computable in time poly(β)).
+
+Lemma 4 (aperiodicity necessary for O(1)).
+Suppose there exists a reachable primitive word w (|w|≥1) with type τ and the SCCs of the adjacency graph of T_w contain only components with period d(τ)>1. Then the deterministic LOCAL complexity is Ω(log* n).
+Proof. Consider inputs that are long repetitions w^m (arbitrarily large m). A radius-r algorithm sees a radius-r window that repeats with period |w|, hence its output is periodic with some period p depending only on local views. Fix any anchor output x at the block boundary. To close the boundary after m periods with no global coordination, we need (T_w^m)[x,x]=1 for all sufficiently large m. By Lemma 3, L(x) is ultimately periodic with period d(τ)>1; hence some residue class has no solutions. An adversary picks m in this forbidden residue class; the local algorithm cannot produce a legal labeling (boundary cannot close at both ends). Therefore deterministic O(1) is impossible. As the problem is solvable in sublinear time only if an MIS-like global symmetry breaking happens, the standard Naor–Stockmeyer lower bound implies Ω(log* n).
+
+Lemma 5 (SCC-constant certificate; sufficient for O(1)).
+Let 𝔄 be the type automaton on T with δ(M,i)=M·F_i. Assume there exists an f_type passing Lemma 2’s verification, and for every SCC C in 𝔄 there is x_C∈Σ_out with E[x_C,x_C]=1 and S_i[x_C,x_C]=1 for every i labeling some edge of C. Then there is an O(1)-round algorithm.
+Proof. Use the (L_width,L_count,L_pattern)-partition (paper) with L_width=L_pattern=|T|, L_count=2|T|+2. For each long periodic subpath in an SCC C, label all nodes by x_C (radius-1 local consistency holds). Label length-2 separators using f_type and fill remaining O(1)-sized gaps by the middle-gap lemma. Total time O(1).
+
+Examples
+
+- Parity obstruction: Σ_out={a,b}, E is the 2-cycle a↔b, and S_0=S_1=I. For any w, T_w is the 2-cycle adjacency (period 2), so Lemma 4 applies. Known Θ(log* n) lower bound is recovered.
+- Trivial O(1): E complete (including self-loops) and S_0=S_1=I. Then every SCC is aperiodic (d=1), the SCC-constant certificate holds with any x_C, and f_type exists; we get O(1).
+- 3-cycle: E is a→b→c→a, S_0=S_1=I. Then every T_w has period 3 and Lemma 4 rejects O(1); the problem is Ω(log* n).
+
+Algorithmic side-effects (EXPTIME routines)
+
+- For each τ∈T, compute the SCC decomposition of the directed graph of T_τ and d(τ)=gcd of cycle lengths per SCC. If ∃τ with d(τ)>1, we can safely conclude not O(1) (necessary condition).
+- For SCC-constant sufficiency, check for each SCC C a witness x_C with E[x_C,x_C]=1 and S_i[x_C,x_C]=1 for all i appearing on edges in C. This is poly(β) per SCC. Combine with a guessed f_type passing Lemma 2 to certify O(1).
+
+Obstacles
+
+- Lemma 4 is only a necessary condition; some O(1) problems pass aperiodicity but still need non-constant periodic outputs. Extending Lemma 5 to a full sufficient certificate requires handling anchors in aperiodic SCCs with entry/exit witnesses and residue-robust bridges. Lemma 3 suggests the right framework (eventual diagonals), but we must formalize a bounded-size interface table that is independent of m and verifiable in EXPTIME.
+- Endpoint/seam accounting: our T_w convention removes explicit seam E-factors across periods. For interfacing long blocks with separators, we must keep careful track of the E at the separator–block seam. This is naturally handled by multiplying a fixed E on the left/right in the bridge checks.
+
+Next steps
+
+1) Implement T and the middle-gap verifier; include computation of R_K,R_{K+1} and exhaustive bridge checks.
+2) Add to proofs.md: a detailed proof of Lemmas 3–5, including a formal reduction from periodic inputs to residue constraints (Lemma 4) and the O(1) algorithm from Lemma 5.
+3) Develop the general “aperiodic-anchor” sufficient certificate: for each τ choose x_τ in an aperiodic SCC of T_τ, precompute entry/exit witnesses of bounded length that allow reaching/leaving x_τ; show that for all m≥M(τ) the diagonals close. Combine with a small separator table; verify all bridges via fixed products. All components are EXPTIME-checkable.
+4) Test on small β instances: parity, 3-cycles, and mixed graphs to observe acceptance/rejection by the necessary/sufficient filters and refine the interface conditions.

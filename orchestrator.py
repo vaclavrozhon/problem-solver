@@ -65,6 +65,19 @@ def main():
             print(f"Warning: Could not load prover configurations: {e}")
             prover_configs = None
     
+    # Load focus description from run metadata if available
+    focus_description = None
+    metadata_file = problem_dir / "runs" / "run_metadata.json"
+    if metadata_file.exists():
+        try:
+            import json
+            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+            focus_description = metadata.get("focus_description")
+            if focus_description:
+                print(f"Loaded focus description: {focus_description[:50]}..." if len(focus_description) > 50 else f"Loaded focus description: {focus_description}")
+        except Exception as e:
+            print(f"Warning: Could not load run metadata: {e}")
+    
     print(f"Starting orchestrator in {args.mode} mode")
     print(f"Problem directory: {problem_dir}")
     print(f"Rounds to run: {args.rounds}")
@@ -88,7 +101,7 @@ def main():
             if args.mode == "paper":
                 verdict = run_paper_round(problem_dir, round_idx)
             else:
-                verdict = run_round(problem_dir, round_idx, num_provers, prover_configs)
+                verdict = run_round(problem_dir, round_idx, num_provers, prover_configs, focus_description)
             
             # Check for early stopping conditions
             if args.mode == "research" and verdict == "complete":

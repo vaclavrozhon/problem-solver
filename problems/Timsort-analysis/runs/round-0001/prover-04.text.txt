@@ -1,0 +1,118 @@
+# Goal, status, and corrected target
+
+- Requested claim: “TimSort never uses more than n·H + O(n) comparisons, where H = Σ (ℓ_i/n) log2(n/ℓ_i) for the run-lengths ℓ_i.”
+- This claim with leading constant 1 is false. There are inputs on which TimSort’s merge cost is ≥ (3/2)·n·log2 n + O(n) (Buss–Knop 2018), and since H ≤ log2 n, this implies total comparisons ≥ (3/2)·n·H − O(n) on those inputs. So TimSort cannot satisfy an upper bound with leading constant 1.
+- Correct statements from the literature (Python TimSort core, with De Gouw et al. fix):
+  1) TimSort runs in O(n + nH) time (Auger–Jugé–Nicaud–Pivoteau). This is an asymptotic bound with some (unspecified) constant.
+  2) A refined, tight bound: total merge cost ≤ (3/2)·n·H + O(n), and this factor 3/2 is optimal for TimSort (A–J–N–P (Thm. 1.5), Buss–Knop’s lower bound family).
+- Below I give (i) a clean, checkable proof that TimSort uses O(n + nH) comparisons, and (ii) the sharper (3/2)·n·H + O(n) merge-cost upper bound, plus a matching lower bound family showing the factor 3/2 cannot be improved.
+
+
+## Setup and notation
+
+- Input array of length n is greedily decomposed into ρ maximal monotone runs of lengths r_1,…,r_ρ (allowing decreasing runs, reversed stably).
+- Entropy H = Σ_i (r_i/n) log2(n/r_i) = log2 n − (1/n) Σ_i r_i log2 r_i.
+- Merge model: merging runs of sizes a,b costs at most a+b−1 comparisons, and we define merge-cost M(a,b)=a+b. Galloping can only reduce comparisons, so comparison bounds follow from merge-cost bounds up to O(ρ) = O(n).
+- Counting runs costs O(n) comparisons.
+
+
+# Part I. TimSort uses O(n + nH) comparisons
+
+I outline the standard amortized analysis (Auger–Jugé–Nicaud–Pivoteau), organized as auditable lemmas.
+
+### Invariants and stack growth
+
+- TimSort maintains a stack of runs R_1,…,R_h (top is R_1), with lengths r_1,…,r_h.
+- Invariant (Fibonacci growth in the “back” of the stack): whenever the inner loop is about to push a run (i.e., all immediate-merge conditions fail), for all i≥3,
+  r_i + r_{i+1} < r_{i+2} and r_1 < r_2 and r_1 + r_2 < r_3.
+  Sketch of proof: straightforward case-check of the four merge cases (#2–#5); every update preserves the inequalities.
+- Consequence (exponential growth): for all i≤j≤h,
+  r_i ≤ 2^{(i+1−j)/2} r_j.
+- Stack-height bound after the “starting sequence” for a just-pushed run R of length r: h ≤ 4 + 2 log2(n/r).
+  Proof: from r = r_1 ≤ r_3 ≤ 2^{2−h/2} n.
+
+Why useful: with h controlled in terms of log(n/r), each element “pays” at most O(log(n/r)) in the ensuing amortization.
+
+### Splitting events: starting vs ending sequences
+
+Each iteration (push of a run) decomposes into:
+- Starting sequence: a maximal suffix of #2 merges (absorbing below the newcomer). 
+- Ending sequence: a sequence of merges (#3/#4/#5) that repairs the invariant; no #1 occurs inside.
+
+### Cost of starting sequences is linear
+
+Lemma A (Starting sequences): the total merge cost over all starting sequences is O(n).
+- Proof sketch: Suppose pushing R of size r triggers k−1 merges #2 with R_1,…,R_k. The cost is C ≤ Σ_{i=1}^k (k+1−i) r_i. From the growth bound, r ≥ r_k ≥ 2^{(k−1−i)/2} r_i, so C/r ≤ 2 Σ_{j=1}^k j·2^{−j/2} = O(1). Summing over pushes (Σ r = n) gives O(n).
+
+Why useful: Starting sequences contribute only linear overhead; the entropy term arises solely from ending sequences.
+
+### Token amortization for ending sequences
+
+Scheme:
+- Each element receives tokens whenever its height decreases in an ending-sequence merge: 2 “C-tokens” and 1 “S-token”. Tokens are spent to pay merge cost: 
+  - In case #2 (if it appears inside an ending sequence): both R_1 and R_2 pay C-tokens.
+  - In #3: R_1 pays 2 C-tokens.
+  - In #4/#5: R_1 pays 1 C-token, R_2 pays 1 S-token.
+- Claim: token balances never go negative throughout an ending sequence (every time an S-token is spent, the next merge in the same ending sequence immediately credits it back; C-tokens are covered by the height-decrease credits).
+
+Hence the total cost of ending sequences is upper-bounded by the number of tokens minted. An element at height h can only be credited O(h) times; with the height bound h ≤ 4 + 2 log2(n/r) when R is pushed, each element pays O(log(n/r)). Summing over all elements in the run R gives O(r log(n/r)). Summing over all runs:
+
+Σ_{runs R} O(|R| log(n/|R|)) = O(Σ r_i log(n/r_i)) = O(n + nH).
+
+Combining with starting sequences and run detection yields total comparisons:
+
+Comparisons ≤ O(n) [run detection] + (total merge-cost) − (ρ−1) ≤ O(n) + O(n + nH) = O(n + nH).
+
+Remark: The “−(ρ−1)” is because each merge needs ≤ a+b−1 comparisons.
+
+
+# Part II. Sharp worst-case constant 3/2 for TimSort
+
+To pin down the best possible leading constant κ for TimSort we use potentials and show κ=3/2 is both achievable (upper bound) and necessary (lower bound family).
+
+### Upper bound: potential method
+
+Define potential of a run of length r as pot(r) = (3/2) r log2 r. The potential of a configuration is the sum.
+
+Key lemmas (Auger–Jugé–Nicaud–Pivoteau):
+- Balanced merge lemma: If two runs are within a factor φ^2 of each other (φ the golden ratio), then the potential increase of merging them is ≥ their merge cost. 
+- Grouping lemma: Any ending sequence can be partitioned into groups (either a single merge or a pair of consecutive merges, one of which must be case #3) such that each group’s total merge cost ≤ total potential increase for that group, except possibly the first group of an ending sequence, which may exceed by ≤ r, where r is the length of the just-pushed run. 
+- Summing over all ending sequences, the “≤ r” slack sums to at most n.
+
+Therefore, the total merge cost of ending sequences ≤ Δpot + n. Since potentials telescope and pot(final single run) − pot(initial runs) = −(3/2) Σ_i r_i log2(r_i) = (3/2) n·(log2 n − H) = (3/2) n·log2 n − (3/2) n H, the ending-sequence cost is ≤ (3/2) n·log2 n − (3/2) n H + n.
+
+Accounting for starting sequences (O(n)) gives a total merge-cost upper bound ≤ (3/2) n H + O(n). Translating to comparisons adds only O(n), so comparisons ≤ (3/2) n H + O(n).
+
+### Lower bound family for TimSort (factor 3/2 is necessary)
+
+Buss–Knop (and also in A–J–N–P) construct a recursive family of run-length sequences R(n) for which TimSort’s merge cost satisfies
+
+c(R(n)) ≥ (3/2)·n·log2 n − O(n).
+
+Since H ≤ log2 n always, this implies c(R(n)) ≥ (3/2)·n·H − O(n). Hence no bound of the form “TimSort ≤ (1+o(1))·n·H” can hold, and the constant 3/2 is optimal for TimSort.
+
+
+# Why the user’s claim (constant 1) cannot hold
+
+- There exist arrays with merge-cost ≥ (3/2)·n·log2 n + O(n) under TimSort. Since H ≤ log2 n, this ≥ (3/2)·n·H − O(n). Thus for infinitely many n, TimSort’s comparisons exceed n·H by an asymptotic factor ≥ 1.5, up to lower-order terms.
+
+
+# Summary of proven results suitable for output.md
+
+- Theorem (coarse). Let r_1,…,r_ρ be run lengths and H = Σ (r_i/n) log2(n/r_i). TimSort performs O(n + nH) comparisons. Sketch: starting sequences cost O(n); ending sequences paid by a token scheme: each element contributes O(log(n/|R|)) tokens → O(Σ r_i log(n/r_i)) = O(n + nH) total. Run detection costs O(n); each merge uses ≤ a+b−1 comparisons.
+
+- Theorem (sharp). TimSort’s merge cost is ≤ (3/2)·n·H + O(n), and there exist inputs where it is ≥ (3/2)·n·H − O(n). Hence comparisons ≤ (3/2)·n·H + O(n), and the constant 3/2 is optimal for TimSort.
+
+
+# Obstacles and checks
+
+- The invariant maintenance needs a (routine) case-check (#2–#5) to ensure r_i + r_{i+1} < r_{i+2} holds “far enough down.” This is local and verifiable.
+- The token accounting: verify that S-tokens are always reimbursed by the next merge within the same ending sequence; C-tokens cover the other cases as heights decrease. This is a direct induction on the inner loop.
+- Galloping only reduces comparisons, so all bounds hold verbatim for real implementations.
+
+
+# Next steps (for the verifier)
+
+- Put the coarse O(n + nH) proof into proofs.md with the three lemmas: (i) invariant and growth, (ii) starting-sequence bound, (iii) token amortization for ending sequences.
+- Add the sharp (3/2)·n·H + O(n) bound via potential pot(r) = (3/2) r log2 r and the grouping lemma; include the Buss–Knop lower bound construction summary.
+- Add a short note in output.md: the best constant for TimSort is 3/2; if one wants constant 1, use Huffman-based or powersort/peeksort merges (Munro–Wild) that achieve n·H + O(n).

@@ -1,0 +1,62 @@
+Ideas
+- Close the LP sensitivity gap for general K: prove a clean, order-independent bound sup_{λ∈Λ} ||λ||_1 ≤ K−1 for the dual of the fixed-order augmentation LP. This yields an explicit Lipschitz constant for the optimum value v(b) with respect to per-constraint tally errors, giving polynomial-in-K sample complexity for certifying any fixed elimination order.
+- For K = 3, sharpen the Lipschitz constant for the exact two-type formula to L = 3 (improves on the coarse L = 6), tightening the sampling margin.
+- Turn the sensitivity bound into a general sampling theorem: with m = Θ(((K−1)^2 (K log K + log(1/δ)))/ε^2) samples, we can, w.h.p., verify whether min over all elimination orders ending in c has augmentation cost ≤ ε; hence we can certify that c is an ε-winner. This is polynomial in K.
+
+Rigorous results and proofs
+
+Lemma A (Dual norm bound for the fixed-order LP).
+Fix K and an elimination order π of the candidates. For S_j := {π(j),…,π(K)} and slack γ > 0, consider the LP whose variables y(r) ≥ 0 (r ranges over full rankings) minimize ||y||_1 subject to, for each j ∈ {1,…,K−1} and each a ∈ S_j \ {π(j)}:
+  (t_a(S_j) − t_{π(j)}(S_j)) + ∑_r y(r) (1[top_{S_j}(r) = a] − 1[top_{S_j}(r) = π(j)]) ≥ γ.
+Let b_{j,a} := γ − (t_a(S_j) − t_{π(j)}(S_j)). The dual is
+  maximize ⟨b, λ⟩ subject to A^T λ ≤ 1 and λ ≥ 0,
+where A_{(j,a), r} = 1[top_{S_j}(r) = a] − 1[top_{S_j}(r) = π(j)]. Define R_K := sup_{λ feasible} ||λ||_1. Then R_K ≤ K − 1.
+
+Proof.
+Write pos_π(x) for the position of x in π. For each x ∈ C, consider the ranking r_x that places x first (and breaks ties arbitrarily below). For any j < pos_π(x), we have top_{S_j}(r_x) = x ≠ π(j), and for j ≥ pos_π(x), either x ∉ S_j or j = pos_π(x) (for which there is no variable λ_{j,x} since x = π(j)). Therefore, the dual constraint A^T λ ≤ 1 evaluated at r_x becomes ∑_{j < pos_π(x)} λ_{j,x} ≤ 1. Summing these K inequalities over all x yields ∑_x ∑_{j < pos_π(x)} λ_{j,x} ≤ K − 1, but the left-hand side equals ||λ||_1 because λ_{j,a} is defined only for pairs (j,a) with a ∈ S_j \ {π(j)}, equivalently j < pos_π(a). Hence ||λ||_1 ≤ K − 1. ∎
+
+Corollary B (Lipschitz sensitivity for the fixed-order LP optimum).
+Let v(b) be the optimal primal value for the fixed-order LP with RHS vector b. For any perturbation Δ, we have
+  |v(b + Δ) − v(b)| ≤ (K − 1) ||Δ||_∞.
+
+Proof.
+By LP duality, v(b) = max_{λ ∈ Λ} ⟨b, λ⟩. Then for any Δ, |v(b + Δ) − v(b)| = |max_{λ} ⟨b + Δ, λ⟩ − max_{λ} ⟨b, λ⟩| ≤ max_{λ ∈ Λ} |⟨Δ, λ⟩| ≤ (sup_{λ ∈ Λ} ||λ||_1) ||Δ||_∞ ≤ (K − 1) ||Δ||_∞ by Lemma A. ∎
+
+Corollary C (Sampling for a fixed elimination order π).
+Fix π and γ > 0. Let τ > 0. Estimate all tallies t_x(S_j) appearing in the LP for this π by empirical frequencies from m i.i.d. ballots. There are at most T_π := ∑_{j=1}^{K−1} |S_j| = (K − 1)(K + 2)/2 such tallies. Hoeffding and a union bound yield that with probability ≥ 1 − δ, we have sup error ≤ τ provided m ≥ c (log(2 T_π/δ))/τ^2 for a universal constant c. The induced RHS perturbation is ||Δ||_∞ ≤ 2τ. Therefore, with probability ≥ 1 − δ,
+  |\hat v_π − v_π| ≤ 2 (K − 1) τ.
+
+Remark: This is a per-order, polynomial-in-K guarantee. It requires no exponential union bound over all subsets; only the O(K^2) tallies used by this π enter.
+
+Theorem D (General K: polynomial-sample ε-winner certification via per-order LPs).
+Fix ε, δ ∈ (0,1) and γ ∈ (0, ε/4). For each candidate c, consider all elimination orders π that end with c. For each such π, form the LP above (with slack γ) and compute the plug-in optimum \hat v_π from m i.i.d. ballots. Output any candidate ĉ for which min over π ending with ĉ of \hat v_π ≤ ε − 2 (K − 1) τ, where τ is a target accuracy parameter. If
+  m ≥ c · (log(2 (K − 1)! · T_π / δ)) / τ^2  with  T_π = (K − 1)(K + 2)/2,
+then with probability at least 1 − δ the output ĉ (if any) is an ε-winner of the true election. Choosing τ = ε / (4 (K − 1)) gives
+  m = Θ(((K − 1)^2 (K log K + log(1/δ)))/ε^2).
+
+Proof.
+There are at most (K − 1)! orders ending with a fixed c. For a fixed π, by Corollary C, Pr[|\hat v_π − v_π| > 2 (K − 1) τ] ≤ 2 T_π e^{−2 m τ^2}. Union bound over the (K − 1)! relevant orders and all c multiplies this failure probability by at most K · (K − 1)!, which adjusts the log by O(K log K). On the complement event, for every π and c we have |\hat v_π − v_π| ≤ 2 (K − 1) τ. Consequently, if min_π \hat v_π ≤ ε − 2 (K − 1) τ, then min_π v_π ≤ ε, i.e., there exists an elimination order π making c win with total added mass ≤ ε. The choice γ < ε/4 ensures strict margins so that tie-breaking is irrelevant. ∎
+
+Note: This is a sample-complexity result; enumerating all orders is computationally expensive but does not affect m. One can also reduce computation by sample-splitting: use a small training subsample to select a handful of promising orders and a disjoint validation subsample with the above bound to certify one of them.
+
+K = 3 refinements
+
+Lemma E (Tight Lipschitz constant L = 3 for ε^*(γ; c) when K = 3).
+Recall ε_a^*(γ) = B_γ + max{A_γ, B_γ + D_γ}, with A_γ = [p_a − p_c + γ]_+, B_γ = [p_a − p_b + γ]_+, and D_γ = t_b({b,c}) − t_c({b,c}) + γ. Each of A_γ, B_γ, D_γ is 1-Lipschitz in the sup norm over the five inputs (p_a,p_b,p_c,t_c({b,c}),t_c({a,c})), and max preserves the larger Lipschitz constant of its arguments. Hence Lip(max{A_γ, B_γ + D_γ}) ≤ max{1, 1 + 1} = 2 and Lip(B_γ) ≤ 1, so Lip(ε_a^*(γ)) ≤ 3. The same holds for ε_b^*(γ). Therefore Lip(ε^*(γ; c)) = Lip(min{ε_a^*(γ), ε_b^*(γ)}) ≤ max{3, 3} = 3.
+
+Corollary F (Sharper K = 3 sampling margin).
+With m ≥ c (log(5/δ))/τ^2, the plug-in \widehat{ε}^*(γ; c) satisfies |\widehat{ε}^*(γ; c) − ε^*(γ; c)| ≤ 3 τ with probability ≥ 1 − δ. Thus, the acceptance threshold can use margin 3τ instead of the coarse 6τ.
+
+Examples and sanity checks
+- Counterexample revisited (K = 3): a = 0.38, b = 0.35, c = 0.27, and t_c({b,c}) − t_b({b,c}) = 0.10. With γ → 0, we have A_0 = 0.11, B_0 = 0.03, D_0 = −0.10. Hence ε_a^*(0) = 0.03 + max{0.11, −0.07} = 0.14 and ε_b^*(0) computed symmetrically is ≥ 0.20 (since c loses to a by margin 0.20). So ε^*(c) = 0.14, strictly below the c-first certificate 0.20; this matches the earlier construction using 0.11 of c-first and 0.03 of b-first ballots.
+
+Obstacles and caveats
+- The general K algorithm above certifies existence of a favorable elimination order but is computationally heavy (enumerating (K − 1)! orders per target c). This does not impact sample complexity but motivates algorithmic heuristics (e.g., prune orders via coarse certificates, sample-splitting selection, or greedy search).
+- While Lemma A settles the key sensitivity constant, deriving a smaller constant or tighter order-dependent constants (e.g., depending on the shape of π) could further reduce margins.
+- Strong K-dependent lower bounds (e.g., Ω((K log K)/ε^2)) for ε-winner identification remain open; constructing hard families that force knowing which elimination order helps is nontrivial.
+
+Next steps
+- Incorporate Lemma A, Corollary B, and Theorem D into notes.md/proofs.md, as they resolve the previously marked-open sensitivity step and give a clean polynomial-in-K sample bound for the per-order LP approach.
+- Add the L = 3 refinement (Lemma E) and Corollary F to the K = 3 section of output.md.
+- Empirical/algorithmic: explore order-pruning strategies that preserve correctness (no false acceptance) while cutting computation, e.g., filter by the c-first certificate and by pairwise margins to select a small set of promising orders before LP evaluation.
+- Lower bounds: attempt a packing over elimination orders by embedding index information into small perturbations of per-round tallies so that only one order yields augmentation ≤ ε, targeting a Fano-style Ω((log((K − 1)!))/ε^2) lower bound.

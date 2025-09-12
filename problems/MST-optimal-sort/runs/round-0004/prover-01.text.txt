@@ -1,0 +1,76 @@
+# Ideas
+
+- Consolidate and slightly sharpen constants for both directions under Lp norms, with short, checkable proofs.
+- Extend the L∞ domination to any concave weight φ via the Kruskal–integral method; useful to contextualize the log choice and potential generalizations.
+- Make the mod–m separation fully quantitative (leading constants) under Lp.
+- Provide small sanity-check examples (identity, reverse) to calibrate constants.
+
+# Results and proofs
+
+Notation: Δ_i := |π(i)−π(i−1)| (i≥2). Under L∞, let G(t) be the threshold graph on P_π joining pairs with L∞-distance ≤ t, with κ_G(t) components.
+
+Lemma 1 (Kruskal–integral identity). For φ(x)=log(1+x) (and more generally concave φ with φ(0)=0),
+
+MST_φ^{(∞)}(π) = ∫_0^∞ (κ_G(t)−1) φ′(t) dt.
+
+Standard; it follows from Kruskal’s algorithm and layer-cake integration.
+
+Theorem 2 (General concave domination in L∞). Let φ be concave, nondecreasing, φ(0)=0. Then
+
+MST_φ^{(∞)}(π) ≤ ∑_{i=2}^n φ(min{Δ_i, t_i}).
+
+Proof. Build H(t) by, for each i≥2, adding: (i) the time edge (i−1,i) if Δ_i≤t; (ii) the value-neighbor edge (j,i) to the most recent earlier value neighbor if t_i≤t. Then H(t)⊆G(t), hence κ_G(t)≤κ_H(t). Scanning i in order, a new component can appear only if both edges are absent, i.e., min{Δ_i,t_i}>t. Thus κ_H(t)−1 ≤ |{i≥2: min{Δ_i,t_i}>t}|. Integrate against φ′ to get the claim.
+
+Corollary 3 (Our weight). For φ(x)=log(1+x),
+
+MST_log^{(∞)}(π) ≤ ∑_{i=2}^n log(1+min{Δ_i, t_i}) ≤ ∑_{i=2}^n log(1+r_i) = Reg_log(π),
+
+since min{Δ_i,t_i} ≤ t_i ≤ i−1 and also ≤ d_i + t_i, hence ≤ r_i.
+
+Lemma 4 (Norm lifting with sharpened constant). For any norm ||·|| on R^2, let b:=sup_{z≠0} ||z||/||z||_∞ (finite). Then for all π,
+
+MST_log^{||·||}(π) ≤ MST_log^{(∞)}(π) + (n−1)·log b.
+
+Proof. For any edge e, 1+||e|| ≤ 1 + b||e||_∞ ≤ b(1+||e||_∞). Taking logs and summing along an L∞–MST yields the claim.
+
+Combining with Corollary 3 and Reg_log(π) ≥ (n−1)·log 3 (since r_i≥2) gives
+
+MST_log^{||·||}(π) ≤ (1 + (log b)/(log 3)) · Reg_log(π).
+
+For Lp in R^2, b_p = sup ||z||_p/||z||_∞ = 2^{1/p}, hence
+
+C_p := 1 + (log 2)/(p·log 3) with MST_log^{(p)}(π) ≤ C_p·Reg_log(π).
+
+Lemma 5 (Reverse inequality up to Θ(log n) with explicit Lp constants). For p∈[1,∞], every MST edge under Lp has length at least 2^{1/p} (both coordinates differ by ≥1 for distinct permutation points), hence per-edge weight ≥ log(1+2^{1/p}). Therefore
+
+Reg_log(π) ≤ (log(1+n)/log(1+2^{1/p})) · MST_log^{(p)}(π).
+
+Proof. Trivially Reg_log(π) ≤ ∑_{i=2}^n log(1+i) ≤ (n−1)·log(1+n). An MST has n−1 edges and each contributes at least log(1+2^{1/p}). Divide.
+
+Thus sup_π Reg_log/MST_log^{(p)} = Θ(log n) with an explicit norm-dependent constant; the lower bound follows from the mod–m family below.
+
+Proposition 6 (Quantitative mod–m separation under Lp). Fix m≥2, let n=mq, and construct π by cyclically interleaving m contiguous value blocks of size q each, preserving order inside blocks (classical “round-robin” pattern). Then
+
+- MST_log^{(p)}(π) ≤ n·log(1+(m^p+1)^{1/p}) + O(m·log q) = n·log(1+(m^p+1)^{1/p}) + o(n) for fixed m.
+- Reg_log(π) ≥ m ∑_{k=1}^q log(1+k) = m(q log q − q + O(1)) = n log(n/m) − n + O(m).
+
+Proof. MST upper bound: Each block forms a path with step (Δx,Δy)=(m,1), Lp-length (m^p+1)^{1/p}, contributing m(q−1) such edges. Bridge the m paths with m−1 edges whose lengths are O(q), adding O(m log q). Reg lower bound: For an element at position k in its block (k≥1), the earlier true neighbor lives in the adjacent block and is exactly m indices earlier, so t_i = m (except for the first in each block, a negligible O(m) set). Meanwhile the interval between π(i−1) and π(i) contains k−1 earlier values from the same block, so d_i ≥ k (for a constant-fraction of steps; replacing k−1 by k only strengthens). Hence r_i ≥ min(k+m, i) = k+m (since i ≥ mk ≥ k+m for k≥1). Summing over k=1,…,q in each of m blocks gives the stated bound.
+
+For m fixed (e.g., m=2), Reg_log/MST_log = (log n)/Θ(1) up to constants, exhibiting the Θ(log n) gap.
+
+# Sanity-check examples
+
+- Identity: π(i)=i. Then Δ_i=1 and t_i=1 for all i≥2, so r_i=2 and Reg_log=(n−1)·log 3. Under L∞, an MST using consecutive indices has weight (n−1)·log 2. Thus MST_log/Reg_log=log 2/log 3.
+- Reverse: π(i)=n+1−i. Again Δ_i=1 and t_i=1, so Reg_log=(n−1)·log 3 and MST_log^{(∞)}=(n−1)·log 2.
+
+# Obstacles
+
+- Exact (constant-1) domination MST^{(p)} ≤ Reg for p<∞ seems out of reach; the clean H(t) argument relies on L∞ threshold separability. The lifting inevitably incurs an additive (n−1)·log b_p term, translating to multiplicative 1+(log b_p)/log 3.
+- A structural lower bound of MST_log in terms of ∑ log(1+min{Δ_i,t_i}) (up to a constant) appears false: one can engineer permutations where many min{Δ_i,t_i} are large while κ_G(t) remains small across scales due to alternative short connections.
+
+# Next steps
+
+- Record finalized constants: for Lp, C_p = 1 + (log 2)/(p·log 3) in MST ≤ C_p·Reg; and Reg ≤ (log(1+n)/log(1+2^{1/p}))·MST. For the parity case (m=2) under Lp, the MST leading constant is log(1+(2^p+1)^{1/p}).
+- Random permutations: compute E[MST_log^{(∞)}] via the integral identity using known estimates for κ_G(t); similarly, E[Reg_log] via E[log(1+r_i)] with r_i’s distribution (t_i geometric-like with mean Θ(i), Δ_i comparable). Goal: determine the leading constant in Θ(n log n).
+- General weights: classify concave φ for which the worst-case gap sup_π ∑ φ(r_i)/MST_φ is Θ(log n); initial guess: functions comparable to log(1+x) at infinity.
+- Equality conditions in L∞: characterize permutations achieving MST_log^{(∞)} ≈ ∑ log(1+min{Δ_i,t_i}) (tightness of Theorem 2), potentially those where H(t) captures connectivity at most scales (few “extra” edges beyond time/value local ones).

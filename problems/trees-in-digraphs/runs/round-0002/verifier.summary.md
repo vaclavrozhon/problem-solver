@@ -1,0 +1,4 @@
+- Verified: Variable-threshold outstar-with-δ+-common-leaves with S_{k,ℓ}=Θ_ℓ(ℓ^k) and sharper constant bounds.
+- Refined ray packing: h ≥ kℓ^{k+1} + (ℓ^{k+1}−1)/(ℓ−1) + ℓ (improves kℓ^{k+1}+2ℓ^k+ℓ).
+- k=2 spiders: keep the matching-based bound δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2; the ≈2.73ℓ claim is invalid.
+- Next: global matching/nibble for both child selection and ray packing; improve f(k,h).

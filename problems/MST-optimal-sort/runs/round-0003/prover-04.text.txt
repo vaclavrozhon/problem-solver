@@ -1,0 +1,114 @@
+# Goal of this round
+
+- Provide rigorous, auditable proofs of the two key comparisons now on record:
+  1) MST_log ≤ Reg_log (exact for L∞; constant-factor for any fixed norm).
+  2) Reg_log ≤ Θ(log n)·MST_log for every permutation and any fixed norm, with explicit constants.
+- Give a complete, detailed separation proof via mod-m blocks, showing Θ(log n) tightness.
+- Record explicit constants for L1/L2/L∞ and a quick expectation check for random permutations.
+
+
+## Preliminaries
+
+- Points: p_i=(i,π(i)), i=1,…,n.
+- Distances by L∞ unless noted; b_N>0 with ||z||_N ≤ b_N||z||_∞, and α_N>0 with ||z||_N ≥ α_N||z||_∞ (norm equivalence).
+- Δ_i := |π(i)−π(i−1)| (i≥2). For consecutive values v, s_v := |π^{-1}(v+1)−π^{-1}(v)|.
+- t_i as in task; d_i ≥ 1; r_i = min{d_i + t_i, i}. Useful inequality: r_i ≥ t_i + 1.
+
+
+## A. MST_log ≤ Reg_log (L∞ exact)
+
+We use Kruskal’s integral identity: for the threshold graph G∞(t) on P_π connecting pairs with L∞-distance ≤ t, letting κ(t) be its number of components,
+  MST_log^∞(π) = ∫_0^∞ (κ(t) − 1) d log(1+t).
+
+Construct a sparse subgraph H(t) on the same vertices by adding edges as we sweep i=2,…,n:
+- Time edge: add (i−1,i) if Δ_i ≤ t.
+- Value-neighbor edge: if t_i ≤ t, let j<i be the latest index with |π(i)−π(j)|=1 and add (i,j).
+Both edges are valid in G∞(t): for time edges, ||p_{i}−p_{i−1}||_∞ = max{1,Δ_i} ≤ t; for value edges, ||p_i−p_j||_∞ = max{t_i,1} ≤ t.
+
+Claim A.1. κ_G∞(t) ≤ κ_H(t) ≤ 1 + |{i≥2: Δ_i>t and t_i>t}|.
+
+Proof. The first inequality is clear since H(t)⊆G∞(t) in edges. For the second, expose edges in H(t) in increasing i and maintain the number of components of the graph H_i(t) induced by indices {1,…,i}.
+- If Δ_i ≤ t, the time edge (i−1,i) merges the two adjacent time-blocks; this reduces the component count by 1 relative to splitting at i.
+- If Δ_i > t and t_i ≤ t, the value edge (i,j) crosses the cut at i (since j<i), and because no value edges anchored at indices >i have been added yet, the left-of-i and right-of-i parts are not connected at this moment; hence (i,j) reduces the component count by 1.
+Thus, starting from 1 + |{k≤i: Δ_k>t}| components after time edges, each i with Δ_i>t and t_i≤t eliminates one. After processing all i, we get κ_H(t) ≤ 1 + |{i≥2: Δ_i>t and t_i>t}|. ∎
+
+Integrating via the identity and the indicator calculus gives
+  MST_log^∞(π) = ∫_0^∞ (κ_G∞(t) − 1) d log(1+t) ≤ ∫_0^∞ |{i: Δ_i>t, t_i>t}| d log(1+t)
+  = ∑_{i=2}^n ∫_0^{min(Δ_i,t_i)} d log(1+t)
+  = ∑_{i=2}^n log(1 + min{Δ_i,t_i})
+  ≤ ∑_{i=2}^n log(1 + t_i) ≤ ∑_{i=2}^n log(1 + r_i) = Reg_log(π).
+This proves MST_log^∞(π) ≤ Reg_log(π).
+
+
+## B. Lifting to any fixed norm N
+
+Let b_N = sup_{||z||∞=1} ||z||_N (<∞) and pick any L∞-MST T. Then for each edge e,
+  log(1+||e||_N) ≤ log(1 + b_N||e||_∞) ≤ log(1+b_N) + log(1+||e||_∞).
+Summing over the n−1 edges of T:
+  MST_log^N(π) ≤ (n−1)·log(1+b_N) + MST_log^∞(π) ≤ (n−1)·log(1+b_N) + Reg_log(π).
+Since Reg_log(π) ≥ (n−1)·log 3 (because r_i ≥ 2), we obtain
+  MST_log^N(π) ≤ (1 + log(1+b_N)/log 3) · Reg_log(π).
+Explicit constants:
+- L∞: b_∞=1 → factor = 1 (exact domination).
+- L2: b_2=√2 → factor = 1 + log(1+√2)/log 3 ≈ 1.803.
+- L1: b_1=2 → factor = 1 + log 3/log 3 = 2.
+
+
+## C. Universal logarithmic upper bound: Reg_log ≤ Θ(log n)·MST_log
+
+We need a norm-dependent per-edge lower bound. In a permutation grid, for any i≠j, both coordinates differ by at least 1; hence
+- L∞: ||p_i−p_j||_∞ ≥ 1 → weight ≥ log 2.
+- L2: ||p_i−p_j||_2 ≥ √2 → weight ≥ log(1+√2).
+- L1: ||p_i−p_j||_1 ≥ 2 → weight ≥ log 3.
+More generally, any norm N obeys ||z||_N ≥ α_N||z||_∞ with α_N>0, so every MST edge weighs ≥ c_N := log(1+α_N).
+Thus MST_log^N(π) ≥ (n−1)·c_N. Also r_i ≤ i implies
+  Reg_log(π) = ∑_{i=2}^n log(1+r_i) ≤ ∑_{i=2}^n log(1+i) ≤ (n−1)·log(1+n).
+Consequently,
+  Reg_log(π) ≤ (log(1+n)/c_N) · MST_log^N(π).
+In particular, L∞: c_∞=log 2; L2: c_2=log(1+√2); L1: c_1=log 3.
+This yields the universal Reg ≤ Θ(log n)·MST bound, tight up to constants (see D).
+
+
+## D. Separation family (Θ(log n) tightness)
+
+Parity blocks (even n): π(i)=2i for i≤n/2, and π(i)=2(i−n/2)−1 for i>n/2.
+
+- MST_log^N(π) = Θ(n) for any fixed norm N. Upper bound: span each half by time edges (each has constant weight) and add one bridge between the halves of cost O(log n). Lower bound: (n−1)·c_N by Part C.
+- Reg_log(π) = Θ(n log n).
+  • For i=2,…,n/2: no odd seen. d_i=1, t_i=i−1, so r_i=i and contribution is Θ((n/2)·log n).
+  • At i=n/2+1: d_i≈n/2, t_i=n/2, so r_i=Θ(n) adds Θ(log n).
+  • For the remaining odds: each has t_i=n/2 (nearest even is in the first half) and d_i=2, hence r_i=Θ(n), contributing Θ(log n) per index. Summing gives Θ(n log n).
+Therefore Reg_log/MST_log = Θ(log n). No constant C can satisfy Reg_log ≤ C·MST_log universally.
+
+Mod-m generalization (n arbitrary). Partition values by residues r mod m, list the classes r=0,1,…,m−1, each internally increasing. Let m_r be class sizes (Σ m_r=n). MST_log=Θ(n): span each class by time edges (constant cost per edge) and connect the m classes with O(m) bridges of cost O(log n) each. For Reg: the first class contributes Θ(m_0 log m_0) and for r≥1, each element’s t equals m_{r−1} (its earlier neighbor v−1 appears in the previous class), with d_i ≥ 1. Hence each such element contributes Ω(log(1+m_{r−1})), giving
+  Reg_log ≥ ∑_{r=1}^{m−1} m_r·log(1+m_{r−1}) = Θ(n·log(n/m)) when m is constant.
+Taking m=2 yields the parity Θ(log n) ratio.
+
+
+## E. Random permutations (sanity check)
+
+For random π, Δ_i has P(Δ=k)=2(n−k)/(n(n−1)) for k=1,…,n−1. Thus
+  E[log(1+Δ_i)] = (2/(n(n−1)))∑_{k=1}^{n−1}(n−k)log(1+k)
+                 = log n + O(1).
+Hence E[∑_{i=2}^n log(2+Δ_i)] = Θ(n log n). Using MST_log^∞ ≤ ∑ log(2+min{Δ_i,t_i}) ≤ ∑ log(2+Δ_i) shows E[MST_log]=O(n log n). Meanwhile Reg_log=Θ(n log n) in expectation (by the task’s note), so the two measures typically match in order.
+
+
+## Remarks on subtle points (addressing pitfalls)
+
+- The earlier flawed step “t at the later endpoint equals the value gap s_v” is incorrect: the most recent earlier neighbor of value v or v+1 could be v±2. Our proof avoids this by working at the component level via the threshold subgraph H(t) and integral identity.
+- In Claim A.1, the key is the left-to-right exposure of value edges: when processing i, no future value edges (anchored at indices > i) exist yet, so adding (i,j) with j<i necessarily reduces the count if Δ_i>t; this justifies κ_H(t) ≤ 1 + |{Δ_i>t and t_i>t}|.
+
+
+## Next steps
+
+- Finalize constants per norm (we already have tight, simple choices for L1/L2/L∞). Minor improvements are possible by exploiting the “both coordinates differ” property in general Minkowski norms that dominate L2.
+- Optional quantitative refinements: compute leading constants in E[MST_log] and E[Reg_log] for random π using exact summations.
+- Per-scale decomposition: a dyadic “layer-cake” proof of Reg ≤ O(log n)·MST via counts |{i: r_i>2^k}| versus |{i: Δ_i>2^k and t_i>2^k}| could give alternate constants; we leave this as a future technical exercise.
+
+
+## Summary of provable statements to add to proofs.md/output.md
+
+- For L∞, MST_log(π) ≤ Reg_log(π) for all π (exact).
+- For any fixed norm N, MST_log^N(π) ≤ (1 + log(1+b_N)/log 3)·Reg_log(π) with b_N as above.
+- For any fixed norm N, Reg_log(π) ≤ (log(1+n)/c_N)·MST_log^N(π), with c_N = log 2 (L∞), log(1+√2) (L2), log 3 (L1).
+- Separation: mod-m blocks (incl. parity) have MST_log = Θ(n) and Reg_log = Θ(n log(n/m)); choosing m=2 gives Reg_log/MST_log = Θ(log n).

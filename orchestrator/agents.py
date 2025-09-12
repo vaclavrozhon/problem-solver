@@ -42,8 +42,8 @@ def parse_structured_output(model_class, response_text: str, model: str, system_
             f"Error: {e}. Response preview: {response_preview}"
         ) from e
 
-# Initialize OpenAI client
-client = OpenAI()
+# Initialize OpenAI client with extended timeout for reasoning models
+client = OpenAI(timeout=1800.0)  # 30 minute timeout for GPT-5 reasoning
 
 # New reasoning configuration with validation
 def _validate_reasoning_effort(effort: str) -> str:
@@ -64,7 +64,7 @@ def _validate_reasoning_summary(summary: str) -> str:
 
 REASONING_EFFORT = _validate_reasoning_effort(os.environ.get("AR_REASONING_EFFORT", "high"))
 REASONING_SUMMARY = _validate_reasoning_summary(os.environ.get("AR_REASONING_SUMMARY", "auto"))
-MAX_OUTPUT_TOKENS = int(os.environ.get("AR_MAX_OUTPUT_TOKENS", "50000"))
+MAX_OUTPUT_TOKENS = int(os.environ.get("AR_MAX_OUTPUT_TOKENS", "100000"))
 
 
 def is_o_model(name: str) -> bool:
@@ -164,8 +164,7 @@ def load_prover_focus_prompts() -> dict:
 
 def complete_text(model: str, system_prompt: str, user_message: str,
                  response_format: Any = None, temperature: float = 0.2, 
-                 previous_response_id: Optional[str] = None, tools: Optional[list] = None,
-                 vector_store_ids: Optional[list[str]] = None) -> Tuple[str, float, Optional[str], dict, Any]:
+                 previous_response_id: Optional[str] = None, tools: Optional[list] = None) -> Tuple[str, float, Optional[str], dict, Any]:
     """Complete text using OpenAI API with appropriate settings for the model.
     
     Returns: (response_text, duration, response_id, usage, raw_response) where response_id can be used
@@ -202,35 +201,33 @@ def complete_text(model: str, system_prompt: str, user_message: str,
                 json_schema_wrapper = response_format.get("json_schema", {})
                 schema = json_schema_wrapper.get("schema", {})
                 name = json_schema_wrapper.get("name", "structured_output")
+                strict = json_schema_wrapper.get("strict", True)
                 if schema:
-                    kwargs["text"] = {"format": {"type": "json_schema", "name": name, "schema": schema}, "verbosity": "high"}
-                    print(f"    Configured structured output with schema: {name}")
+                    kwargs["text"] = {
+                        "format": {
+                            "type": "json_schema",
+                            "name": name,
+                            "schema": schema,
+                            "strict": strict,
+                        },
+                        "verbosity": "low",
+                    }
+                    print(f"    Configured structured output with schema: {name}, strict={strict}")
             else:
                 print(f"    Warning: Unsupported response_format for Responses API: {response_format}")
+        
+        # Remove response_format from kwargs - Responses API uses text.format instead
+        kwargs.pop("response_format", None)
         
         # Normalize incoming tools
         norm_tools = _normalize_tools(tools)
         
-        # For Responses API, only allow supported tools (filter out code_interpreter)
-        if norm_tools:
-            allowed_tool_types = {"file_search"}
-            norm_tools = [t for t in norm_tools if t.get("type") in allowed_tool_types]
-            print(f"    Filtered tools for Responses API: {[t.get('type') for t in norm_tools]}")
+        # For Responses API, we do not use tools now (no vector store, no code interpreter)
+        norm_tools = []
         
-        # For Responses API, vector stores are configured directly in the file_search tool
-        if vector_store_ids:
-            # Remove any existing file_search tool
-            norm_tools = [t for t in (norm_tools or []) if t.get("type") != "file_search"]
-            # Add file_search tool with vector_store_ids configuration
-            file_search_tool = {
-                "type": "file_search",
-                "vector_store_ids": vector_store_ids
-            }
-            norm_tools.append(file_search_tool)
-            print(f"    Configured file_search with vector stores: {vector_store_ids}")
+        # Vector stores removed
         
-        if norm_tools:
-            kwargs["tools"] = norm_tools
+        # No tools sent
 
         # Execute API call
         completion = client.responses.create(**kwargs)
@@ -251,41 +248,40 @@ def complete_text(model: str, system_prompt: str, user_message: str,
         print(f"    DEBUG: Completion object type: {type(completion)}")
         print(f"    DEBUG: Available attributes: {[attr for attr in dir(completion) if not attr.startswith('_')]}")
         
-        # For GPT-5 reasoning models, extract text from reasoning summaries
-        text = ""
-        output_items = getattr(completion, "output", [])
-        print(f"    DEBUG: Found {len(output_items)} output items")
+        expects_structured = bool(kwargs.get("text", {}).get("format", {}).get("type") == "json_schema")
         
-        for i, item in enumerate(output_items):
-            print(f"    DEBUG: Item {i}: {type(item)}")
-            
-            # Extract reasoning summaries (GPT-5 reasoning format)
-            summary_items = getattr(item, "summary", [])
-            if summary_items:
-                print(f"    DEBUG: Found {len(summary_items)} summary items in item {i}")
-                for j, summary in enumerate(summary_items):
-                    if hasattr(summary, "text") and hasattr(summary, "type"):
-                        summary_text = getattr(summary, "text", "")
-                        summary_type = getattr(summary, "type", "")
-                        if summary_text and summary_type == "summary_text":
-                            text += summary_text + "\n\n"
-                            print(f"    DEBUG: Added {len(summary_text)} chars from summary {j}")
-            
-            # Fallback: try output_text attribute
-            direct_text = getattr(completion, "output_text", None)
-            if direct_text:
-                text += direct_text
-                print(f"    DEBUG: Added {len(direct_text)} chars from direct output_text")
-            
-            # Original content parsing as fallback
-                if hasattr(item, "content"):
-                    content_items = getattr(item, "content", [])
-                    print(f"    DEBUG: Item {i} has {len(content_items)} content pieces")
-                    for j, piece in enumerate(content_items):
-                        piece_text = getattr(piece, "text", None)
-                        if piece_text:
-                            text += piece_text
-                            print(f"    DEBUG: Added {len(piece_text)} chars from content piece {j}")
+        text = ""
+        if expects_structured:
+            # For structured output, rely solely on output_text
+            text = getattr(completion, "output_text", "") or ""
+            print(f"    DEBUG: Structured mode - extracted {len(text)} chars from output_text")
+        else:
+            # Legacy/free-text path: prefer output_text; otherwise collect content and summaries
+            text = getattr(completion, "output_text", "") or ""
+            if not text:
+                # collect content pieces
+                output_items = getattr(completion, "output", []) or []
+                print(f"    DEBUG: Found {len(output_items)} output items")
+                
+                for i, item in enumerate(output_items):
+                    print(f"    DEBUG: Item {i}: {type(item)}")
+                    
+                    if hasattr(item, "content"):
+                        content_items = getattr(item, "content", [])
+                        print(f"    DEBUG: Item {i} has {len(content_items)} content pieces")
+                        for j, piece in enumerate(content_items):
+                            piece_text = getattr(piece, "text", None)
+                            if piece_text:
+                                text += piece_text
+                                print(f"    DEBUG: Added {len(piece_text)} chars from content piece {j}")
+                
+                # Only in non-structured mode, append summaries for debugging
+                for item in output_items:
+                    summary_items = getattr(item, "summary", [])
+                    for s in summary_items:
+                        if getattr(s, "type", "") == "summary_text" and getattr(s, "text", ""):
+                            text += "\n\n" + s.text
+            print(f"    DEBUG: Legacy mode - extracted {len(text)} chars total")
         
         print(f"    DEBUG: Final extracted text: {'None' if text is None else len(text)} chars")
         if text and len(text) > 0:

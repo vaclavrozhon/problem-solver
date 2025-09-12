@@ -1,58 +1,58 @@
-# Ideas
-- Formalize an IRV “ε-winner” certificate as a finite set of linear inequalities with slack that can be preserved after adding ε mass of appropriately chosen ballots. This yields a path-wise certification criterion for the natural algorithm (run IRV on the sample; use its elimination path and measured slacks to certify robustness).
-- Start with K=3 to validate the mechanism concretely, then state the general K claim and identify the exact class of linear forms and its cardinality to derive uniform concentration bounds.
+# Ideas and notation
+- Candidates C with |C|=K. A ballot is a total order on C.
+- For any nonempty S⊆C and a∈S, let p_a(S)=Pr[top_S(ballot)=a], where top_S assigns the highest-ranked among S.
+- The IRV elimination step on a profile uses counts N·p_a(S) (we work in fractional units, so counts=probabilities). Tie-breaking is a fixed known rule, but our sufficient conditions will avoid relying on ties.
+- ε-winner: there exist ≤ε extra mass of ballots (as a fraction of the original electorate), whose rankings we can choose, so that candidate c wins the IRV process on the augmented profile.
 
-# Definitions and notation
-- Let P be the true distribution over the K! rankings; S be the empirical distribution on m sampled ballots (with replacement).
-- For a subset A ⊆ [K], define score_x(P; A) := probability that, under P, the top-ranked candidate among A on a random ballot is x. This is linear in P with coefficients in {0,1}.
-- For a fixed elimination order σ = (e_1, e_2, …, e_{K-1}, w) (where e_r is eliminated at round r and w is the last remaining), define A_r := [K] \ {e_1,…,e_{r-1}}.
-- For each round r and y ∈ A_r \ {e_r}, define the linear functional (inequality margin):
-  d_{r,y}(P) := score_y(P; A_r) − score_{e_r}(P; A_r).
-- The elimination order σ is feasible under P iff d_{r,y}(P) ≥ 0 for all r and all such y, with ties handled by the fixed rule consistent with σ.
+# A sufficient certificate for ε-winner
+Lemma 1 (per-round safety vs a chosen chain). Fix c. Suppose there exists an elimination order of the other K−1 candidates, yielding sets S_K=C, S_{K-1}, …, S_2 with c∈S_t and S_{t+1}=S_t\{b_t} for some b_t∈S_t\{c}, such that for every t we have
+p_c(S_t) ≥ p_{b_t}(S_t) − ε,
+and, whenever equality holds, tie-breaking at S_t would not eliminate c when the tied candidates are {c}∪A for some A⊆S_t\{c} that all attain the minimum. Then c is an ε-winner.
 
-# Proposition (K = 3: sample-to-true ε-winner certificate)
-Claim: Suppose K=3 and the IRV winner on the sample S is c with elimination order (e, other, c). If, in S, both inequalities hold with slack ≥ 2ε:
-- First-choice elimination: score_e(S; {a,b,c}) ≤ min(score_a(S; {a,b,c}), score_b(S; {a,b,c})) − 2ε.
-- Final pairwise: m_{c,other}(S) := Pr_S[c ≻ other] − Pr_S[other ≻ c] ≥ 2ε.
-If additionally the empirical deviations for these statistics satisfy |score_x(S; [3]) − score_x(P; [3])| ≤ ε and |m_{c,other}(S) − m_{c,other}(P)| ≤ ε, then c is an ε-winner for P.
+Proof. Add ε mass of ballots ranking c first. For any S containing c, p′_c(S)=p_c(S)+ε and p′_a(S)=p_a(S) for a≠c. For each t, p′_c(S_t) ≥ p_{b_t}(S_t) = p′_{b_t}(S_t) ≥ min_{a∈S_t\{c}} p′_a(S_t). Thus c is not strictly below the minimum among others at S_t; by the stated tie condition, c is not eliminated. Eliminating any minimizer b_t at each step is valid (others’ counts are unchanged), leading to c’s victory. ∎
 
-Why useful here: Gives a concrete m via Hoeffding to ensure with high probability that the sample winner is an ε-winner for K=3.
+Why useful: It reduces showing “c is an ε-winner” to checking finitely many inequalities (one per round along some chain). In particular, it suffices to verify these inequalities versus the specific b_t’s designated for elimination.
 
-Sketch proof: Under the deviation bounds, in P we have score_e ≤ min(score_a, score_b) − ε and m_{c,other} ≥ ε. Consider adding ε mass of ballots all ranking c ≻ other ≻ e. In the mixed profile P' = (1−ε)P + εQ, the elimination gap against e for at least one of {a,b} increases by ε, others are unchanged but remain ≥ (1−ε)ε > 0; the pairwise margin becomes m'_{c,other} = (1−ε)m_{c,other}(P) + ε ≥ (1−ε)ε + ε > 0. Thus the elimination order and final majority persist, and c wins in P'. Therefore c is an ε-winner.
+# Using the sample’s elimination chain as a witness
+Given a sample of m ballots, run IRV to get a winner ĉ and an elimination sequence b̂_1,…,b̂_{K-1} with sets Ŝ_t. Define empirical shares p̂_a(Ŝ_t).
+Observation: For each t with ĉ∈Ŝ_t, we have p̂_{ĉ}(Ŝ_t) ≥ p̂_{b̂_t}(Ŝ_t) by construction (ties resolved by the rule). If we can ensure (uniformly over these rounds) that |p̂_{ĉ}(Ŝ_t)−p_{ĉ}(Ŝ_t)| and |p̂_{b̂_t}(Ŝ_t)−p_{b̂_t}(Ŝ_t)| are ≤α, then p_{b̂_t}(Ŝ_t)−p_{ĉ}(Ŝ_t) ≤ 2α. Hence, with ε=2α and benign tie-breaking, Lemma 1 certifies ĉ as an ε-winner.
 
-Concentration: There are O(1) statistics here. Hoeffding yields m ≥ C (log(1/δ))/ε^2 suffices.
+The adaptive dependence of Ŝ_t on the sample is the main obstacle. Two ways forward:
+- Small K (e.g., K=3): We can uniformize over all relevant S.
+- Split-sample: Use one subsample to fix the witness chain, a fresh subsample to estimate the needed quantities.
 
-# General K: path-wise certificate and concentration
-Claim (Certificate): Let σ be the elimination order produced by running IRV on S, with winner w. For every round r and every y ∈ A_r \ {e_r}, suppose the margins in S satisfy d_{r,y}(S) ≥ 2ε. If for all these linear forms |d_{r,y}(S) − d_{r,y}(P)| ≤ ε, then w is an ε-winner for P.
+# Special case K=3: direct bound for the natural algorithm
+Proposition 2 (K=3). Let K=3 and run IRV on m i.i.d. ballots to produce winner ĉ and chain (Ŝ_3,Ŝ_2). If m ≥ (8/ε^2)·ln(18/δ), then with probability ≥1−δ, ĉ is an ε-winner.
 
-Why useful here: Reduces the success of the natural algorithm to uniform concentration of a finite family of linear forms; yields a clean sample complexity bound once we bound the family’s size.
+Proof. For K=3, the only sets S of interest are size 3 (C itself) and the three 2-candidate subsets. There are exactly 9 numbers p_a(S) to control (3 for S=C, and 2 for each 2-set). By Hoeffding and a union bound, with probability ≥1−δ we have |p̂_a(S)−p_a(S)| ≤ α for all these pairs, where α=√((1/(2m)) ln(18/δ)). On this event, along the (random) sample chain, for each round t with candidate b̂_t eliminated while ĉ survives, we have p_{b̂_t}(Ŝ_t)−p_{ĉ}(Ŝ_t) ≤ (p̂_{b̂_t}−p̂_{ĉ})+2α ≤ 2α. Taking ε=2α and invoking Lemma 1 (strictness holds unless ties align adversarially; if needed, replace ≤ by < via an arbitrarily small slack absorbed into ε), ĉ is an ε-winner. Solving 2α≤ε yields the stated m. ∎
 
-Proof sketch: Under the deviation bounds, d_{r,y}(P) ≥ ε for all needed (r,y). Let Q place all ε mass on the single ranking that orders candidates according to σ (w at top, then e_{K-1}, …, with e_1 last). In P' = (1−ε)P + εQ, each inequality evolves as
-- d_{r,y}(P') = (1−ε)d_{r,y}(P) + ε d_{r,y}(Q), where d_{r,y}(Q) ∈ {0,1} since e_r is never top among A_r under Q and exactly one y_r (the highest in A_r per σ) has d_{r,y_r}(Q) = 1, all other y have 0. Hence all inequalities remain ≥ (1−ε)ε ≥ 0, and for y_r they receive an extra +ε. Therefore all constraints hold in P', making σ a valid elimination path and w the winner. So w is an ε-winner.
+# A general upper bound via a split-sample certificate
+Algorithm (two-phase witness-and-verify):
+1) Draw m_1 ballots, run IRV, get ĉ and witness chain b̂_1,…,b̂_{K-1} with sets Ŝ_t.
+2) Draw m_2 fresh ballots. For each t, estimate p̃_{ĉ}(Ŝ_t), p̃_{b̂_t}(Ŝ_t). If for all t, p̃_{ĉ}(Ŝ_t) ≥ p̃_{b̂_t}(Ŝ_t) − ε/2 (and ties not adverse), output ĉ.
 
-Uniform concentration: Each d_{r,y} is the difference of two indicators of the form “top among A equals x,” so its range is in [−1,1]. The family of such differences, over all subsets A and ordered pairs (y, x) ∈ A×A with y ≠ x, has cardinality
-U = Σ_{s=2}^K binom(K,s) s(s−1) = K(K−1) 2^{K−2} (identity via moments of (1+x)^K).
-Thus by a union bound plus Hoeffding, with m ≥ C (log U + log(1/δ))/ε^2 = C' (K + log(1/δ))/ε^2, we have |d_{r,y}(S) − d_{r,y}(P)| ≤ ε simultaneously for all such forms with probability ≥ 1−δ. Consequently, on this event, whenever the sample path σ has margins ≥ 2ε, the sample winner is an ε-winner.
+Proposition 3. If m_2 ≥ (2/ε^2)·ln(4(K−1)/δ), then with probability ≥1−δ (over phase 2), the output ĉ is an ε-winner.
 
-Remark on adaptivity: The above uniform bound controls all d_{r,y} for all A, removing dependence on the random, sample-determined A_r.
+Proof. Condition on phase-1 outcome (Ŝ_t,b̂_t). The 2(K−1) functions g_t^a(ballot)=1[top_{Ŝ_t}(ballot)=a] are now fixed. Hoeffding gives simultaneous |p̃−p|≤ε/4 with probability ≥1−δ for all these functions if m_2≥(2/ε^2)ln(4(K−1)/δ). Then for each t, p_{b̂_t}(Ŝ_t)−p_{ĉ}(Ŝ_t) ≤ (p̃_{b̂_t}−p̃_{ĉ})+ε/2 ≤ ε/2, and Lemma 1 applies with margin ε. ∎
 
-# Lower bounds (initial)
-- Even for K=3, any algorithm (hence the natural one) needs m = Ω((log(1/δ))/ε^2) to ensure that, with probability ≥ 1−δ, the output is an ε-winner. This follows by a two-point method on instances differing by pairwise margin 2ε while keeping the first-round elimination unchanged; distinguishing these requires Ω(1/ε^2) samples by Hoeffding/Le Cam.
-- K dependence: At least Ω((log K)/ε^2) samples are necessary for the natural algorithm by hiding the critical constraint among Θ(K) (or Θ(K^2)) possible comparisons and applying a union bound adversarially. A formal construction will be provided; intuitively, with m too small, some constraint along the sample’s elimination path will have empirical slack inflated by ≈ε, producing a non-ε-winner with constant probability.
+Consequences: This yields an O((K/ε^2)·log(K/δ)) upper bound without exponential dependence on 2^K. It also suggests that the “natural” one-phase algorithm should enjoy the same order bound; handling its adaptivity is a next step.
 
-# Examples / sanity checks
-- K=3 toy profile: First-choice shares: e: 0.29, other: 0.35, c: 0.36; pairwise m_{c,other}(P) = 0.02 = ε. With ε-additions all ranking c ≻ other ≻ e, c wins; our condition captures this.
-- K=4: If S has all d_{r,y}(S) ≥ 2ε and m large enough for uniform ε accuracy, then setting Q to σ-order ballots suffices to preserve all inequalities in P'. Try to break: pick a round r and a y ≠ y_r; d_{r,y}(Q)=0, so P must carry the inequality unaided; but we ensured d_{r,y}(P) ≥ ε, which scales to (1−ε)ε > 0, so not broken.
+# Lower bounds
+- Baseline (K=2). Any algorithm that outputs an ε-winner must distinguish Bernoulli means μ and μ±ε/2. By Le Cam, for error ≤δ one needs m=Ω((1/ε^2)·log(1/δ)). This matches Proposition 2 up to constants.
+- Fano-type (any K). Construct K distributions over ballots, each making a distinct candidate the unique ε/4-winner, with pairwise KL=Θ(ε^2). Then m=Ω((log K)/ε^2) is needed to identify an ε-winner with high probability. Sketch: concentrate nearly all mass on two-round structures ensuring uniqueness of the ε/4-winner and keep pairwise perturbations of order ε. We will formalize the construction and the IRV-specific uniqueness check.
 
-# Obstacles / gaps
-- Tightness of the K factor in the upper bound: we used log U = Θ(K) to get m = O((K + log 1/δ)/ε^2), but we did not supply a matching Ω(K/ε^2) lower bound. Constructing such a lower bound for the natural algorithm remains open here.
-- The certificate requires that the sample margins along its own path are ≥ 2ε. The natural algorithm might sometimes produce small margins; then the guarantee is vacuous though the algorithm could still succeed. Deriving a bound that does not condition on empirical slack could be possible via stability parameters of P, but is not yet developed here.
+We conjecture a sharper direct-sum lower bound Ω((K−1)/ε^2) for the natural algorithm by embedding K−1 near-independently ambiguous rounds, but this requires care because later-round tallies depend on earlier eliminations.
+
+# Example (K=3) illustrating Lemma 1
+Let C={a,b,c} with c our target. Suppose true shares: p_a(C)=0.38, p_b(C)=0.33, p_c(C)=0.29. After eliminating c (hypothetical), we don’t care. Consider the chain eliminating b first: S_3=C, b_1=b. Check p_c(C)−p_b(C)=−0.04. For S_2={a,c}, assume p_c({a,c})=0.49 and p_a({a,c})=0.51 so the deficit is −0.02 versus b_2=a. Then with ε=0.04, Lemma 1 applies: add 0.04 mass of c-first ballots; at S_3, c reaches 0.33 to match b and exceed (or tie-break benignly); at S_2, c reaches 0.53>0.51. Hence c is an ε-winner.
+
+# Obstacles and checks
+- Adaptivity: The natural algorithm’s chain depends on the sample; avoiding 2^K union bounds without a split-sample or stability argument remains open.
+- Ties: Our statements either assume strict margins or that tie-breaking does not eliminate c when tied after adding ε. We can bake an arbitrarily small extra slack into ε to handle worst-case ties; careful accounting shows this can be done without exceeding ε if only finitely many ties occur.
+- Exponential S: Lemma 1 only needs the K−1 sets along a single chain, not all 2^K; this is why the split-sample approach scales with K.
 
 # Next steps
-- Formalize and write a complete proof for the general K certificate (with explicit algebra for d_{r,y}(P') and the choice of Q), and the concentration bound using U = K(K−1)2^{K−2}.
-- Prove a K=3 lower bound instance rigorously via Le Cam’s method to pin down the constant in Ω((log 1/δ)/ε^2).
-- Attempt a general lower bound Ω((log K + log 1/δ)/ε^2) for the natural algorithm by constructing a hard family in which exactly one round’s critical inequality is within ε and is uniformly hidden among Θ(K) options.
-- Explore whether the log U argument can be sharpened (e.g., via symmetrization or chaining) to replace K by log K in the upper bound, or prove that Θ(K) is necessary.
-
-# Gaps relative to “Current Output”
-- No output.md exists yet; the above provides concrete, testable propositions for K=3 and a general certificate, plus a clean sample complexity upper bound m = O((K + log 1/δ)/ε^2) under an empirical slack condition.
+- Prove a one-phase uniform-deviation bound for the natural algorithm’s adaptively chosen sets via a stability/compression argument, to match the O((K/ε^2)·log(K/δ)) rate without sample splitting.
+- Formalize the Ω((log K)/ε^2) Fano lower bound with explicit IRV-compatible distributions; explore whether Ω(K/ε^2) holds.
+- Extend Proposition 2 to K=4 by identifying a small family of S sufficient to certify the chain (likely polynomial in K but smaller than 2^K via structural IRV identities).
+- Tighten constants and explicitly handle adversarial tie-breaking by reserving a vanishing fraction of the ε budget to break ties across rounds.

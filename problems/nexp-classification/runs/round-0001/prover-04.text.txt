@@ -1,0 +1,58 @@
+Ideas
+- Specialize the “type/feasible-function” machinery to β-normalized, radius-1 LCLs on globally oriented paths via transfer matrices. This compresses types to β×β Boolean matrices and lets us replace any long string-based quantification by matrix equations, keeping all checks within single-exponential time in β.
+- Give a complete NEXPTIME procedure for the Θ(n) vs O(log* n) dichotomy: nondeterministically guess a type-based feasible function of exponential size and verify it deterministically in EXPTIME.
+- Provide clean, radius-1 specific lemmas: (i) concatenation equals Boolean matrix product, (ii) replacement depends only on the transfer matrix, (iii) middle-gap feasibility reduces to a single Boolean scalar check per tuple of types.
+- Outline a compression target for the O(1) vs Ω(log* n) case that should fit NEXPTIME: per-type periodic-output annotations plus interface-compatibility checks via matrix algebra; defer full proof to next steps.
+
+Setup and Definitions (radius-1, oriented paths)
+Let Σin={0,1}, Σout of size β, with constraints Cin–out⊆Σin×Σout and Cout–out⊆Σout×Σout. Let A∈{0,1}^{β×β} be the adjacency matrix of Cout–out: A[x,y]=1 iff (x,y)∈Cout–out. Let D0,D1∈{0,1}^{β×β} be diagonal: Ds[z,z]=1 iff (s,z)∈Cin–out.
+Given an input word w=s1…sk∈{0,1}^k (k≥1), define its transfer matrix
+M(w)=D_{s1}·A·D_{s2}·A·…·A·D_{sk}  (Boolean semiring).
+Semantics: M(w)[a,b]=1 iff there exists outputs y1= a,…, yk= b such that (si,yi)∈Cin–out and (yi,yi+1)∈Cout–out for i=1..k−1. Thus the “type” of w is exactly M(w).
+Transitions. Appending a bit s to w updates M by δ(M,s)=M·A·Ds. Let T be the set of matrices reachable from {D0,D1} by repeated δ(·,0/1).
+
+Basic Lemmas (radius-1 specific)
+Lemma 1 (Concatenation = product). For words u,v, M(uv)=M(u)·M(v).
+Proof: Expand the product; the middle adjacency between u and v contributes exactly one A factor bridging the last output of u and first of v, and the diagonals ensure node-wise Cin–out. Standard Boolean path-composition argument.
+
+Lemma 2 (Replacement by matrix type). Let P be an input fragment labeled by w with M(w)=M, and let Q be any fragment with M(Q)=M. Suppose the environment fixes the boundary outputs (left end a, right end b) and is locally consistent with a to the left and b to the right. Then replacing P by Q preserves global legality: fill the interior of Q by any witness path for M[a,b]=1. All radius-1 constraints are preserved since only the endpoint outputs interact with the environment.
+
+Lemma 3 (Pumping by types). If two words have the same matrix, they are interchangeable. The set T of matrices reachable under δ from {D0,D1} is finite, |T|≤2^{β^2}. Thus a standard DFA pumping lemma applies over {0,1} with state space T.
+
+Middle-gap feasible function (type version)
+Fix r=1, so S has length 2. Let S=(sL,sR)∈{0,1}^2. Let Good(S)⊆Σout^2 be the set of local output pairs (u,v) such that (sL,u)∈Cin–out, (u,v)∈Cout–out, (sR,v)∈Cin–out.
+Define a type-feasible function as any mapping g: T×{0,1}^2×T→Σout^2 such that g(τL,S,τR)∈Good(S) for all inputs and the following middle-gap property holds: For every quadruple τa,τb,τc,τd∈T and S1,S2∈{0,1}^2, writing g(τa,S1,τb)=(a1,a2) and g(τc,S2,τd)=(b1,b2), we require
+L_{a2} · τb · A · τc · v_{b1} = 1 (Boolean scalar),
+where L_{a2} is the row-filter with L_{a2}[x]=1 iff A[a2,x]=1, and v_{b1} is the column-filter with v_{b1}[y]=1 iff A[y,b1]=1. Intuition: we must be able to bridge from the last output of S1 through w_b, then an adjacency edge, then w_c, to reach the first output of S2.
+
+Lemma 4 (Equivalence to string-feasible function). For β-normalized radius-1 on oriented paths, the existence of the Chang–Pettie–Suh type “feasible function” (that labels two S-windows so every long enough middle gap of types τb,τc can be filled) is equivalent to the existence of g as above.
+Proof sketch: “⇒” If a string-feasible function f exists, fix representatives w of each τ with M(w)=τ; define g(τL,S,τR)=f(wL S wR) on these representatives. By Lemma 2, replacing wL,wR by any same-type strings preserves fillability; thus the matrix condition must hold. “⇐” Given g, apply the standard O(log* n) construction: label S-windows by g, then fill each middle gap using the matrix scalar check; correctness follows from Lemma 2.
+
+Deciding Θ(n) vs O(log* n) in NEXPTIME
+Algorithm (nondeterministic):
+1) Construct T. Start with {D0,D1}, repeatedly insert δ(M,0), δ(M,1) until closure. Cost: ≤|T|·poly(β)=2^{O(β^2)} time and space; each δ is a Boolean matrix multiply by A·Ds in poly(β).
+2) Guess g: For each (τL,S,τR)∈T×{0,1}^2×T, choose g(τL,S,τR)∈Good(S). Table size: |T|^2·4 entries, each with O(log β) bits ⇒ 2^{O(β^2)} bits.
+3) Verify middle-gap property: For all τa,τb,τc,τd∈T and S1,S2∈{0,1}^2, compute L_{a2}·τb·A·τc·v_{b1} and accept only if the result is 1. Number of checks: 4·|T|^4=2^{O(β^2)}; each check is O(β^3).
+Accept iff all checks pass. Soundness/completeness follow from Lemma 4 and Lemma 2.
+Complexity: Step 1 is EXPTIME, Step 2 is an exponential guess, Step 3 is EXPTIME. Thus the overall decision “exists g?” is in NEXPTIME in N=poly(β). If yes ⇒ complexity O(log* n); if no ⇒ complexity Θ(n).
+
+Proof obligation for Step 3 formula
+Given g(τa,S1,τb)=(a1,a2) and g(τc,S2,τd)=(b1,b2): the middle-fill must choose an output x for the first node of w_b with A[a2,x]=1, traverse w_b (matrix τb), then traverse an adjacency edge A, then traverse w_c (matrix τc), and finally reach some y with A[y,b1]=1 for the handover to S2. The Boolean scalar L_{a2}·τb·A·τc·v_{b1} encodes this existential condition exactly.
+
+Examples / sanity checks
+- If A is the complete digraph on Σout and Cin–out is unconstrained, then τb=τc=J (all-ones). Any choice g with Good(S) respected passes since L_{a2}·J·A·J·v_{b1}=1 always holds.
+- If Cout–out enforces proper 2-coloring on outputs and Cin–out imposes no restriction, then the middle-gap property fails for any g (requires parity coordination), and the algorithm reports Θ(n), as expected.
+
+Obstacles for O(1) vs Ω(log* n)
+- The standard approach requires choosing periodic outputs for each input period w with |w|≤K (K exponential), yielding a doubly-exponential witness.
+- With transfer matrices, we can compress to per-type annotations: for each τ∈T, characterize the set of admissible periodic output cycles in the output digraph constrained by Ds along the period. Interfaces through short windows can be enforced by matrix products as above. However, we still need a compression lemma: if a constant-time feasible function exists, then there is an exponential-size certificate over T (e.g., select a periodic output descriptor per τ) verifiable by EXPTIME matrix and automata checks.
+
+Proposed plan for the top gap (sketch)
+- For each τ∈T, the set of admissible output cycles for any period w with M(w)=τ equals the set of cycles in the labeled product automaton built from the output graph (A) and the Ds sequence of one representative of τ; this depends only on τ (by Lemma 2). Represent this set by a finite annotation U(τ) (e.g., the SCCs/cycles supported).
+- Guess U(τ) for all τ, with size 2^{O(β^2)}. Verify internally: U(τ) is nonempty iff the product automaton has a cycle consistent with Ds pattern of τ. Verify interface compatibility across short contexts by equations of the form L·τb·A·τc·v plus constraints that the chosen periodic outputs belong to U(τb), U(τc). This stays within EXPTIME per check.
+- If such U exists, conclude O(1); else Ω(log* n). We will formalize U and the checks next.
+
+Next steps
+- Write and verify the full proof of Lemma 4 (both directions) rigorously, including the minor detail that only S of length 2 is needed at radius 1.
+- Formalize the per-type periodic-output descriptor U(τ), show it is computable and checkable from τ alone, and prove the compression lemma: existence of a string-based constant-time feasible function implies existence of an exponential U.
+- Integrate both stages into a single NEXPTIME trichotomy algorithm: (i) test O(1) via U (once formalized); (ii) if not, test O(log* n) via g; else Θ(n).

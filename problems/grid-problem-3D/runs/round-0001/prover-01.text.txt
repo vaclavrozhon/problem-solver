@@ -1,3 +1,57 @@
-{
-  "progress_md": "# Progress Notes for Round 0003\n\n## Ideas\nIn this round, we will focus on developing a systematic approach to categorize and count edge types based on their sign patterns in three dimensions. The goal is to establish a clear transition from the proof for $d=2$ to $d=3$, highlighting how the counting of edge types changes with the additional dimension. We will also explore how the color map $c_3$ behaves in three dimensions to ensure that we can argue for the existence of unique edge colors.\n\n## Lemmas from Literature\n1. **Inclusion-Exclusion Principle**: This principle can be instrumental in counting the number of edges that share the same color and distinguishing unique cases. It allows for systematic accounting of overlaps in edge types and colors.\n   - *Why useful here*: It helps to refine the counting arguments by ensuring that we do not double-count edges that may share colors.\n\n2. **Combinatorial Geometry Results**: Known results in combinatorial geometry regarding the distribution of points in higher dimensions can provide insights into the density of edges and their colors.\n   - *Why useful here*: It establishes a relationship between the number of vertices, edges, and the types of colors they can generate, which is crucial for proving uniqueness.\n\n## Examples\nConsider a small example with $n=3$:\n- Vertices: $V(G) = \\{(1,1,1), (1,1,2), (1,2,1), (2,1,1), (2,2,2), (3,3,3)\\}$.\n- Analyzing the edges, we can compute the colors using $c_3$ for various pairs. For instance, the edge between $(1,1,1)$ and $(1,1,2)$ gives $c_3 = ([0,+,0], 1, 1, 1)$, while the edge between $(1,2,1)$ and $(2,1,1)$ gives $c_3 = ([+,-,0], 1, 1, 1)$. By systematically checking all pairs, we can identify how many edges have the same color and pinpoint unique cases.\n\n## Obstacles\nA significant obstacle remains the complexity of the sign patterns in three dimensions. As we categorize edges based on their types, we need to ensure that we do not overlook any combinations that could lead to shared colors. Additionally, the potential increase in the number of edge types may complicate the counting argument further.\n\n## Next Steps\n1. **Draft a detailed proof for $d=3$**: This proof should explicitly outline how the counting changes when moving from $d=2$ to $d=3$. We will focus on the implications of the additional dimension on the edge types and their uniqueness.\n2. **Conduct further examples**: Test more combinations of vertices, particularly focusing on edges that may yield unique colors. This empirical exploration will help validate our theoretical claims.\n3. **Explore combinatorial bounds**: Investigate how the number of vertices and edges can be related to ensure that unique colors exist, potentially using the Inclusion-Exclusion Principle.\n\n## Gaps in output.md\n- The output for $d=2$ does not provide a clear transition to $d=3$. We need to explicitly outline how the counting of edge types changes and how we can ensure uniqueness in three dimensions. This gap needs to be addressed for completeness in the proof. Additionally, the examples provided in the earlier rounds need to be expanded with more detailed calculations to strengthen the argument for uniqueness."
-}
+# Ideas
+
+- Slice by a fixed coordinate. If a fiber (say a z-level) contains at least two points, the d=2 theorem on that slice yields an edge whose 3D color is unique globally because the 3D color has z in E(T) with the exact level value recorded.
+- If no fiber in any coordinate contains two points, then every pair of vertices differs in all three coordinates (E(T)=\emptyset for every edge). Sort by z; take the top z-vertex and pair it with a suitable predecessor chosen by a Pareto-maximal criterion in (x,y). That edge’s lower corner cannot be replicated, hence its color is unique.
+
+Why useful: This directly reduces the 3D statement to the given d=2 result plus a clean combinatorial lemma for the “general position” case.
+
+# Lemma 1 (Layer reduction)
+
+Statement. Let U\subseteq[n]^3. If there exist c\in\{x,y,z\} and t\in[n] with |U\cap\{c=t\}|\ge 2, then G[U] contains an edge whose c_3-color appears exactly once in G[U].
+
+Proof. WLOG c=z. Consider the 2D set U_t:=\{(x,y):(x,y,t)\in U\}. By the d=2 theorem (for the coloring that records type and the 2D lower corner with equalities), G[U_t] has an edge e within the plane z=t whose 2D color is unique in that plane. Viewed in 3D, e has type with z\in E(T) and its color c_3(e) records t in the z-slot of \ell. Any edge not lying in the plane z=t either has z\in J(T) (so cannot match type) or, if it lies in another plane z=t', then its color records t'\ne t in the z-slot. Hence no edge outside z=t can share c_3(e). Uniqueness within z=t was ensured by the d=2 theorem, so c_3(e) is unique in G[U]. ∎
+
+# Lemma 2 (General position: no equal coordinate anywhere)
+
+Statement. Let U\subseteq[n]^3 be such that for any distinct u,v\in U, u and v differ in all three coordinates (so every edge has J(T)=\{x,y,z\}). Then G[U] contains an edge whose c_3-color appears exactly once.
+
+Proof. If |U|=2 the claim is trivial. Assume |U|=m\ge 3. Order vertices by increasing z: v_1,\dots,v_m with z_1<\cdots<z_m.
+
+Let v_m be the top-z vertex, and among v_1,\dots,v_{m-1} choose v_i with maximal x-coordinate (no ties exist since all x’s are distinct).
+
+Consider the edge e=\{v_i,v_m\}. Since all coordinates differ on every pair, c_3(e) is determined by its lower corner \ell(e)=\bigl(\min(x_i,x_m),\min(y_i,y_m),z_i\bigr) and the fixed type class with all three coordinates nonzero.
+
+We claim c_3(e) is unique. First, among edges incident to v_m, the z-coordinate in \ell uniquely identifies the lower endpoint: \ell_z(e)=z_i, and distinct i give distinct z_i; hence no other \{v_k,v_m\} has the same color as e.
+
+Next, consider edges \{v_a,v_b\} with b<m. For such a pair to share c_3(e), we must have \min(z_a,z_b)=z_i, i.e., a=i and b>i. Thus any potential duplicate must be \{v_i,v_j\} with i<j<m and satisfy simultaneously
+
+- \min(x_i,x_j)=\min(x_i,x_m), and
+- \min(y_i,y_j)=\min(y_i,y_m).
+
+There are two cases.
+
+1) If x_m<x_i (or analogously y_m<y_i), then \min(x_i,x_m)=x_m. Any j<m has x_j\ne x_m; since x_j\in\{1,\dots,n\}\setminus\{x_m\}, \min(x_i,x_j)=x_m cannot hold. Hence no \{v_i,v_j\}, j<m, matches e.
+
+2) If x_m>x_i and y_m>y_i, then \min(x_i,x_m)=x_i and \min(y_i,y_m)=y_i, so \ell(e)=(x_i,y_i,z_i). For a duplicate \{v_i,v_j\} one needs x_j>x_i and y_j>y_i. But v_i was chosen with maximal x among j<m, so there is no j<m with x_j>x_i. Therefore no duplicate exists.
+
+Thus in all cases c_3(e) is unique. ∎
+
+# Theorem (d=3 uniqueness of a color)
+
+Statement. For every U\subseteq[n]^3 with |U|\ge 2, there exist u_1,u_2\in U such that the edge u_1u_2 has a color that appears exactly once in G[U] under c_3.
+
+Proof. If some coordinate fiber of U contains at least two points, apply Lemma 1. Otherwise, no two vertices of U share any coordinate, so Lemma 2 applies. ∎
+
+# Examples / sanity checks
+
+- Two points differing in all coordinates: unique edge/color trivially.
+- Three-point chain (in all coordinates): the top two form the unique color (only one pair has lower corner equal to the penultimate point).
+- A nontrivial slice: If U contains two points with z=t, the unique edge from the d=2 result in that plane remains unique globally since z is recorded in the color and cross-plane edges have z\in J(T).
+
+# Obstacles noted
+
+- Attempting to use a globally minimal lower corner \ell among all edges fails: many color duplicates can share that \ell via multiple pairs. This is why the layered reduction and the general-position Pareto argument are used.
+
+# Next steps / extensions
+
+- The same scheme generalizes to dimension d by induction on d: if some fiber has size \ge 2, reduce to d-1; otherwise all coordinates are distinct, sort by the d-th coordinate, choose the top element and pair with a point that is Pareto-maximal in the remaining d-1 coordinates. The same uniqueness argument applies because the color records all coordinates of the lower corner and the type fixes J(T).

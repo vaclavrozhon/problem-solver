@@ -1,0 +1,53 @@
+# Ideas
+- Extend the K = 3 “two-type” reduction to general K: to force a specific final (c vs y), it suffices to add only c-first and y-first ballots. Then all other candidates can be eliminated in ascending order of their baseline first-place shares without ever adding ballots that top them. This yields a closed-form, data-driven sufficient condition that uses only O(K) tallies (first-round shares and K − 1 pairwise tallies against c), giving a polynomial-in-K sampling bound.
+- For K = 4 this collapses to a simple B + max{A, B + D} formula analogous to K = 3 (with A, B taken as maxima across the two nonfinal opponents). For general K, A and B become maxima across the K − 2 nonfinal opponents.
+- Sampling: Hoeffding + union bound over at most 2K − 1 quantities yields m = Θ((log K + log(1/δ))/ε^2) to certify this two-type condition.
+- Lower bound sketch (for this two-type condition): distinguishing whether there exists a y with near-threshold pairwise margin vs c among K − 1 options needs Ω((log K)/ε^2) samples via Fano/best-arm identification. This matches the log K factor in the sampling upper bound for the two-type certificate.
+
+# Theorem (General K two-type certificate for forcing a c vs y final)
+Let C be a set of K ≥ 3 candidates, fix target c ∈ C and a designated opponent y ∈ C \ {c}. Write first-round shares p_x := t_x(C) for x ∈ C, and the pairwise tally t_c({c,y}) against y. Fix a deterministic tie-breaking rule and a slack γ > 0 (to enforce strict inequalities). Consider adding only two types of ballots: c-first (amount α ≥ 0) and y-first (amount β ≥ 0). Define
+- A*(y,γ) := max_{w ∈ C\{c,y}} [ p_w − p_c + γ ]_+,
+- B*(y,γ) := max_{w ∈ C\{c,y}} [ p_w − p_y + γ ]_+,
+- D(y,γ) := t_y({c,y}) − t_c({c,y}) + γ.
+Then the following are equivalent:
+1) There exists (α,β) with α,β ≥ 0 and α + β ≤ ε such that, under IRV with the augmented profile, every w ∈ C\{c,y} is eliminated before both c and y (in some order sorted by increasing p_w), and in the final round c defeats y by a strict margin (hence the tie-breaking rule is irrelevant).
+2) The inequalities
+   α ≥ A*(y,γ),   β ≥ B*(y,γ),   and   α − β ≥ D(y,γ)
+   hold. Moreover, the minimum total mass α + β satisfying these is
+   ε_{2type}(y,γ; c) = B*(y,γ) + max{ A*(y,γ), B*(y,γ) + D(y,γ) }.
+Consequently, a sound sufficient condition that c is an ε-winner is that there exists y ∈ C\{c} with ε_{2type}(y,γ; c) ≤ ε; equivalently,
+  ε_{2type}(γ; c) := min_{y≠c} ε_{2type}(y,γ; c) ≤ ε.
+For K = 3 this coincides with the exact minimal augmentation ε^*(γ; c) from the notes; for K ≥ 4 it is an efficiently checkable sufficient certificate.
+
+Proof.
+Sufficiency. If α ≥ A*(y,γ) and β ≥ B*(y,γ), then for every w ∈ C\{c,y} we have p_w ≤ p_c + α − γ and p_w ≤ p_y + β − γ. Since we add no ballots that top any w, all p_w remain at their baseline values. Therefore, among the survivors at any round containing {c,y} and some subset W of C\{c,y}, the unique loser is the w ∈ W with minimal baseline p_w, because c and y each strictly exceed every p_w by at least γ. Thus the nonfinal candidates are eliminated in nondecreasing order of their baseline first-round shares, independent of tie-breaking. When only {c,y} remain, the pairwise margin is (t_c({c,y}) + α) − (t_y({c,y}) + β) = −D(y,γ) + γ + (α − β). The constraint α − β ≥ D(y,γ) guarantees a strict final-round win for c.
+Necessity. Consider any feasible augmentation with only c-first and y-first ballots that achieves the claimed elimination pattern. Fix any w ∈ C\{c,y}. At the round when w is eliminated (which must occur before either c or y), both c and y must strictly exceed w’s tally. Because added ballots only contribute to c or y, w’s tally is p_w; hence p_c + α ≥ p_w + γ and p_y + β ≥ p_w + γ, equivalently α ≥ [p_w − p_c + γ]_+ and β ≥ [p_w − p_y + γ]_+. The final-round constraint α − β ≥ D(y,γ) is obviously necessary. Minimization of α + β over these halfspace constraints is the same 2-variable linear program as in K = 3, with solution α = max{A*(y,γ), B*(y,γ) + D(y,γ)} and β = B*(y,γ), yielding the stated optimum B* + max{A*, B* + D}. ∎
+
+Remarks.
+- Dominance of two types: allowing any added ballot whose top among the current survivors ever equals some w ∈ C\{c,y} can only increase w’s tally at some round and thus can never help eliminate w earlier; such ballots are weakly dominated by reallocating their mass to c-first or y-first ballots.
+- K = 3 specialization: C\{c,y} has a single element a; then A* = [p_a − p_c + γ]_+, B* = [p_a − p_y + γ]_+, D(y,γ) is the pairwise deficit vs y, recovering the earlier exact formula.
+
+# Corollary (Sampling for the two-type certificate)
+To evaluate ε_{2type}(γ; c), one needs only: the K first-round shares {p_x}_{x∈C} and the K − 1 pairwise tallies {t_c({c,y})}_{y≠c}. Fix τ > 0. With m ≥ c0 (log(2K) + log(1/δ))/τ^2 i.i.d. ballots (for a universal constant c0), Hoeffding’s inequality and a union bound yield, with probability ≥ 1 − δ, a uniform sup error ≤ τ simultaneously for these quantities. The map (p, {t_c({c,y})}) ↦ ε_{2type}(γ; c) is Lipschitz with constant at most 6 in the sup norm (A*, B*, D are each 2-Lipschitz). Therefore, the plug-in decision “declare c an ε-winner if min_{y≠c} \widehat{ε}_{2type}(y,γ; c) ≤ ε − 6τ” is correct with probability ≥ 1 − δ. Taking τ = Θ(ε) gives m = Θ((log K + log(1/δ))/ε^2).
+
+# Example (K = 4)
+Let C = {a,b,c,d}, target c. First-round shares: p_a = 0.20, p_b = 0.26, p_c = 0.25, p_d = 0.29. Choose y = b, so W = {a,d}. Then
+- A* = max{0.20 − 0.25, 0.29 − 0.25} = 0.04,
+- B* = max{0.20 − 0.26, 0.29 − 0.26} = 0.03.
+If t_c({b,c}) = 0.49 (so D = 0.51 − 0.49 = 0.02 for γ → 0^+), the two-type cost is
+  ε_{2type}(b; c) = 0.03 + max{0.04, 0.03 + 0.02} = 0.08.
+Thus adding α = 0.05 of c-first and β = 0.03 of b-first ballots forces elimination of a and d before c,b and makes c beat b in the final.
+
+# Lower bound sketch for the two-type certifier (log K factor is necessary)
+Consider instances where (i) all nonfinal opponents are safely below both c and every y in first-round shares (so A* = B* = 0), and (ii) exactly one opponent y* satisfies t_c({c,y*}) = 1/2 − ε while all other y have t_c({c,y}) ≤ 1/2 − 2ε. Then c is an ε-winner via the two-type certificate iff “∃ y with t_c({c,y}) ≥ 1/2 − ε”. Distinguishing H0: ∀y, t_c({c,y}) ≤ 1/2 − 2ε from H1: ∃! y*, t_c({c,y*}) = 1/2 − ε while the rest are 1/2 − 2ε reduces to a best-arm identification problem over K − 1 Bernoulli means separated by ε. Standard Fano (or change-of-measure for multiple alternatives) implies m = Ω((log K)/ε^2) samples are necessary (to keep both false positive and false negative probabilities below a constant). Hence the log K term in the sampling bound above is information-theoretically unavoidable for certifying this two-type condition.
+
+# Obstacles and why this helps
+- This two-type certificate is exact for K = 3 and gives a simple, auditable sufficient condition for general K that depends on only O(K) tallies, yielding m = Θ((log K + log(1/δ))/ε^2). It strictly strengthens the c-first-only certificate in many K ≥ 4 instances (because it can leverage a “friendly” opponent y with a favorable pairwise margin), yet remains computationally trivial.
+- It is not generally optimal for K ≥ 4: additional ballot types can, in principle, reduce the required mass by finely steering intermediate-round eliminations. Providing a separation example is an immediate next step.
+- The fixed-order LP approach remains the path to exact optimality for general K; its sample complexity analysis hinges on bounding sup_{λ∈Λ} ||λ||_1 in the dual, which is open. The two-type result can be viewed as a low-dimensional, order-free relaxation with a clean stability analysis.
+
+# Next steps
+- Incorporate this general-K two-type certificate and its sampling corollary into notes.md (as a sufficient, efficiently checkable condition) and into output.md (as an algorithmic upper bound on sample complexity).
+- Construct and analyze a K = 4 counterexample where adding a third ballot type strictly improves over the two-type bound.
+- Formalize the lower bound above via an explicit ranking distribution that keeps A* = B* = 0 while toggling a single pairwise margin; then apply Fano to obtain Ω((log K)/ε^2) rigorously.
+- Pursue the dual-based sensitivity bound for the fixed-order LP; even a coarse polynomial bound would immediately yield a polynomial-in-K sample complexity for exact certification of a chosen elimination order.

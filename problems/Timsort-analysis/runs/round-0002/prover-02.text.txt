@@ -1,0 +1,71 @@
+# Clarifying the target and corrected statement
+- The requested bound with leading constant 1, comparisons ≤ n·H + O(n), is false for TimSort: there exist inputs with comparisons ≥ (3/2)·n·H − O(n) (Buss–Knop). We therefore aim for two statements that are known and correct for Python’s patched TimSort (with the extra case #5 in merge_collapse):
+  1) Coarse entropy bound: comparisons = O(n + n·H).
+  2) Sharp bound: comparisons ≤ (3/2)·n·H + O(n), tight.
+
+Below I isolate small lemmas and proofs sufficient for (1), ready to migrate into proofs.md; I also note the refinement pathway to (2).
+
+
+Ideas: decomposition, invariant, and accounting
+- Compare-by-merge-cost: merging runs of sizes a,b uses ≤ a+b−1 comparisons; scanning for runs is O(n) comparisons. Hence comparisons ≤ (total merge cost) + O(n).
+- Decompose each iteration into a starting sequence (push + maximal #2 merges) and an ending sequence (#3/#4/#5 merges, possibly interleaved with #2, until invariant restored).
+- Maintain the stack invariant (Python version): r_{i+2} > r_{i+1} + r_i and r_{i+1} > r_i for i ≥ 1. Consequences: exponential growth along stack, logarithmic height.
+
+
+Lemma A (Stack-growth invariant)
+Statement. After each collapse, the stack satisfies r_{i+2} > r_{i+1}+r_i and r_{i+1} > r_i for 1 ≤ i ≤ h−2.
+Proof (sketch). Induct on updates. Pushing (#1) only happens when none of #2–#5 applies; that directly gives r₁<r₂, r₁+r₂<r₃, r₂+r₃<r₄. Any merge (#2–#5) shifts indices; the inequalities lift one level down. A routine case analysis completes the induction.
+Usefulness. Enables exponential growth and height bounds.
+
+Corollary A1 (Geometric growth). Before a push finishes, for all i ≤ j ≤ h: r_i ≤ 2^{(i+1−j)/2} r_j.
+Proof. From Lemma A and r_k<r_{k+1} for k ≤ h−2, we get 2 r_i ≤ r_{i+2}. Chain the factor-2 jumps.
+
+
+Lemma B (Starting sequences have linear total cost)
+Statement. If a starting sequence begins by pushing R (length r) and performs k−1 merges #2 on R₁,…,R_k (k≥1), then its merge cost C ≤ γ·r, where γ = 2∑_{j≥1} j·2^{-j/2} < ∞. Summing over all runs yields total starting-sequence cost O(n).
+Proof. Cost C ≤ ∑_{i=1}^k (k+1−i) r_i. The final #2 guard implies r > r_k. Apply Corollary A1 with j=k: r ≥ r_k ≥ 2^{(k−1−i)/2} r_i, hence C/r ≤ ∑_{i=1}^k (k+1−i) 2^{(i+1−k)/2} = 2∑_{j=1}^k j·2^{-j/2} < γ. Each run starts exactly one starting sequence; ∑ r = n.
+Usefulness. Reduces the problem to ending sequences.
+
+
+Lemma C (Height bound after a starting sequence)
+Statement. Let r be the just-pushed run’s length; when its starting sequence ends, stack height h satisfies h ≤ 4 + 2 log₂(n/r).
+Proof. None of R₃,…,R_h was merged during the starting sequence; applying Corollary A1 to the pre-push stack gives r₃ ≤ 2^{2−h/2} n. At the end of the starting sequence, #2 no longer holds, so r = r₁ ≤ r₃. Hence r ≤ 2^{2−h/2} n ⇒ h ≤ 4 + 2 log₂(n/r).
+Usefulness. Bounds how often an element can be credited in ending sequences.
+
+
+Lemma D (Token scheme for ending sequences)
+Setup. Credit rules: each element receives 2 “c-tokens” and 1 “s-token” (i) upon push and (ii) whenever its height decreases due to a merge inside an ending sequence. Spending rules for a merge on top runs R₁,R₂ (and R₃,R₄ where relevant):
+- #2 (merge R₂,R₃): each element of R₁ and R₂ pays 1 c-token; since r₁>r₃, r₁+r₂ ≥ r₂+r₃ covers the merge cost.
+- #3 (merge R₁,R₂, r₁≥r₂): each element of R₁ pays 2 c-tokens; cost ≤ 2 r₁.
+- #4/#5 (merge R₁,R₂ with r₁+r₂≥r₃ or r₂+r₃≥r₄): each element of R₁ pays 1 c-token and of R₂ pays 1 s-token; pays exactly r₁+r₂.
+Claim. No element’s c-token or s-token balance ever goes negative.
+Proof (key point: need case #5). In #2–#5 merges, the heights of elements in R₁ (and possibly R₂) decrease, triggering credits that match or exceed the c-tokens spent. s-tokens are only spent in #4/#5 by elements of R₂; the corrected Python rule ensures the resulting top run must be merged again immediately (still in the same ending sequence), so these elements’ heights decrease in the next merge and they regain one s-token. Thus s-token balances never dip below zero. (This fails without case #5.)
+Usefulness. Ensures ending-sequence merge cost is paid by minted tokens.
+
+
+Proposition (Ending sequences cost O(n + n·H))
+Statement. Let ℓ₁,…,ℓ_r be the run lengths; the total merge cost of all ending sequences is O(∑ᵢ ℓᵢ (1 + log₂(n/ℓᵢ))) = O(n + n·H).
+Proof. By Lemma C, after the starting sequence of run i, the stack height is ≤ 4 + 2 log₂(n/ℓᵢ); hence each element of that run can be credited at most O(1 + log₂(n/ℓᵢ)) times over all ending sequences. Each credit mints O(1) tokens, and by Lemma D, the spent tokens equal the ending-sequence merge cost. Summation yields O(∑ ℓᵢ (1 + log(n/ℓᵢ))). Finally, ∑ ℓᵢ log₂(n/ℓᵢ) = n·H.
+
+
+Corollary (Coarse entropy bound for comparisons)
+Total comparisons = O(n) (run detection) + (merge cost) − (#merges) = (starting) + (ending) + O(n) ≤ O(n) + (n + n·H) + O(n) = O(n + n·H).
+
+
+Obstacle: why leading constant 1 is impossible
+Buss–Knop’s family yields merge cost ≥ (3/2)·n·log₂ n − O(n). Since H ≤ log₂ n, comparisons ≥ (3/2)·n·H − O(n) on those inputs. Thus TimSort cannot satisfy comparisons ≤ n·H + O(n) in general.
+
+
+Refinement to the sharp (3/2)·n·H + O(n)
+- Potential Φ(r) = (3/2)·r·log₂ r. Balanced merges (sizes within [φ^{−2}, φ²]) satisfy cost ≤ ΔΦ; unbalanced cases are paired to ensure cost ≤ ΔΦ(group). The first group in each ending sequence may exceed by ≤ r (length of the pushed run); the sum of these slacks is O(n). The total potential drop telescopes to (3/2)·n·H. Hence merge cost ≤ (3/2)·n·H + O(n), and thus comparisons ≤ (3/2)·n·H + O(n). Matching lower bounds exist.
+
+
+Examples / sanity checks
+- Equal runs (ℓᵢ≈n/r): H≈log₂ r and our bound gives O(n + n log r); consistent with classical adaptive mergesort bounds.
+- One huge run and many tiny ones: H small; starting-sequence cost O(n) dominates, as expected.
+
+
+Next steps
+- Move Lemmas A–D and the proposition into proofs.md with full formal details (explicit case analyses for Lemma A and the s-token lemma), and cite to Auger–Jugé–Nicaud–Pivoteau for the refined potential proof.
+- Update output.md to state the corrected main theorem: comparisons ≤ (3/2)·n·H + O(n), tight; include the coarse O(n + n·H) result.
+- Optional: add a short note in notes.md explaining that case #5 is necessary for the s-token invariant.

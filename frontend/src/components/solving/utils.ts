@@ -185,8 +185,13 @@ export function getVerdictDisplayInfo(verdict?: ResearchVerdict) {
  */
 export function calculateProgress(info: ProblemInfo): number {
   if (info.totalRounds === 0) return 0
-  // Calculate based on completed rounds (current round - 1)
-  const completedRounds = Math.max(0, info.currentRound - 1)
+  
+  // If we're running, show progress based on completed rounds (currentRound - 1)
+  // If we're stopped/idle, show progress based on all completed rounds
+  const completedRounds = info.status === 'running' 
+    ? Math.max(0, info.currentRound - 1)  // During execution: k-1 out of k rounds
+    : Math.min(info.currentRound, info.totalRounds)  // After completion: all completed rounds
+    
   return Math.floor((completedRounds / info.totalRounds) * 100)
 }
 

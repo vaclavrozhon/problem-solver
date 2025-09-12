@@ -81,6 +81,7 @@ class VerifierNewSchema(BaseModel):
 class SummarizerOutput(BaseModel):
     """Output from the summarizer agent."""
     summary_md: str = Field(..., description="Readable summary of the round")
+    one_line_summary: str = Field(..., description="Brief one-line summary for UI display")
     highlights: List[str] = Field(default_factory=list)
     next_questions: List[str] = Field(default_factory=list)
 

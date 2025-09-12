@@ -1,0 +1,1 @@
+All submissions align on the correct TimSort bounds: coarse O(n + nH) via starting/ending decomposition, tokens, and height bound; and sharp (3/2)·nH + O(n) via a potential method, tight. We will finalize proofs.md with full invariant and s-token details and add the potential-grouping lemmas. output.md already reflects the corrected main theorem.

@@ -1,0 +1,72 @@
+# Ideas
+
+- Prove a general necessary lower bound that depends only on round‑1 (S=C) deficits and the final c vs b head‑to‑head margin. Why useful: it cleanly separates the unavoidable first‑round survival cost from any path-specific requirements and matches the exact K=3 cost; it also lower-bounds any chain-based certificate for K≥4.
+- Give a precise two-stage sampling guarantee for the chain-based (pivot-b) certificate under a simple separation condition and with sample-splitting. Why useful: yields a polynomial-in-K, distribution-dependent (via the separation) sample bound with a crisp proof.
+- Sharpen the counting for the c-first certificate’s uniform convergence (reduce the function-class cardinality factor). Why useful: slightly improves constants and clarifies what must be estimated when certifying a fixed c.
+
+# A necessary lower bound for any augmentation achieving the final pair {b,c}
+
+Notation. For S=C and any x, write p_x := t_x(C). Let p_min^{(b,c)} := min_{x∈C\{b,c}} p_x. Fix γ>0 for strictness and D_{b,c}(γ) := t_b({b,c}) − t_c({b,c}) + γ. Define the round‑1 deficits
+- A^{(1)}_b(γ) := [ p_min^{(b,c)} − p_c + γ ]_+,
+- B^{(1)}_b(γ) := [ p_min^{(b,c)} − p_b + γ ]_+.
+
+Theorem (Round‑1 + final lower bound). Fix c and b≠c. Let y be any nonnegative measure on rankings added to the baseline profile such that IRV (with the fixed tie‑breaking) produces a final between {b,c} and c strictly beats b in that final by margin ≥γ. Then the total mass ∥y∥_1 satisfies
+  ∥y∥_1 ≥ L_b(γ) := B^{(1)}_b(γ) + max{ A^{(1)}_b(γ), B^{(1)}_b(γ) + D_{b,c}(γ) }.
+Moreover, equality is attained for K=3.
+
+Proof. Partition y into y_c (top_C = c), y_b (top_C = b), and y_rest; write α=∥y_c∥_1, β=∥y_b∥_1, and ϑ=∥y_rest∥_1. To ensure neither c nor b is eliminated in round 1, we must have
+  p_c + α ≥ p_min^{(b,c)} + γ and p_b + β ≥ p_min^{(b,c)} + γ,
+which are necessary, so α ≥ A^{(1)}_b(γ), β ≥ B^{(1)}_b(γ). In the final {b,c}, the updated margin is
+  (t_c({b,c}) − t_b({b,c})) + (α − β) + (θ_c − θ_b),
+where θ_c (resp., θ_b) is the contribution of y_rest to c (resp., b) in the pair {b,c}. Since θ_c − θ_b ≤ ϑ, the strict win by ≥γ implies α − β + ϑ ≥ D_{b,c}(γ). Minimizing α+β+ϑ subject to α ≥ A, β ≥ B, α − β + ϑ ≥ D is a 2D polyhedral problem with optimum B + max{A, B + D}, achieved at β = B and α = max{A, B + D − ϑ} with ϑ chosen to meet the final constraint tightly. Substituting A=A^{(1)}_b(γ), B=B^{(1)}_b(γ), D=D_{b,c}(γ) proves the bound. For K=3, later rounds impose no additional constraints beyond round 1 and the final, and the standard two‑type construction (c‑first and b‑first) or its variant using y_rest to assist the final achieves equality.
+
+Corollary (Consistency with K=3 exact formula). For K=3 and fixed b, L_b(γ) equals the exact minimal augmentation for the strategy “eliminate the third candidate first and then elect c over b,” hence ε^*(γ;c) = min_{b≠c} L_b(γ).
+
+Corollary (Lower bound against any chain-based certificate). For K≥4 and any pivot b, the chain‑based two‑type certificate cost ε_b^*(γ) = B_b(γ) + max{A_b(γ), B_b(γ) + D_{b,c}(γ)} satisfies ε_b^*(γ) ≥ L_b(γ) because A_b(γ) ≥ A^{(1)}_b(γ) and B_b(γ) ≥ B^{(1)}_b(γ) by definition (the chain includes S_1=C). Thus L_b(γ) is a universal benchmark; any strict gap ε_b^*(γ) − L_b(γ) quantifies room for improvement via path changes (potentially requiring additional ballot types).
+
+# Sampling the chain-based certificate under separation (polynomial in K)
+
+Separation condition. Fix c and pivot b. Let the baseline chain be S_1=C, and for j=1,…,K−2 pick e_j ∈ argmin_{e∈S_j\{b,c}} t_e(S_j) with the election’s deterministic tie‑breaking, S_{j+1}=S_j\{e_j}. Define the round‑j “gap” between the loser and the second loser among S_j\{b,c} as
+  μ_j := min_{x∈S_j\{b,c,e_j}} ( t_x(S_j) − t_{e_j}(S_j) ), and let μ := min_j μ_j.
+Assume μ>0.
+
+Algorithm (sample-split).
+- Stage 1 (chain identification). Draw m_1 i.i.d. ballots. For j=1,…,K−2, compute empirical tallies on S_j^hat (starting S_1^hat=C) and set e_j^hat to the empirical argmin over S_j^hat\{b,c} (using the official tie‑breaking); set S_{j+1}^hat=S_j^hat\{e_j^hat}.
+- Stage 2 (deficits on the chain). Independently draw m_2 ballots. Estimate t_c(S_j), t_b(S_j), t_{e_j}(S_j) for j=1,…,K−2, and t_c({b,c}), t_b({b,c}). Form A_b(γ), B_b(γ), D_{b,c}(γ) and the certificate ε_b^*(γ).
+- Decision. Option 1: Fix b in advance (e.g., scan all b via a union bound). Option 2: Choose \hat b minimizing the plug‑in ε_b^*(γ) across b∈C\{c}.
+
+Guarantee. There exist absolute constants c_1,c_2 such that:
+- m_1 ≥ c_1 μ^{-2} log( (K−2)/δ ) ensures P( e_j^hat = e_j ∀j ) ≥ 1−δ/2, since each step’s misidentification needs a deviation ≥ μ/2 and there are ≤K−2 steps.
+- Conditional on Stage 1 success, if m_2 ≥ c_2 τ^{-2} log( (3(K−2)+2)/δ ), then with probability ≥1−δ/2 all estimates of the 3(K−2)+2 needed tallies are within ±τ. Because the map (these tallies) ↦ ε_b^*(γ) is 1‑Lipschitz in each argument and piecewise linear with l_1‑subgradients of norm ≤ 3 (for A,B) and ≤ 1 (for D inside the max), we can take a global sup‑norm Lipschitz constant L≤6. Hence |\widehat{ε}_b^*(γ) − ε_b^*(γ)| ≤ Lτ.
+- Taking a union bound over b (K−1 choices) multiplies the Stage 2 logarithmic factor by at most log(K−1).
+Thus with m_1 = O(μ^{-2} log(K/δ)) and m_2 = O(τ^{-2} log(K/δ)), the procedure certifies any b for which ε_b^*(γ) ≤ ε − Lτ with probability ≥ 1−δ. Choosing τ=Θ(ε) yields m_2=Θ((log(K/δ))/ε^2).
+
+Remarks.
+- When μ is tiny, Stage 1 is unstable; a safe fallback is the distribution‑free c‑first certificate M_c with uniform convergence (exponential in K but no separation needed).
+- For K=3, μ is vacuous (there is only one step) and the result reduces to the known Θ((log(1/δ))/ε^2) sampling bound using five tallies.
+
+# Slight sharpening for the c-first certificate’s union bound
+
+Lemma (counting). For a fixed target c, the number of indicator functions of the form r ↦ 1[top_S(r)=a] with c∈S and a∈S\{c} equals
+  N_c = ∑_{s=2}^K C(K−1, s−1) (s−1) = (K−1) 2^{K−2}.
+Proof. For each subset size s, choose the s−1 companions of c in C(K−1, s−1) ways and then the winner a among the s−1 non‑c elements.
+
+Consequently, for certifying a fixed c via M_c, Hoeffding + union bound over N_c indicators yields m = O( (log N_c + log(1/δ))/τ^2 ) = O( ((K−1) + log(1/δ))/τ^2 ) with the 2^{K−2} factor entering only inside the logarithm. This modestly improves the constant hidden in the big‑O compared to a crude K·2^{K−1} count.
+
+# Examples and checks
+
+- K=3 exactness via lower bound: With p_a=0.38, p_b=0.35, p_c=0.27, and t_c({b,c})−t_b({b,c})=0.10, picking b as the pivot and γ→0 yields A^{(1)}=0.11, B^{(1)}=0.03, D=−0.10, hence L_b(0)=0.03+max{0.11, −0.07}=0.14, matching the exact ε_a^* from the notes. The lower bound is tight.
+- Chain vs. lower bound gap (schematic): For K≥4, if along the baseline chain some later-round minimum t_{e_j}(S_j) greatly exceeds p_min^{(b,c)}, then A_b(γ) or B_b(γ) can be much larger than A^{(1)}_b(γ), B^{(1)}_b(γ). The lower bound L_b(γ) detects only the unavoidable round‑1 and final costs; any strict gap ε_b^*(γ)−L_b(γ) suggests a potential for mixed‑type additions that alter the path (e.g., using “rest” ballots to steer eliminations) and possibly approach L_b(γ). Constructing an explicit tight example remains to be done (see Obstacles/Next steps).
+
+# Obstacles
+
+- Explicit K≥4 separation example. While L_b(γ) ≤ ε_b^*(γ) always holds, producing a concrete P and an explicit mixed‑type augmentation y that achieves a total mass strictly below ε_b^*(γ) (hence close to L_b(γ)) requires careful control so that the “rest” ballots do not increase later minima enough to force larger α or β. This is delicate because added ballots may change multiple round‑j minima simultaneously.
+- Fixed‑order LP sensitivity. The dual‑norm bound sup_{λ∈Λ} ∥λ∥_1 remains open; naive summation arguments fail due to the negative term at j = pos_π(x). Progress likely needs either a structured dual construction with per‑round normalization or a relaxation that preserves value up to a small factor with provable Lipschitzness.
+
+# Next steps
+
+- Add the Round‑1 + final lower bound (Theorem) and its K=3 tightness corollary to proofs.md; this clarifies what is fundamentally unavoidable in any augmentation targeting a specific final opponent.
+- Pursue an explicit K=4 instance with a strict chain vs. lower‑bound gap and construct a three‑type augmentation that achieves a cost below the chain certificate (but above the lower bound), validating the role of path alterations.
+- Extend the two‑stage sampling theorem to the “min over b” selection, with an explicit union‑bound accounting for at most (K−1)(3(K−2)+2)=O(K^2) tallies.
+- Explore whether additional structural conditions (e.g., bounded transfer volatility across S_j) imply that ε_b^*(γ) equals L_b(γ) for some b, yielding near‑exact certificates beyond K=3.
+- Lower bounds: formalize a Fano/packing family {P_i} over i∈[K] where exactly one candidate i is an ε‑winner and the P_i are pairwise close (KL=Θ(ε^2)), giving m = Ω((log K)/ε^2) for the general problem. The construction can key off small independent perturbations of c vs i head‑to‑head and the round‑1 minima while keeping all other statistics equal up to O(ε).

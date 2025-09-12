@@ -15,7 +15,7 @@ export async function getRounds(name: string) {
   return r.json();
 }
 
-export async function runRound(name: string, rounds: number, provers: number, temperature: number, preset: string, proverConfigs?: any[]) {
+export async function runRound(name: string, rounds: number, provers: number, temperature: number, preset: string, proverConfigs?: any[], focusDescription?: string) {
   // Don't send temperature for GPT-5 models (they only support default)
   const params: any = { rounds, provers, preset };
   if (preset !== 'gpt5') {
@@ -23,6 +23,9 @@ export async function runRound(name: string, rounds: number, provers: number, te
   }
   if (proverConfigs && proverConfigs.length > 0) {
     params.prover_configs = proverConfigs;
+  }
+  if (focusDescription && focusDescription.trim()) {
+    params.focus_description = focusDescription.trim();
   }
   
   const r = await req(`/problems_public/${encodeURIComponent(name)}/run`, {

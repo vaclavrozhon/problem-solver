@@ -1,0 +1,63 @@
+Ideas
+- Cleanup lemma for the chain certificate: show that, for a fixed pivot b and baseline chain e_1,…,e_{K−2}, any augmentation that succeeds along this chain can be transformed (without increasing mass) into one supported only on two types: c-first and b-first. This isolates why the two-type polytope captures the exact optimal cost within the targeted chain.
+- Chain-identification under sampling: provide a verifiable gap condition (chain-stability) under which the empirical chain equals the true chain with high probability; combine with sample splitting to yield a polynomial sample-complexity certifier using the chain-based cost Φ_b.
+- Necessary lower bound (round-1 + final) with proof: any augmentation producing a {b,c} final and a strict c-over-b win must pay at least B_b^{(1)} + max{A_b^{(1)}, B_b^{(1)} + D_{b,c}}; this is tight for K = 3 and strengthens intuition.
+- Fano-type Ω((log K)/ε^2) lower bound sketch: pack K−1 distributions indexed by the favorable pivot, differing only in bc pairwise preferences, keeping chain tallies identical. This forces identifying the pivot from m samples.
+- Separation template (K ≥ 4): design profiles where the best two-type chain certificate (for a fixed pivot) exceeds the true minimal augmentation achieved by a 3-type plan that leverages “top e_1 then c” ballots to shift the final while not inflating early-round tallies.
+
+Rigorous statements and proofs
+
+Lemma 1 (Cleanup for a fixed chain).
+Fix c and pivot b. Let the baseline chain be S_1 = C and, for j = 1,…,K−2, e_j = argmin_{e ∈ S_j \ {b,c}} t_e(S_j) (with the election’s tie-breaking), and S_{j+1} = S_j \ {e_j}. Suppose an added distribution y over rankings achieves: (i) in round j, e_j is eliminated from S_j; (ii) in the final {b,c}, c beats b with slack γ > 0. Then there exists another added distribution y′ with ||y′||_1 ≤ ||y||_1 supported only on rankings that top c or b, and y′ also achieves (i)–(ii).
+
+Proof.
+For each ranking r in the support of y and each j with |S_j| ≥ 3, if top_{S_j}(r) ∉ {b,c}, then r contributes nonpositively to both elimination slack constraints at round j: it increases neither t_c(S_j) nor t_b(S_j), while possibly increasing t_{e_j}(S_j) if top_{S_j}(r) = e_j. Removing mass on such r cannot decrease feasibility at round j and (if top_{S_j}(r) = e_j) strictly improves it. For the final {b,c}, the contribution of r to the margin t'_c − t'_b equals 1 if r ranks c ≻ b and 0 otherwise; thus any positive contribution can be replicated by a c-first ballot, while any negative contribution (ranks b ≻ c) can be replicated by a b-first ballot. Therefore we can iteratively (i) delete mass that tops any e_j on S_j, which weakly improves all chain-round constraints, and (ii) redirect remaining mass to c-first and b-first ballots to preserve the bc final margin and all round-wise increases of t_c and t_b. This produces y′ supported on c-first and b-first with no greater mass and preserving (i)–(ii). ∎
+
+Corollary 2 (Exact two-type optimality on a fixed chain).
+For fixed b and chain e_1,…,e_{K−2}, the minimal total mass among all augmentations that eliminate exactly e_1,…,e_{K−2} in order and then elect c over b with slack γ equals
+  ε_b^{chain}(γ) = B_b(γ) + max{A_b(γ), B_b(γ) + D_{b,c}(γ)},
+with A_b, B_b, D_{b,c} as defined in the notes. Proof: combine Lemma 1 with the two-variable LP solved previously.
+
+Lemma 3 (Chain-stability under sup-norm errors).
+Fix b and chain e_1,…,e_{K−2}. Define, for each j,
+- m_j := min_{x ∈ S_j \ {e_j}} (t_x(S_j) − t_{e_j}(S_j)) (strict gap to the next competitor),
+- s_j := min{ t_b(S_j) − t_{e_j}(S_j), t_c(S_j) − t_{e_j}(S_j) } (strict gaps to b and c).
+If sup_{a,S} |\hat t_a(S) − t_a(S)| ≤ τ and min_j m_j ≥ 2τ and min_j s_j ≥ 2τ, then the empirical chain \hat e_j computed from \hat t (with the same tie-breaking) equals e_j for all j.
+
+Proof.
+For any y ∈ S_j \ {e_j}, t_y(S_j) − t_{e_j}(S_j) ≥ m_j ≥ 2τ, whence \hat t_y(S_j) − \hat t_{e_j}(S_j) ≥ m_j − 2τ ≥ 0; thus e_j remains (tie-broken) argmin in S_j \ {b,c}. The s_j bound ensures e_j is strictly below b and c in \hat t, so the chain proceeds identically. ∎
+
+Proposition 4 (Sample-splitting chain certificate).
+Fix ε, δ ∈ (0,1). For each c and b ≠ c, run:
+- Phase I (chain identification): draw m_1 ballots to estimate tallies on all S along the evolving empirical chain; if min_j \hat m_j ≥ 3τ_1 and min_j \hat s_j ≥ 3τ_1, proceed; else abstain on this (c,b).
+- Phase II (cost evaluation): draw an independent m_2 ballots; estimate only the tallies in 𝒯_b = { (t_{e_j}(S_j), t_b(S_j), t_c(S_j))_j and (t_b({b,c}), t_c({b,c})) }. Compute \hat Φ_b = \hat B_b + max{\hat A_b, \hat B_b + \hat D_{b,c}} and certify (c,b) if \hat Φ_b ≤ ε − 6τ_2.
+Choose m_1 ≥ c_1 log(2Q/δ_1)/τ_1^2 with Q ≤ ∑_j |S_j| = O(K^2), and m_2 ≥ c_2 log(2|𝒯_b|/δ_2)/τ_2^2 with |𝒯_b| = O(K), and allocate δ = δ_1 + K δ_2. Then with probability at least 1 − δ, every certified (c,b) is correct (c is an ε-winner). Minimizing over b adds only a log K factor in m_2.
+
+Proof.
+By Hoeffding + union bound, Phase I guarantees sup error ≤ τ_1 and hence chain stability by Lemma 3; Phase II guarantees sup error ≤ τ_2 over 𝒯_b and the 6τ_2 plug-in margin (Lipschitz bound) ensures soundness. Union bound over up to K − 1 pivots. ∎
+
+Proposition 5 (Round-1 + final necessary lower bound).
+Fix b ≠ c and γ ≥ 0. Any augmentation y that produces a {b,c} final and a strict c-over-b win with slack γ satisfies
+  ||y||_1 ≥ B_b^{(1)}(γ) + max{ A_b^{(1)}(γ), B_b^{(1)}(γ) + D_{b,c}(γ) },
+where A_b^{(1)}(γ) = [p_min^{(b,c)} − p_c + γ]_+, B_b^{(1)}(γ) = [p_min^{(b,c)} − p_b + γ]_+, p_min^{(b,c)} := min_{x ∈ C \ {b,c}} p_x, and D_{b,c}(γ) = t_b({b,c}) − t_c({b,c}) + γ.
+
+Proof.
+Let z := p_min^{(b,c)}. In round 1, to ensure some x ∈ C \ {b,c} is eliminated while both b and c strictly exceed x by γ, we need t'_b(C) ≥ z + γ and t'_c(C) ≥ z + γ. Since t'_b(C) − p_b ≤ ||y||_1 and t'_c(C) − p_c ≤ ||y||_1 (mass can increase a candidate’s top-of-C share by at most the added mass), we must have ||y||_1 ≥ B_b^{(1)}(γ) and ||y||_1 ≥ A_b^{(1)}(γ). In the final, t'_c({b,c}) − t'_b({b,c}) = (t_c − t_b) + ∑_r y(r)(1[c≻b] − 1[b≻c]) ≥ γ. The contribution per unit mass is at most 1 in absolute value, hence ||y||_1 ≥ [D_{b,c}(γ) − (t_c − t_b)]_+ = D_{b,c}(γ). Combining the first-round lower bounds with the final-round requirement yields the stated bound: the total must be ≥ B_b^{(1)}(γ) and ≥ A_b^{(1)}(γ), and the pairwise constraint forces α − β ≥ D_{b,c}(γ), which in L1 translates into an additional max{0, D_{b,c}(γ) − (A_b^{(1)}(γ) − B_b^{(1)}(γ))} ≥ max{0, B_b^{(1)}(γ) + D_{b,c}(γ) − A_b^{(1)}(γ)}. Arranging terms gives the expression. Tightness for K = 3 follows from the exact two-type formula. ∎
+
+Lower bound via Fano (sketch)
+Construct a family {P_b: b ∈ C \ {c}} with the same chain tallies for all b (so A_b = B_b = 0), but differing only in the pairwise bc margin: D_{b,c} = −ε for the distinguished b (so Φ_b ≤ ε) and D_{b′,c} = +3ε for all b′ ≠ b (so Φ_{b′} ≥ 3ε). Realize this by mixing a common base distribution P_0 with, for each b, an η = Θ(ε) mass concentrated on ballots that top the baseline e_1 and rank c≻b (for P_b) or b≻c (for P_{b′}), keeping all other pairwise and top-of-S tallies unchanged. Then KL(P_b || P_{b′}) = O(ε^2) for b ≠ b′. Let I be uniform on C \ {c}, draw m ballots from P_I. Any algorithm that, with probability ≥ 2/3, outputs a candidate that is an ε-winner must identify I (since only the pivot b = I yields c as an ε-winner), implying by Fano
+  m ≥ c · (log(K − 1)) / ε^2.
+A full write-up will specify the base P_0 and verify tallies and KL bounds formally.
+
+Separation template for K ≥ 4 (three-type beats chain two-type)
+- Aim: produce P such that for a fixed pivot b, Φ_b(P; 0) = B + max{A, B + D} is strictly larger than the true minimal augmentation. Mechanism: arrange large slack in round 1 so that adding y-first ballots (where y = e_1) does not change the first elimination, but these y-first ballots—with c ≻ b—contribute only to S_j with y ∉ S_j and increase the bc final margin without inflating earlier S_j where no uplift is needed. Combine with modest c-first and b-first mass to satisfy any remaining S_2 deficit and the final margin. By tuning P to have A driven mainly by S_2 while D is also positive, one can strictly reduce α compared to using only c-first/b-first. A small linear program over a handful of ranking types suffices to instantiate numeric values; we will produce such a profile in the next round.
+
+Obstacles
+- Fixed-order LP sensitivity: bounding sup_{λ} ||λ||_1 remains open when accounting correctly for the negative blocks in the dual constraints. A promising direction is margin-dependent bounds: if each round-j loser π(j) has a gap of at least η_j to all survivors in S_j, can we prove sup||λ||_1 ≤ poly(K) · f({η_j})? A carefully chosen set of test rankings, grouped by the identity of top_{S_j}, may permit a telescoping argument that keeps the negative terms under control.
+- Chain identification without sample splitting: directly union-bounding over all possible chains costs O(K!) in the worst case; thus a margin-based, data-dependent stability check is preferable.
+
+Next steps
+- Produce a concrete K = 4 separation with explicit ranking-support probabilities verifying a strict gap between min_b Φ_b and the true minimal augmentation (using three types as per the template).
+- Formalize the Fano construction: specify P_0 and {P_b}, compute pairwise KL bounds, and finalize the Ω((log K)/ε^2) lower bound.
+- Add the cleanup lemma, chain-stability lemma, and the sample-splitting certification theorem to proofs.md; summarize in output.md with the safe Lipschitz constant 6 and explicit sample-complexity scalings.
+- Explore margin-dependent dual-norm bounds for the fixed-order LP, starting with K = 4 and synthetic profiles where per-round gaps are controlled.

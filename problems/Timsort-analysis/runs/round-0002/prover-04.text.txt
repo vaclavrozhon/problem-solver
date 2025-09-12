@@ -1,0 +1,50 @@
+## Context and corrected target
+- The requested bound “comparisons ≤ n·H + O(n)” is false for TimSort. Buss–Knop exhibit inputs with merge-cost ≥ (3/2)·n·log n − O(n); since H ≤ log n, TimSort then needs ≥ (3/2)·n·H − O(n) comparisons on those inputs.
+- Correct statements (Python TimSort with the extra case #5):
+  1) Comparisons = O(n + n·H) (coarse bound).
+  2) Merge-cost ≤ (3/2)·n·H + O(n), hence comparisons ≤ (3/2)·n·H + O(n); this factor is tight.
+
+## Ideas: clean lemmas to formalize O(n + nH)
+
+- Lemma A (stack growth). If none of #2–#5 triggers, then r_1 < r_2, r_1 + r_2 < r_3, and for all i ≥ 3, r_{i} + r_{i+1} < r_{i+2}. Why useful: yields exponential growth along the stack.
+- Corollary A’. For all i ≤ j ≤ h (just before pushing a run), r_i ≤ 2^{(i+1−j)/2} r_j. Why useful: geometric decay used to bound starting-sequence cost.
+- Lemma B (starting sequences cost). If pushing run R (size r) triggers k−1 merges of #2 with underlying runs R_1,…,R_k, then total cost C ≤ γ·r with γ = 2 Σ_{j≥1} j·2^{-j/2}. Computation: Σ_{j≥1} j x^j = x/(1−x)^2; with x=2^{−1/2} ≈ 0.7071, γ ≈ 2·(0.7071)/(0.2929)^2 ≈ 16.49. Summing over pushes: cost ≤ 16.5·n.
+- Lemma C (height bound after starting sequence). If the just-pushed run has length r, then h ≤ 4 + 2 log2(n/r). Why useful: caps how many times any element’s height can decrease, hence how many tokens it can be credited.
+- Lemma D (token amortization for ending sequences). Credit per element when its height drops during an ending sequence: 2 C-tokens and 1 S-token. Spend: #2 consumes 1 C on R_1 and 1 C on R_2; #3 consumes 2 C on R_1; #4/#5 consumes 1 C on R_1 and 1 S on R_2. Claim: balances never go negative; in particular, S-spends are always reimbursed in the next merge in the same ending sequence (uses patched case #5 to force another merge). Why useful: shows ending-sequence merge-cost equals token minting, hence O(Σ r (1+log(n/r))) = O(n + nH).
+- Lemma E (comparisons vs. merge-cost). Each merge across runs a,b uses ≤ a+b−1 comparisons, so total comparisons ≤ merge-cost (plus O(n) for run detection); also #merges = ρ−1, so comparisons ≤ merge-cost − (ρ−1) + O(n) ≤ merge-cost + O(n).
+
+## Proof sketches (checkable)
+
+- Lemma A: direct case analysis of #1–#5 updates (standard). Corollary A’ follows by 2-step doubling: 2 r_i ≤ r_{i+2}.
+- Lemma B: If last #2 witnessed r > r_k, then by Cor. A’, r ≥ r_k ≥ 2^{(k−1−i)/2} r_i. Hence C/r ≤ Σ_{i=1}^k (k+1−i)·2^{(i+1−k)/2} = 2 Σ_{j=1}^k j·2^{−j/2} < γ.
+- Lemma C: At end of starting sequence, r_1 ≤ r_3 ≤ 2^{2−h/2} n, so r ≤ 2^{2−h/2} n ⇒ bound on h.
+- Lemma D: For #4/#5, after merging R_1,R_2 to S, we get S≥R_2 and S+R_3≥R_4 (or the symmetric), so the next modification must be another merge in the same ending sequence; thus R_2-elements regain their S-token. C-tokens: every spend coincides with a height drop of those elements; credits ≥ spends by design. Therefore, token balances stay ≥ 0.
+- Lemma E: Summation over merges and initial O(n) run-detection comparisons.
+
+## Examples to sanity-check Lemma D
+
+- Sequence …, r_1=5, r_2=7, r_3=11, r_4=17. #4 triggers since 5+7≥11. Merge R_1,R_2 → 12; now top is 12, below 11,17; #3 triggers (12≥11), so another merge follows and S-tokens are reimbursed.
+
+## Obstacles and scope
+
+- The S-token invariant uses the extra case #5 (Python-fixed TimSort). Java’s original rule lacks this; our proof targets Python’s corrected version.
+- The target with leading constant 1 cannot be met by TimSort (lower bound families). For constant 1 see Huffman-merge or powersort/peeksort, not TimSort.
+
+## Next steps (to curate into proofs.md and output.md)
+
+- Formalize Lemmas A–E with full details and constants (γ ≈ 16.49), concluding comparisons ≤ O(n + nH).
+- Add the sharp bound via potential Φ(r) = (3/2) r log2 r:
+  - Balanced-merge lemma: if φ^{-2} r ≤ r′ ≤ φ^{2} r then cost ≤ ΔΦ.
+  - #2-then-next merge both balanced.
+  - Group unbalanced #3/#4/#5 merges so each group’s cost ≤ group ΔΦ except first group per ending sequence where cost ≤ ΔΦ + r; sum r over runs ≤ n.
+  - Potential telescopes to (3/2)·nH; conclude merge-cost ≤ (3/2)·nH + O(n), hence comparisons ≤ (3/2)·nH + O(n).
+- Note the Buss–Knop lower bound family to state tightness.
+
+## Minimal items for notes.md
+
+- Clearly state that the constant-1 target is false for TimSort; corrected theorem is (3/2)·nH + O(n) tight.
+- Record the O(n + nH) proof skeleton with the explicit γ constant and the height bound h ≤ 4 + 2 log2(n/r).
+
+## Minimal items for output.md
+
+- Main theorem: comparisons ≤ (3/2)·nH + O(n), tight; and the coarse O(n + nH) bound.

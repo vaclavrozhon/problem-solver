@@ -1,0 +1,153 @@
+# Rigorous Proofs
+
+
+
+Preliminaries
+
+- Candidates C, |C|=K. For nonempty S⊆C and a∈S, let t_a(S)=Pr[top among S is a] under the population distribution over full rankings. Adding a nonnegative measure y on rankings (||y||_1 denotes its total mass) updates tallies additively: t'_a(S)=t_a(S)+∑_r y(r) 1[top_S(r)=a]. We assume a fixed deterministic tie-breaking rule; we enforce strict margins via a slack γ>0 so ties are irrelevant.
+
+Theorem 1 (Uniform convergence for top-of-S tallies).
+Let F={1[top_S(r)=a]: a∈S⊆C, |S|≥1}. For m i.i.d. ballots and any δ∈(0,1), with probability ≥1−δ we have sup_{a,S} |\hat t_a(S)−t_a(S)| ≤ τ whenever m ≥ c (log(K·2^{K−1})+log(2/δ))/τ^2 for a universal constant c.
+
+Proof. Hoeffding’s inequality and a union bound over |F| ≤ K·2^{K−1}.
+
+Theorem 2 (Sufficient c-first certificate).
+Fix c∈C and define M_c:=max_{S⊆C, c∈S, |S|≥2} [min_{a∈S\{c}} t_a(S) − t_c(S)]_+. If ε > M_c, then adding any ε' with M_c < ε' ≤ ε of c-first ballots makes c the IRV winner (strictly, by γ absorbed into ε').
+
+Proof. For each S with c∈S, t'_c(S)=t_c(S)+ε' > min_{a≠c} t_a(S), so c is never the unique minimum in any round and thus survives to win.
+
+Corollary 3 (Sampling for the c-first certificate).
+Let \hat M_c be the plug-in estimator of M_c from \hat t. Then |\hat M_c−M_c| ≤ 2τ under sup_{a,S} |\hat t_a(S)−t_a(S)| ≤ τ. Consequently, output any c with \hat M_c ≤ ε−2τ; with probability ≥1−δ, c is an ε-winner. Taking τ=ε/4 gives m=Θ((K+log(1/δ))/ε^2).
+
+Proof. For fixed S, the map (t_a(S))_{a∈S} ↦ min_{a≠c} t_a(S) − t_c(S) is 2-Lipschitz in sup norm; positive part and max preserve Lipschitzness.
+
+Proposition 4 (Necessary ε,δ dependence).
+Any algorithm that outputs an ε-winner with probability ≥1−δ requires m=Ω((1/ε^2) log(1/δ)).
+
+Proof. For K=2 (majority), distinguishing µ≥1/2−ε from µ≤1/2−2ε needs Ω((1/ε^2) log(1/δ)).
+
+Theorem 5 (K=3 exact minimal augmentation).
+Let C={a,b,c} and fix target c. Write first-round shares p_x:=t_x({a,b,c}) and pairwise tallies t_x({b,c}), t_x({a,c}). For γ>0 define
+A_γ:=[p_a−p_c+γ]_+,
+B_γ:=[p_a−p_b+γ]_+,
+D_γ:=t_b({b,c})−t_c({b,c})+γ.
+Let ε_a^*(γ) be the minimum total mass needed to eliminate a first and make c beat b in the final by ≥γ. Then ε_a^*(γ)=B_γ+max{A_γ, B_γ+D_γ}. Symmetrically, ε_b^*(γ)=B'_γ+max{A'_γ, B'_γ+D'_γ} with a↔b. The exact minimal augmentation is ε^*(γ;c)=min{ε_a^*(γ), ε_b^*(γ)}, and ε^*(c)=lim_{γ→0^+} ε^*(γ;c).
+
+Proof. Sufficiency: adding α c-first and β b-first changes p'_a=p_a, p'_b=p_b+β, p'_c=p_c+α, so a is strictly below both b and c in round 1 if α≥A_γ and β≥B_γ. In the final, t'_c({b,c})−t'_b({b,c})=(t_c−t_b)+α−β, so α−β≥D_γ ensures a strict c-over-b win. Optimality over two types reduces to minimizing α+β over α≥A_γ, β≥B_γ, α−β≥D_γ, whose solution is β=B_γ and α=max{A_γ, B_γ+D_γ}. Taking the better of eliminating a or b first yields ε^*(γ;c).
+
+Theorem 6 (General K chain-based two-type certificate).
+Fix c∈C and choose a pivot b∈C\{c}. Set S_1:=C. For j=1,…,K−2, let e_j be the (tie-broken) minimizer of t_e(S_j) over e∈S_j\{b,c}, and define S_{j+1}:=S_j\{e_j}. Let
+A_b(γ):=max_{1≤j≤K−2} [t_{e_j}(S_j)−t_c(S_j)+γ]_+,
+B_b(γ):=max_{1≤j≤K−2} [t_{e_j}(S_j)−t_b(S_j)+γ]_+,
+D_{b,c}(γ):=t_b({b,c})−t_c({b,c})+γ.
+If we add α≥0 of c-first ballots and β≥0 of b-first ballots with α≥A_b(γ), β≥B_b(γ), and α−β≥D_{b,c}(γ), then the IRV elimination proceeds by removing e_1,…,e_{K−2} (in order) before {b,c}, and c defeats b in the final by ≥γ. Among such two-type additions, the minimum total mass is
+ε_b^*(γ)=B_b(γ)+max{A_b(γ), B_b(γ)+D_{b,c}(γ)}.
+
+Proof. Induct on j. For S_j, by construction e_j is the minimal among S_j\{b,c}. Since only c and b tallies increase, all other candidates remain at baseline and e_j remains the (tie-broken) minimum among S_j\{b,c}. The constraints α≥A_b(γ), β≥B_b(γ) imply t'_c(S_j)>t'_{e_j}(S_j) and t'_b(S_j)>t'_{e_j}(S_j), so e_j is the unique minimum in S_j and is eliminated. This yields S_{j+1}. In the final between b and c, each c-first (resp. b-first) ballot adds +1 to t'_c({b,c}) (resp. t'_b({b,c})), so α−β≥D_{b,c}(γ) ensures a strict c-over-b win. Minimizing α+β over the three halfspaces gives β=B_b(γ) and α=max{A_b(γ), B_b(γ)+D_{b,c}(γ)}.
+
+Corollary 7 (K=3 sampling for exact ε^*).
+Estimating the five quantities {p_a,p_b,p_c,t_c({b,c}),t_c({a,c})} within τ by m=Θ((log(1/δ))/τ^2) samples and using a safety margin 6τ yields a correct plug-in decision with probability ≥1−δ. Choosing τ=Θ(ε) gives m=Θ((log(1/δ))/ε^2).
+
+
+Preliminaries. Candidates C, |C|=K≥3. For nonempty S⊆C and a∈S, let t_a(S)=Pr[top among S is a] under the baseline population distribution. Adding a nonnegative measure y over rankings updates tallies additively. A fixed deterministic tie-breaking rule is assumed; we enforce strict margins via γ>0.
+
+Theorem (Chain-based two-type certificate; general K). Fix target c∈C and pivot b∈C\{c}. Define S_1:=C and, for j=1,…,K−2, let e_j ∈ argmin_{e∈S_j\{b,c}} t_e(S_j) (ties by the election’s rule) and S_{j+1}:=S_j\{e_j}. Set
+A_b(γ):=max_{1≤j≤K−2} [t_{e_j}(S_j)−t_c(S_j)+γ]_+,
+B_b(γ):=max_{1≤j≤K−2} [t_{e_j}(S_j)−t_b(S_j)+γ]_+,
+D_{b,c}(γ):=t_b({b,c})−t_c({b,c})+γ.
+If we add α≥0 c-first and β≥0 b-first ballots with α≥A_b(γ), β≥B_b(γ), and α−β≥D_{b,c}(γ), then the IRV process eliminates e_1,…,e_{K−2} in order and c strictly defeats b in the final. Among such two-type augmentations, the minimum total mass equals
+ε_b^*(γ)=B_b(γ)+max{A_b(γ), B_b(γ)+D_{b,c}(γ)}.
+
+Proof. For each S_j, adding α (resp. β) increases t_c(S_j) (resp. t_b(S_j)) by α (resp. β) and leaves t_x(S_j) unchanged for x∈S_j\{b,c}. Hence α≥A_b and β≥B_b ensure t'_{e_j}(S_j) ≤ min{t'_b(S_j), t'_c(S_j)}−γ, so e_j is the unique minimum and is eliminated. In the final {b,c}, t'_c−t'_b=(t_c−t_b)+(α−β), so α−β≥D_{b,c} yields a strict c win. Minimizing α+β over α≥A_b, β≥B_b, α−β≥D_{b,c} gives β=B_b and α=max{A_b, B_b+D_{b,c}}.
+
+Corollary (K=3 exactness). When K=3, the chain has one element and ε^*(γ;c)=min_{b≠c} ε_b^*(γ) agrees with the closed-form K=3 formula previously derived.
+
+Lemma (Two-type dominance for the targeted chain). Any feasible augmentation realizing the chain e_1,…,e_{K−2} and a strict c-over-b final can be replaced by a two-type augmentation (c-first and b-first only) of no larger mass that also realizes the same chain and final.
+
+Proof. Remove any mass placed on rankings r with top_{S_j}(r)=e_j for some j (they only increase t_{e_j}(S_j), harming feasibility). For remaining ballots, replace r by c-first if top_{\{b,c\}}(r)=c, else by b-first if top_{\{b,c\}}(r)=b. This preserves the final pairwise difference and (weakly) increases t_b(S_j) or t_c(S_j) while never increasing any t_{e_j}(S_j), so all chain constraints remain feasible or get slackened.
+
+Theorem (Round‑1 + final necessary lower bound). Fix c and b≠c. Let p_x:=t_x(C) and p_min^{(b,c)}:=min_{x∈C\{b,c}} p_x. Define A_b^{(1)}(γ):=[p_min^{(b,c)}−p_c+γ]_+, B_b^{(1)}(γ):=[p_min^{(b,c)}−p_b+γ]_+, and D_{b,c}(γ):=t_b({b,c})−t_c({b,c})+γ. For any augmentation y that yields a {b,c} final with c strictly defeating b by ≥γ, the total mass satisfies
+∥y∥_1 ≥ L_b(γ):=B_b^{(1)}(γ)+max{A_b^{(1)}(γ), B_b^{(1)}(γ)+D_{b,c}(γ)}.
+Moreover, equality holds for K=3.
+
+Proof. Decompose y into y_c (top_C=c), y_b (top_C=b), and y_rest with masses α, β, ϑ, so ∥y∥_1=α+β+ϑ. In round 1, to avoid eliminating c or b, we must have p'_c=p_c+α ≥ p_min^{(b,c)}+γ and p'_b=p_b+β ≥ p_min^{(b,c)}+γ, giving α≥A_b^{(1)} and β≥B_b^{(1)}. In the final {b,c}, the updated margin is (t_c−t_b)+(α−β)+(θ_c−θ_b), where θ_c−θ_b is the net contribution from y_rest to the pairwise difference and satisfies |θ_c−θ_b|≤ϑ; thus α−β+ϑ ≥ D_{b,c}(γ). Minimizing α+β+ϑ subject to α≥A, β≥B, and α−β+ϑ ≥ D yields the optimum B+max{A, B+D}, attained by taking β=B and α=max{A, B+D−ϑ} with ϑ chosen to make the final constraint tight. Substituting A=A_b^{(1)}, B=B_b^{(1)}, D=D_{b,c} proves the bound. For K=3, these are also sufficient (via two-type additions), yielding equality.
+
+Remark. For K≥4 and any b, ε_b^*(γ) ≥ L_b(γ) since A_b(γ) ≥ A_b^{(1)}(γ) and B_b(γ) ≥ B_b^{(1)}(γ).
+
+Lemma (Chain stability and plug-in error). If sup over all tallies used on the chain satisfies |\hat t−t| ≤ τ and each round-j gap Δ_j:=min_{x∈S_j\{b,c,e_j}} (t_x(S_j)−t_{e_j}(S_j)) ≥ 2τ, then the empirical chain equals the true chain and |\widehat{A}_b−A_b|, |\widehat{B}_b−B_b|, |\widehat{D}_{b,c}−D_{b,c}| ≤ 2τ. Consequently, |\widehat{ε}_b^*(γ)−ε_b^*(γ)| ≤ 6τ.
+
+Proof. Stability of argmin under sup-norm perturbations preserves each e_j by induction on j. Each difference t_{e_j}(S_j)−t_c(S_j) or t_{e_j}(S_j)−t_b(S_j) perturbs by ≤2τ; positive part and max preserve Lipschitzness. The map (A,B,D)↦B+max{A, B+D} is 3-Lipschitz in sup norm, giving ≤6τ overall.
+
+Sampling corollary (sample-splitting). Using one half-sample to compute the empirical chain and verify empirical gaps \hat g_j ≥ 4τ, and the other half to estimate the O(K^2) tallies on the chain and the final pair within ±τ (Hoeffding + union bound), we obtain a sound decision rule: certify c via b if \widehat{ε}_b^*(γ) ≤ ε − 6τ. With τ=Θ(ε), m=Θ((log K + log(1/δ))/ε^2) samples suffice to make this certification correct with probability ≥1−δ under the verified gap condition.
+
+
+Proposition (Two-type chain certificate is not tight for K ≥ 4).
+There exists a K=4 election profile where the minimal mass certified by the chain-based two-type bound (optimized over pivots) exceeds the true minimal augmentation needed to make c win.
+
+Example. Let C={a,b,c,d} and consider the following ranking distribution (probabilities sum to 1):
+- 0.06: a ≻ b ≻ d ≻ c
+- 0.12: a ≻ d ≻ c ≻ b
+- 0.35: b ≻ a ≻ c ≻ d
+- 0.22: c ≻ b ≻ d ≻ a
+- 0.085: d ≻ c ≻ b ≻ a
+- 0.05: d ≻ a ≻ c ≻ b
+- 0.115: d ≻ b ≻ c ≻ a
+Baseline tallies:
+- S1=C: (t_a,t_b,t_c,t_d)=(0.18,0.35,0.22,0.25).
+- If a is eliminated: S2={b,c,d}: (t_b,t_c,t_d)=(0.41,0.22,0.37).
+- If d is eliminated: S2′={a,b,c}: (t_a,t_b,t_c)=(0.23,0.465,0.305).
+- Pairwise {b,c}: t_c({b,c})=0.475, t_b({b,c})=0.525, so D_{b,c}=0.05.
+
+Chain two-type bound (pivot b). The baseline chain (excluding {b,c}) is e1=a, S2={b,c,d}, e2=d. Then
+A_b(0)=max{[t_a(C)−t_c(C)]_+, [t_d(S2)−t_c(S2)]_+}=max{[0.18−0.22]_+, [0.37−0.22]_+}=0.15,
+B_b(0)=max{[0.18−0.35]_+, [0.37−0.41]_+}=0,
+hence ε_b^*(0)=B_b(0)+max{A_b(0), B_b(0)+D_{b,c}}=0.15. Other pivots are worse (pivot d: ε_d^*(0)=0.04+max{0.19,−0.10}=0.23; pivot a: ε_a^*(0)=0.235+max{0.16,0.395}=0.63). Therefore min_b ε_b^*(0)=0.15.
+
+Feasible augmentation beating 0.15. Add β_a=0.0701 mass of a-first ballots completed as a ≻ c ≻ b ≻ d, and α=0.0501 mass of c-first ballots. Then:
+- Round 1 (C): (t'_a,t'_b,t'_c,t'_d)=(0.2501,0.35,0.2701,0.25), so d is uniquely minimal and eliminated.
+- Round 2 (S2′={a,b,c}): (t'_a,t'_b,t'_c)=(0.3001,0.465,0.3551), so a is eliminated.
+- Final (S={b,c}): the updated pairwise margin equals
+  t'_c(S) − t'_b(S) = [t_c(S) − t_b(S)] + (α + β_a) = −0.05 + (0.0501 + 0.0701) > 0.
+Thus c wins with strict margins. The total mass is α + β_a ≈ 0.1202 < 0.15.
+
+Conclusion. The chain-based two-type certificate (optimized over pivots) is not tight for K ≥ 4.
+
+Remark. The improvement hinges on changing the early elimination order (removing d first) using a-first ballots, thereby avoiding the large deficit at S2={b,c,d}. This shows that allowing additional added-top types beyond {c, pivot} can strictly reduce the required augmentation.
+
+
+Theorem (Three-type steering certificate; general K).
+Fix target c and pivot b≠c. Choose a steering candidate u and desired first elimination s (distinct from b,c,u). Let γ>0. Write first-round shares p_x=t_x(C). After removing s, define the post-s chain S^{(s)}_1=C\{s}, and for j=1,…,K−3 let e^{(s)}_j∈argmin_{e∈S^{(s)}_j\{b,c}} t_e(S^{(s)}_j) (ties by the election’s rule), with S^{(s)}_{j+1}=S^{(s)}_j\{e^{(s)}_j}. Define
+A^{(s)}(γ):=max_j [t_{e^{(s)}_j}(S^{(s)}_j)−t_c(S^{(s)}_j)+γ],
+B^{(s)}(γ):=max_j [t_{e^{(s)}_j}(S^{(s)}_j)−t_b(S^{(s)}_j)+γ],
+A_0:=[p_s−p_c+γ]_+,
+B_0:=[p_s−p_b+γ]_+,
+U_0:=[p_s−p_u+γ]_+,
+D:=t_b({b,c})−t_c({b,c})+γ.
+Let j_u be the index with e^{(s)}_{j_u}=u and set a_u:=t_u(S^{(s)}_{j_u})−t_c(S^{(s)}_{j_u}), b_u:=t_u(S^{(s)}_{j_u})−t_b(S^{(s)}_{j_u}). Assume the side-condition p_w≥p_s+γ for all w∈C\{s,b,c,u}. If we add α,β_b,β_u ≥ 0 of c-, b-, and u-first ballots satisfying
+(i) β_u ≥ U_0;
+(ii) α ≥ max{A_0, A^{(s)}(γ), β_u + a_u + γ};
+(iii) β_b ≥ max{B_0, B^{(s)}(γ), β_u + b_u + γ};
+(iv) α − β_b + β_u ≥ D;
+then IRV eliminates s in round 1, eliminates e^{(s)}_1,…,e^{(s)}_{K−3} in order on S^{(s)} and elects c over b in the final by ≥γ. For any fixed β_u, the minimal α+β_b equals B̄(β_u)+max{Ā(β_u), B̄(β_u)+D}, where Ā(β_u):=max{A_0,A^{(s)}(γ),β_u+a_u+γ} and B̄(β_u):=max{B_0,B^{(s)}(γ),β_u+b_u+γ}. Hence the minimal three-type mass is
+  ε_{steer}(s,u,b;γ)=min_{β_u≥U_0} [ β_u + B̄(β_u) + max{Ā(β_u), B̄(β_u)+D} ].
+
+Proof. Round 1: (i) and the side-condition ensure p′_s≤p′_x−γ for all x∈C\{s}, so s is the unique minimum. Post-s: For each j, only t_c increases by α, t_b by β_b, and t_u by β_u when e^{(s)}_j=u; thus with (ii)–(iii), e^{(s)}_j remains strictly below both b and c and is eliminated. Final: (iv) enforces a strict c-over-b win. Minimization in (α,β_b) for fixed β_u is the same 2D LP as in K=3, yielding the stated expression. ∎
+
+Corollary (Two-type steering special case).
+If B_0≤0, B^{(s)}(γ)≤0, and β_u can be chosen within [U_0, −b_u−γ], then setting β_b=0 yields
+  ε_{steer}^{(2)}(s,u;γ)=min_{β_u∈[U_0, −b_u−γ]} [ β_u + max{A_0, A^{(s)}(γ), β_u + a_u + γ, D − β_u} ].
+
+Lemma (K=4 targeted path with types {c,a}).
+Let C={a,b,c,d}, pivot b, and target path “eliminate d from C, then eliminate a from {a,b,c}, then c beats b.” For γ>0, with c-first α and a-first β≥0 (completion a≻c≻b≻d), define
+LB_α:=[t_d(C)−t_c(C)+γ]_+,
+LB_β:=[t_d(C)−t_a(C)+γ]_+,
+U_b:=t_b({a,b,c})−t_a({a,b,c})−γ,
+U_c:=t_c({a,b,c})−t_a({a,b,c})−γ,
+D:=t_b({b,c})−t_c({b,c})+γ.
+Feasible (α,β) must satisfy α≥LB_α, β∈[LB_β,U_b], α−β≥U_c, and α+β≥D. The minimal mass is
+  ε_{(c,a)}^*(γ)=min_{β∈[LB_β,U_b]} [ β + max{ LB_α, D − β, β − U_c } ].
+
+Proof. Round 1 constraints ensure d is strictly below a,b,c; Round 2 constraints ensure a is strictly below b and c on {a,b,c}; the final enforces c over b. Minimizing α for fixed β yields α(β)=max{LB_α, D−β, β−U_c}, giving the stated 1D convex piecewise-linear objective. ∎
+
+Proposition (Improved K=4 separation).
+In the profile from the notes with tallies S1=(0.18,0.35,0.22,0.25), S2={b,c,d}=(0.41,0.22,0.37), S2′={a,b,c}=(0.23,0.465,0.305), and pair {b,c}=(0.525,0.475), the chain two-type bound for pivot b equals 0.15. Choosing β_a=0.0701 (a≻c≻b≻d) and α=0.0301 satisfies d-first, then a on {a,b,c}, and yields final margin (0.475+α+β_a)−0.525>0, with total mass ≈0.1002<0.15. Thus the chain bound is not tight for K≥4.

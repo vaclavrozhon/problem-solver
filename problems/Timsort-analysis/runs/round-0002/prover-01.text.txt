@@ -1,0 +1,65 @@
+## Status and corrected goal
+- The requested bound “comparisons ≤ n·H + O(n)” is false for TimSort. Buss–Knop exhibit run-length sequences on which TimSort’s merge cost is ≥ (3/2)·n·log n − O(n); since H ≤ log n, this gives ≥ (3/2)·n·H − O(n) comparisons. We cannot achieve leading constant 1 for TimSort.
+- Correct statements for Python’s patched TimSort (with the extra #5 rule):
+  1) Coarse: comparisons = O(n + n·H).
+  2) Sharp: comparisons ≤ (3/2)·n·H + O(n), tight.
+
+Below I give auditable pieces to complete (1), and outline (2) and its needed lemmas.
+
+## Model and preliminaries
+- Cost model: merging runs of sizes a,b uses ≤ a+b−1 comparisons; we bound by merge-cost a+b. Run detection uses O(n) comparisons.
+- So comparisons ≤ total merge-cost + O(n).
+- Use the standard translation of TimSort (A–J–N–P) with cases #1..#5; assume Python’s corrected version (case #5 present).
+
+## Lemma A (Stack growth invariant)
+Statement. After each call to merge_collapse, the stack run sizes r_i (top i=1) satisfy: r_{i+1} > r_i for all i, and r_{i+2} > r_{i+1}+r_i for all i with i+2 ≤ h.
+Why useful here. Enforces exponential growth along the stack, enabling height bounds and geometric decay.
+Sketch proof. Case analysis over #1–#5 as in paper1: pushing (#1) is only possible when #2–#5 tests are false, which forces r_1<r_2, r_1+r_2<r_3, r_2+r_3<r_4; merges (#2–#5) slide the indices and preserve strict superadditivity for indices ≥3.
+
+Corollary A1 (Exponential growth). If a run is about to be pushed, then for all i ≤ j ≤ h, r_i ≤ 2^{(i+1−j)/2}·r_j. Reason: r_{i+2} ≥ 2 r_i by the invariant.
+
+## Lemma B (Starting sequences cost O(n))
+Statement. The total merge cost over all starting sequences is O(n). More precisely, if a run R of length r begins a starting sequence of k≥2 steps (i.e., k−1 merges #2), the total cost within that starting sequence is ≤ γ·r for γ = 2 ∑_{j≥1} j·2^{−j/2} < ∞.
+Proof. After pushing R, we perform merges (R_1,R_2), …, (R_{k−1},R_k). Total cost C ≤ ∑_{i=1}^k (k+1−i) r_i. By last #2 we have r>r_k; by Corollary A1, r ≥ r_k ≥ 2^{(k−1−i)/2} r_i, so (k+1−i) r_i ≤ r·(k+1−i)·2^{(i+1−k)/2}. Summing yields C/r ≤ 2∑_{j=1}^k j 2^{−j/2} < γ. Each run starts exactly one starting sequence and ∑ r = n.
+
+## Token amortization for ending sequences
+Credits per height decrease during an ending sequence: each element gets 2 c-tokens and 1 s-token whenever its height decreases (when its run moves closer to the top via #2–#5 merges).
+Spends per merge:
+- #2: every element of R_1 and R_2 pays 1 c-token.
+- #3: every element of R_1 pays 2 c-tokens.
+- #4/#5: every element of R_1 pays 1 c-token; every element of R_2 pays 1 s-token.
+Lemma C (Token balances nonnegative). Throughout the main loop, no element has negative c- or s-balance.
+Why useful here. Guarantees that the ending-sequence merge cost is covered by minted tokens.
+Reason. c-tokens: merges that decrease height also mint ≥ the spent amount. s-tokens: in #4/#5, elements of R_2 spend 1 s-token but the corrected case #5 plus invariant imply the next action is another merge in the same ending sequence; that merge decreases their height, re-crediting 1 s-token before any further spend (top run never spends s-tokens). Induction over the sequence.
+
+## Lemma D (Height bound after starting sequence)
+Statement. If R has length r and its starting sequence just ended, the stack height h satisfies h ≤ 4 + 2 log2(n/r).
+Why useful here. Bounds how many height decreases each element in R can experience, hence its total minted tokens.
+Proof. Runs below R_3 remained unchanged during the starting sequence. Applying Corollary A1 to the pre-push stack, r_3 ≤ 2^{2−h/2}·r_h ≤ 2^{2−h/2}·n. At end of the starting sequence, #2 is false, so r = r_1 ≤ r_3 ≤ 2^{2−h/2} n, i.e., h ≤ 4 + 2 log2(n/r).
+
+## The coarse entropy bound
+Each element in a run R of length r can accrue at most O(h) c-tokens and s-tokens (two c and one s per height decrease), with h ≤ 4+2 log2(n/r) by Lemma D. Summing minted tokens over all elements yields
+∑_i ℓ_i · O(1 + log(n/ℓ_i)) = O(n + n·H).
+By Lemma C, the total minted tokens cover the ending-sequence merge costs exactly. Together with Lemma B (starting sequences cost O(n)) and O(n) for run detection and final collapse, we obtain the merge-cost bound O(n + n·H). Since each merge saves at least 1 comparison (cost ≤ a+b−1), the conversion to comparisons adds at most O(r) ≤ O(n). Therefore:
+
+Proposition (Coarse bound). Python’s corrected TimSort uses O(n + n·H) comparisons on inputs whose greedy runs have lengths ℓ_1,…,ℓ_r.
+
+## Sharp constant 3/2 (outline to formalize next)
+- Potential Φ(r) = (3/2) r log2 r. Balanced merges (sizes within factor φ^2) satisfy cost ≤ ΔΦ.
+- In each ending sequence, group unbalanced merges into singletons or pairs so that every group’s cost ≤ group’s ΔΦ, except possibly the first group, which exceeds by ≤ r (length of the just-pushed run).
+- Summing over all runs gives total slack O(n). Total potential drop equals (3/2)·(n log2 n − ∑ ℓ_i log2 ℓ_i) = (3/2)·n·H. Hence merge cost ≤ (3/2)·n·H + O(n), and thus comparisons ≤ (3/2)·n·H + O(n).
+- Tightness: Buss–Knop family achieves ≥ (3/2)·n·H − O(n).
+
+## Examples / sanity checks
+- Single run (ℓ_1=n): H=0, bound gives O(n): detection + no merges.
+- All runs length 1: H=log2 n, bound gives O(n log n).
+- Two runs (a,b): H ≤ 1, bound O(n).
+
+## Obstacles
+- The claim with leading constant 1 is impossible for TimSort. The token scheme proves a coarse O(n+nH), not constant 1.
+- The s-token nonnegativity requires the corrected #5 rule; without it (Java legacy), more involved arguments are needed (paper1, §Java).
+
+## Next steps (for proofs.md and output.md)
+- Write full proofs of Lemmas A–D and the coarse bound (above), with explicit references to Algorithm cases #1–#5.
+- Add the potential-method proof for the (3/2)·n·H + O(n) bound: include Lemmas ensuring balanced merges (within φ^2) are dominated by ΔΦ, Lemma (X2)*X* forbidding certain subsequences, and the grouping argument; then sum ΔΦ to (3/2)·n·H.
+- Update output.md to state the corrected main theorem (3/2 factor) and include the coarse O(n+nH) bound.

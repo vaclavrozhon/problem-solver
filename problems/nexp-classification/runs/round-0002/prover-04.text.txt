@@ -1,0 +1,58 @@
+Ideas
+- Strengthen the transfer-matrix method to cover the top gap (O(1) vs Ω(log* n)) with an exponential-size certificate verifiable in EXPTIME, yielding a NEXPTIME decision procedure.
+- Use two ingredients: (i) per-type periodic pairs for primitive periods (allowing us to label long periodic runs), and (ii) a short-separator table identical in spirit to the middle-gap feasible function. All checks reduce to constant-size Boolean matrix products over reachable types.
+
+Definitions and Notation
+- Let Σin={0,1}, |Σout|=β. Let A∈{0,1}^{β×β} be the adjacency (Cout–out). For s∈{0,1}, let Ds be diagonal with Ds[z,z]=1 iff (s,z)∈Cin–out.
+- For w=s1…sk, define M(w)=Ds1·A·Ds2·A·…·A·Dsk (Boolean semiring). This matrix is the type of w. Concatenation: M(uv)=M(u)·A·M(v).
+- Type automaton: states T are matrices reachable from {D0,D1} under δ(M,s)=M·A·Ds. Build T by BFS; |T|≤2^{β^2}.
+- Let K=|T|. For exact lengths ℓ, let Rℓ be types reachable by some word of length ℓ; compute Rℓ by dynamic programming. Let Tshort=⋃_{ℓ≤2K}Rℓ.
+- Primitive-period types Ptypes: types of primitive words of length at most K. Enumerate by scanning all τ∈Rℓ, 1≤ℓ≤K, and eliminating those realizable by a nontrivial power (decidable via the automaton; see Example below).
+
+Lemma 1 (Replacement by type; radius-1 version)
+If two fragments P,Q have the same type M(P)=M(Q), then for any fixed outputs a on the predecessor of P and b on the successor of P satisfying A[a,a1]=1 and A[bk,b]=1 (where a1, bk denote outputs on the endpoints of P), P can be replaced by Q while preserving global legality by relabeling only the interior. Proof: identical to the standard radius-1 replacement, using that M encodes precisely the existence of an output-path consistent with the input and A encodes the boundary constraints.
+
+Certificate for O(1): periodic pairs + short-separator table
+- Periodic pairs: pick p: Ptypes→Σout×Σout with p(τ)=(aτ,bτ) such that τ[aτ,bτ]=1 and A[bτ,aτ]=1. This guarantees a legal periodic labeling for any block repeating any primitive word w with M(w)=τ (existentially, by the definition of M and the wrap-around constraint A[bτ,aτ]=1).
+- Short-separator table (length-2 separator): g: T×{00,01,10,11}×T→Σout^2. For each (τL,S,τR) with S=(sL,sR), output (x,y)∈Σout^2 subject to local legality (DsL[x,x]=1, A[x,y]=1, DsR[y,y]=1).
+
+Interface (bridge) constraints
+For all τa,τb,τc,τd∈Ptypes and S1,S2∈{0,1}^2, write g(τa,S1,τb)=(ℓ1,ℓ2) and g(τc,S2,τd)=(r1,r2). Require the existence of a legal filling of the middle between the two S-windows when the left/right long blocks are periodic with (a,b) pairs p(τb)=(ab,bb) and p(τc)=(ac,bc). A sufficient (and necessary for radius-1) scalar condition is:
+(1) (A · M_b · A · M_c · A)[ℓ2, r1] = 1,
+where M_b, M_c are the chosen representatives of τb, τc (any choices; replacement makes the condition type-dependent only). This encodes: from the last output of S1, take one A-step into the left block, traverse M_b, bridge by A into the right block, traverse M_c, and take one A-step to reach the first output of S2.
+
+Additionally, separators against endpoints of a path are handled by replacing M_b (or M_c) by the identity (no interior) and dropping one A as appropriate; on cycles (our baseline), Eq. (1) suffices.
+
+Lemma 2 (Sufficient certificate ⇒ O(1))
+Assume we are given p and g satisfying the local legality and all bridge constraints (1) for every choice of τa,τb,τc,τd∈Ptypes and S1,S2∈{0,1}^2. Then there exists an O(1)-round algorithm.
+Proof sketch:
+- In O(1) rounds, compute an (Lwidth,Lcount,Lpattern)-partition with Lwidth=Lpattern=K and Lcount=2K+2 (by Lemma in the paper; orientation is given). Every maximal long piece P∈Plong is a repetition w^m of a primitive w with |w|≤K.
+- For each long piece P of type τ, use p(τ)=(a,b) to fix a legal periodic labeling on its interior: within each period, pick any witness realizing τ[a,b]=1; between periods, A[b,a]=1 closes the cycle. This step is local as all nodes in P know the period w and its direction.
+- On each short separator S (length 2 by construction), use g to label its two nodes. Now only the short residual zones at the interfaces remain unlabeled.
+- The bridge constraints (1) guarantee that between each pair of adjacent long blocks across a separator there exists a legal fill (by Lemma 1 replacement, using M_b, M_c), and these fills are confined to O(1) length regions. Perform these fills locally. Resulting labeling is globally legal.
+
+Complexity of verification (EXPTIME)
+- Building T and Rℓ, Ptypes and Tshort takes 2^{O(β^2)}·poly(β) time.
+- Guess p and g: size O(|Ptypes|·log β + |T|^2·4·log β)=2^{O(β^2)} bits.
+- Check local legality for all entries of g in poly(β). Check periodicity for p by verifying τ[a,b]=1 and A[b,a]=1 (β^2 checks per τ).
+- For all quadruples τa,τb,τc,τd and S1,S2 (≤4·|Ptypes|^4 entries), check (1) by a constant number of Boolean matrix multiplications (O(β^3) per check). Total deterministic verification time 2^{O(β^2)}·poly(β).
+Thus, existence of such a certificate is in NEXPTIME.
+
+Example sanity checks
+- Trivial labeling: If Ds=I for both s and A=J (all ones), then any choices p(τ) with A[b,a]=1 hold, and (1) is trivially true since products equal J. Algorithm reports O(1).
+- Parity/2-coloring variant: If A is “not-equal” on two outputs and Ds=I, Ptypes={τ⋆} with τ⋆=J. Choose p(τ⋆)=(1,2). For any S, g must output (x,y) with x≠y. Then (A·J·A·J·A)[ℓ2,r1]=A[ℓ2,r1], so it forces ℓ2≠r1. This is satisfiable by selecting g to alternate; if some universal choices fail for all pairs, certificate doesn’t exist and the algorithm declares Ω(log* n). This aligns with the known need for symmetry breaking in constant time.
+
+Auxiliary routine: detecting primitive-period types
+Given τ∈Rℓ (1≤ℓ≤K), decide if τ arises from some v^m with m≥2 and |v|<ℓ: nondeterministically split ℓ into d·m with d<ℓ, m≥2, and check if there exists τv∈Rd such that τ = τv · (A·τv)^{m-1} (by concatenation). If none matches, classify τ as primitive. This uses only matrix products and membership tests in Rℓ.
+
+Obstacles (completeness)
+- We have only sufficiency: a certificate implies O(1). To get a decision procedure, we need a compression lemma: any O(1)-round algorithm yields p and g satisfying our constraints. Intuitively, the algorithm’s behavior on long periodic inputs induces periodic outputs; existence of a “stable phase” yields (a,b) with τ[a,b] and A[b,a]; locality on short separators yields a constant S-table g; replacement shows type-only dependence. Formalizing this extraction without unrolling doubly-exponential periodicities is the key remaining step.
+
+Why types suffice for periodicity
+For any two words w,w′ with M(w)=M(w′)=τ and any (a,b) with τ[a,b]=1, there exist interior outputs realizing a→b for both w and w′ (by the definition of M). Thus choosing a wrap-around pair with A[b,a]=1 produces a periodic output for any representative of τ. Hence periodic feasibility depends only on τ, not on the specific w.
+
+Next steps
+1) Formalize and prove the extraction lemma: given a t=O(1) algorithm, build p and g of size 2^{O(β^2)} that satisfy (1). Use run stabilization on long periodic inputs and type replacement to argue type-only dependence.
+2) Add endpoint handling (paths) formally; currently the above is for cycles; adjust (1) by removing leading/trailing A factors.
+3) Implement computation of Ptypes and Tshort and the NEXPTIME verifier; test on small β with random constraints to find corner cases.
+4) Integrate with the existing middle-gap NEXPTIME test: overall trichotomy procedure is (i) try O(1); if no certificate then (ii) try O(log* n); if no then report Θ(n).

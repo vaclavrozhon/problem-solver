@@ -1,0 +1,38 @@
+{
+  "feedback_md": "All provers correctly leverage the radius\u20111 transfer\u2011matrix abstraction: a segment\u2019s observable interface is a \u03b2\u00d7\u03b2 Boolean relation, composition is Boolean matrix product, and equal matrices give a clean replacement lemma. The middle\u2011gap (O(log* n) vs \u0398(n)) certificate based on a type\u2011indexed separator table and the scalar bridge check (E\u00b7M_{\u03c4_b}\u00b7E\u00b7M_{\u03c4_c}\u00b7E)[\u2113_2,r_1]=1 is sound. A necessary correction (now incorporated) is to restrict \u03c4_b,\u03c4_c to types realized at lengths K or K+1, where K=|T|, to match the standard decomposition and avoid false negatives.\n\nTop gap (O(1) vs \u03a9(log* n)): Prover 1\u2019s proposed EXPTIME test via per\u2011type loop sets L_\u03c4 = \u22c3_{e\u2264\u03b2} diag((M_\u03c4\u00b7E)^e) and universal bridges over short types appears insufficient. The step \u201ctile with an e\u2011chunk to enforce the same boundary x on both ends\u201d is generally false when the number of periods in a long block is not a multiple of e; an O(1) partition cannot globally align block lengths to a fixed residue. A minimal counterexample schema: \u03a3_out={a,b}, E is the 2\u2011cycle a\u2194b, Cin\u2013out admits both outputs on both inputs. Then (M_\u03c4\u00b7E)^2 has nonempty diagonal so L_\u03c4\u2260\u2205 for all \u03c4, and C_\u03c3 reduces to powers of E, yet the problem is known to require \u0398(log* n) on cycles; the proposed test would (incorrectly) accept. The missing ingredient is residue/aperiodicity handling: you need guarantees that boundary\u2011to\u2011boundary walks exist for all relevant block lengths (K or K+1 periods), not just for some e\u2264\u03b2.\n\nProver 3\u2019s necessary condition via right\u2011stabilizers Z_per and the SCC\u2011constant sufficient certificate are solid partial results (necessary and sufficient, respectively), but do not yet yield a full characterization. Prover 4\u2019s \u201cperiodic pairs + short\u2011separator table\u201d is a promising sufficient certificate, but the extraction/completeness direction remains unproven and likely needs residue\u2011class reasoning or idempotent elements in the type monoid.\n\nActionable next steps:\n- Keep the middle\u2011gap NEXPTIME verifier; implement with \u03c4_b,\u03c4_c\u2208R_K\u222aR_{K+1}.\n- For O(1), strengthen the per\u2011type periodic criterion to account for gcds of cycle lengths (aperiodicity) or use idempotents in the monoid \u27e8E\u00b7S_0,E\u00b7S_1\u27e9; define per\u2011type boundary relation families achievable for all lengths in {K,K+1}, and re\u2011formulate the EXPTIME checks accordingly.\n- Develop an extraction lemma from any O(1) algorithm to an exponential per\u2011type certificate (e.g., idempotent/aperiodic choices plus an interface table), then prove EXPTIME verifiability.\n",
+  "summary_md": "We validated the matrix/type framework and finalized a rigorous NEXPTIME procedure for O(log* n) vs \u0398(n), with the critical correction to restrict gap types to lengths K or K+1. For O(1) vs \u03a9(log* n), the proposed per\u2011type loop\u2011set test is not sufficient (parity counterexamples). Partial progress includes a necessary stabilizer test and a sufficient SCC\u2011constant certificate. Next, incorporate residue/aperiodicity (idempotents of the type monoid) to craft an exponential per\u2011type certificate and a completeness proof, yielding a full NEXPTIME trichotomy.",
+  "verdict": "uncertain",
+  "blocking_issues": [
+    "Top-gap completeness missing: per-type loop-set test fails on parity examples; need residue/aperiodicity handling",
+    "Need an extraction/compression lemma: from any O(1) algorithm to an exponential per-type certificate verifiable in EXPTIME",
+    "Maintain consistent matrix convention and restrict middle-gap checks to \u03c4_b,\u03c4_c realized at lengths K or K+1"
+  ],
+  "per_prover": [
+    {
+      "prover_id": "01",
+      "brief_feedback": "Strong matrix formalization and an ambitious O(1) EXPTIME test; however, the tiling argument with e-chunks does not ensure correct boundaries for arbitrary block lengths. The test can accept \u0398(log* n) instances (e.g., 2-cycle parity). Refine with residue/aperiodicity or idempotents; avoid requiring same boundary at both ends unless justified.",
+      "score": "uncertain"
+    },
+    {
+      "prover_id": "02",
+      "brief_feedback": "Middle-gap verifier is precise with the length-K/K+1 restriction. Useful polynomial-time O(1) subtests and monoid-based summaries (Occ_any/Occ_all) provide necessary conditions. Continue toward an exponential certificate using the monoid structure.",
+      "score": "promising"
+    },
+    {
+      "prover_id": "03",
+      "brief_feedback": "Clean convention T_w=\u220f(E\u00b7S_i), solid replacement lemma, and a complete middle-gap EXPTIME verification. The Z_per necessity and SCC-constant sufficiency are good partials; pursue an idempotent/aperiodic certificate and its extraction.",
+      "score": "promising"
+    },
+    {
+      "prover_id": "04",
+      "brief_feedback": "Sufficient certificate (periodic pairs + separator table) is promising but completeness unproven; likely needs residue-class conditions and monoid idempotents. Clarify path endpoints and ensure bridge checks match chosen lengths.",
+      "score": "uncertain"
+    }
+  ],
+  "notes_update": {
+    "action": "append",
+    "content": "Caution on the top-gap (O(1) vs \u03a9(log* n))\n\nIssue with per-type loop sets.\n- Proposal: L_\u03c4 := \u22c3_{e\u2264\u03b2} diag((M_\u03c4\u00b7E)^e); choose x\u2208L_\u03c4 and \u201ctile\u201d long periodic blocks with an e-chunk to enforce boundary x on both ends, then bridge short separators via C_\u03c3=E\u00b7M_\u03c3\u00b7E.\n- Problem: This does not guarantee feasibility for arbitrary block lengths (numbers of periods). If m is not a multiple of e, A_\u03c4^e[x,x]=1 does not imply A_\u03c4^m[x,x]=1, so you cannot generally fix both boundaries to x. An O(1) partition cannot globally align blocks to a fixed residue.\n\nCounterexample schema (parity).\n- \u03a3_out={a,b}; E is the 2-cycle a\u2194b; S_0,S_1 allow both outputs. Then for every \u03c4, (M_\u03c4\u00b7E)^2 has nonempty diagonal, so L_\u03c4\u2260\u2205 and C_\u03c3 reduces to powers of E, seemingly satisfying the test. However, proper 2-coloring on cycles requires \u0398(log* n), so the test would be a false positive.\n\nTakeaway: Any O(1) certificate must encode residue/aperiodicity constraints for all relevant block lengths (K or K+1). A promising direction is to use the finite monoid \u27e8E\u00b7S_0,E\u00b7S_1\u27e9: extract idempotents and cycle-length gcds within SCCs to define per-type boundary behaviors achievable for all required lengths, then verify constant-size bridge conditions.\n\nMiddle-gap verifier (finalized).\n- Restrict \u03c4_b,\u03c4_c to R_K\u222aR_{K+1} (types realized by exactly K or K+1 inputs). With this restriction, the type-based separator function f_type and the scalar check (E\u00b7M_{\u03c4_b}\u00b7E\u00b7M_{\u03c4_c}\u00b7E)[\u2113_2,r_1]=1 give a sound and complete NEXPTIME procedure for O(log* n) vs \u0398(n).\n\nNext steps toward O(1):\n1) Compute for each \u03c4 the set of residues (mod d_\u03c4) for which A_\u03c4^m has diagonal entries, via SCC cycle-length gcds; ensure coverage for m corresponding to K or K+1 repetitions.\n2) Formulate an exponential per-type certificate using monoid idempotents and residue classes; prove an extraction lemma from any O(1) algorithm; verify interfaces by fixed matrix products.\n"
+  },
+  "proofs_update": null,
+  "output_update": null
+}

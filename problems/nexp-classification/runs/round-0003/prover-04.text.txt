@@ -1,0 +1,48 @@
+Ideas
+- Strengthen the top-gap (O(1) vs Ω(log* n)) direction with a type–monoid analysis that encodes length-robust periodicity explicitly. The key objects are T_τ := A·M(τ) (β×β Boolean matrices), one per period type τ, and their SCC periods (gcd of cycle lengths). Aperiodicity (period 1) in the relevant SCCs gives eventual closed walks of all large lengths; Wielandt’s bound gives an explicit exponential (actually polynomial in β) index. This lets us replace “per-word periodic witnesses” by an exponential per-type certificate verifiable in EXPTIME.
+
+Technical Lemmas (specialized to radius 1, oriented paths)
+- Lemma A (Matrix composition). For all u,v, M(uv)=M(u)·A·M(v) (Boolean semiring product). Consequently, for a primitive period w and m≥1, M(w^m)=M(w)·(A·M(w))^{m−1}.
+- Lemma B (Replacement by type). If two input fragments P,Q satisfy M(P)=M(Q), then under any fixed boundary outputs that are locally legal with the environment, replacing P by Q preserves global legality by relabeling inside the fragment (standard radius-1 replacement). Why useful: guarantees that all feasibility constraints depend only on types M(·), not on representatives.
+
+Length-robust periodicity via SCC periods
+- Notation. For a β×β 0–1 matrix T, write G(T) for its directed graph. For a strongly connected component S of G(T), let per(S) be the gcd of cycle lengths in S (the period). S is aperiodic iff per(S)=1.
+- Lemma C (eventual closed walks on the diagonal). Let T be the adjacency of a finite strongly connected digraph S with per(S)=1. Then there exists an integer e(T,S) ≤ (β−1)^2+1 (Wielandt bound) such that for all m ≥ e(T,S), and all x∈S, T^m[x,x]=1. Proof sketch: T|_S is a primitive (aperiodic) 0–1 matrix of size ≤β; by Wielandt’s theorem, its exponent is ≤(β−1)^2+1; hence all entries, in particular the diagonal, are 1 for m beyond the exponent.
+- Corollary D (two consecutive lengths). If S is aperiodic and m0 ≥ e(T,S), then T^m[x,x]=1 holds for all m∈{m0,m0+1}; conversely, if for some x we have T^K[x,x]=T^{K+1}[x,x]=1 with K ≥ e(T,S), necessarily per(S)=1. Why useful: ties the need for handling both K and K+1 (or any two consecutive large lengths) to aperiodicity.
+
+A sufficient certificate for O(1)
+We define an exponential-size per-type certificate whose constraints are EXPTIME-checkable. Let Ptypes be the set of types τ realized by primitive words with length ≤K (compute by scanning R_ℓ for 1≤ℓ≤K and filtering non-primitive via type-product tests).
+- Period anchors per type: For each τ∈Ptypes, choose an SCC S_τ of T_τ := A·M(τ) with per(S_τ)=1 and a state x_τ ∈ S_τ.
+- Global length threshold: Choose a single Lcount ≥ max_{τ∈Ptypes} e(T_τ,S_τ). Note Lcount ≤ (β−1)^2+1.
+- Short separator table: g: T × {00,01,10,11} × T → Σ_out^2, with local legality for each (τ_L,S,τ_R): if g(τ_L,S,τ_R)=(u,v) then (S[1],u)∈Cin–out, (u,v)∈Cout–out, (S[2],v)∈Cin–out.
+- Interface (bridge) constraints: For all τ_a,τ_b,τ_c,τ_d ∈ Ptypes, all S1,S2∈{0,1}^2, writing g(τ_a,S1,τ_b)=(ℓ1,ℓ2) and g(τ_c,S2,τ_d)=(r1,r2), require:
+  1) Entry to S_b: there exists a state p_b∈S_b (SCC chosen for τ_b) and a t_b ≤ K such that (M(τ_b)·T_b^{t_b})[ℓ2,p_b]=1. (Reach S_b from the right endpoint of S1 through τ_b and some iterations inside S_b.)
+  2) Exit from S_c: there exists a state q_c∈S_c and a t_c ≤ K such that (T_c^{t_c}·M(τ_c))[q_c,r1]=1. (From S_c through τ_c to the left endpoint of S2.)
+  3) Cross-edge: There exist s_b∈S_b and s_c∈S_c with A[s_b,s_c]=1.
+These three items together ensure that for any m_b,m_c ≥ Lcount, there is a closed walk of length m_b−1 in S_b from p_b to s_b (by aperiodicity and Lemma C), then an A-step to s_c, then a walk of length m_c−1 in S_c from s_c to q_c, and finally the fixed tails (entry Mτ_b and exit Mτ_c) yield a path from ℓ2 to r1. Formally, for all m_b,m_c ≥ Lcount,
+(2)  (row_{ℓ2})·M(τ_b)·T_b^{m_b−1−t_b}·E_{p_b→s_b}·A·E_{s_c→q_c}·T_c^{m_c−1−t_c}·M(τ_c)·(col_{r1}) = 1,
+so the scalar bridge holds uniformly in m_b,m_c.
+- Locality consistency: As in the mid-gap certificate, we also require the length-2 separator labels to be consistent with their immediate neighbors; this is already enforced by the local legality in g and the above bridges.
+
+Correctness (sufficiency)
+- Labeling scheme (O(1) rounds). Use the standard (Lwidth,Lcount,Lpattern)-partition (with Lwidth=Lpattern=K and Lcount as above) in O(1) rounds. Each long block P∈Plong is a repetition w^m with primitive w (hence τ=Type(w)∈Ptypes) and m≥Lcount by construction. Separators of length 2 are labeled by g.
+- Feasibility on long blocks: Given τ and m≥Lcount, choose the internal witness path inside S_τ using that T_τ is aperiodic and m is large (Lemma C). This only needs local knowledge of w and its direction (available in the partition).
+- Bridging across separators: For adjacent long blocks of types τ_b, τ_c around a separator pair, the three interface constraints ensure the scalar product in (2) equals 1 for all m_b,m_c≥Lcount, hence the remaining (O(1)-length) interface zones can be filled locally (by replacement, Lemma B).
+- Hence the labeling is globally legal. Since all parameters (K,Lcount) depend only on β, the algorithm is O(1).
+
+Verification complexity (EXPTIME)
+- Compute T (reachable types), R_ℓ for ℓ≤K, and Ptypes by filtering primitives (all in 2^{O(β^2)}·poly(β)).
+- Guess the certificate: S_τ and x_τ per τ (encode by listing SCC node sets or representative), Lcount (bounded by (β−1)^2+1), and the table g (size 2^{O(β^2)} bits).
+- Verify: (i) per(S_τ)=1 by gcd of cycle lengths in each SCC (β-size graph); (ii) Lcount≥e(T_τ,S_τ) using Wielandt bound (or compute the exact exponent via standard algorithms, still exponential at worst); (iii) for all tuples, check entry/exit witnesses (bounded powers t_b,t_c ≤K) and the cross-edge A[s_b,s_c]=1; (iv) local legality checks for g. Each check uses Boolean matrix products of O(β^3) and graph reachabilities; the total number of tuples is 2^{O(β^2)}. Deterministic time is 2^{O(β^2)}·poly(β). Thus, existence of the certificate is in NEXPTIME.
+
+Examples and Counterexamples
+- Parity 2-coloring (Σ_out={a,b}, A is the 2-cycle, Cin–out unconstrained). For any τ, T_τ has all SCCs with per=2; there is no aperiodic S_τ. Our certificate necessarily fails, ruling out O(1) as desired.
+- Trivial all-ones A and Ds. Every T_τ is the all-ones matrix on one SCC with per=1. Choose any S_τ; Lcount can be 1. The interface constraints are vacuous since A is universal. The certificate passes; the algorithm outputs O(1).
+
+Obstacles / limits (completeness)
+- We have proved a sufficient, EXPTIME-checkable condition for O(1). For a decision procedure we need a matching necessity/compression lemma: from any O(1)-round algorithm extract (S_τ, x_τ) and g satisfying the above. Intuition: since long blocks may appear with arbitrarily large lengths and both parities, local outputs must work for all m≥M; this forces aperiodicity in the relevant T_τ, and the interface feasibility must reduce to our matrix constraints by type-replacement. Formalizing this extraction without reintroducing doubly-exponential per-word witnesses is the key remaining step.
+
+Next steps
+- Prove an “aperiodicity necessity” lemma: if there exists a constant-round algorithm, then for every τ∈Ptypes that can appear as a long block in an input, the chosen T_τ must have an aperiodic SCC mediating the effect of the block. Use the fact that the same τ can appear with both lengths m and m+1, while the algorithm cannot see the total length.
+- Prove an extraction lemma: from the algorithm’s local behavior on long periodic inputs, extract x_τ and g satisfying our entry/exit and cross-edge constraints.
+- Integrate: With these, the top-gap test becomes NEXPTIME: first try the O(1) certificate; if it fails, try the mid-gap certificate (we already have) to decide O(log* n) vs Θ(n).

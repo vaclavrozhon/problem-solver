@@ -1,0 +1,97 @@
+# Ideas
+
+- Formalize a necessary “Round‑1 + Final” lower bound L_b(γ) for any augmentation that yields a {b,c} final with c winning. It cleanly isolates two unavoidable costs and is tight for K=3. It also lower-bounds the chain-based certificate for any pivot b.
+- Provide a rigorous, sample-splitting chain-stability theorem with explicit probabilities and O(K^2) tally counting when scanning all pivots b simultaneously.
+- Clarify optimality of the two-type chain certificate among augmentations that preserve the baseline order among “others”: a precise constraint-preserving cleanup lemma shows two types suffice in that regime.
+- Sketch a Fano-style Ω((log K)/ε^2) lower bound via “pairwise-isolated” perturbations that only affect t_b({b,c})−t_c({b,c}) while leaving the relevant chain tallies unchanged.
+
+# Rigorous results and proofs
+
+Notation. C is the candidate set, |C|=K. For any nonempty S⊆C and a∈S, t_a(S)=Pr[top among S is a]. Fix target c∈C. Ties are broken by a fixed deterministic rule; we enforce strict margins via γ>0 (then send γ→0^+ for tight statements).
+
+## 1) Necessary lower bound: Round‑1 + Final
+
+Define first-round shares p_x:=t_x(C). For a fixed pivot b≠c, put p_min^{(b,c)}:=min_{x∈C\{b,c}} p_x and
+- A^{(1)}_b(γ):=[p_min^{(b,c)} − p_c + γ]_+,
+- B^{(1)}_b(γ):=[p_min^{(b,c)} − p_b + γ]_+,
+- D_{b,c}(γ):=t_b({b,c}) − t_c({b,c}) + γ.
+
+Theorem (Round‑1 + Final lower bound). Consider any nonnegative added measure y on rankings with total mass ||y||_1, such that under the augmented profile IRV yields a {b,c} final and c beats b by ≥γ in that final. Then
+  ||y||_1 ≥ L_b(γ):= B^{(1)}_b(γ) + max{ A^{(1)}_b(γ), B^{(1)}_b(γ) + D_{b,c}(γ) }.
+Moreover, for K=3 this bound is tight (achieved by the two‑type construction), hence ε^*(γ;c)=min_{b≠c} L_b(γ) and ε^*(c)=lim_{γ→0^+} ε^*(γ;c).
+
+Proof. Partition y into y_c (top_C=c), y_b (top_C=b), and y_rest (top_C∉{b,c}), with masses α, β, ϑ respectively. To avoid eliminating c or b in round 1 we must have p_c+α ≥ p_min^{(b,c)}+γ and p_b+β ≥ p_min^{(b,c)}+γ, hence α ≥ A^{(1)}_b(γ), β ≥ B^{(1)}_b(γ). In the final {b,c}, the net margin update is (t_c−t_b)+ (α−β) + (θ_c−θ_b), where θ_c (resp., θ_b) is the contribution to the pairwise from y_rest; trivially θ_c−θ_b ∈ [−ϑ, ϑ]. A strict c win by ≥γ therefore requires α−β+ϑ ≥ D_{b,c}(γ). Minimizing α+β+ϑ subject to α ≥ A, β ≥ B, α−β+ϑ ≥ D is a linear program with optimum B + max{A, B + D}, achieved at β=B and either α=A, ϑ=(D−(A−B))_+ or α=B+D, ϑ=0. Substituting A=A^{(1)}_b(γ), B=B^{(1)}_b(γ), D=D_{b,c}(γ) gives the bound. For K=3 there are no additional round constraints beyond round 1 and the final, and the standard two‑type construction attains equality.
+
+Corollary (Lower-bounding the chain certificate). For the chain-based two‑type certificate with the baseline chain e_1,…,e_{K−2} (see §2 below), A_b(γ)≥A^{(1)}_b(γ) and B_b(γ)≥B^{(1)}_b(γ) since S_1=C is included. Hence ε_b^*(γ) ≥ L_b(γ).
+
+## 2) Chain-based two‑type certificate and cleanup under preserved order
+
+Fix c and a pivot b≠c. Let S_1:=C, and for j=1,…,K−2 define e_j ∈ argmin_{e∈S_j\{b,c}} t_e(S_j) using the election’s deterministic tie‑breaking; set S_{j+1}:=S_j\{e_j}. Put
+- A_b(γ):=max_{j} [t_{e_j}(S_j) − t_c(S_j) + γ]_+,
+- B_b(γ):=max_{j} [t_{e_j}(S_j) − t_b(S_j) + γ]_+,
+- D_{b,c}(γ):=t_b({b,c}) − t_c({b,c}) + γ.
+
+Theorem (Chain-based two‑type certificate). For any α,β≥0 with α ≥ A_b(γ), β ≥ B_b(γ), and α−β ≥ D_{b,c}(γ), adding α mass of c‑first ballots and β mass of b‑first ballots eliminates e_1,…,e_{K−2} in order and elects c over b in the final by ≥γ. The minimal two‑type mass is
+  ε_b^*(γ) = B_b(γ) + max{ A_b(γ), B_b(γ) + D_{b,c}(γ) }.
+
+Proof. As in the notes: for each S_j, only t_c(S_j) and t_b(S_j) increase, by α and β respectively; e_j remains the unique minimal among S_j\{b,c} since other “others” are unchanged and weakly ≥ t_{e_j}(S_j). The stated constraints ensure e_j is strictly below both b and c in S_j and hence eliminated. In the final {b,c}, each c‑first ballot contributes +1 to c’s tally and each b‑first contributes +1 to b’s, hence α−β ≥ D_{b,c}(γ) gives the strict final win. Minimization over α,β is the same 2‑variable polyhedron as in §1 and yields ε_b^*(γ).
+
+Cleanup lemma (preserved order among others). Suppose we restrict to augmentations y that preserve the baseline relative order among “others” in every S_j (i.e., for all pairs d,d′∈S_j\{b,c}, sign(t'_d(S_j) − t'_{d′}(S_j)) = sign(t_d(S_j) − t_{d′}(S_j))). Then among such y the minimum total mass to realize the chain e_1,…,e_{K−2} with a strict c‑over‑b final is achieved by a two‑type (c‑first,b‑first) augmentation of cost ε_b^*(γ).
+
+Proof. Under the preserved-order restriction, the e_j remain the minimal “other” at each S_j. Any ranking r that tops some e_j on S_j decreases the corresponding c‑vs‑e_j and b‑vs‑e_j constraints by 1 and thus cannot be part of an optimal y (it is strictly dominated by replacing its mass with either c‑first or b‑first, which increases all round‑j constraints they touch, and can be balanced to respect the final margin). Therefore an optimal y uses only rankings whose top on all S_j lies in {b,c}, which yields exactly the two types c‑first and b‑first; the cost reduces to the 2‑variable minimum in the theorem.
+
+Remark. This formalizes and isolates the regime in which two types are indeed optimal (even for K≥4). Any potential benefit of a third type must come from changing the order among “others” in some S_j.
+
+## 3) Sampling with chain stability: all pivots simultaneously
+
+Define chain gaps for pivot b: for j=1,…,K−2,
+  μ_{b,j} := min_{x∈S_j\{b,c,e_j}} ( t_x(S_j) − t_{e_j}(S_j) ), and μ_b := min_j μ_{b,j}.
+Let μ:=min_{b≠c} μ_b. Assume μ>0.
+
+Theorem (Two‑stage sampling under chain stability). Fix ε,δ∈(0,1) and γ>0. There exist absolute constants c_1,c_2 such that the following holds. Draw m=m_1+m_2 ballots with independent sample splitting:
+- Stage 1 (identify all chains). With m_1 ≥ c_1 μ^{-2} log( (K−1)(K−2)/ (δ/2) ), the empirical chains \{\hat e_j^{(b)}\}_{j} equal the true chains \{e_j^{(b)}\}_{j} for all pivots b simultaneously with probability ≥1−δ/2.
+- Stage 2 (estimate tallies on identified chains). Conditional on Stage 1 success, there are at most M:= (K−1)(K−2) distinct chain sets S_j^{(b)} across all pivots b, plus at most (K−1) final pairs {b,c}. If m_2 ≥ c_2 τ^{-2} log( (M + (K−1))/ (δ/2) ), then with probability ≥1−δ/2, all needed tallies t_c(S_j^{(b)}), t_b(S_j^{(b)}), t_{e_j^{(b)}}(S_j^{(b)}), and t_c({b,c}), t_b({b,c}) are within ±τ simultaneously.
+- Consequently, with probability ≥1−δ, for every b we have |\widehat{ε}_b^*(γ) − ε_b^*(γ)| ≤ L τ with L≤6 (sup‑norm Lipschitz bound). Declaring c an ε‑winner if min_{b≠c} \widehat{ε}_b^*(γ) ≤ ε − Lτ is sound.
+
+Proof. Stage 1: For each pivot b and step j, a misidentification requires reversing the order between t_{e_j} and the second‑minimal among S_j\{b,c}, a deviation ≥ μ_b/2 under sup‑norm errors ≤ μ_b/4; Hoeffding’s inequality and a union bound over ≤(K−1)(K−2) steps yield the m_1 bound. Stage 2: The total number of distinct sets to be estimated is at most M+(K−1)=O(K^2). Apply Hoeffding and a union bound. Lipschitz: As in the notes, ε_b^*(γ)=B_b+max{A_b, B_b+D_{b,c}}, each of A_b,B_b is a max of positive parts of affine functionals in the relevant tallies (l_1 subgradient norms ≤ 2), and D has l_1 subgradient norm 2; the worst branch is 2B_b + D (l_1 norm ≤ 6). The min over b preserves Lipschitzness with the same constant.
+
+Remarks. When μ is small, Stage 1 may fail frequently; a distribution‑free fallback is the c‑first certificate M_c with uniform convergence (exponential in K). For K=3, this theorem collapses to the known m=Θ((log(1/δ))/ε^2) using five tallies.
+
+## 4) Counting refinement for the c‑first certificate
+
+Lemma (indicator count for fixed c). The number of indicator functions r↦1[top_S(r)=a] with c∈S, a∈S\{c}, |S|≥2 equals N_c=(K−1)2^{K−2}.
+
+Proof. For each s=|S|≥2, choose the s−1 companions of c in C(K−1,s−1) ways and choose a among the s−1 non‑c elements; summing gives ∑_{s=2}^K C(K−1,s−1)(s−1)=(K−1)2^{K−2}.
+
+Therefore, for certifying a fixed c via M_c, a Hoeffding + union bound over N_c indicators yields m=O((log N_c + log(1/δ))/τ^2)=O(((K−1)+log(1/δ))/τ^2), with the 2^{K−2} entering only inside the logarithm.
+
+# Fano-style Ω((log K)/ε^2) lower bound sketch
+
+Goal. Show that any algorithm that, with probability ≥3/4, outputs an ε‑winner must use m=Ω((log K)/ε^2) samples in the worst case (beyond the Ω((1/ε^2) log(1/δ)) dependence), by embedding a choice among K−1 plausible pivots b.
+
+Construction sketch. Fix c. For each b∈C\{c}, choose a “shield” u_b∈C\{b,c} with high baseline tallies in all S containing u_b, so that u_b is never eliminated before the final {b,c} in the baseline. Introduce an independent small block of voters of total weight ρ (to be tuned) that, for pivot b, split between two rankings R_b^+ and R_b^−:
+- R_b^+: u_b ≻ c ≻ b ≻ (others in any order),
+- R_b^−: u_b ≻ b ≻ c ≻ (others in any order).
+These blocks have the property that for any S that contains u_b their top among S is u_b (hence they do not affect any t_x(S) used in the chain constraints), while for S={b,c} they contribute +1 (for R_b^+) or −1 (for R_b^−) to t_c({b,c})−t_b({b,c}). Consider the family of K−1 hypotheses H_b indexed by b where we bias the block for b towards R_b^+ by an amount θ (and keep all other blocks unbiased with equal weights on R_{b′}^±), so that
+  D_{b,c}(0) = −θ  and  D_{b′,c}(0) = 0 for all b′≠b.
+Calibrate θ≈c·ε so that c is an ε‑winner under H_b (via pivot b) but not under H_{b′} for b′≠b (the Round‑1 + Final lower bound L_b provides the threshold), while the KL divergence between H_b and H_{b′} per sample is O(θ^2)=O(ε^2) (since they differ only by a θ‑level perturbation on two rankings within a block of weight ρ=Θ(1)). Applying Fano’s inequality over the (K−1)‑ary family {H_b} shows m=Ω((log K)/ε^2) samples are required to identify the correct b (hence to output an ε‑winner) with probability ≥3/4.
+
+Remarks. This construction can be made fully rigorous by specifying baseline tallies that keep u_b dominant in all relevant S (hence shielding the chain tallies from the perturbations) and by choosing θ small enough to preserve all separation margins. The key is that the perturbations are disjoint across b and influence only D_{b,c}, keeping all chain quantities identical across hypotheses.
+
+# Examples and checks
+
+- K=3 tightness. With p_a=0.38, p_b=0.35, p_c=0.27 and t_c({b,c})−t_b({b,c})=0.10, choosing γ→0 yields A^{(1)}=0.11, B^{(1)}=0.03, D=−0.10, and L_b(0)=0.03+max{0.11,−0.07}=0.14, matching the exact minimal augmentation ε_a^*.
+- Counting of sets for Stage 2. Across all pivots b there are at most (K−1)(K−2) chain sets S_j^{(b)} (each chain has length K−2). Adding the (K−1) final pairs gives O(K^2) distinct tallies, enabling a polynomial union bound.
+
+# Obstacles
+
+- K≥4 three‑type separation example. We have not yet produced an explicit profile P where a 3‑type augmentation (c‑first, b‑first, and one additional opponent‑first) strictly beats the chain two‑type bound ε_b^* while respecting the Round‑1 + Final lower bound. The challenge is to exploit path changes: altering the order among “others” requires adding mass that tops some “other” in some S_j, which risks increasing the maxima A_b,B_b. A careful construction balancing these effects remains to be found.
+- Fixed‑order LP sensitivity. Bounding sup_{λ∈Λ} ||λ||_1 for the exact fixed‑order LP dual remains open; naive arguments fail due to the negative term at j=pos_π(x). A local (margin‑dependent) sensitivity bound or a structured dual design may be necessary.
+
+# Next steps
+
+- Add the Round‑1 + Final lower bound (with proof) and its K=3 tightness to proofs.md and summarize in output.md.
+- Record the cleanup lemma (preserved order) to clarify the exact regime where two types are optimal; mark the general “three‑type advantage” as an open target and attempt a concrete K=4 construction.
+- Formalize the Fano lower bound: fully specify the shielded block family {H_b}, verify separation margins and compute the KL to conclude m=Ω((log K)/ε^2).
+- Extend the chain‑stability sampling theorem with explicit constants and an implementable data‑driven gap check (compute empirical gaps and abort to c‑first certificate if they fall below a threshold).
+- Investigate structural conditions (coherence of “others” ordering across S_j) under which ε_b^*(γ)=L_b(γ) for some b, yielding near‑exact certificates beyond K=3.

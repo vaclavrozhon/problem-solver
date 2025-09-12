@@ -1,0 +1,785 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results summary so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: ONLY the main problem results. Think twice before adding anything. Should contain a concise summary of the most important theorems that directly advance the main problem. Extremely selective.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results, or clear path to solution
+- **uncertain**: Some progress but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (tex) ===
+
+# Problem definition and your task
+
+Fix an integer $n\ge 1$ and let $[n]=\{1,2,\dots,n\}$. Consider the complete graph $G$ on the vertex set
+
+$$
+V(G)=[n]\times[n]\times[n].
+$$
+
+For two distinct vertices
+
+$$
+u=(x_1,y_1,z_1),\qquad v=(x_2,y_2,z_2),
+$$
+
+define the **sign pattern**
+
+$$
+\sigma(u,v)=\big(\operatorname{sgn}(x_1-x_2),\,\operatorname{sgn}(y_1-y_2),\,\operatorname{sgn}(z_1-z_2)\big)\in\{-1,0,+1\}^3\setminus\{(0,0,0)\}.
+$$
+
+The **type** of the undirected edge $e=uv$ is the equivalence class
+
+$$
+T(e)=[\sigma(u,v)]\quad\text{modulo global sign }(\sigma\sim -\sigma),
+$$
+
+so there are $(3^3-1)/2=13$ types. Let $J(T)\subseteq\{x,y,z\}$ be the coordinates where $T$ is nonzero, and $E(T)=\{x,y,z\}\setminus J(T)$ the coordinates where it is zero.
+
+Define the **componentwise minimum** (the “lower corner”)
+
+$$
+\ell(u,v)=\bigl(\min\{x_1,x_2\},\,\min\{y_1,y_2\},\,\min\{z_1,z_2\}\bigr)\in[n]^3.
+$$
+
+Define the color map $c_3:E(G)\to\mathcal L$ by
+
+$$
+\boxed{\quad c_3(uv)\;=\;\bigl(T(e),\,\ell(u,v)\bigr). \quad}
+$$
+
+Equivalently (expanding $\ell$ along $J(T)$ and $E(T)$): for $i\in J(T)$ record $m_i:=\min\{u_i,v_i\}$, and for $i\in E(T)$ record $t_i:=u_i(=v_i)$; together these give the full vector $\ell(u,v)$.
+**This explicitly remembers the coordinates that are equal**, fixing the issue where colors could otherwise forget them.
+
+**Examples.**
+
+$$
+\begin{aligned}
+c_3(uv) &=\bigl([+,+,+],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ \min\{z_1,z_2\}\bigr),\\
+c_3(uv) &=\bigl([+,-,0],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ z_1\bigr)\quad\text{if }z_1=z_2,\\
+c_3(uv) &=\bigl([+,0,0],\ \min\{x_1,x_2\},\ y_1,\ z_1\bigr)\quad\text{if }y_1=y_2,\ z_1=z_2.
+\end{aligned}
+$$
+
+For $U\subseteq V(G)$, let $G[U]$ denote the induced subgraph. An edge $e\in E(G[U])$ has a **unique color in $U$** if no other edge of $G[U]$ has the same label $c_3(e)$.
+
+# Your task
+
+Show that for every vertex set $U\subseteq [n]^3$ with $|U|\ge 2$, there exist $u_1,u_2\in U$ such that the edge $u_1u_2$ has a color that appears **exactly once** in $G[U]$ under the coloring $c_3$ above.
+
+
+Next, you are given a file with a proof for $d=2$. 
+
+
+\documentclass[11pt]{article}
+\usepackage{amsmath,amsthm,amssymb,mathtools}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{claim}[theorem]{Claim}
+
+\newcommand{\NE}{\mathrm{NE}}
+\newcommand{\set}[1]{\left\{\,#1\,\right\}}
+
+\begin{document}
+
+\section*{Problem and main theorem}
+
+Fix $n\ge 1$ and write $[n]=\{1,2,\dots,n\}$. Consider the complete graph $G$ on
+$V(G)=[n]\times[n]$. For distinct vertices $v_1=(a_1,b_1)$ and $v_2=(a_2,b_2)$, the edge
+$e=v_1v_2$ is of type
+\begin{itemize}
+  \item \textbf{1:} $(a_1-a_2)(b_1-b_2)>0$,
+  \item \textbf{2:} $(a_1-a_2)(b_1-b_2)<0$,
+  \item \textbf{3:} $a_1=a_2$ (vertical),
+  \item \textbf{4:} $b_1=b_2$ (horizontal),
+\end{itemize}
+with color
+\[
+c(e)=
+\begin{cases}
+(1,\min\{a_1,a_2\},\min\{b_1,b_2\}) & \text{type 1},\\
+(2,\min\{a_1,a_2\},\min\{b_1,b_2\}) & \text{type 2},\\
+(3,\min\{b_1,b_2\}) & \text{type 3},\\
+(4,\min\{a_1,a_2\}) & \text{type 4}.
+\end{cases}
+\]
+For $U\subseteq V(G)$, write $G[U]$ for the induced subgraph. An edge $e\in E(G[U])$ has a
+\emph{unique color in $U$} if no other edge of $G[U]$ has the same label $c(e)$.
+
+\begin{theorem}\label{thm:unique}
+For every $U\subseteq [n]\times[n]$ with $|U|\ge 2$, the graph $G[U]$ contains an edge whose
+color under $c$ appears exactly once in $G[U]$.
+\end{theorem}
+
+From now on, fix $U$ and assume the following: 
+\[
+\textbf{(H)}\qquad \text{No color is unique in }G[U].
+\]
+
+\section*{Basic notation and counting}
+
+For $p=(x,y)\in U$, define its strict north--east set
+\[
+\NE(p):=\set{q=(x',y')\in U:\ x'>x\ \text{and}\ y'>y}.
+\]
+We write $p\prec q$ iff $q\in\NE(p)$ (both coordinates increase).
+
+\begin{fact}[Type~1 multiplicity]\label{fact:t1}
+For $(\alpha,\beta)\in[n]^2$,
+\[
+\#\{e\in E(G[U]): c(e)=(1,\alpha,\beta)\}
+= \mathbf 1_{(\alpha,\beta)\in U}\cdot |\NE(\alpha,\beta)|.
+\]
+In particular, $(1,\alpha,\beta)$ is unique in $U$ iff $(\alpha,\beta)\in U$ and $|\NE(\alpha,\beta)|=1$.
+\end{fact}
+
+\begin{fact}[Type~2 multiplicity]\label{fact:t2}
+For $(\alpha,\beta)\in[n]^2$ put
+\[
+r(\alpha,\beta)=\#\{(\alpha,y)\in U:\ y>\beta\},\qquad
+s(\alpha,\beta)=\#\{(x,\beta)\in U:\ x>\alpha\}.
+\]
+Then the number of edges colored $(2,\alpha,\beta)$ in $G[U]$ equals $r(\alpha,\beta)\,s(\alpha,\beta)$.
+Thus $(2,\alpha,\beta)$ is unique iff $r(\alpha,\beta)=s(\alpha,\beta)=1$.
+\end{fact}
+
+\section*{Lexicographic maximizer}
+
+\begin{definition}[Eligible and lexicographic maximizer]\label{def:lex}
+A point $p\in U$ is \emph{eligible} if $\NE(p)\neq\varnothing$.
+Order pairs by $(y,x)\le_{\mathrm{lex}}(y',x')$ iff $y<y'$ or $y=y'$ and $x\le x'$.
+A point $a\in U$ is a \emph{lexicographic maximizer among eligible points} if
+\[
+\NE(a)\neq\varnothing\quad\text{and}\quad (a_y,a_x)=\max\nolimits_{\le_{\mathrm{lex}}}
+ \set{(y,x): (x,y)\in U,\ \NE(x,y)\neq\varnothing}.
+\]
+\end{definition}
+
+\begin{lemma}[Lexicographic maximality $\Rightarrow$ no comparable pair]\label{lem:lexheight}
+If $a$ is as in Definition~\ref{def:lex}, then $\NE(q)=\varnothing$ for every $q\in \NE(a)$.
+Hence $\NE(a)$ is an antichain for $\prec$ (no strictly NE–comparable pair).
+\end{lemma}
+
+\begin{proof}
+If $q\in\NE(a)$ had $\NE(q)\neq\varnothing$, then $(q_y,q_x)>(a_y,a_x)$ lexicographically,
+contradicting maximality. If $r,s\in \NE(a)$ with $r\prec s$, then $\NE(r)\ni s\neq\varnothing$, again a contradiction.
+\end{proof}
+
+\section*{Levels in $\NE(a)$ and \emph{row/column–good}}
+
+For $S\subseteq\mathbb{Z}^2$ write $S[y]=\{(x,y)\in S\}$ and $S[x]=\{(x,y)\in S\}$.
+For a point $a$ with $\NE(a)\neq\varnothing$ define (when they exist)
+\[
+Y_{\min}(a):=\min\{\,y>a_y:\ \NE(a)[y]\neq\varnothing\,\},\qquad
+X_{\min}(a):=\min\{\,x>a_x:\ \NE(a)[x]\neq\varnothing\,\},
+\]
+(the \emph{bottommost row} and \emph{leftmost column} of $\NE(a)$).
+
+\begin{definition}[Row–good / Column–good]\label{def:row-good}
+Let $a$ be lex–maximal among eligible points.
+
+\smallskip\noindent
+\emph{Row–good:}
+There exists $\beta=Y_{\min}(a)$ such that $\#\,\NE(a)[\beta]\ge 2$, and if we list the $x$–coordinates of
+$\NE(a)[\beta]$ increasingly as $x_1<\cdots<x_t$ ($t\ge 2$) and set
+\[
+b_1=(x_{t-1},\beta)\quad\text{(second–rightmost)},\qquad
+b_2=(x_t,\beta)\quad\text{(rightmost)},
+\]
+then
+\[
+\text{(RG)}\qquad \forall q\in \NE(a)\setminus\{b_1,b_2\}:\quad x(q)<x(b_1)\ \ \text{and}\ \ y(q)\ge \beta.
+\]
+Equivalently: $b_1,b_2$ are the \emph{last two} points of $\NE(a)$—every other point lies strictly to the left of $b_1$ and on row $\beta$ or above.
+
+\smallskip\noindent
+\emph{Column–good:} the vertical analogue with $\alpha=X_{\min}(a)$, $d_1,d_2$ the \emph{second–topmost} and \emph{topmost} points in $\NE(a)[\alpha]$, and
+\[
+\text{(CG)}\qquad \forall q\in \NE(a)\setminus\{d_1,d_2\}:\quad y(q)<y(d_1)\ \ \text{and}\ \ x(q)\ge \alpha.
+\]
+\end{definition}
+
+\section*{Dichotomy}
+
+\begin{definition}[Corner in $\NE(a)$]\label{def:corner}
+Let $a$ be lex–maximal among eligible points. We say $\NE(a)$ contains a \emph{corner} if there exist
+\[
+(\alpha,\beta),\quad (\alpha',\beta),\quad (\alpha',\beta')\in \NE(a)
+\]
+with
+\[
+a_x<\alpha<\alpha',\qquad a_y<\beta'<\beta.
+\]
+\end{definition}
+
+\medskip
+
+\noindent\textbf{Additional notation.}
+For $q=(x(q),y(q))$ we continue to write $x(q),y(q)$ for its coordinates.
+
+\subsection*{Partially good pairs (formalizing the sketch)}
+
+\begin{definition}[Partially row–good / column–good]\label{def:partial}
+Let $a$ be lex–maximal among eligible points.
+
+\smallskip\noindent
+Two points $b_1,b_2\in\NE(a)$ on the same row $y=\beta$ with $x(b_1)<x(b_2)$ are \emph{partially row–good}
+if
+\begin{align*}
+\text{(PR1)}\ &\text{$b_1,b_2$ are the last two points of $\NE(a)$ on row $\beta$;}\\
+\text{(PR2)}\ &\forall q\in\NE(a)\setminus\{b_1,b_2\}:\ y(q)\ge\beta \ \Rightarrow\ x(q)<x(b_1).
+\end{align*}
+Equivalently, this is exactly (RG) with the sole relaxation that points with $y<\beta$ may exist anywhere.
+
+\smallskip\noindent
+Two points $d_1,d_2\in\NE(a)$ on the same column $x=\alpha$ with $y(d_1)<y(d_2)$ are \emph{partially column–good}
+if
+\begin{align*}
+\text{(PC1)}\ &\text{$d_1,d_2$ are the topmost two points of $\NE(a)$ on column $\alpha$;}\\
+\text{(PC2)}\ &\forall q\in\NE(a)\setminus\{d_1,d_2\}:\ x(q)\ge\alpha \ \Rightarrow\ y(q)<y(d_1).
+\end{align*}
+Equivalently, this is (CG) with the sole relaxation that points with $x<\alpha$ may exist anywhere.
+\end{definition}
+
+\begin{remark}[On the intended meaning in the sketch]\label{rem:meaning}
+The phrasing ``no points are above $b_1$ and above $b_2$'' in the sketch is formalized by (PR2):
+above the row $\beta$ there are no points of $\NE(a)$ at columns $\ge x(b_1)$. This was the property actually used
+to force $r(\alpha,\beta)=1$ in the type–2 counting (Fact~\ref{fact:t2}).
+\end{remark}
+
+\subsection*{Propagation sublemma (rigorous version of the sketch)}
+
+\begin{lemma}[Propagation for partially row–good pairs]\label{lem:prop-row}
+Assume \emph{(H)} and let $a$ be lex–maximal among eligible points.
+Let $b_1,b_2\in\NE(a)$ be partially row–good on row $\beta$ with $x(b_1)<x(b_2)$.
+Then either
+\begin{enumerate}
+\item[\emph{(i)}] $\NE(a)[y]=\varnothing$ for every $y<\beta$ (hence $a$ is row–good), or
+\item[\emph{(ii)}] there exist $b_1',b_2'\in\NE(a)$ on some row $\beta'<\beta$ that are partially row–good.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+If $\NE(a)[y]=\varnothing$ for all $y<\beta$ we are in case (i) and done.
+Otherwise, let
+\[
+\beta':=\max\{\,y<\beta:\ \NE(a)[y]\neq\varnothing\,\}
+\]
+be the highest row strictly below $\beta$, and within that row choose
+\[
+c_1\in \NE(a)[\beta']\quad\text{with}\quad x(c_1)=\min\{\,x:\ (x,\beta')\in \NE(a)\,\}.
+\]
+By Lemma~\ref{lem:lexheight}, every point of $\NE(a)$ has empty NE–set. In particular,
+$c_1$ cannot lie strictly to the left of $b_2$ since then $b_2\in\NE(c_1)$; hence
+\begin{equation}\label{eq:c1rightofb2}
+x(c_1)\ge x(b_2).
+\end{equation}
+
+We split according to whether $c_1$ is directly below $b_2$ (same column) or strictly to its right.
+
+\smallskip
+\noindent\emph{Case A: $x(c_1)=x(b_2)$.}
+Consider the type–2 edge $b_1c_1$. Its color is $(2,\alpha,\gamma)$ with
+$\alpha=x(b_1)$ and $\gamma=\beta'$. By the choice of $\beta'$ there is no point of $U$ in
+column $x(b_1)$ with $y\in(\beta',\beta)$ (such a point would belong to $\NE(a)$ since $x(b_1)>a_x$).
+Moreover, by (PR2) there is no $q\in \NE(a)\setminus\{b_1,b_2\}$ with $y(q)\ge\beta$ and $x(q)\ge x(b_1)$;
+hence in column $x(b_1)$ there is no point of $U$ with $y>\beta$ (the only point at height $\ge \beta$ is $b_1$ itself at $y=\beta$).
+Consequently
+\[
+r(\alpha,\gamma)=\#\{(x(b_1),y)\in U:\ y>\beta'\}=1
+\]
+(the unique witness is $b_1$ at height $\beta$). Since \emph{(H)} forbids uniqueness of $(2,\alpha,\gamma)$,
+Fact~\ref{fact:t2} implies $s(\alpha,\gamma)\ge 2$. One of these $s$ witnesses is $c_1$ itself, and because $c_1$
+was chosen leftmost on $\beta'$, the second one must have strictly larger $x$; call it $c_2$ (so $x(c_2)>x(c_1)$).
+
+Now consider $b_2c_2$. Its color is $(2,\alpha',\gamma)$ with $\alpha'=x(b_2)$ and the same $\gamma=\beta'$.
+By the definition of $\beta'$ there is no point of $U$ in column $x(b_2)$ with $y\in(\beta',\beta)$, and since $x(b_2)\ge x(b_1)$,
+(PR2) rules out any $q\in \NE(a)\setminus\{b_1,b_2\}$ with $y(q)\ge\beta$ and $x(q)\ge x(b_2)$; thus there is no point of $U$
+in that column with $y>\beta$. Therefore
+$r(\alpha',\gamma)=1$ (the only point above height $\beta'$ in that column is $b_2$), so $s(\alpha',\gamma)\ge 2$.
+Because $c_2$ is one $\beta'$–witness with $x>\alpha'$, there exists $c_3\in \NE(a)[\beta']$ with $x(c_3)>x(c_2)$.
+
+Let $b_2'$ be the rightmost point of $\NE(a)[\beta']$ and $b_1'$ the second–rightmost point of $\NE(a)[\beta']$.
+By construction $(\text{PR1})$ holds for $b_1',b_2'$.
+For $(\text{PR2})$: there are no points of $\NE(a)$ on rows $y\in(\beta',\beta)$ by the choice of $\beta'$;
+and for rows $y\ge\beta$ there are no points with $x\ge x(b_1)\le x(b_1')$ by (PR2) for the original
+pair $b_1,b_2$. Hence every $q\in\NE(a)\setminus\{b_1',b_2'\}$ with $y(q)\ge\beta'$ satisfies $x(q)<x(b_1')$.
+Thus $b_1',b_2'$ are partially row–good, verifying case (ii).
+
+\smallskip
+\noindent\emph{Case B: $x(c_1)>x(b_2)$.}
+Consider $b_2c_1$, which has color $(2,\alpha',\gamma)$ with $\alpha'=x(b_2)$ and $\gamma=\beta'$.
+Exactly the same reasoning as in Case~A gives $r(\alpha',\gamma)=1$, hence $s(\alpha',\gamma)\ge 2$.
+One witness is $c_1$; since $c_1$ is leftmost on $\beta'$, the second witness $c_2$ must satisfy $x(c_2)>x(c_1)$.
+Define $b_2'$ as the rightmost point and $b_1'$ as the second–rightmost point of $\NE(a)[\beta']$.
+Then (PR1) holds by definition, and (PR2) follows verbatim as in Case~A. Hence $b_1',b_2'$ are partially row–good.
+\end{proof}
+
+\begin{remark}[Minor tidy–up matching the sketch]\label{rem:tidy-up}
+In the sketch, after producing $c_2,c_3$ it is stated that one can set $b_1'b_2'=c_2,c_3$.
+To ensure (PR1) literally (``last two''), one should in general relabel
+$b_1',b_2'$ as the \emph{second–rightmost} and \emph{rightmost} points of $\NE(a)[\beta']$.
+This harmless relabeling is the only additional step we make for full rigor.
+\end{remark}
+
+\begin{lemma}[Propagation for partially column–good pairs]\label{lem:prop-col}
+Assume \emph{(H)} and $a$ lex–maximal among eligible points.
+Let $d_1,d_2\in\NE(a)$ be partially column–good on column $\alpha$ with $y(d_1)<y(d_2)$.
+Then either
+\begin{enumerate}
+\item[\emph{(i)}] $\NE(a)[x]=\varnothing$ for every $x<\alpha$ (hence $a$ is column–good), or
+\item[\emph{(ii)}] there exist $d_1',d_2'\in\NE(a)$ on some column $\alpha'<\alpha$ that are partially column–good.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By symmetry of $x\leftrightarrow y$ and $(\text{PR1}),(\text{PR2})\leftrightarrow(\text{PC1}),(\text{PC2})$,
+the proof is identical to Lemma~\ref{lem:prop-row}, with Fact~\ref{fact:t2} used in the transposed roles.
+\end{proof}
+
+\subsection*{Existence of a starting partially good pair and the dichotomy}
+
+\begin{lemma}[Dichotomy: each lex–maximal $a$ is row–good or column–good]\label{lem:dichotomy-strong}
+Assume \emph{(H)} and let $a$ be lexicographically maximal among eligible points.
+Then $a$ is row–good or column–good.
+\end{lemma}
+
+\begin{proof}
+We first note that $\#\NE(a)\ge 2$ under (H): if $\#\NE(a)=1$, then by Fact~\ref{fact:t1}
+the color $(1,a_x,a_y)$ appears exactly once (on the unique type–1 edge from $a$), contradicting (H).
+
+Let $p\in\NE(a)$ be a point of maximal $y$ (i.e.\ on the topmost row of $\NE(a)$).
+If $\NE(a)[y(p)]$ contains at least two points, let $b_2$ be the rightmost
+and $b_1$ the second–rightmost point of that row. Then $b_1,b_2$ are partially row–good:
+(PR1) holds by choice; for (PR2), there is no point of $\NE(a)$ with $y>\,y(p)$ and
+every other point on $y(p)$ lies to the left of $b_1$.
+Applying Lemma~\ref{lem:prop-row} iteratively, either we immediately conclude that no lower row exists
+and $a$ is row–good, or we propagate downward until we arrive at the bottommost row,
+at which point the pair is row–good by definition. This iteration terminates because the row index
+decreases strictly at each step and there are finitely many rows. This settles the case $\#\NE(a)[y(p)]\ge 2$.
+
+It remains to treat the case where $p$ is the unique point on its row.
+Let $\beta'$ be the next highest level below $y(p)$ with $\NE(a)[\beta']\neq\varnothing$.
+We claim that every point on row $\beta'$ lies on or to the right of $p$ (i.e.\ has $x\ge x(p)$):
+indeed, if $q\in\NE(a)[\beta']$ had $x(q)<x(p)$, then $p\in\NE(q)$, which contradicts
+Lemma~\ref{lem:lexheight}. There are two subcases.
+
+\smallskip
+\noindent\emph{Subcase 1: there is $q_1\in\NE(a)[\beta']$ with $x(q_1)=x(p)$ (``directly below'' $p$).}
+If $\NE(a)[\beta']=\{q_1\}$, then the pair $d_1=q_1$, $d_2=p$ is partially column–good:
+(PC1) holds because these are the topmost two points in column $x(p)$;
+(PC2) holds because there is no row strictly between $\beta'$ and $y(p)$,
+there is no point on row $\beta'$ with $x\ge x(p)$ other than $q_1$ itself,
+and $p$ is alone on row $y(p)$. Applying Lemma~\ref{lem:prop-col} iteratively,
+either we immediately conclude that no more left columns exist and $a$ is column–good,
+or we propagate left until reaching the leftmost column, at which point the pair is column–good.
+This iteration terminates because the column index decreases strictly at each step and there are finitely many columns.
+
+If instead $\NE(a)[\beta']$ contains another point $q_2$ to the right of $q_1$,
+then (H) plus Fact~\ref{fact:t2} applied to the type–2 edge $pq_2$ forces the existence of
+$q_3\in\NE(a)[\beta']$ with $x(q_3)>x(q_2)$ (formally, $r(x(p),\beta')=1$ and so $s(x(p),\beta')\ge 2$;
+choosing $q_2$ leftmost to the right of $x(p)$ guarantees $x(q_3)>x(q_2)$).
+Relabel the rightmost two points on row $\beta'$ as $b_1,b_2$; then $b_1,b_2$ are partially row–good
+and we conclude by Lemma~\ref{lem:prop-row} as in the first paragraph (again the iteration terminates as above).
+
+\smallskip
+\noindent\emph{Subcase 2: there is no point directly below $p$ on $\beta'$.}
+Pick any $q_1\in\NE(a)[\beta']$; we know $x(q_1)>x(p)$. Then the type–2 edge $pq_1$ has color $(2,x(p),\beta')$
+with $r(x(p),\beta')=1$ (the only point above height $\beta'$ in column $x(p)$ is $p$),
+so (H) and Fact~\ref{fact:t2} yield another $q_2\in\NE(a)[\beta']$ with $x(q_2)>x(q_1)$
+(again choose $q_1$ leftmost on $\beta'$ to force $x(q_2)>x(q_1)$).
+Relabel the rightmost two points on $\beta'$ as $b_1,b_2$, which are partially row–good,
+and finish via Lemma~\ref{lem:prop-row}$\,$— the iteration terminates for the same reason as above.
+
+\smallskip
+In all cases, we obtain that $a$ is row–good or column–good.
+\end{proof}
+
+\begin{remark}[Explicitly pointing out the sketch’s gaps]\label{rem:gaps}
+\leavevmode
+\begin{itemize}
+\item In the sublemma part of the sketch, after producing $c_2,c_3$ it is said to set $b_1'b_2'=c_2,c_3$.
+To certify the ``last two'' requirement, one must relabel $b_1',b_2'$ as the \emph{rightmost two} points
+on the row $\beta'$ (Remark~\ref{rem:tidy-up}). This does not change the argument’s structure.
+\item In the ``starting pair'' part, the phrase ``there is $q_1$ to the right of $p$'' should be
+understood as: $q_1$ lies on the \emph{next highest} row $\beta'$ below $y(p)$ and satisfies $x(q_1)>x(p)$.
+With this reading, the verification of the partial row–good property is immediate from the choice of $\beta'$.
+\end{itemize}
+\end{remark}
+
+\bigskip
+
+\section*{Final proof of Theorem~\ref{thm:unique} (as provided, with small auxiliary lemmas)}
+
+\paragraph{Convention.}
+In this section, when we say ``lex–maximal point'', we mean \emph{lex–maximal among eligible points} with respect to the order $(y,x)$.
+
+\begin{lemma}[Lex–max eligible exists inside a cone]\label{lem:cone-max-exists}
+Let $p\in U$, and let $\overline{\NE}(p)=\{\,q\in U:\ x(q)\ge x(p),\ y(q)\ge y(p)\,\}$.
+If $\overline{\NE}(p)$ contains an eligible point, then it contains a lex–maximal eligible point (with respect to $(y,x)$).
+\end{lemma}
+
+\begin{proof}
+$\overline{\NE}(p)$ is finite; the set of eligible points inside it is finite and nonempty. A lexicographic maximum exists.
+\end{proof}
+
+\begin{lemma}[Local antichain from cone–maximality]\label{lem:local-anti}
+Fix $p\in U$ and let $c$ be lex–maximal among eligible points in $\overline{\NE}(p)$.
+Then $\NE(q)=\varnothing$ for every $q\in \NE(c)$ (equivalently, $\NE(c)$ is an antichain).
+\end{lemma}
+
+\begin{proof}
+If $q\in \NE(c)$ had $\NE(q)\neq\varnothing$, then $q$ would be eligible and $(y(q),x(q))>(y(c),x(c))$.
+Also $q\in\overline{\NE}(p)$ since $q\ge c\ge p$ coordinatewise. This contradicts the lex–maximality of $c$ among eligible points in $\overline{\NE}(p)$.
+\end{proof}
+
+\begin{corollary}[Local dichotomy]\label{cor:local-dichotomy}
+Assume \emph{(H)}. If $c\in U$ satisfies $\NE(c)\neq\varnothing$ and $\NE(q)=\varnothing$ for all $q\in\NE(c)$, then $c$ is row–good or column–good (with $a$ replaced by $c$ in Definition~\ref{def:row-good}).
+\end{corollary}
+
+\begin{proof}
+The proof of Lemma~\ref{lem:dichotomy-strong} uses only (i) $\NE(c)\neq\varnothing$, (ii) $\NE(c)$ is an antichain, and (iii) \emph{(H)}. Under these assumptions the same argument applies verbatim.
+\end{proof}
+
+\begin{lemma}[No eligible point $\Rightarrow$ a unique color]\label{lem:no-eligible}
+If $\NE(p)=\varnothing$ for every $p\in U$, then $G[U]$ contains an edge whose color is unique.
+\end{lemma}
+
+\begin{proof}
+If some row contains at least two points, let $\beta$ be the minimum $y$ with $\#U[\beta]\ge 2$, and let $b_1,b_2\in U[\beta]$ be the second–rightmost and rightmost points. We claim $(4,x(b_1))$ is unique. Indeed, if there were another horizontal edge with color $(4,x(b_1))$ on some row $\beta'>\beta$, there would be points $(x(b_1),\beta')$ and $(x',\beta')$ with $x'>x(b_1)$, which makes $(x',\beta')\in \NE\big(x(b_1),\beta\big)$, contradicting that all $\NE(\cdot)$ are empty.
+
+Otherwise, every row contains at most one point. If some column contains at least two points, let $\alpha$ be the minimum $x$ with $\#U[\alpha]\ge 2$, and let $d_1,d_2\in U[\alpha]$ be the second–topmost and topmost points ($y(d_1)<y(d_2)$). We claim $(3,y(d_1))$ is unique. If another vertical edge of color $(3,y(d_1))$ existed on some column $\alpha'\ne \alpha$, then necessarily $\alpha'>\alpha$ (by minimality of $\alpha$) and there would be points $(\alpha',y(d_1))$ and $(\alpha',y')$ with $y'>y(d_1)$. Then $(\alpha',y')\in \NE\big(\alpha,y(d_1)\big)$, again a contradiction.
+
+Finally, if every row and every column contains at most one point, then pick any two distinct points $p=(x_1,y_1)$ and $q=(x_2,y_2)$. Since there are no eligible points, after relabeling we must have $x_1>x_2$ and $y_1<y_2$. The type–2 edge $pq$ has color $(2,\alpha,\beta)=(2,x_2,y_1)$. Because rows and columns are unique, $r(\alpha,\beta)=1$ (the unique point above $\beta$ in column $\alpha$ is $q$) and $s(\alpha,\beta)=1$ (the unique point to the right of $\alpha$ on row $\beta$ is $p$), so the color is unique by Fact~\ref{fact:t2}.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:unique}]
+Assume \emph{(H)} for a contradiction. If $U$ contains no eligible point, Lemma~\ref{lem:no-eligible} yields a unique color, contradicting \emph{(H)}. Hence there exists an eligible point.
+
+Pick a lexicographic maximizer $a$ among eligible points (Definition~\ref{def:lex}). By Lemma~\ref{lem:dichotomy-strong}, $a$ is row–good or column–good. By symmetry we may assume $a$ is row–good, with witnesses $(b_1,b_2)$ on the row $\beta=Y_{\min}(a)$, $x(b_1)<x(b_2)$, satisfying (RG).
+
+\smallskip
+\noindent\emph{Claim (auxiliary step).} There exists $a'\in U$, $a'\ne a$, that is row–good with $x(a')>x(a)$ and $y(a')\le y(a)$.
+
+\smallskip
+\noindent\emph{Proof of the claim.}
+Because the horizontal color $c(b_1b_2)=(4,x(b_1))$ is not unique by \emph{(H)}, there exist points $c_1=(x(b_1),\gamma)$ and $c_2=(x',\gamma)$ with $x'>x(b_1)$ on some row $\gamma$; among all such rows choose $\gamma$ maximal and fix $c_1$ on that row. Since $x(c_1)=x(b_1)>a_x$ and $a$ is row–good, we have $c_1\notin \NE(a)$; thus $y(c_1)\le y(a)$. Also $b_2\in \NE(c_1)$ (because $x(b_2)>x(c_1)$ and $y(b_2)=\beta>y(c_1)$).
+
+By Lemma~\ref{lem:cone-max-exists}, inside the weak cone $\overline{\NE}(c_1)=\{x\ge x(c_1),\,y\ge y(c_1)\}$ there exists a lex–maximal \emph{eligible} point~$c$. Note that $c\ne b_2$ because $\NE(b_2)=\varnothing$ (Lemma~\ref{lem:lexheight}). We also have $x(c)\ge x(c_1)=x(b_1)>x(a)$ and $y(c)\ge y(c_1)\le y(a)$, so $c$ lies strictly to the right of $a$ and not above it.
+
+By Lemma~\ref{lem:local-anti}, $\NE(q)=\varnothing$ for every $q\in \NE(c)$, hence by Corollary~\ref{cor:local-dichotomy} the point $c$ is row–good or column–good. If $c$ is row–good, set $a':=c$ and the claim is proved. Otherwise, $c$ is column–good. Let $\alpha=X_{\min}(c)$ and let $d_1,d_2\in \NE(c)[\alpha]$ with $y(d_1)<y(d_2)$. (It may happen that $d_2=b_2$; in any case $d_1\notin \NE(a)$ because $a$ is row–good.)
+
+Consider the type–2 edge $b_1d_1$, whose color is $(2,x(b_1),y(d_1))$. As in the argument in the main text (see the proof of Lemma~\ref{lem:prop-row}, Case~A), using the choice of $\gamma$, (RG), and Fact~\ref{fact:t2} we obtain $r\big(x(b_1),y(d_1)\big)=1$, hence $s\big(x(b_1),y(d_1)\big)\ge 2$. One witness is $d_1$; choosing it leftmost on its row forces another witness strictly to its right. Pushing this once more with $b_2$ in place of $b_1$ yields a third point on that row strictly further right, which contradicts the column–goodness (CG) of $c$ after relabeling the two rightmost points on that row. Therefore $c$ cannot be column–good, and $c$ must be row–good. Setting $a':=c$ proves the claim.
+
+\smallskip
+Starting from $a$, repeatedly apply the claim to obtain a strictly increasing sequence of $x$–coordinates for row–good points that are never above the previous one. Since $x\in[n]$, this process cannot continue indefinitely; thus we obtain a contradiction to \emph{(H)}. This completes the proof.
+\end{proof}
+
+\begin{remark}[Notes on earlier concerns]
+(1) Applying dichotomy to $c$ is justified by Lemmas~\ref{lem:local-anti} and Corollary~\ref{cor:local-dichotomy}: we only need antichain structure within $\NE(c)$, which holds for a cone–lex–max eligible $c$. 
+(2) The possibility $c=b_2$ is excluded since $b_2$ is not eligible. 
+(3) The case with no eligible points is handled by Lemma~\ref{lem:no-eligible}. 
+(4) The termination of the iteration is now stated explicitly.
+\end{remark}
+
+\end{document}
+
+
+
+
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+3D unique color under c3: strategy and notes
+
+- Coloring c3(e)=(T,ℓ) records the sign type modulo global sign and the full componentwise minimum ℓ, including the equal coordinates (E(T)). This prevents loss of information across slices.
+
+- Dichotomy:
+  1) Slice case: If a coordinate slice (e.g., z=t) contains ≥2 points, apply the proven d=2 theorem on that slice. Because c3 remembers the fixed coordinate value t in ℓ and has E(T) including that coordinate, uniqueness in the slice implies global uniqueness (edges off the slice have z in J(T) or different ℓ_z).
+  2) Coordinatewise injective case: If every coordinate slice contains ≤1 point, then all coordinates are distinct across U. Two subcases:
+     - If an incomparable pair exists, pick any mixed-sign type (some + and some −). A product multiplicity r·s argument (fixing a representative sign vector) shows both factors are ≤1 under injectivity and equal 1 for the realized color, hence multiplicity 1.
+     - If no mixed-sign edges exist, U is a chain in the product order. Injectivity forces strict increase in each coordinate along the chain. The [+++]-type at the penultimate element has exactly one NE neighbor, so multiplicity 1.
+
+- Multiplicity (useful facts):
+  - [+++]-type with lower corner α has multiplicity 1_{α∈U}·|NE_3(α)|.
+  - One-odd-coordinate types (e.g., [++−]) factor as r·s, where r counts points on the α-anchored line increasing in the odd coordinate and s counts points in the fixed-level plane strictly NE in the other two coordinates. Under injectivity, r,s≤1.
+
+- This yields a short complete proof in 3D. The same method scales to dimension d by induction: either reduce on a coordinate hyperplane or use the injective case (unique mixed-sign color, or chain gives unique [+,…, +]).
+
+Plan for d=3 under color c_3(T, \ell):
+
+- Slice reduction: If some z-slice U_z[t] contains at least two points, apply the proven d=2 theorem on that slice (with the 2D color remembering which coordinates are equal). The 3D color of the chosen in-slice edge has T_z=0 and records t in \ell_z, so any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness lifts from 2D to 3D.
+
+- Complementary case: If every z-slice contains at most one point of U, list vertices by increasing z: v_1,\dots,v_m with z_1<\cdots<z_m. The edge v_{m-1}v_m has \ell_z=z_{m-1}. No other edge has this \ell_z value: any edge with \ell_z=z_{m-1} must use v_{m-1} and a partner above z_{m-1}, which is uniquely v_m. Thus c_3(v_{m-1}v_m) is unique.
+
+- This resolves d=3 without extra counting. For higher d, the same idea suggests induction: either a (d−1)-dimensional slice contains ≥2 points (reduce to d−1), or every slice along the last coordinate has ≤1 point and the edge between the top two levels locks in a unique last-coordinate entry in \ell.
+
+
+d=3 unique color under c_3: concise plan
+
+- Slice lifting: If some z-slice U_t has at least two points, apply the proven d=2 theorem on that slice. Because c_3 records that z is equal (z∈E(T)) and stores ℓ_z=t, any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness in the slice implies global uniqueness.
+- Complementary case: If every z-slice has at most one point, list points by increasing z as v_1<⋯<v_m. The edge v_{m-1}v_m has ℓ_z=z(v_{m-1}). No other edge can realize ℓ_z=z(v_{m-1}) (it would need the unique point at z(v_{m-1}) paired with a point above it, which is uniquely v_m). Thus c_3(v_{m-1}v_m) is unique.
+- This yields a short complete proof in 3D. The same split suggests a straightforward induction in general dimension d: either reduce on a (d−1)-slice and lift, or use the top-two-level argument on the last coordinate.
+
+
+d=3 finalized proof under c_3:
+- Slice lifting: If some z-slice U_z[t] has at least two points, apply the d=2 theorem on that slice. Because c_3 stores z in E(T) and ℓ_z=t, uniqueness in the slice implies global uniqueness (any color match must lie in the same slice and match the 2D label).
+- If every z-slice has at most one point, order vertices by z. The edge between the second-highest and highest z-levels has lower-corner z equal to the second-highest realized z value, forcing endpoints uniquely; hence its color is unique.
+
+Note: A purported counterexample against the top-two-level lemma (e.g., multiple [+++] edges with identical ℓ from a lower vertex) does not contradict the lemma; the top-two edge’s ℓ_z is distinct and forces uniqueness.
+
+Next: Extend to general dimension d. Define c_d analogously; either a (d−1)-slice has ≥2 points (reduce and lift), or every last-coordinate slice has ≤1 point and the edge between the top two last-coordinate levels is unique by the same ℓ-last argument. Optionally, use a general A_+·A_- multiplicity to handle mixed-sign types and explore quantitative bounds on the number of unique colors.
+
+
+=== Current Output ===
+
+Main 3D result. For every U⊆[n]^3 with |U|≥2, G[U] contains an edge whose color under c_3 (type modulo global sign together with the full componentwise minimum) appears exactly once. Proof idea: Either a z-slice contains ≥2 points, so the d=2 theorem yields an in-slice uniquely colored edge that remains unique in 3D (c_3 records the equal coordinate and its value), or every z-slice has ≤1 point, and the edge between the top two z-levels has a uniquely determined z-entry in its lower corner, hence a unique color.
+
+
+=== Prover 1 Output ===
+
+Ideas
+
+- Two simple ingredients suffice for d=3: (i) a slice-lifting lemma from the provided d=2 theorem, and (ii) a top-two-levels lemma when every slice along a coordinate has size ≤1. Both are elementary and auditable.
+- These ingredients also extend verbatim to all dimensions d by a short induction: reduce on a (d−1)-slice if available; otherwise, use the last-coordinate top-two-levels uniqueness.
+
+Lemma 1 (Slice lifting from d=2)
+
+Statement. Fix c∈{x,y,z} and t∈[n]. Let U_t:=U∩{c=t}. If |U_t|≥2 and G[U_t] contains an edge e whose (2D) color under the d=2 map is unique in G[U_t], then c_3(e) appears exactly once in G[U].
+
+Proof. WLOG c=z. For any in-slice edge e with z=t, c_3(e)=(T,ℓ) has z∈E(T) and ℓ_z=t. If an edge e′ in G[U] had c_3(e′)=c_3(e), then necessarily z∈E(T(e′)) and ℓ_z(e′)=t, so both endpoints of e′ lie in the plane z=t. Equality of c_3-labels on that plane implies equality of the induced 2D color on (x,y) (c_3 refines the 2D label by including the same type on x,y and the same lower-corner entries). This contradicts the uniqueness of e in G[U_t]. Hence c_3(e) is unique in G[U]. ∎
+
+Lemma 2 (Top two levels when slices are singletons)
+
+Statement. Suppose every z-slice U∩{z=t} contains at most one point of U. Let U={v_1,…,v_m} ordered by increasing z: z_1<⋯<z_m, m≥2. Then the edge e=v_{m-1}v_m has a c_3-color that appears exactly once in G[U].
+
+Proof. For any edge f, ℓ_z(f) is the smaller z-coordinate of its endpoints. If c_3(f)=c_3(e), then ℓ_z(f)=z_{m-1}. Thus one endpoint of f must have z=z_{m-1} and the other must have z>z_{m-1}. Since z_{m-1} is the second-largest realized z-value and each z-slice has ≤1 point, the only such pair is {v_{m-1},v_m}. Hence f=e, proving uniqueness of c_3(e). ∎
+
+Theorem (3D uniqueness under c_3)
+
+Statement. For every U⊆[n]^3 with |U|≥2, there exists an edge of G[U] whose c_3-color appears exactly once in G[U].
+
+Proof. If some z-slice U_t has |U_t|≥2, apply the given d=2 theorem on U_t and lift by Lemma 1. Otherwise every z-slice has size ≤1, so Lemma 2 yields a unique color. ∎
+
+Examples / sanity checks
+
+- U={(1,1,5),(2,3,5),(4,2,7)}: the slice z=5 has ≥2 points, so the 2D theorem gives an in-slice unique color; Lemma 1 lifts it.
+- U={(1,1,1),(3,2,4),(2,3,8)}: each z-level occurs once; the edge between z=4 and z=8 has unique color by Lemma 2.
+- U={(1,1,1),(2,2,2),(3,3,3)}: chain; Lemma 2 again applies.
+
+Obstacles and checks
+
+- Potential confusion between 2D and 3D colors on a slice is ruled out: equality of c_3-labels in a fixed slice implies equality of the 2D label because c_3 records z∈E(T) and ℓ_z=t and matches type and lower-corner entries on x,y.
+- In the singleton-slice case, uniqueness of ℓ_z at z_{m-1} forces the endpoints; no additional type matching is needed once the pair is uniquely determined.
+
+Extension: dimension d≥2 (concise induction)
+
+Definitions. For u≠v in [n]^d, let σ(u,v)∈{−1,0,+1}^d\{0} be the sign vector, T=[σ] modulo global sign, and ℓ(u,v)=componentwise min. Define c_d(uv)=(T,ℓ).
+
+Theorem (d-dimensional uniqueness). For every U⊆[n]^d with |U|≥2, some edge of G[U] has a c_d-color appearing exactly once in G[U].
+
+Proof sketch. Induct on d. Base d=2 given. For the step d→d+1, fix the last coordinate. If some slice {x_{d+1}=t} contains ≥2 points, apply the d-theorem on that slice and lift as in Lemma 1 (c_{d+1} records equality in the (d+1)-st coordinate and ℓ_{d+1}=t). Otherwise, every last-coordinate slice has size ≤1. Order points by that coordinate; the edge between the top two levels has ℓ_{d+1} equal to the second-largest realized value, which forces the endpoints uniquely, hence its c_{d+1}-color is unique (generalizing Lemma 2). ∎
+
+Next steps
+
+- If desired, formalize the d-dimensional slice-lifting lemma and the top-two-level lemma with full details, to be added to proofs.md.
+- Quantitative question: lower bounds on the number of unique colors as a function of |U|; start with chains (many unique [+,…, +]-colors) and sparse-slice configurations. 
+
+
+=== Prover 2 Output ===
+
+Ideas
+- Fix a flaw: the “top-two z-level” uniqueness (with only the hypothesis that each z-slice has ≤1 point) is false. Provide a concrete counterexample and replace that step with a correct dichotomy: either (i) some coordinate slice has ≥2 points (reduce to d=2 and lift), or (ii) every coordinate slice in each of x,y,z has ≤1 point (coordinatewise injective), in which case a mixed-sign edge has unique color by a product count; if no mixed-sign edges exist, U is a chain and a [+++] color is unique.
+- State and prove the needed multiplicity fact for a one-minus type ([++−]) in 3D with a fixed orientation representative, ensuring no ambiguity modulo global sign.
+
+Counterexample to the “top-two z-level” uniqueness claim
+Let v=(1,1,2), u=(2,2,5), w=(3,3,3). Each z-slice has ≤1 point. The edges vu and vw both have
+T=[+++], ℓ(v,u)=ℓ(v,w)=(1,1,2), so c_3(vu)=c_3(vw), contradicting uniqueness for the top-two z-level edge. Thus the argument relying only on ℓ_z is invalid.
+
+Lemma 1 (slice lifting to 3D; unchanged and correct)
+Let t∈[n] and U_t={(x,y):(x,y,t)∈U}. If an edge e in G[U_t] has a unique color under the 2D coloring from the provided d=2 theorem, then the corresponding 3D edge has a unique color under c_3 in G[U].
+Proof. Any edge not in z=t has T_z≠0, hence a different 3D color. Inside z=t, equality of 3D colors forces equality of the projected 2D color. Uniqueness in U_t implies uniqueness in U.
+
+Fact A (type [+++] multiplicity)
+For ℓ=(α,β,γ)∈[n]^3,
+# { e∈E(G[U]) : c_3(e)=([+++],ℓ) } = 1_{ℓ∈U} · |NE_3(ℓ)|,
+where NE_3(ℓ)={ q∈U : q_x>α, q_y>β, q_z>γ }.
+Reason: ℓ must be one endpoint; any q∈NE_3(ℓ) yields the other endpoint; conversely, any [+++] edge with lower corner ℓ arises this way.
+
+Fact B (type [++−] multiplicity with fixed orientation)
+Fix the representative sign vector (+,+,−). For ℓ=(α,β,γ), define
+r_z(α,β,γ)= |{ v∈U : v_x=α, v_y=β, v_z>γ }|,
+s_{xy}(α,β,γ)= |{ u∈U : u_z=γ, u_x>α, u_y>β }|.
+Then
+# { e∈E(G[U]) : c_3(e)=([++−],ℓ) } = r_z(α,β,γ)·s_{xy}(α,β,γ).
+Proof. Orient each such edge as (v,u) so that σ(v,u)=(+,+,−). Then min-coordinates are (v_x,v_y,u_z)=(α,β,γ), with constraints v_x=α, v_y=β, v_z>γ and u_z=γ, u_x>α, u_y>β. This gives a bijection between edges and pairs (v,u) counted by r_z and s_{xy}.
+
+Lemma 2 (coordinatewise injective case ⇒ a unique color)
+Assume every coordinate plane contains ≤1 point of U (i.e., x, y, z are injective on U) and |U|≥2. Then G[U] contains a uniquely colored edge under c_3.
+Proof. If there exists an edge with exactly one minus (equivalently two plus) in its oriented sign pattern, by Fact B we have r_z≤1 and s_{xy}≤1 (injectivity on z-plane and on the (x,y)-row), and since the color occurs at least once we get r_z=s_{xy}=1, hence multiplicity 1. By symmetry, the same holds for “exactly one plus”. If no edge has exactly one minus or one plus, then every pair has either all pluses or all minuses; thus U is totally ordered by the product order. Let w be the second-largest element. Then NE_3(w)={maximal element}, so by Fact A the [+++] color with lower corner w has multiplicity 1.
+
+Theorem (3D uniqueness under c_3; corrected proof)
+For every U⊂[n]^3 with |U|≥2, there exists an edge with a color that appears exactly once under c_3.
+Proof. If some coordinate slice (z=t, or y=t, or x=t) contains ≥2 points, apply the 2D theorem to that (d=2) slice and lift by Lemma 1. Otherwise, every coordinate slice in x,y,z contains ≤1 point, hence by Lemma 2 there is a uniquely colored edge.
+
+Examples (sanity checks)
+- Slice case: U∩{z=5}={(1,1,5),(3,2,5),(4,4,5)}. 2D theorem yields a unique in-slice color; it lifts.
+- Injective case, mixed-sign: U={(1,1,3),(2,2,2),(3,3,1)}. The edge (3,3,1)–(1,1,3) has type [++−] and, by Fact B with injectivity, multiplicity 1.
+- Injective case, chain: U={(1,1,1),(2,2,2),(3,3,3)}. The edge between (2,2,2) and (3,3,3) has color ([+++],(2,2,2)) and multiplicity 1.
+
+Obstacles
+- The previously used “top-two z-levels” lemma under only the hypothesis “each z-slice has ≤1 point” fails; uniqueness of ℓ_z alone does not pin down the partner. The corrected dichotomy avoids this pitfall by requiring injectivity in all coordinates for the non-slice case.
+
+Next steps
+- Generalize to dimension d: define c_d(e)=(T(e),ℓ). Either some (d−1)-dimensional slice has ≥2 points (reduce to d−1 and lift), or every coordinate hyperplane contains ≤1 point (coordinatewise injective). In the latter case for d=3 we are done; for general d one can target types with exactly one minus (or one plus) and extend Fact B appropriately; if no mixed-sign edges exist, U is a chain and a [+,…, +] color with lower corner at the penultimate element is unique by the d-dimensional analogue of Fact A. Formalizing the d-dimensional product count is a natural next step.
+
+
+
+=== Prover 3 Output ===
+
+# Ideas
+- Generalize the 3D result to all dimensions d via a clean slice–injective dichotomy and an induction on d. The key tool is a slice lifting lemma that relies on the fact that the color c_d records equal coordinates and their values in the lower corner ℓ.
+- Record a general multiplicity formula for any dimension d and any type T: the number of edges of a given color (T,ℓ) equals A_+(T,ℓ)·A_−(T,ℓ). This subsumes the d=2 Facts and the 3D multiplicities and is useful to certify uniqueness in special configurations.
+
+# Setup in general dimension d
+Let d≥2 and V=[n]^d. For u≠v∈V, let σ(u,v)∈{−1,0,+1}^d\{0} be the sign vector of coordinatewise differences. The type is T=[σ] modulo global sign. Write J(T)=\{i∈[d]: σ_i≠0\}, E(T)=[d]\J(T). Define the componentwise minimum ℓ(u,v)∈[n]^d. The color is c_d(uv)=(T(e),ℓ(u,v)). This records both the pattern of equal coordinates (E(T)) and their values (the corresponding entries of ℓ).
+
+# Multiplicity formula in general d
+Fix a type T and choose a representative s∈{−1,0,+1}^d\{0} with J(T)=\{i: s_i≠0\}, E(T)=\{i: s_i=0\}. For ℓ∈[n]^d define
+- A_+(T,ℓ)= #\{ v∈U: v_i=ℓ_i for i∈E(T); if s_i=+ then v_i>ℓ_i; if s_i=− then v_i=ℓ_i \}.
+- A_−(T,ℓ)= #\{ u∈U: u_i=ℓ_i for i∈E(T); if s_i=+ then u_i=ℓ_i; if s_i=− then u_i>ℓ_i \}.
+
+Lemma (Multiplicity in d). The number of edges e in G[U] with c_d(e)=(T,ℓ) equals A_+(T,ℓ)·A_−(T,ℓ), independent of the chosen representative s.
+
+Proof. Orient an unordered edge {u,v} to (u→v) so that for every i∈J(T), the sign of v_i−u_i equals s_i; for i∈E(T) we have u_i=v_i=ℓ_i. Then u and v satisfy the defining constraints of A_− and A_+, respectively, and ℓ(u,v)=ℓ. Conversely any (u,v) in A_−×A_+ yields an oriented edge with type T and lower corner ℓ. This gives a bijection between oriented edges of color (T,ℓ) and A_−×A_+. Each unordered edge has exactly one such orientation (flipping s swaps A_+ and A_−), so the total is A_+·A_−.
+
+Why useful here: It certifies uniqueness whenever one of the factors is 1 and the other is 1 (and cannot exceed 1), and it reduces many checks to simple counting in slices/lines.
+
+# Slice lifting in general d
+Fix a coordinate index r∈[d] and λ∈[n]. Define the r–slice U_{r=λ}:=\{p∈U: p_r=λ\}. On that slice, consider the (d−1)–dimensional version of the problem on the remaining coordinates.
+
+Lemma (slice→global). If |U_{r=λ}|≥2 and there is an edge e within G[U_{r=λ}] whose color is unique under c_{d−1} on the (d−1) remaining coordinates, then the same unordered pair e has a unique color under c_d in G[U].
+
+Proof. Any edge inside U_{r=λ} has r∈E(T) and ℓ_r=λ. If another edge f in G[U] had c_d(f)=c_d(e), then T(f)=T(e) (hence r∈E(T)) and ℓ_r(f)=λ. Thus the endpoints of f lie on the r–slice λ and the restriction of c_d to the remaining coordinates equals the c_{d−1} color of e. By uniqueness in the slice, f=e. Hence c_d(e) is unique in G[U].
+
+Why useful here: It lets us invoke the (already proven) d=2 theorem on coordinate planes to obtain a globally unique color in d=3; for general d it is the inductive step.
+
+# Main theorem in dimension d (induction)
+Theorem. For every d≥2 and every U⊆[n]^d with |U|≥2, there exists an edge in G[U] whose color under c_d appears exactly once in G[U].
+
+Proof by induction on d. Base case d=2 is given by the supplied theorem.
+Inductive step d−1→d. Fix a coordinate r (wlog r=d). If some slice U_{d=λ} has |U_{d=λ}|≥2, apply the induction hypothesis (dimension d−1) to G[U_{d=λ}] to obtain an in–slice edge with unique color under c_{d−1}; by slice→global, it is also unique under c_d in G[U]. Otherwise, every slice U_{d=λ} has size ≤1. Let the realized d–th coordinates be λ_1<⋯<λ_k with k≥2 (since |U|≥2). Let u be the unique point at λ_{k−1} and v the unique point at λ_k. Consider e=uv. Its lower corner satisfies ℓ_d(e)=λ_{k−1}. If another edge f=ab had c_d(f)=c_d(e), then ℓ_d(f)=λ_{k−1}, so one endpoint has d–th coordinate λ_{k−1}, i.e., must be u. The other must have d–th coordinate >λ_{k−1}; as the only realized value above is λ_k, it must be v. Hence f=e, so c_d(e) is unique. This closes the induction.
+
+Why useful here: It immediately yields the desired 3D result as the case d=3.
+
+# Specialization: dimension 3 (concise proof)
+- If some z–slice U_{z=γ} has ≥2 points, apply the given d=2 theorem on that slice; by slice→global, the obtained in–slice unique color lifts to a unique c_3 color in G[U].
+- Otherwise every z–slice has ≤1 point; order the realized z–values γ_1<⋯<γ_k with k≥2. Let u at γ_{k−1} and v at γ_k. The edge uv has ℓ_z=γ_{k−1} and is the only edge with this ℓ_z (by the same argument), hence c_3(uv) is unique.
+
+# Examples
+- Slice case (d=3): U∩{z=5} contains (1,4,5),(3,2,5),(7,6,5). The d=2 theorem on (x,y) in that plane yields an in–slice unique color; the 3D color includes E(T)⊇{z} and ℓ_z=5, so it is globally unique.
+- Injective-slices case (d=3): U has one point per z–value, say z∈{2,7,9}, with unique points u at z=7, v at z=9. Then uv is the unique edge with ℓ_z=7, hence unique color.
+- Higher d (d=4): If no coordinate slice along the 4th coordinate has ≥2 points, the edge between the points at the top two realized 4th coordinates is unique for the same reason (forced ℓ_4).
+
+# Obstacles
+- Quantitative bounds beyond existence (e.g., a lower bound on the number of unique colors as a function of |U|) are nontrivial: in dense slices, many colors may repeat; in injective configurations many realized (T,ℓ) may be unique via the multiplicity lemma. Identifying extremal U minimizing the number of unique colors likely requires additional structure (e.g., approximate product sets or layered patterns).
+
+# Next steps
+- Write up the formal d–dimensional proof (statements of c_d, multiplicity lemma, slice lifting lemma, and the inductive theorem) for proofs.md.
+- Quantitative direction: attempt to bound the number of unique colors from below. Two tractable regimes:
+  (a) Single–coordinate sparse regime (all slices along one coordinate have ≤1 point): every edge between consecutive levels gives a unique color; quantify how many such edges exist when multiple coordinates are sparse.
+  (b) Coordinatewise–injective regime: using the multiplicity lemma, any edge with a mixed sign–type (both + and − present) realizes a unique color; estimate the count of mixed-sign edges via poset antichain/chain decompositions (Sperner–type arguments).
+- Extend the multiplicity-based uniqueness checks to structured families (grids, monotone layers) and search for extremal constructions that minimize unique colors under c_d.
+
+
+
+=== Prover 4 Output ===
+
+# Ideas
+- Extend the clean d=3 proof to all dimensions d≥2 with the same coloring scheme c_d(T,ℓ). The two key ingredients are: (i) a slice–lifting lemma that uses the d−1 result on a coordinate hyperplane and (ii) a top–two–levels lemma when every slice along the last coordinate contains ≤1 point. Both rely on the fact that c_d records which coordinates are equal (E(T)) and the full lower corner ℓ.
+- Provide fully rigorous statements and proofs for these two lemmas and the resulting induction.
+
+# Definitions (general d)
+- For u≠v∈[n]^d define the sign vector σ(u,v)∈{−1,0,+1}^d\{0}^d by coordinatewise sign. Let T=[σ] modulo global sign (flipping all nonzero signs). Zero coordinates remain zero, so E(T):={i: σ_i=0} and J(T):=[d]\E(T) are well-defined.
+- The lower corner ℓ(u,v)∈[n]^d is the coordinatewise minimum.
+- Define c_d(uv)=(T(e),ℓ(u,v)).
+
+# Lemma A (Slice–lifting, general d)
+Fix t∈[n] and let U_d[t]=U∩{x∈[n]^d: x_d=t}. If |U_d[t]|≥2, then G[U] contains an edge whose c_d–color is unique in G[U].
+
+Proof. Consider G[U_d[t]] and identify each point with its first d−1 coordinates. By the d−1 theorem, there is an edge e′ inside the slice with a unique color (for c_{d−1}) within the slice. For any in–slice edge e, the type T has d∈E(T) and c_d(e) records ℓ_d=t and the (d−1)–dimensional lower corner on the remaining coordinates. Thus two in–slice edges have the same c_d–color iff they have the same c_{d−1}–color. Hence c_d(e′) is unique among in–slice edges. No outside edge can share its color: any outside edge has d∉E(T) (its endpoints differ in the last coordinate), while c_d(e′) has d∈E(T). Therefore c_d(e′) is unique in G[U]. ∎
+
+# Lemma B (Top two levels, general d)
+Assume |U|≥2 and each last–coordinate slice U_d[s] has size ≤1. Let the realized last–coordinate values be s_1<⋯<s_m with m≥2. Let p,q∈U satisfy p_d=s_{m−1}, q_d=s_m. Then c_d(pq) is unique in G[U].
+
+Proof. If f=uv has c_d(f)=c_d(pq), then ℓ_d(f)=ℓ_d(pq)=s_{m−1}. Thus one endpoint has last coordinate s_{m−1} and the other has last coordinate >s_{m−1}. By the slice–size ≤1 assumption and by definition of s_{m−1}, the unique vertex in U with last coordinate s_{m−1} is p; and the only realized level above s_{m−1} is s_m, with unique vertex q. Hence f=pq, proving uniqueness. ∎
+
+# Theorem (All d≥2)
+For every U⊆[n]^d with |U|≥2, there exists an edge in G[U] whose color under c_d appears exactly once in G[U].
+
+Proof. Induct on d. Base d=2 is the provided theorem. For d≥3: if some last–coordinate slice U_d[t] has size ≥2, apply Lemma A and the inductive hypothesis. Otherwise, every slice has size ≤1, and Lemma B yields a unique color. ∎
+
+# Examples
+- d=4, slice case: If U contains two points with last coordinate t, the d=3 result on that slice yields a unique in–slice edge whose 4D color is unique globally (since c_4 records d∈E(T) and ℓ_d=t).
+- d=4, no–slice case: If U has last–coordinate levels s_1<⋯<s_m and each U_d[s_i] has ≤1 point, the edge between the unique vertices at s_{m−1}, s_m is uniquely colored by Lemma B.
+
+# Obstacles
+- None significant: the key is that c_d’s label explicitly encodes E(T) and ℓ, preventing cross–slice collisions and making the top–two–levels argument immediate.
+
+# Next steps
+- Quantitative questions: lower bounds on the number of uniquely colored edges as a function of |U| and d; extremal configurations minimizing unique colors.
+- Alternative multiplicity formulas: for selected families of types (e.g., with a prescribed set of zero coordinates), derive product counts generalizing the 2D r·s formula, potentially useful for quantitative bounds.

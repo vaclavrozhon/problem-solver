@@ -1,0 +1,4 @@
+- Variable-threshold outstar lemma verified; S_{k,ℓ}=Θ_ℓ(ℓ^k) with exact S_{k,2}=4·2^k−k−5.
+- Exact greedy ray packing: h ≥ (|V(B)|−1)+(|L|−1)·kℓ+ℓ = kℓ^{k+1}−kℓ+(ℓ^{k+1}−1)/(ℓ−1)+ℓ.
+- k=2 spiders: rigorous threshold δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2; stronger claims omit a necessary +d term.
+- Add robust δ+-commonness with forbidden sets lemma; proceed to global matching/nibble and improve f(k,h).

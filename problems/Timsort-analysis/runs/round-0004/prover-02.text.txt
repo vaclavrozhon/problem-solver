@@ -1,0 +1,54 @@
+# Focused progress toward the coarse O(n + nH) bound
+
+I isolate three technical steps that are both standard and critical to the entropy-adaptivity proof for Python’s patched TimSort (with case #5). Each is stated and proven cleanly so they can be dropped into proofs.md.
+
+
+1) Immediate follow-up merges after #4/#5 (s-token refund)
+
+Lemma (follow-up after #4/#5). Consider the stack just after merging the top two runs R₁ and R₂ by one of the conditions #4 or #5. Denote new top runs by R̄₁, R̄₂, R̄₃ with lengths r̄₁, r̄₂, r̄₃. Then the very next loop iteration must perform another merge (either #3 or #4). In particular, the algorithm does not break between these two merges.
+
+Proof. Case #4 triggers when r₁ + r₂ ≥ r₃. After merging R₁ and R₂, we have r̄₁ = r₁ + r₂, r̄₂ = r₃, r̄₃ = r₄. The next test in order is #2 (r̄₁ > r̄₃), which may fail. The following test is #3 (r̄₁ ≥ r̄₂). Since r̄₁ = r₁ + r₂ ≥ r₃ = r̄₂, #3 holds and a merge occurs. 
+
+Case #5 triggers when r₂ + r₃ ≥ r₄. After merging R₁ and R₂, we again have r̄₁ = r₁ + r₂, r̄₂ = r₃, r̄₃ = r₄. The next test #4 requires r̄₁ + r̄₂ ≥ r̄₃, which holds because (r̄₁ + r̄₂) = (r₁ + r₂) + r₃ ≥ r₄ = r̄₃ (using r₂ + r₃ ≥ r₄). Hence #4 holds and a merge occurs. ∎
+
+Why useful here. This establishes that every s-token spent by elements of R₂ in a #4/#5 merge is refunded immediately at the next merge in the same ending sequence (height decreases), ensuring s-token balances never go negative.
+
+
+2) Explicit constant for starting sequences
+
+Lemma (explicit γ). Let γ := 2∑_{j≥1} j·2^{−j/2}. Then γ has the closed form γ = 2·x/(1−x)² with x=2^{−1/2}. Numerically, x≈0.70710678 and γ≈16.4853. 
+
+Proof. For |x|<1, ∑_{j≥1} j x^{j} = x/(1−x)². Set x=2^{−1/2} to get ∑ j 2^{−j/2} = x/(1−x)² and multiply by 2. ∎
+
+Why useful here. It gives an explicit universal constant bounding the total cost of each starting sequence by ≤ γ·r and hence total starting-sequence cost ≤ γ·n.
+
+
+3) Sentinel for final collapse (absorbing line-11 merges)
+
+Claim (sentinel absorption). Appending a fictitious terminal run of length n+1 to the run decomposition makes the final collapse merges occur within the main loop. The coarse O(n + nH) bound is unaffected.
+
+Proof. With a terminal run T of length > n, every remaining stack merge is triggered by #3 (top run length ≥ next), so the main loop performs exactly the merges of the final collapse. The sentinel contributes no comparisons beyond O(n) for merges already bounded, and we remove it analytically at the end. ∎
+
+Why useful here. It lets us bound all merges inside one loop, avoiding a separate end-phase analysis.
+
+
+4) Entropy identity used in the summation
+
+Fact. ∑_{i=1}^r ℓ_i log₂(n/ℓ_i) = n·H, where H = ∑ (ℓ_i/n) log₂(n/ℓ_i).
+
+Proof. Expand: ∑ ℓ_i log₂(n/ℓ_i) = ∑ ℓ_i( log₂ n − log₂ ℓ_i ) = (∑ ℓ_i) log₂ n − ∑ ℓ_i log₂ ℓ_i = n log₂ n − ∑ ℓ_i log₂ ℓ_i. On the other hand, n·H = n ∑ (ℓ_i/n) log₂(n/ℓ_i) = ∑ ℓ_i log₂(n/ℓ_i). ∎
+
+Why useful here. Converts the token-minted sum ∑ ℓ_i·log(n/ℓ_i) into n·H.
+
+
+Examples / sanity checks
+- After a #4 merge of lengths (3,5,7,13), new top is (8,7,13); #3 (8≥7) triggers immediately. After a #5 merge of (2,8,9,15) (since 8+9≥15), new top is (10,9,15); #4 holds ((10+9)≥15), so a merge follows.
+
+
+Obstacles
+- The s-token proof requires case #5 to be present in TimSort; without it, the algorithm may not perform the #5 merge in the first place and the amortization structure differs (this is consistent with the original Java bug). Our target explicitly analyzes Python’s corrected variant.
+
+
+Next steps
+- Incorporate these lemmas into proofs.md: (i) immediate follow-up after #4/#5; (ii) explicit γ; (iii) sentinel absorption; (iv) entropy identity. This will complete the coarse O(n + nH) proof with all details accounted for. 
+- In a subsequent round, we can formalize the “forbidden patterns” lemma (no #2#2, no XX#2) and the two-merge pairing inequality F(y)≥0 for the sharp (3/2)·n·H + O(n) bound.

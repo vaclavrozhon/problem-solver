@@ -1,0 +1,12 @@
+Overall, the direction MST_log ≤ C·Reg_log is now rigorously established (exact for L∞, constant-factor for any fixed norm) via the Kruskal integral plus the sparse H(t) subgraph. The converse does not hold: the mod-m (including parity) families give Reg_log/MST_log = Θ(log n). In addition, a simple and rigorous universal bound Reg_log ≤ O(log n)·MST_log follows from r_i ≤ i and a per-edge lower bound on MST weights. This nearly pinpoints the worst-case relationship up to a Θ(log n) factor.
+
+Audit and corrections:
+- Prover 1: The earlier charging that identified t_{i*} with s_v was flawed; your new write-up now leans on the component-integral method, which is correct. The per-scale counting Lemma 4 (|{i: r_i>t}| ≤ κ_time(t/2)+κ_val(t/2)−2) is not fully justified: translating t_i-threshold exceedances to component counts in the value-chain graph misses indices with no earlier neighbor and risks double-counting. Fortunately, this lemma is not needed for the Θ(log n) upper bound on Reg/MST.
+- Prover 2: The H(t) construction and integral identity are clean and correct. The norm-lifting (using ||·|| ≤ b||·||∞ and Reg_log ≥ (n−1) log 3) correctly yields explicit constants for L1/L2/L∞. The mod-m separation proof is solid; minor fix: at block boundaries, the time-adjacent edge may be large; handle via O(m) bridges of O(log n) each, as you already noted.
+- Prover 3: The mapping ∑_{i with earlier neighbor} log(1+t_i) ≤ ∑_v log(1+s_v) is correct (injective pairing to the later of v,v+1). However, the MST per-edge lower bound should not use β = min{||(1,0)||,||(0,1)||}; in an arbitrary norm that may be too optimistic. Use norm equivalence: there exists α_N>0 with ||z||_N ≥ α_N||z||∞, so each edge has length ≥ α_N (since ||·||∞≥1), giving weight ≥ log(1+α_N). With this fix, your O(log n) upper bound for Reg holds.
+- Prover 4: Statements and constants are consistent. Using α_N from norm equivalence (or sharper geometry where applicable) gives the clean Reg ≤ (log(1+n)/log(1+α_N))·MST bound, tight up to constant factors by the parity/mod-m family.
+
+Next steps:
+- Finalize constants: record α_N for common norms (L∞:1; L2: ≥1 but can sharpen to √2 using both coordinates ≥1; L1: ≥2). Present tight constants for the two-sided bounds per norm.
+- Optional: quantify expected constants for random π using the integral identity.
+- Prepare a consolidated, paper-ready proof set: (i) MST ≤ Reg (L∞ exact), (ii) norm-lift to any fixed norm, (iii) Reg ≤ (log(1+n)/c_N)·MST, and (iv) mod-m separation showing Θ(log n) tightness.

@@ -1,0 +1,739 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results summary so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: ONLY the main problem results. Think twice before adding anything. Should contain a concise summary of the most important theorems that directly advance the main problem. Extremely selective.
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results, or clear path to solution
+- **uncertain**: Some progress but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+# Open Problem: Resolve the Final Two Conjectures on Typical Properties of Countable Graphs
+
+This note poses two conjectures extracted from the extended abstract **“Typical properties of countable graphs: flows and bridges (extended abstract)”** by Robert Šámal and Hadi Zamani (EUROCOMB’25). We first state the setting precisely and then formulate the conjectures. The authors’ extended abstract (lightly re‑typeset) follows afterward for context.
+
+---
+
+## Setting
+
+- Fix an integer \(D \ge 2\).
+- Let \(\mathbf{G}_\bullet\) be the space of **countably infinite, connected, rooted graphs** \((G,\rho)\).
+- For \((G,\rho) \in \mathbf{G}_\bullet\) and \(r \in \mathbb{N}\), let \(B_r(G,\rho)\) denote the rooted (closed) ball of radius \(r\) about \(\rho\).
+- Equip \(\mathbf{G}_\bullet\) with the **local (Benjamini–Schramm) metric** \(d_\bullet\) given by
+  \[
+  d_\bullet\big((G,\rho),(H,\sigma)\big)=2^{-R},
+  \qquad
+  R=\sup\{r\in\mathbb{N} : B_r(G,\rho)\cong B_r(H,\sigma)\}.
+  \]
+  (Equivalently, \(d_\bullet((G,\rho),(H,\sigma))<2^{-r}\) iff \(B_r(G,\rho)\cong B_r(H,\sigma)\).)
+- Degree‑constrained subspaces:
+  - \(\mathbf{G}_{\bullet,\le D}\): all rooted graphs with \(\Delta(G)\le D\).
+  - \(\mathbf{G}_{\bullet,= D}\): all rooted graphs with \(\Delta(G)= D\).
+  We write \(\mathbf{G}_{\bullet,D}\) for either of these when the distinction is unimportant.
+- A subset \(S\subseteq \mathbf{G}_\bullet\) is **nowhere dense** if the interior of \(\overline{S}\) is empty. A set is **meagre** (first category) if it is a countable union of nowhere dense sets; its complement is **comeagre**. A property is called **typical** if the corresponding set is comeagre.
+- An edge \(e\) of an (unrooted) graph \(G\) is a **bridge** if \(G-e\) has more connected components than \(G\). A bridge is **2‑way infinite** if both components are infinite and **1‑way infinite** otherwise.
+
+---
+
+## Conjectures
+
+### Conjecture 1 — Root‑invariance of smallness
+Let \(P\) be any property of unrooted graphs and put
+\[
+S_P=\{(G,\rho)\in \mathbf{G}_{\bullet,D}: G\text{ has }P\}.
+\]
+Whether \(S_P\) is **nowhere dense** (respectively, **meagre**) in \((\mathbf{G}_{\bullet,D},d_\bullet)\) **does not depend on the choice of the root** \(\rho\).
+
+### Conjecture 2 — Metric sensitivity of typicality
+There exists a **natural alternative metric** on the same underlying set \(\mathbf{G}_{\bullet,D}\) for which the collection of **typical properties** differs from those under \(d_\bullet\). In particular, determine whether there is a reasonable metric in which **bridgeless graphs are typical**, or prove that no such metric can change their typicality.
+
+---
+
+## Extended Abstract (re‑typeset from the authors’ text)
+
+**Proceedings of the 13th European Conference on Combinatorics, Graph Theory and Applications — EUROCOMB’25**  
+Budapest, August 25–29, 2025
+
+### Typical properties of countable graphs: flows and bridges  
+*(Extended abstract)*  
+
+**Robert Šámal**\* · **Hadi Zamani**\*
+
+#### Abstract
+We have two aims. **First**, we study nowhere‑zero flows in countably infinite graphs, observing the different roles of two types of bridges. **Second**, we study how typical graphs with these types of bridges are. As there is no natural probability measure to use, we turn to an analytic approach: we study which sets are nowhere dense and which are meagre.
+
+In finite graphs, bridges play a crucial role—it is easy to see that every flow assigns value \(0\) to every bridge. It is also known that graphs with a bridge are not typical: both dense random graphs and random regular graphs are bridgeless w.h.p. [3, 1]. We ask how this transfers to countable graphs. In Section 1 we explain differences between bridges and flows and, via compactness, we prove a version of Seymour’s 6‑flow theorem for countable graphs.
+
+In Section 2 we explore nowhere‑dense and meagre sets. This is called for because the usual probabilistic models collapse: extending Erdős–Rényi to countably infinite graphs yields the Rado graph a.s., so we are effectively studying a single graph up to isomorphism. Attempting random regular graphs via the configuration model [1] would require a uniform distribution on perfect matchings of a countable set (e.g., neighbors of the first vertex), which does not exist. Consequently, we turn to Baire category: meagre/co‑meagre sets (also “first/second category”).
+
+\* *Computer Science Institute of Charles University, Prague, Czech Republic. Supported by grant 25‑16627S of the Czech Science Foundation. This project has received funding from the European Research Council (ERC) under the EU’s Horizon 2020 programme (grant agreement No 810115).*
+  
+*Emails:* samal@iuuk.mff.cuni.cz · hadiz@iuuk.mff.cuni.cz
+
+---
+
+### 1. Nowhere‑zero flows for infinite graphs
+
+**Definition 1 (weak flow).**  
+Given an orientation \(D\) of a graph \(G\) and an abelian group \(A\), a **weak \(A\)‑flow** is a function \(\varphi:E(G)\to A\) such that **Kirchhoff’s law for each vertex cut** holds:
+\[
+\forall v\in V(G):\quad \sum_{e\in \delta^-(v)}\varphi(e)=\sum_{e\in \delta^+(v)}\varphi(e).
+\]
+
+**Definition 2 (strong flow).**  
+Given \(D,G,A\) as above, a **strong \(A\)‑flow** is a function \(\varphi:E(G)\to A\) such that **Kirchhoff’s law for each cut** holds:
+\[
+\forall S\subseteq V(G):\quad \sum_{e\in \delta^+(S)}\varphi(e)=\sum_{e\in \delta^-(S)}\varphi(e).
+\]
+
+In either case, \(\varphi\) is a **nowhere‑zero** weak/strong \(A\)‑flow if \(\varphi^{-1}(0)=\varnothing\).
+
+**Definition 3 (bridge).**  
+An edge \(e\) of \(G\) is a **bridge** if deleting \(e\) increases the number of connected components. A bridge is **2‑way infinite** if both resulting components are infinite, and **1‑way infinite** otherwise.
+
+Every strong flow is a weak flow. While the two notions are equivalent on finite graphs, they diverge on infinite graphs: e.g., on a two‑way infinite path, a nowhere‑zero weak \(A\)‑flow exists but a strong one does not. In [6] the authors construct a 3‑connected graph with two ends that admits a nowhere‑zero weak \(A\)‑flow but no nowhere‑zero strong \(A\)‑flow. Nearly all finite flow theorems extend to infinite **strong** \(A\)‑flows via topological compactness; here we use **logical** compactness to obtain:
+
+**Theorem 4.**  
+*A countably infinite, locally finite graph without a 1‑way infinite bridge has a nowhere‑zero weak 6‑flow.*
+
+---
+
+### 2. Metric space of rooted connected graphs
+
+Since no good probability measure exists for countable graphs, we study typicality via a metric topology and Baire category.
+
+**Definition 5 (ε‑neighborhood).**  
+For a metric space \((X,d)\) and \(x\in X\), the ε‑neighborhood is \(U_\varepsilon(x)=\{y\in X:\ d(x,y)<\varepsilon\}\). The closed neighborhood \(\overline{U}_\varepsilon(x)\) uses \(d(x,y)\le \varepsilon\).
+
+**Definition 6 (open set).**  
+A set \(U\subseteq X\) is open if \(\forall x\in U\ \exists \varepsilon>0:\ U_\varepsilon(x)\subseteq U\).
+
+We now fix the graph space and metric.
+
+**Definition 9 (space of rooted graphs).**  
+Let \(\mathbf{G}_\bullet\) be the set of all connected rooted graphs (up to root‑preserving isomorphism). For \(D>2\), let \(\mathbf{G}_{\bullet,\le D}\) be those with all degrees \(\le D\), and \(\mathbf{G}_{\bullet,=D}\) those with all degrees \(=D\).
+
+**Definition 10 (r‑ball).**  
+For \((G,v)\), the rooted r‑ball is
+\[
+B_r(G,v)=(\,G[\{y\in V(G): d(v,y)\le r\}],\,v\,).
+\]
+
+**Definition 11 (metric \(d_\bullet\)).**  
+For \((G_1,v_1),(G_2,v_2)\in\mathbf{G}_\bullet\),
+\[
+d_\bullet\big((G_1,v_1),(G_2,v_2)\big)=\inf\{2^{-r} : B_r(G_1,v_1)\cong B_r(G_2,v_2)\}.
+\]
+This is a metric [5].
+
+**Definition 12 (extensions of an r‑ball).**  
+For an r‑ball \(F=B_r(G,v)\), define
+\[
+\mathbf{G}_\bullet^F=\{(G',v')\in \mathbf{G}_\bullet : B_r(G',v')\cong F\}.
+\]
+
+**Lemma 13 (basic facts in \((\mathbf{G}_\bullet,d_\bullet)\)).**  
+- For each \((G,x)\), \(r\in\mathbb{N}\), and \(0<\varepsilon<1\):
+  \[
+  U_{2^{-r}+\varepsilon}((G,x))=U_{2^{-r}}((G,x))=\mathbf{G}_\bullet^{B_r(G,x)}.
+  \]
+- \(\mathbf{G}_\bullet^F\) is nonempty if \(F\) is an r‑ball in \(\mathbf{G}_{\bullet,\le D}\) that contains a vertex of degree \< \(D\) at distance \(r\) from the root.
+- A subset \(S\subseteq \mathbf{G}_\bullet\) is nowhere dense iff
+  \(\forall\) r‑balls \(F\ \exists\) r′‑ball \(F'\) with \(\mathbf{G}_\bullet^{F'}\subseteq \mathbf{G}_\bullet^{F}\setminus S\).
+- For all \(D>2\), \(\mathbf{G}_{\bullet,D}\) is not meagre.
+
+---
+
+### Main results on typical properties
+
+**Theorem 14.**  
+*The set of bridgeless graphs is nowhere dense (i) in \(\mathbf{G}_{\bullet,\le D}\) for all \(D>2\); and (ii) in \(\mathbf{G}_{\bullet,=D}\) for all odd \(D>2\).*  
+In D‑regular graphs with even \(D\), 1‑way infinite bridges cannot exist; instead we obtain:
+
+**Theorem 15.**  
+*The set of graphs without a cut vertex is nowhere dense in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+**Theorem 16.**  
+*The set of graphs with a 2‑way infinite bridge is meagre (but not nowhere dense) in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+We also considered other (a)typical properties:
+
+**Theorem 17.**  
+*The set of graphs with edge‑chromatic number \(D\) is nowhere dense in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+---
+
+### 3. Proof sketches
+
+**Proof of Theorem 4 (sketch).**  
+Let the vertices of \(G\) be \(v_1,v_2,\ldots\) and orient each edge \(\{v_i,v_j\}\) from the smaller to the larger index. For each radius \(r\), augment the r‑ball \(B_r(G,v_1)\) to a finite multigraph \(G_r\) by adding a sink vertex \(v_\infty\) and connecting boundary edges to \(v_\infty\). Introduce Boolean variables \(F_{e,1},\dots,F_{e,6}\) encoding which of six nonzero values an edge \(e\) receives, enforce exclusivity \(\bigvee_i F_{e,i}\) and \(\bigwedge_{j\ne i}\neg F_{e,j}\), and write linear parity constraints at each vertex (Kirchhoff’s law). Let \(F_{G_r}\) be the conjunction over vertices of \(G_r\); then every finite subset of the constraint family \(\{F_{G_r}\}_r\cup\{F_{e,i}\}_e\) is satisfiable (by [7]), hence by compactness [4] the whole set is satisfiable, yielding a nowhere‑zero weak 6‑flow on \(G\).
+
+**Proof idea for Theorem 14.**  
+Given an r‑ball \(F\), construct an r′‑ball \(F'\) such that every extension of \(F'\) contains a bridge. For \(\mathbf{G}_{\bullet,\le D}\), attach a leaf to a boundary vertex of degree \<\(D\). For \(\mathbf{G}_{\bullet,=D}\) handle regularity via parity gadgets: define \(S(F)=\sum_{v\in L_r}(D-\deg v)\) where \(L_r\) is the boundary; use \(K_{D+1}-e\) gadgets and tree‑like expansions to force parity \(S(F)=1\), then attach a new vertex to create a bridge. Hence the bridgeless set is nowhere dense.
+
+**Proof idea for Theorem 15.**  
+In even \(D\)‑regular graphs, use gadgets to force a cut vertex; in odd \(D\) or degree‑bounded spaces, this also follows from the previous construction.
+
+**Proof idea for Theorem 16.**  
+Being “there is a 2‑way infinite bridge at distance \(k\)” is nowhere dense; take a union over \(k\in\mathbb{N}\) to get a meagre (but not nowhere‑dense) set.
+
+**Proof idea for Theorem 17.**  
+For each \(D\), there exist \(D\)‑regular graphs with \(\chi'(G)=D+1\) (even \(D\): complete graphs or any odd‑order \(D\)‑regular graph; odd \(D\): by Tutte’s theorem). Removing an edge preserves \(\chi'=D+1\) by parity. Embed parity gadgets within r‑balls so that every extension has edge‑chromatic number \(D+1\), hence the set is nowhere dense.
+
+---
+
+### 4. Future work (the conjectures)
+
+**Question 18.** *Is the fact that a property is nowhere dense or meagre independent of the root?*  
+A change of root gives one type of change of metric; however, many metrics on the space of countable graphs are possible.
+
+**Question 19.** *Is there another metric on \(\mathbf{G}_{\bullet,D}\) where typical properties are different?*  
+For instance, is there a metric in which **bridgeless graphs are typical**?
+
+We also aim to investigate additional (a)typical properties in the spirit of Theorem 17.
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Working log — Conjectures 1 and 2
+
+1) Root-invariance (Conjecture 1)
+- Spaces: X = G_{\bullet,D} (rooted local topology), Y = unrooted countable connected graphs with Δ≤D, endowed with the rootless local topology generated by sets U_F^Y = {G: ∃v with B_r(G,v) ≅ F}.
+- Forgetful map π: X → Y, π(G,ρ)=G, is continuous, open, surjective.
+- Consequences:
+  • Nowhere denseness transfers: A⊆Y is nowhere dense ⇔ π^{-1}(A) is nowhere dense in X.
+  • Meagreness transfers for sets with the Baire property (e.g., Borel/analytic): A meagre in Y ⇔ π^{-1}(A) meagre in X.
+  • Hence for any natural property P of unrooted graphs (bridges, cut vertices, edge-chromatic constraints, etc.), the smallness/meagreness status of S_P in X is root-invariant.
+- Alternative restatement (root-free ND test): For saturated S⊆X, S is nowhere dense ⇔ for every unrooted r-ball B there exists an unrooted r′-ball B′ with Cyl(B′) ⊂ Cyl(B) \ S, where Cyl(B)=⋃_{v∈V(B)} G_{\bullet}^{(B,v)}.
+- Caution: Saturating a nowhere dense set need not remain nowhere dense (can become dense meagre). Use the π-map, not saturation, for meagreness arguments.
+
+2) No-go regimes for Conjecture 2
+- Any metric/topology whose basic opens are exactly the rooted cylinders G_{\bullet}^F yields the same topology as d_•; typicality (meagre/comeagre) is unchanged. This covers all “ball-local/cylinder-based” metrics and many FLP (finite-lens) variants where opens depend on finitely many finite neighborhoods.
+- FLP extension: In ≤D spaces, one can force a leaf inside any FLP-open neighborhood (pin a radius-1 neighborhood of a new vertex z with deg(z)=1), hence the bridgeless set is nowhere dense. For =D odd, a parity/degree-pinned bridge gadget is needed (parity bookkeeping as in the abstract). The naive “connect two D-regular graphs by one edge” breaks regularity—must fix this.
+
+3) Candidate coarser topology for Conjecture 2
+- Re-rooting–insensitive closeness: x and y are r-close if each contains some rooted r-ball isomorphic to a rooted r-ball of the other. Define d_any heuristically by the largest r with this bidirectional r-appearance. Under this coarser, rootless-local proximity, graphs with a 1-way infinite bridge are dense: starting from any r-ball F, attach a pendant infinite ray outside F and complete the rest away from F. This shows that density behavior changes once re-rooting is allowed.
+- Open tasks: (i) Make the induced topology precise and verify Baire property; (ii) Determine the category of ‘bridgeless’ and ‘has a 1-way infinite bridge’. If both are dense in a Baire space, neither is comeagre.
+
+4) Section metrics on unrooted space
+- For a section s selecting a root in each unrooted graph, define a local metric d_s via (G,H) ↦ d_•( (G,s(G)), (H,s(H)) ). If s,t differ by uniformly bounded root moves, the identity is a homeomorphism (bounded re-rooting equivalence). Local forcing arguments (as in Theorem 14) show ‘bridgeless’ remains nowhere dense for every section metric.
+
+5) Action items
+- Move π-based proofs (nowhere-dense equivalence; meagreness for Baire sets) into proofs.md.
+- Repair the =D odd FLP construction by using a fully pinned D-regular bridge gadget (or reintroduce parity gadgets) and document the argument.
+- Formalize the topology behind d_any (Polish/Baire?) and analyze the category of bridge-related properties therein.
+- For ‘2-way infinite bridge’ across section metrics, fill in the ‘not nowhere dense’ part via explicit dense sets built by bi-infinite path gadgets.
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+Main interim results toward the conjectures
+
+- Root-invariance (Conjecture 1):
+  • Nowhere-dense part resolved. For any property P of unrooted graphs, S_P is nowhere dense in the rooted space iff the corresponding set T_P in the unrooted space is nowhere dense. This uses the forgetful map π (continuous, open, surjective) and yields a root-free cylinder refinement criterion for saturated sets.
+  • Meagre part resolved for all properties with the Baire property (in particular, Borel/analytic P): S_P is meagre in the rooted space iff T_P is meagre in the unrooted space. Hence smallness is root-invariant for all natural properties considered (bridges, cut vertices, edge-colouring constraints, etc.).
+
+- Metric sensitivity (Conjecture 2):
+  • No-go: Any metric that induces the same cylinder (Benjamini–Schramm) topology preserves typicality; in particular, bridgeless graphs remain nowhere dense under all such metrics.
+  • Coarser “rootless-local” proximity: For a natural re-rooting–insensitive closeness, graphs with a 1-way infinite bridge are dense, indicating genuinely different behavior once the topology is coarsened. The Baire status and typicality under such a topology remain open.
+
+
+
+=== Prover 1 Output ===
+
+Progress on Conjectures 1 and 2: root-invariance via the forgetful map; no-go for cylinder topologies; parity gadget for D-regular odd; density under a re-rooting pseudometric
+
+Setup and notation
+
+- X = G_{\bullet,D}: rooted, connected, countably infinite graphs of maximum degree ≤ D or = D (as specified), with the Benjamini–Schramm (BS) topology generated by rooted cylinders G_\bullet^F.
+- Y = G_{\varnothing,D}: unrooted version (same underlying graphs, no distinguished root). Equip Y with the “rootless local” topology generated by sets U_F^Y = { G ∈ Y : ∃v ∈ V(G) with B_r(G,v) ≅ F }, where F is a rooted r-ball.
+- Forgetful map π: X → Y, π(G,ρ)=G.
+
+A. Conjecture 1 (root-invariance): full resolution
+
+Lemma A1 (π is continuous, open, surjective). For any rooted r-ball F, π(G_\bullet^F)=U_F^Y and π^{-1}(U_F^Y)=G_\bullet^F. Hence π is continuous, open, and onto.
+
+Lemma A2 (closure/interior commute with π^{-1}). For any A ⊆ Y,
+(1) cl_X π^{-1}(A) = π^{-1}(cl_Y A);
+(2) int_X π^{-1}(A) = π^{-1}(int_Y A).
+Proof. For (1), the inclusion cl_X π^{-1}(A) ⊆ π^{-1}(cl_Y A) holds for every continuous map. For the reverse, take x ∈ π^{-1}(cl_Y A). For any open U ⊂ X with x∈U, π(U) is open (π open) and contains π(x) ∈ cl_Y A, so π(U)∩A ≠ ∅. Thus U∩π^{-1}(A) ≠ ∅. Hence x ∈ cl_X π^{-1}(A). For (2), use int = Y \ cl(Y\·) and (1), or note π is a quotient map so inverse images preserve interiors.
+
+Proposition A3 (nowhere-dense equivalence). For any A ⊆ Y,
+A is nowhere dense in Y ⇔ π^{-1}(A) is nowhere dense in X.
+Proof. A nowhere dense iff int_Y cl_Y A = ∅. Apply Lemma A2 twice: int_X cl_X π^{-1}(A) = π^{-1}(int_Y cl_Y A). Since π is surjective, π^{-1}(∅)=∅ and π^{-1}(B)=∅ implies B=∅. Hence equivalence.
+
+Proposition A4 (meagre equivalence for sets with the Baire property). Assume X,Y are Baire (true here), and let A ⊆ Y have the Baire property. Then A is meagre in Y ⇔ π^{-1}(A) is meagre in X.
+Proof. “⇒”: If A=⋃_n A_n with A_n nowhere dense in Y, then by A3, π^{-1}(A)=⋃_n π^{-1}(A_n) is meagre in X. “⇐”: Suppose π^{-1}(A) is meagre, but A is not meagre. Since A has the Baire property, there is a nonempty open V⊂Y such that A is comeagre in V. Then V∩(Y\A) is meagre in Y and hence (by A3) π^{-1}(V∩(Y\A)) is meagre in X. But π^{-1}(V) is nonempty open (π open), so π^{-1}(A) is comeagre in π^{-1}(V), contradicting that π^{-1}(A) is meagre in X (Baire). Thus A is meagre.
+
+Corollary A5 (Conjecture 1). For any property P of unrooted graphs and S_P={(G,ρ)∈X: G has P} = π^{-1}(T_P) with T_P⊆Y, the smallness status is root-invariant:
+- S_P is nowhere dense in X ⇔ T_P is nowhere dense in Y;
+- if T_P has the Baire property (e.g., Borel/analytic), then S_P is meagre in X ⇔ T_P is meagre in Y.
+
+Banach–Mazur/game remark. The above also yields a root-free criterion: for saturated S⊂X (equivalently S=π^{-1}(A)), S is nowhere dense iff for every unrooted ball B there is a refinement B′ with Cyl(B′)⊂Cyl(B)\A, where Cyl(B)=⋃ rootings F of B G_\bullet^F. This restates Lemma 13 in a rootless form and can be used to design root-free winning strategies in the Banach–Mazur game for meagreness.
+
+B. Conjecture 2: a no-go theorem for cylinder-based topologies
+
+Definition B1 (ball-local topologies). A topology τ on X is ball-local if the rooted cylinders {G_\bullet^F} form a base of τ. Equivalently, τ induces exactly the BS topology (possibly via a different metric scale).
+
+Theorem B2 (no-go). In any ball-local topology on X, the conclusions of Theorems 14–17 (nowhere denseness of bridgeless, etc.) remain true. In particular, bridgeless graphs are nowhere dense in every ball-local topology and cannot be typical there.
+Proof sketch. The proofs of Theorems 14–17 proceed by: given a nonempty cylinder G_\bullet^F, construct a refinement cylinder G_\bullet^{F′}⊂G_\bullet^F such that every extension of F′ has the desired obstruction (e.g., a bridge). This argument depends only on the extension poset of finite rooted balls, not on metric numerics. Since cylinders are basic opens in any ball-local topology, the same refinement shows the target set has empty interior of its closure, i.e., is nowhere dense.
+
+C. Odd D-regular case: a clean parity gadget forcing a bridge
+
+For D odd ≥ 3, we give a compact “one-cut” counting gadget that repairs earlier parity flaws.
+
+Notation. For a finite connected graph F (intended as an r-ball), define S(F)=∑_{v∈V(F)}(D−deg_F(v))=D|V(F)|−2|E(F)|. In any D-regular supergraph H, the number of edges of H leaving V(F) equals S(F).
+- Parity identity: For odd D, S(F) ≡ |V(F)| (mod 2).
+
+Proposition C1 (bridge-forcing refinement for =D odd). Let D be odd ≥ 3. Let F=B_r(G,ρ) be any rooted r-ball that occurs in some D-regular graph. Then there exists r′≥r+1 and a rooted extension F′=B_{r′}(G′,ρ) with maximum degree ≤D such that S(F′)=1. Consequently, in every D-regular extension of F′, the unique edge leaving V(F′) is a 1-way infinite bridge.
+
+Proof. Start from F=B_r(G,ρ). Let L=L_r be its boundary. For each v∈L, denote δ(v)=D−deg_F(v)≥1. Let c=∑_{v∈L}δ(v)=S(F).
+Add a new layer W of t vertices at distance r+1 from ρ; t will be chosen. Connect each v∈L to δ(v) distinct vertices of W (so total c cross edges). So far, degrees in L within the augmented graph F_1 are D, and vertices of W have degrees s_w∈{0,1,2,...} summing to c. Next add e_W edges inside W (no multiple edges), producing F′ on V(F)∪W. Then
+S(F′) = S(F) + D t − 2(c + e_W) = D t − (c + 2 e_W).
+Choose t≥c with parity t ≡ c+1 (mod 2) and so large that e_W defined below satisfies e_W ≥ t−1. Set
+ e_W := (D t − c − 1)/2.
+Then S(F′)=1. Since t ≡ c+1 (mod 2) and D odd, e_W is an integer. Also e_W ≤ ⌊(∑_{w∈W}(D − s_w))/2⌋ = ⌊(tD − c)/2⌋, so a simple graph on W with e_W edges exists respecting degree bounds d_w ≤ D−s_w (e.g., greedily build a spanning tree on W, then add edges arbitrarily until reaching e_W). Finally, since vertices at distance ≤ r now have degree D within F′ (boundary L was saturated to D by the W-connections), F′ is an (r+1)-ball. In any D-regular extension H⊇F′, the number of edges in δ_H(V(F′)) equals S(F′)=1, so that edge is a bridge; since V(F′) is finite and H is infinite, it is a 1-way infinite bridge. ∎
+
+This gives a clean, verifiable refinement step for Theorem 14(ii) (odd D case) and extends immediately to other cylinder-refinement no-go arguments (Section B).
+
+D. Section metrics and bounded re-rooting equivalence
+
+Given a section s: Y→X choosing a root s(G)∈V(G), define a metric on Y by d_s(G,H):=d_\bullet((G,s(G)),(H,s(H))).
+
+Lemma D1 (bounded re-rooting yields homeomorphism). If s,t are sections with sup_G dist_G(s(G),t(G)) ≤ R, then the identity map (Y,d_s)→(Y,d_t) is a homeomorphism. In fact, B_r^{d_t}(G) ⊆ B_{r−R}^{d_s}(G) and vice versa (for r>R), so typicality cannot change across such section metrics.
+Proof. If B_r(G,s(G)) ≅ B_r(H,s(H)), then B_{r−R}(G,t(G)) ≅ B_{r−R}(H,t(H)) since moving the root by ≤R only affects balls by R. This yields mutual continuity and topological equivalence.
+
+E. A natural coarser, root-insensitive pseudometric and two density results
+
+Define on X a symmetric pseudometric d_any by
+ d_any(x,y) = max{ 2^{-sup{r: ∃σ B_r(x) ≅ B_r(y,σ)}}, 2^{-sup{r: ∃ρ B_r(y) ≅ B_r(x,ρ)}} }.
+Here B_r(x) denotes the rooted r-ball of x=(G,ρ), and the sup is over re-rootings in the other graph. Two rooted graphs are close if each one’s r-ball occurs somewhere in the other and vice versa.
+
+Lemma E1 (1-way infinite bridges are dense under d_any in ≤D). Fix D>2. For any x=(G,ρ) and r, there exists H with a 1-way infinite bridge and σ∈V(H) such that B_r(H,σ) ≅ B_r(G,ρ) and d_any(x,(H,σ)) ≤ 2^{-r}.
+Proof. Let F=B_r(G,ρ). Build H by taking a copy of F, pick a boundary vertex v with deg_F(v) < D, attach a new vertex a to v by a single edge e and extend a by an infinite ray outside the r-ball. Complete the rest beyond distance r to a connected infinite graph with maximum degree ≤ D, ensuring no additional edges touch vertices inside distance r. Then e is a bridge whose outside component is infinite, and H contains σ (the copy of ρ) with the same r-ball. Symmetry of the construction gives the stated bound.
+
+Lemma E2 (bridgeless graphs are dense under d_any in ≤D). Fix D>2. For any x=(G,ρ) and r, there exists a bridgeless H of maximum degree ≤ D and σ∈V(H) with B_r(H,σ) ≅ B_r(G,ρ), hence d_any(x,(H,σ)) ≤ 2^{-r}.
+Proof. Let F=B_r(G,ρ), boundary L=L_r. Take an infinite 2-edge-connected scaffold S with degrees ≤ D and with infinitely many vertices of degree ≤ D−1 to serve as ports (examples: for D≥4, the 2D grid with some edges subdivided to create degree-2 ports; for D=3, the standard infinite ladder, which is 2-edge-connected and has many degree-2 vertices). Form H by taking a disjoint copy of F and of S. For each v∈L, attach one new edge from v to a distinct port p(v)∈V(S), choosing the ports pairwise far apart to keep degrees ≤ D. For each unordered pair {v,w} in a fixed pairing of L, select an edge-disjoint path P_{v,w} in S between p(v) and p(w) (possible since only finitely many ports are used) and ensure v—p(v)—P_{v,w}—p(w)—w plus an internal v–w path in F forms a cycle through both crossing edges. All crossing edges from L into S lie on cycles, hence are not bridges. Inside F we do not alter edges; in S all edges lie on cycles by construction. Therefore H is bridgeless. Since edges incident to L join at distance r+1 from ρ, B_r(H,σ) ≅ F for σ the copy of ρ. Degrees remain ≤ D because each v∈L gains at most one new edge (δ(v)≥1) and each chosen port has degree raised by at most 1. ∎
+
+Consequences. Under d_any, both “has a 1-way infinite bridge” and “is bridgeless” are dense. Determining typicality now hinges on whether (X/∼,d_any) is Baire; if it is, neither class can be comeagre. Establishing the Baire property (or failing it) is the key remaining step for this candidate topology.
+
+F. Obstacles and checks
+
+- The meagre equivalence in A4 required only that A has the Baire property and used the fact (A3) that preimages preserve nowhere denseness both ways. This avoids the incorrect claim that saturating a nowhere dense set remains nowhere dense.
+- In C1 we carefully ensured F′ is an (r+1)-ball by saturating all vertices in L to degree D within F′; the counting choice S(F′)=1 then forces a 1-edge cut in every D-regular extension.
+- In E2, we used only finitely many ports of S, making degree control trivial. 2-edge-connectedness of S and the explicit cycle formation guarantee absence of bridges.
+
+Next steps
+
+- Prove that (X/∼,d_any) is (or is not) a Baire space. One approach: characterize basic open sets via finite bidirectional appearance constraints and apply the Baire category theorem via a complete metric reformulation.
+- Extend the no-go region (B2) to larger “finite-lens” topologies where basic opens are defined by finitely many rooted balls around finitely many distinguished vertices; the parity gadget C1 still applies.
+- Explore other natural root-insensitive metrics on Y such as the pattern-occurrence metric d_occ(G,H)=∑_F w_F |1_{F occurs in G}−1_{F occurs in H}| (w_F summable). Analyze bridges’ category there.
+- Formalize a Banach–Mazur game on unrooted balls (Y) to give root-free proofs of meagreness for further properties (e.g., 2-way infinite bridges) and to test robustness beyond Borel/analytic sets.
+
+
+
+=== Prover 2 Output ===
+
+Ideas
+
+- Conjecture 1 (root‑invariance): Formalize the unrooted space Y and the forgetful map π:X→Y (X=𝔾_{•,D}). Prove π is continuous, open, surjective. Then establish two transfer principles: (i) A⊆Y is nowhere dense iff π^{-1}(A)⊆X is nowhere dense; (ii) for sets with the Baire property, A is meagre in Y iff π^{-1}(A) is meagre in X. This settles Conjecture 1 for all natural (Borel/analytic) unrooted properties.
+- Conjecture 2 (metric sensitivity): Strengthen the “no‑go” region by showing typicality is invariant across section metrics (bounded re‑rootings). For odd D, repair the gadget argument that forces a bridge inside any cylinder; this extends invariance to many “finite‑lens/local” variants. Propose a rootless “occurrence topology” as a genuinely non‑local alternative and analyze density of bridgeful graphs there.
+
+Rigorous statements and proofs
+
+Setup. Fix D≥2. Let X:=𝔾_{•,D} be the space of countably infinite, connected, rooted graphs with Δ≤D (or =D) under the local metric d_{•}. Let 𝔽 be the countable set of rooted r‑ball isomorphism types over all r.
+
+Unrooted space and forgetful map.
+- Define Y to be the set of countably infinite, connected, unrooted graphs with Δ≤D (or =D), endowed with the rootless local topology generated by the subbasis U_Y(F):={G∈Y: ∃v∈V(G) with B_r(G,v)≅F}, F∈𝔽. Define π:X→Y by π(G,ρ)=G.
+
+Lemma 1 (π is continuous, open, surjective).
+- Continuity: π^{-1}(U_Y(F))=𝔾_{•}^{F} is a cylinder, hence open in X.
+- Openness: For any cylinder U_X(F)=𝔾_{•}^{F}⊆X, π(U_X(F))=U_Y(F) by definition, so π maps basic open sets to open sets; hence π is open.
+- Surjectivity: Any G∈Y has some root ρ, so (G,ρ)∈X and π(G,ρ)=G.
+
+Lemma 2 (X is Baire; in fact compact metric).
+Proof. For Δ≤D: For each r, there are finitely many rooted r‑balls, so by a diagonal argument any sequence has a convergent subsequence in the local metric; the limit is locally finite, connected, and infinite (since otherwise some radius would stabilize in the sequence, contradicting infinitude). Thus X is compact. For Δ= D‑regular subspaces, closedness inside Δ≤D follows from local degree constraints and connectivity; hence compact. Compact metric implies Baire.
+
+Proposition 3 (Nowhere‑denseness transfers through π). Let A⊆Y. Then A is nowhere dense in Y iff π^{-1}(A) is nowhere dense in X.
+Proof. Suppose π^{-1}(A) is not nowhere dense in X. Then ∃ nonempty open U⊆X with U⊆cl_X(π^{-1}(A)). Since π is open and continuous, π(U) is nonempty open in Y and π(U)⊆π(cl_X(π^{-1}(A)))⊆cl_Y(π(π^{-1}(A)))⊆cl_Y(A). Hence cl_Y(A) has nonempty interior, so A is not nowhere dense. Conversely, if A is not nowhere dense, take nonempty open V⊆cl_Y(A). Then π^{-1}(V) is open nonempty and π^{-1}(V)⊆cl_X(π^{-1}(A)), so π^{-1}(A) is not nowhere dense.
+
+Proposition 4 (Meagreness equivalence for sets with the Baire property). Assume X,Y are Baire (true by Lemma 2 for our spaces). If A⊆Y has the Baire property, then A is meagre in Y iff π^{-1}(A) is meagre in X.
+Proof. If A is meagre, then A=⋃_n N_n with N_n nowhere dense; Proposition 3 yields π^{-1}(N_n) nowhere dense, so π^{-1}(A) is meagre. Conversely, assume π^{-1}(A) is meagre. Write A=UΔM with U open and M meagre (Baire property). Then π^{-1}(A)=π^{-1}(U)Δπ^{-1}(M). Since π^{-1}(M) is meagre and π^{-1}(A) is meagre, π^{-1}(U) is meagre. But X is Baire, so the only open meagre set is ∅; hence π^{-1}(U)=∅, and because π is surjective, U=∅. Therefore A=M is meagre.
+
+Corollary 5 (Conjecture 1 holds for Borel/analytic properties). For any property P of unrooted graphs (Borel/analytic), S_P:=π^{-1}(T_P) is nowhere dense (resp. meagre) in X iff T_P is nowhere dense (resp. meagre) in Y; thus the smallness status does not depend on the root.
+
+Section metrics and bounded re‑rooting invariance.
+- A section is a map s:Y→X with π∘s=Id_Y (i.e., a rule choosing a root). Define d_s(G,H):=d_{•}((G,s(G)),(H,s(H))).
+
+Lemma 6 (Bounded re‑rooting equivalence). Let s,t be two sections such that ∃N with dist_G(s(G),t(G))≤N for every G. Then the identity map Id:(Y,d_s)→(Y,d_t) is a homeomorphism; in particular, meagre/comeagre and nowhere‑dense sets coincide under d_s and d_t.
+Proof. Fix r. If d_s(G,H)<2^{-(r+N)}, then B_{r+N}(G,s(G))≅B_{r+N}(H,s(H)). Moving roots by ≤N, we get B_r(G,t(G))≅B_r(H,t(H)), so d_t(G,H)≤2^{-r}. This shows continuity of Id and its inverse (swap s,t).
+
+Odd‑D bridge forcing gadget inside cylinders (repair of the =D odd case).
+- For a finite connected partial subgraph H (the current finite ball we fix), define the boundary deficit S(H):=∑_{v∈V(H)}(D−deg_H(v)). S(H) equals the number of edges from H to its complement in any D‑regular extension; crucially:
+
+Fact 7 (Parity of deficit). For odd D, S(H)≡|V(H)| (mod 2).
+Proof. S(H)=D|V(H)|−2|E(H)|, so S(H)≡|V(H)| (mod 2).
+
+Gadgets.
+- Pair‑reduction gadget (K_{D+1}−e): Let W be K_{D+1} with one edge uv removed. deg_W(u)=deg_W(v)=D−1, others have degree D. Attaching u and v to two boundary vertices x,y of H (by edges xu,yv) reduces the deficits at x,y by 1 each; all vertices in W are now degree D. Net effect: S(H) decreases by 2.
+- Parity‑flipper vertex: Add a new vertex z and connect it to two boundary vertices x,y of H. Then deg_H increases by 1 at x,y, reducing S by 2, while the new vertex contributes D−2 to S. Net effect: ΔS=D−4, which is odd for odd D. This flips the parity of S.
+
+Lemma 8 (Forcing a unique crossing: S=1). Let D be odd and H_0 be any rooted r‑ball in a D‑regular graph. Then there exists a finite extension H⊇H_0 (i.e., add finitely many vertices/edges outside H_0, keeping degrees ≤D) such that S(H)=1 and H is connected.
+Proof. Let S_0:=S(H_0)≥1 (H_0 cannot be closed in an infinite D‑regular graph). If S_0 is even, apply the parity‑flipper once to obtain S odd. Then, while S>1, repeatedly apply the pair‑reduction gadget to any two boundary vertices with positive deficit. Each application reduces S by 2 and keeps all degrees ≤D. This process terminates with S=1.
+
+Proposition 9 (Bridge forcing in odd‑regular spaces). In 𝔾_{•,=D} with odd D>2, given any cylinder 𝔾_{•}^{F} (an r‑ball), there exists a refinement cylinder 𝔾_{•}^{F′} such that every extension of F′ to a D‑regular graph contains a bridge. Hence the set of bridgeless graphs is nowhere dense in any topology whose basic opens are rooted cylinders (in particular, in d_{•}).
+Proof. Apply Lemma 8 to H_0:=F to obtain H with S(H)=1. Let r′ be the radius of H. Let F′ be the rooted r′‑ball realized by H. For any D‑regular graph G′ extending F′, the cut δ(V(H)) has size exactly 1 by S(H)=1. Therefore the unique edge in δ(V(H)) is a bridge in G′.
+
+Consequences and no‑go region for Conjecture 2
+
+- Cylinder‑based invariance: The proofs of Theorems 14–17 (and Proposition 9) use only cylinder refinements. Therefore any alternative metric on X whose open sets are unions of cylinders (i.e., which induces the Benjamini–Schramm cylinder topology) yields identical Baire‑category outcomes. In particular, bridgeless graphs remain nowhere dense under all such metrics, and cannot be typical.
+- Section metrics (bounded re‑roots) also preserve typicality by Lemma 6.
+
+Candidate non‑local topology for Conjecture 2
+
+Define the occurrence (rootless) topology 𝒯_occ on Y: subbasis sets are U_Y(F) for F∈𝔽 (i.e., “F occurs somewhere”). Equivalently, the map Φ:Y→2^{𝔽}, Φ(G)={F∈𝔽 : F occurs in G}, embeds Y into Cantor space; 𝒯_occ is the subspace topology. This space is compact (hence Baire) as a closed subset of 2^{𝔽} defined by obvious consistency constraints (if an (r+1)‑ball occurs, then its r‑truncation occurs; connectedness of G can be ensured by requiring occurrence of finite connected balls around a common anchor—details to be finalized). Pull back 𝒯_occ to X via π to get a rooted alternative metric.
+
+Lemma 10 (Density of 1‑way infinite bridges in 𝒯_occ). Fix D≥3. For any finite list of required occurrences F_1,…,F_k, there exists a countably infinite connected graph G with Δ≤D that contains each F_i somewhere and has a 1‑way infinite bridge (e.g., a pendant infinite ray attached to a finite core). Hence the set B_1 of graphs with a 1‑way infinite bridge is dense in (Y,𝒯_occ).
+Sketch. Realize the F_i disjointly inside a finite connected core while respecting degree bounds (use fresh vertices to avoid conflicts). Attach a pendant infinite ray to a vertex with spare degree; this creates a 1‑way infinite bridge. Complete the remainder to a connected infinite Δ≤D graph.
+
+Remarks/obstacles.
+- For 𝒯_occ, forcing existence of a bridge via finite positive occurrence constraints appears impossible: existence of a bridge is not monotone under adding more edges, but 𝒯_occ opens only constrain positive occurrences. Thus we currently have density of B_1 but not meagreness of its complement, nor comeagreness of B_1. If both B_1 and its complement are dense (plausible), neither is typical in this topology.
+- Establishing that the image Φ(Y) is closed in 2^{𝔽} (hence compact) needs a standard compactness/consistency check; we have not yet written full details for connectivity within 𝒯_occ.
+
+Examples and sanity checks
+
+- Parity check: For D=3 and H a tree on m vertices, S(H)=3m−2(m−1)=m+2, which is odd iff m is odd, agreeing with Fact 7.
+- Bounded re‑rooting: On the 3‑regular tree T_3, choose s(G)=an arbitrary root; take t(G)=a neighbor of s(G). Then N=1 and d_s,d_t are homeomorphic by Lemma 6.
+
+Obstacles
+
+- Meagreness transfer in full generality (without the Baire property) typically fails; our result (Proposition 4) leverages Baire property and compactness of X,Y. This suffices for all natural graph properties considered so far (Borel/analytic).
+- The 𝒯_occ topology’s category structure for “bridgeless” remains unsettled; we only have a density result for 1‑way bridges. Proving either class is comeagre would resolve a special case of Conjecture 2 (in the negative for “bridgeless typical”).
+
+Next steps
+
+- Move Lemmas 1–2, Propositions 3–4, and Lemma 6 into proofs.md as the core resolution of Conjecture 1 and the bounded re‑rooting invariance tool for Conjecture 2.
+- Write the full, combinatorially explicit proof of Proposition 9 (odd‑D bridge forcing) with a precise description of the pair‑reduction gadget placement and termination measure S(H)→1, and ensure the final H is a ball F′.
+- Formalize 𝒯_occ: characterize Φ(Y) as a closed subshift of 2^{𝔽}, verify Baire/compactness rigorously, and analyze whether “bridgeless” and its complement are both dense (if yes, neither typical), or whether one side is meagre.
+- Explore other non‑local topologies (e.g., quasi‑isometry‑based) on Δ≤D and test density/typicality of bridges via finite forcing plus coarse constraints on ends.
+
+Takeaways
+
+- Conjecture 1 holds for all Borel/analytic properties of unrooted graphs via the forgetful map π (nowhere‑denseness and meagreness equivalence).
+- Conjecture 2: Typicality is invariant across all cylinder‑based metrics and bounded re‑rooting section metrics; bridgeless graphs cannot become typical there. A natural alternative “occurrence topology” yields different density behavior (1‑way bridges dense), but typicality remains open; resolving its Baire‑category for bridges is a promising route.
+
+
+=== Prover 3 Output ===
+
+Ideas
+- Settle Conjecture 1 rigorously via the forgetful map π from rooted to unrooted space: transfer of nowhere‑denseness and meagreness (for Baire‑property sets) is exact. This fixes earlier saturation pitfalls.
+- Strengthen the “no‑go” region for Conjecture 2 by constructing explicit cylinders that force a bridge:
+  • For ≤D: trivial leaf cylinder gives interior for “has a bridge”.
+  • For =D and odd D: build a D‑regular, radius‑R cylinder with exactly one edge leaving the ball in any extension (hence a 1‑way infinite bridge). This repairs the previously flawed gadget.
+- Add a bounded re‑rooting invariance lemma: section metrics differing by uniformly bounded re‑rooting are topologically equivalent to d_•.
+- Outline a coarser “exist‑somewhere” topology τ_any (initial topology via π) and show density of both “has a 1‑way infinite bridge” and “is bridgeless” therein; leave Baire property open.
+
+Rigorous results and proofs
+1) Root‑invariance via π
+Spaces:
+- X = \mathbf{G}_{\bullet,D} with the rooted local (Benjamini–Schramm) topology.
+- Y = unrooted, connected, countably infinite graphs with Δ≤D (or =D), with the rootless local topology generated by sets U_F^Y = {G: ∃v, B_r(G,v)≅F}.
+- π: X→Y, π(G,ρ)=G.
+
+Lemma A (π is continuous, open, surjective).
+Proof. For a rooted r‑ball F, π^{-1}(U_F^Y)=U_F^X is open in X (union of rooted cylinders at all roots realizing F). Conversely, π(U_F^X)=U_F^Y is open in Y. Surjectivity is clear. ∎
+
+Proposition B (nowhere‑denseness transfers exactly).
+For any A⊆Y: A is nowhere dense in Y iff π^{-1}(A) is nowhere dense in X.
+Proof. (⇒) Let A be nowhere dense in Y. For any nonempty open U⊆X, π(U) is nonempty and open in Y; pick nonempty open V⊆π(U) with V∩A=∅. Then U∩π^{-1}(V) is nonempty open and disjoint from π^{-1}(A). (⇐) If π^{-1}(A) is nowhere dense and W⊆Y is nonempty open, then π^{-1}(W) is nonempty open; choose nonempty open U'⊆π^{-1}(W) with U'∩π^{-1}(A)=∅. Then π(U')⊆W is nonempty open with π(U')∩A=∅. ∎
+
+Corollary C (meagreness transfers for Baire‑property sets).
+If A⊆Y has the Baire property, then A is meagre in Y iff π^{-1}(A) is meagre in X.
+Proof. (⇒) Preimages of meagre sets under continuous maps are meagre. (⇐) Suppose π^{-1}(A) is meagre but A is not; since A has the Baire property, some nonempty open V⊆Y has A∩V comeagre. Then π^{-1}(A∩V)=π^{-1}(A)∩π^{-1}(V) is comeagre in nonempty open π^{-1}(V), contradiction. ∎
+
+Why useful: This settles Conjecture 1 for all “natural” P (Borel/analytic), including bridges, cut vertices, edge‑colouring, etc.; nowhere‑denseness holds even without Baire‑property assumptions.
+
+2) Bounded re‑rooting invariance (section metrics)
+Lemma D. Let T:X→X map (G,ρ)↦(G,ρ') with d_G(ρ,ρ')≤B uniformly. Then T is a homeomorphism of (X,d_•) onto its image; in particular, d_• and the pullback metric via T induce the same topology.
+Proof. For each r, U_r(x)=\{y: B_r(y,root)≅B_r(x)\} maps into U_{r-B}(T(x)) and contains U_{r+B}(T(x)). Thus T and T^{-1} are continuous. ∎
+
+3) A cut‑size identity
+Lemma E. Let H be a finite induced subgraph of a D‑regular supergraph G. Then
+|δ_G(V(H))| = \sum_{v∈V(H)} (D - deg_H v) = D|V(H)| - 2|E(H)|.
+Proof. Sum degrees in G over V(H) equals D|V(H)|, which splits into 2|E(H)| plus edges of δ_G(V(H)). ∎
+
+4) Odd‑D regular bridge‑forcing cylinder (repair of gadget)
+Proposition F (bridge‑forcing in =D, D odd ≥3). Fix any rooted r‑ball F that occurs in \mathbf{G}_{\bullet,=D}. There exists R≥r and an R‑ball F' extending F such that:
+(i) every vertex at distance <R from the root in F' has degree D (in F');
+(ii) S(F'):=\sum_{x∈L_R} (D - deg_{F'} x) = 1;
+(iii) U_{F'}^X ≠ ∅ in \mathbf{G}_{\bullet,=D} and for every (G,ρ) with B_R(G,ρ)≅F', the unique edge of δ_G(V(B_R)) is a 1‑way infinite bridge.
+Proof. Start with F and write S_0=\sum_{v∈L_r}(D - deg_F v). We perform finitely many local extensions outside radius r using three operations that do not alter B_r:
+- Sprout S: choose a boundary vertex u with deficit ≥1 and attach a fresh vertex x adjacent to u. This increases S by D-2 and increases boundary size by 1.
+- D‑merge D: when there are ≥D distinct boundary vertices, add a fresh vertex y and connect y to D distinct boundary vertices; this reduces S by D and leaves y saturated.
+- Clique patch K: insert a K_{D+1}-e gadget with its two terminals joined to two boundary vertices; this reduces S by 2 and keeps all new vertices saturated.
+Because D is odd, every integer ≥ D-1 is a nonnegative combination 2α + Dβ. Choose a≥0 so that S_1:=S_0 + a(D-2) ≥ D and S_1-1 ≥ D-1. Then represent S_1-1 = 2α + Dβ. Perform a sprout S a times, then β times D‑merge, then α times K. This yields a finite extension F' with S(F')=1. At each step, vertices with distance < current radius are saturated; we take R to be the final maximal distance so all vertices at distance <R have degree D in F'. Lemma E gives |δ(V(B_R))|=S(F')=1 in any D‑regular extension. Thus the sole crossing edge is a bridge; the component inside is finite, so it is a 1‑way infinite bridge. Existence of an extension follows by attaching an infinite D‑regular completion beyond the unique crossing edge (start at its external endpoint and grow a D‑regular tree‑of‑gadgets to fill degrees). ∎
+
+Corollary G (robust no‑go for “bridgeless typical” in cylinder‑finer topologies).
+- In ≤D: the 1‑ball with a leaf at the root defines a nonempty cylinder contained in “has a bridge”, so “has a bridge” has nonempty interior; bridgeless graphs cannot be comeagre under any topology containing all cylinders as open.
+- In =D, D odd: Proposition F gives a nonempty cylinder U_{F'}^X contained in “has a (1‑way infinite) bridge”; hence the bridgeless set is not comeagre under any topology that contains cylinders as open (in particular, under any metric topologically ≥ the Benjamini–Schramm topology).
+
+Remark: For =D, D even, 1‑way infinite bridges are impossible; the analogous cylinder‑forcing for bridges remains open. However, a cylinder forcing a cut vertex exists for all D (by concentrating all crossing edges at a single boundary vertex c), recovering Theorem 15 as “has a cut vertex” has interior.
+
+5) Coarser “exist‑somewhere” topology τ_any
+Definition. Let τ_any on X be the initial topology w.r.t. π, i.e., the coarsest topology making all sets π^{-1}(U_F^Y)= { (G,ρ): ∃v, B_r(G,v)≅F } open.
+
+Density observations.
+- “Has a 1‑way infinite bridge” is dense in (X,τ_any): given any basic open π^{-1}(U_F^Y), extend a graph containing F by attaching a pendant infinite ray somewhere disjoint from the F‑region; the result remains in π^{-1}(U_F^Y) and has a 1‑way infinite bridge.
+- “Bridgeless” is also dense: given F, build an infinite 2‑edge‑connected (every edge lies on a cycle) graph containing F. A constructive completion proceeds by iteratively saturating boundary deficits while closing each newly created edge into a cycle (attach pairs of disjoint paths that meet to form cycles), ensuring no bridges arise. Thus π^{-1}(U_F^Y) meets the bridgeless set.
+Open issue: Baire property of (X,τ_any) is unknown; if it were Baire, neither “bridgeless” nor “has a 1‑way infinite bridge” could be comeagre.
+
+Examples and sanity checks
+- For D=3, starting with any r‑ball F, S_0≥1. If S_0=2, choose a=1 sprout to get S_1=3; then take one D‑merge (D=3) to reduce to S=0, followed by adding one K_{4}-e (reduces by 2) is impossible from 0; instead choose a=2 to get S_1=5 and then reduce by D (3) and by 2 to reach 0; adjust to reach 1 as per the general scheme. Concrete small instances can be enumerated to verify the arithmetic S→1.
+- Lemma E gives parity obstructions: in =D with even D, 1‑edge cuts from a finite inside are impossible (D|V(H)|−1 odd), agreeing with the need for the cut‑vertex rather than bridge gadget.
+
+Obstacles
+- Even D regular case: forcing a 2‑way infinite bridge via a cylinder remains nontrivial. A 2‑edge cut of size 2 is cylinder‑forceable, but it does not certify that each crossing edge is a bridge. We leave a targeted bridge gadget for even D as an open subproblem.
+- τ_any: proving Baire (or identifying a natural complete metric that induces it) is delicate; avoid Polish claims until settled.
+
+Next steps
+- Move Proposition B and Corollary C (with Lemma A) into proofs.md as the resolution of Conjecture 1 for Borel (and more generally Baire‑property) properties; note exact equivalence for nowhere‑denseness without measurability assumptions.
+- Add Lemma E and Proposition F with full details to proofs.md; this repairs the odd‑D regular gadget and strengthens the no‑go for Conjecture 2 in cylinder‑compatible metrics.
+- For even D in =D: attempt a direct cylinder that forces a 2‑way infinite bridge (or prove impossibility), or else strengthen the cut‑vertex interior argument to show further robust “no‑go” for changing typicality by reasonable metrics.
+- Formalize τ_any via an explicit metric on X (e.g., d_any(x,y)=2^{−\sup\{r: ∃v,w with B_r(x)≅B_r(y)\}} as a pseudo‑metric) and study its Baire status; if Baire, deduce neither bridgefulness nor bridgelessness is typical there.
+- Record bounded re‑rooting invariance (Lemma D) in proofs.md for use across section metrics.
+
+
+
+=== Prover 4 Output ===
+
+Focus of this round
+
+- Fix the flawed step in the FLP (finite-lens) no-go for D-regular, D odd, by giving an explicit, pinned, degree-exact gadget that forces a bridge in every completion.
+- Formalize and record the π-transfer for Conjecture 1 (root-invariance): nowhere denseness and meagreness (for Baire-property sets) are preserved under the forgetful map from rooted to unrooted spaces.
+- Add a bounded re-rooting invariance lemma for section metrics.
+- Give a clean no-go for any finer topology (than BS) to make bridgeless typical.
+- Provide a rootless-local coarser proximity with a density result for 1-way infinite bridges; Baire status left open.
+
+1) Conjecture 1: π-transfer formalized
+
+Let X=𝔾_{\bullet,D} with the Benjamini–Schramm topology τ_•, and let Y be the set of unrooted, countably infinite, connected graphs with Δ≤D (or =D), endowed with the rootless-local topology τ₀ generated by cylinders U_F^Y={G∈Y: ∃v, B_r(G,v)≅F}.
+
+Lemma 1.1 (π is continuous, open, surjective). Let π:X→Y, π(G,ρ)=G. Then π is continuous and open, and surjective.
+Proof. Continuity: π^{-1}(U_F^Y)=⋃_{v∈V(F)} 𝔾_{\bullet}^{(F,v)}, an open union in τ_•. Openness: If V⊆X is open and (G,ρ)∈V, then for some r we have 𝔾_{\bullet}^{B_r(G,ρ)}⊆V; but π(𝔾_{\bullet}^{B_r(G,ρ)})=U_{B_r(G,ρ)}^Y is open, hence π(V) is open. Surjectivity is immediate.
+
+Proposition 1.2 (Root-invariance of nowhere denseness). For any A⊆Y, A is nowhere dense in (Y,τ₀) iff π^{-1}(A) is nowhere dense in (X,τ_•).
+Proof. If A is nowhere dense, then int(cl(A))=∅; continuity implies cl(π^{-1}(A))⊆π^{-1}(cl(A)); openness implies int(π^{-1}(U))⊆π^{-1}(int(U)). Thus int(cl(π^{-1}(A)))⊆π^{-1}(int(cl(A)))=∅. Conversely, if π^{-1}(A) is nowhere dense and A had nonempty interior, choose nonempty open U⊆A, then π^{-1}(U) is nonempty open ⊆ π^{-1}(A), contradiction.
+
+Proposition 1.3 (Root-invariance of meagreness for BP sets). Suppose A⊆Y has the Baire property in τ₀ (e.g., A is Borel/analytic). Then A is meagre in Y iff π^{-1}(A) is meagre in X.
+Proof. If A is comeagre in Y, then there exists a dense G_δ set G⊆A; by openness and continuity, π^{-1}(G) is dense G_δ in X, so π^{-1}(A) is comeagre. Conversely, if π^{-1}(A) is comeagre but A were meagre, then Y\A contains a dense G_δ H; by openness, π^{-1}(H) is dense G_δ in X disjoint from π^{-1}(A), contradiction. The meagre direction is the complement.
+
+Conclusion. Conjecture 1 holds for nowhere denseness (all A) and for meagreness for all sets with BP. In particular, for all natural graph properties P considered here, smallness is independent of the root.
+
+2) Bounded re-rooting invariance for section metrics
+
+Let s,t:Y→X be “sections” selecting a root in each unrooted graph. Define d_s(G,H)=d_•( (G,s(G)), (H,s(H)) ).
+
+Lemma 2.1 (Uniformly bounded re-rootings give equivalent topologies). If there exists K∈ℕ such that dist_G(s(G),t(G))≤K for all G∈Y, then the identity map (Y,d_s)→(Y,d_t) is a homeomorphism. In fact, d_t ≤ 2^{K}·d_s and d_s ≤ 2^{K}·d_t.
+Proof. If B_r(G,s(G))≅B_r(H,s(H)), then B_{r-K}(G,t(G))≅B_{r-K}(H,t(H)) for r≥K; hence d_t((G),(H))≤2^{K}·d_s((G),(H)). Symmetry yields the other inequality.
+
+Why useful: typicality cannot change across such section metrics; partial positive progress on Conj. 1 beyond π-transfer.
+
+3) FLP no-go for D-regular (D odd): corrected gadget
+
+Finite-lens property (FLP): A metric d on X=𝔾_{\bullet,D} has FLP if every d-open neighborhood contains a multi-ball cylinder W(M) determined by finitely many marked vertices and a finite radius, i.e., all completions must realize a specified finite marked graph M on the union of their radius-r balls around those marks.
+
+Theorem 3.1 (Bridgeless is nowhere dense under any FLP metric; =D odd). Fix odd D≥3. In (X,d) with FLP, BrFree={bridgeless graphs} is nowhere dense.
+
+Explicit bridge-forcing seed. For odd D≥3, let n=D+2 (odd). Take the complete graph K_n and label distinct vertices x,a,b, and the remaining set W (|W|=D−1, which is even). Form S by removing the two edges xa, xb and removing a perfect matching on W. Then in S: deg(x)=D−1 and for all v≠x, deg(v)=D. S is connected.
+
+Refinement construction. Let O be a nonempty d-open set; by FLP O⊇W(M) for some finite marked M. Choose a fresh region (disjoint from M’s marks and their r-balls), and graft an isomorphic copy of S there. Define M′ by adding all vertices of S to the marked finite pattern and pinning the full radius-1 neighborhood of each vertex of S exactly as in S. Let W′=W(M′); then W′ is a nonempty d-open set with W′⊆O.
+
+Bridge in every completion. For any (G,ρ)∈W′, all vertices v∈S\{x} already have D neighbors entirely inside S (pinned), hence cannot have external neighbors (the space is =D). The vertex x has exactly D−1 neighbors in S (pinned), so in any D-regular completion it must receive exactly one outside neighbor y∉S. Therefore, the only edge connecting S to G\S is xy. As S is connected, the edge xy is a bridge in G; removing it separates S from G\S.
+
+Therefore O contains a nonempty open subset disjoint from BrFree. As O was arbitrary, BrFree is nowhere dense.
+
+Remarks.
+- The parity obstruction explains the even-D regular case: in a D-regular finite S, the number of cross edges |δ(S)|≡D|S| (mod 2), so a single cross edge is impossible for even D. This aligns with the abstract’s shift to cut vertices when D is even.
+- The ≤D case needs no parity gadget: attach a pendant vertex z to any boundary vertex b with deg(b)<D inside the cylinder; pin z’s radius-1 neighborhood to force bz to be a bridge in all completions. This reproduces the known argument under FLP.
+
+Corollary 3.2. Under any FLP metric on 𝔾_{\bullet,=D} for odd D (and on 𝔾_{\bullet,≤D} for all D≥3), bridgeless graphs are not typical (indeed, nowhere dense). Hence, Conjecture 2 has a strong negative answer on the entire FLP class.
+
+4) Finer-topology no-go
+
+Proposition 4.1 (Nowhere denseness persists under refinement). If τ₂ refines τ₁ on the same set X and S is nowhere dense in (X,τ₁), then S is nowhere dense in (X,τ₂).
+Proof. cl_{τ₂}(S)⊆cl_{τ₁}(S) and int_{τ₂}(·)⊆int_{τ₁}(·); thus int_{τ₂}(cl_{τ₂}(S))⊆int_{τ₁}(cl_{τ₁}(S))=∅.
+
+Consequence: No metric finer than Benjamini–Schramm can make BrFree typical.
+
+5) A coarser, rootless-local proximity and a density result
+
+Define on Y (unrooted) the topology τ_any generated by the basic opens U_F^Y={G: ∃v, B_r(G,v)≅F}. This is coarser than the quotient of τ_• and is “root-insensitive”.
+
+Lemma 5.1 (Density of 1-way infinite bridges in τ_any; ≤D). For D≥3 in 𝔾_{\le D}, the set B₁ of graphs with a 1-way infinite bridge is dense in (Y,τ_any).
+Proof. Let U_F^Y be a nonempty basic open. Take any infinite completion G₀ containing a copy of F. Outside that copy, add a new infinite ray R and connect its initial vertex to an interior vertex u of F by a single edge e (keeping degrees ≤D by choosing u with spare capacity or by locally modifying within a bounded-degree buffer). Complete the rest arbitrarily preserving degree bound and connectivity. Then e is a 1-way infinite bridge, and the r-ball around the chosen vertex in F is unchanged, so the resulting graph lies in U_F^Y. Hence B₁ is dense.
+
+Remark. A symmetric argument often shows “bridgeless” is also dense in τ_any (by completing to a 2-edge-connected infinite graph while preserving the local pattern), suggesting that typicality may not stabilize under such coarse topologies. Determining whether (Y,τ_any) is Baire (or Polish) is open here; if it were Baire, two disjoint dense sets cannot both be comeagre, constraining typicality.
+
+6) Examples, checks, and counterchecks
+
+- Existence of the seed S for D odd was made explicit via K_{D+2} minus a matching and two incident edges; it satisfies deg(x)=D−1, others D, and |V(S)|=D+2 is odd, passing the handshake parity check.
+- Even D regular: a single external edge from a finite pinned region S to its complement contradicts |δ(S)| even; thus the “single-slot” mechanism is obstructed, explaining the qualitative difference noted in the abstract (switch to cut vertices).
+- Section metrics: if two root selectors differ by O(1) distances, category statements are unchanged by Lemma 2.1.
+
+Obstacles and open directions
+
+- For Conjecture 2 positive direction, any metric that could make BrFree typical must be strictly coarser than BS and outside FLP. Natural candidates (τ_any above) need a careful analysis of Baire-ness; without Baire, typicality is ill-behaved.
+- Global re-rootings that are not continuous (nonlocal) do not preserve category a priori; Conjecture 1 as a universal statement beyond BP sets on the unrooted space might require a descriptive-set-theoretic refinement.
+
+Next steps (actionable)
+
+- Move Lemma 1.1, Propositions 1.2–1.3 to proofs.md to settle Conjecture 1 for BP sets.
+- Add Theorem 3.1 and Corollary 3.2 (with the explicit S gadget) to proofs.md, replacing the flawed “regular bridge gadget” step.
+- For τ_any (and similar rootless local topologies), study: (i) is τ_any Baire on the degree-bounded unrooted space? (ii) are BrFree and B₁ both dense? If yes and Baire, neither is typical; if not Baire, devise an alternative coarser but Baire metric.
+- Extend FLP no-go to the even D regular setting for “no cut vertex” as the forced property (adapting the single-slot scheme to a “single-slot vertex-cut” gadget consistent with even parity).
+
+Why these are useful
+
+- The corrected FLP argument eliminates a critical gap and broadly rules out Conjecture 2 within the most natural class of local metrics.
+- The π-transfer crystallizes Conjecture 1 into a general, reusable tool independent of the choice of root.
+- The bounded re-rooting lemma secures robustness across section metrics.
+- The rootless-local density result identifies a concrete coarser regime where behavior changes, guiding the search for a metric with genuinely different typicality.
+
+
+
+=== Prover 5 Output ===
+
+Ideas
+
+- Set up a clean rooted→unrooted quotient framework and prove that nowhere‑denseness is root‑invariant, and meagreness is root‑invariant for sets with the Baire property. This settles Conjecture 1 for all natural graph properties handled so far (bridges, cut vertices, χ′=D, etc.).
+- Strengthen the “no‑go” zone for Conjecture 2: any topology whose neighborhoods admit rooted cylinders as a neighborhood base inherits the uniform forcing arguments, hence “bridgeless” remains nowhere dense. Provide a corrected odd‑D regular gadget to close the gap flagged in the feedback.
+- Test a coarser “tail” topology: show that the set “has a bridge” has nonempty interior there, so bridgeless cannot be comeagre if the space is Baire; thus tail‑type metrics cannot make bridgeless typical.
+
+Quotient framework and root‑invariance (Conjecture 1)
+
+Let X=\mathbf{G}_{\bullet,D} with the Benjamini–Schramm (BS) metric topology. Let Y be the set of unrooted, connected, countable graphs with Δ≤D (or =D) endowed with the rootless‑local topology generated by the subbasis {U_F^Y: F a rooted r‑ball, U_F^Y={G∈Y: ∃v B_r(G,v)≅F}}. Let π:X→Y be the forgetful map π(G,ρ)=G.
+
+Lemma 1 (quotient map; openness). π is continuous, open, surjective and Y carries the quotient topology of X under π: a set U⊆Y is open iff π^{-1}(U) is open in X.
+Proof. Continuity: π^{-1}(U_F^Y)=⋃_{v∈V(F)} \mathbf{G}_\bullet^{(F,v)} is open in X. Surjectivity is trivial. Openness: any open W⊆X is a union of cylinders; for x∈W pick a cylinder \mathbf{G}_\bullet^{F} with x∈\mathbf{G}_\bullet^F⊆W; then π(\mathbf{G}_\bullet^F)=U_F^Y is open and contains π(x), so π(W)=⋃ U_F^Y is open. Finally, by the previous two sentences, U⊆Y is open iff π^{-1}(U) is open, i.e., Y is the quotient of X by π.
+
+Lemma 2 (closure transport). For all A⊆Y, π^{-1}(\overline{A}^Y)=\overline{π^{-1}(A)}^X.
+Proof. This is the standard property of quotient maps: closed sets in Y are exactly those C with π^{-1}(C) closed in X; taking intersections over all such C⊇A yields the claim.
+
+Theorem 3 (nowhere‑dense equivalence). For all A⊆Y, A is nowhere dense in Y iff π^{-1}(A) is nowhere dense in X.
+Proof. (⇒) If A is nowhere dense then int_Y(\overline{A}^Y)=∅. Suppose int_X(\overline{π^{-1}(A)}^X)≠∅; pick a nonempty open U⊆\overline{π^{-1}(A)}^X. By Lemma 1, π(U) is nonempty open in Y and by Lemma 2, π(U)⊆\overline{A}^Y, contradicting emptiness of its interior. Hence int_X(\overline{π^{-1}(A)}^X)=∅.
+(⇐) If π^{-1}(A) is nowhere dense, assume int_Y(\overline{A}^Y)≠∅ with nonempty open V⊆\overline{A}^Y. Then π^{-1}(V) is nonempty open in X and by Lemma 2, π^{-1}(V)⊆\overline{π^{-1}(A)}^X, contradicting the nowhere denseness of π^{-1}(A).
+
+Corollary 4 (meagreness reflected for Baire‑property sets). Assume A⊆Y has the Baire property. Then A is meagre in Y iff π^{-1}(A) is meagre in X.
+Proof. (⇒) Immediate since preimages of nowhere dense sets are nowhere dense by Theorem 3. (⇐) Suppose π^{-1}(A) is meagre. By the Baire property, ∃ open U⊆Y with A△U meagre. Then π^{-1}(A)△π^{-1}(U) is meagre in X, so π^{-1}(U) is meagre+meagre = meagre. But π^{-1}(U) is nonempty open (if U≠∅), impossible in the Baire space X; hence U=∅ and A is meagre.
+
+Consequences. For any unrooted graph property P for which A_P={G∈Y: G has P} has the Baire property (e.g., Borel/analytic), S_P=π^{-1}(A_P) is nowhere dense/meagre in X iff A_P is nowhere dense/meagre in Y. This establishes Conjecture 1 in full generality for the properties treated in the extended abstract (and many others).
+
+Section metrics and bounded re‑rooting
+
+Let s be a section Y→X (chooses a root in each unrooted graph). Define a metric d_s on Y by d_s(G,H)=d_\bullet((G,s(G)),(H,s(H))).
+
+Proposition 5 (bounded re‑rooting equivalence). If sections s,t satisfy dist_G(s(G),t(G))≤R_0 for all G, then id:(Y,d_s)→(Y,d_t) is a homeomorphism. In particular, meagre/nowhere‑dense status is root‑invariant across such section metrics.
+Proof. If B_r(G,s(G))≅B_r(H,s(H)), then B_{r−R_0}(G,t(G))≅B_{r−R_0}(H,t(H)) for r≥R_0, giving continuity in both directions.
+
+A corrected odd‑D regular bridge‑forcing gadget
+
+We give an explicit and verifiable refinement of the parity gadget needed in the D‑regular, odd D case, usable in any argument that relies on rooted cylinders.
+
+Definition (port gadget Q_D). For odd D≥3, let Q_D be K_{D+1} with one missing edge ab. Then all vertices except a,b have degree D; vertices a,b have degree D−1.
+
+Lemma 6 (pairwise deficit reduction). Let F be a rooted r‑ball in a D‑regular graph (odd D), and let L be its boundary. Write f(v)=D−deg_F(v) for v∈L and δ(F)=Σ_{v∈L} f(v). If v≠w are boundary vertices with f(v),f(w)≥1, then by adding a disjoint copy of Q_D and identifying a with v, b with w (and keeping all Q_D internal edges), we obtain a refined ball F′ whose interior degrees remain ≤D, whose newly added vertices are all of degree D inside F′, and for which δ(F′)=δ(F)−2.
+Proof. After identification, a and b gain one extra incident edge (to v,w respectively), raising their degrees to D; all other vertices of Q_D already have degree D. Internal degrees of v and w in F increase by one, so f(v),f(w) each drop by one; no new boundary vertices are created; hence δ drops by 2.
+
+Proposition 7 (forcing δ=1). Starting from any rooted r‑ball F in a D‑regular graph with odd D, there exists r′ and a refinement F′ such that δ(F′)=1. Moreover, F′ is realizable as a rooted r′‑ball in \mathbf{G}_{\bullet,=D}.
+Proof. Repeatedly apply Lemma 6, pairing boundary vertices with positive deficits until no such pair remains. Each step preserves “internal degrees ≤D” and creates no new boundary vertices. Since δ(F)≡|V(F)|·D−2|E(F)|≡|V(F)| (mod 2) and D is odd, δ(F) is odd; hence the minimal achievable value under −2 decrements is 1. The result is a finite extension F′ with δ(F′)=1.
+
+Corollary 8 (bridge forcing in any D‑regular extension). Let F′ be as in Proposition 7 and let S be its vertex set. In any D‑regular extension G of F′, the number of edges between S and V(G)\S equals δ(F′)=1; hence that unique edge is a 1‑way infinite bridge.
+Proof. In any D‑regular extension, the number of cross edges is Σ_{v∈S}(D−deg_S(v))=δ(F′)=1. Removing that edge disconnects the finite set S from the infinite complement.
+
+Therefore, for every rooted cylinder \mathbf{G}_\bullet^F there exists a subcylinder \mathbf{G}_\bullet^{F′} contained in its closure such that every extension has a (1‑way infinite) bridge. This corrects and completes the gadget argument in odd D.
+
+A robust “no‑go” region for Conjecture 2
+
+Definition (cylinder‑based topology). A topology τ on X is cylinder‑based if for every x∈X and every τ‑open set U∋x there exists an r‑ball F with x∈\mathbf{G}_\bullet^F⊆U.
+
+Theorem 9 (bridgeless remains nowhere dense in any cylinder‑based topology). In any τ as above (on ≤D or =D with odd D), the set of bridgeless rooted graphs is nowhere dense.
+Proof. Given a nonempty τ‑open U, pick x∈U and a rooted cylinder \mathbf{G}_\bullet^F with x∈\mathbf{G}_\bullet^F⊆U. By the degree‑bounded argument (≤D) or by Proposition 7 (odd D), there exists F′⪰F such that every extension of F′ contains a bridge. Then \mathbf{G}_\bullet^{F′} is τ‑open, nonempty, \mathbf{G}_\bullet^{F′}⊆U, and \mathbf{G}_\bullet^{F′} contains no bridgeless graph.
+
+Section metrics d_s are cylinder‑based (cylinders relative to s(G) form a neighborhood base), hence bridgeless remains nowhere dense for all section metrics.
+
+A coarser “tail” topology cannot make bridgeless comeagre
+
+Define the tail subbasis at (G,ρ) by the sets U_R(G,ρ) of all (H,σ) for which there is a root‑preserving isomorphism between G\B_R(G,ρ) and H\B_R(H,σ) mapping the boundary sphere to the boundary sphere. This topology is strictly coarser than the BS topology and is natural for studying “end behavior.”
+
+Observation 10 (bridging has nonempty interior in the tail topology). If (G,ρ) has a bridge e outside B_R(G,ρ), then every (H,σ)∈U_R(G,ρ) has a corresponding bridge in H (the isomorphism fixes the outside where the bridge lies). Thus the set “has a bridge” contains U_R(G,ρ) and hence has nonempty interior.
+
+Conclusion. If the tail space is Baire (open problem to settle rigorously), the set of bridgeless graphs cannot be comeagre there. Hence tail‑type metrics cannot make bridgeless typical.
+
+Examples and checks
+
+- Root‑invariance: Theorems 3 and Corollary 4 immediately yield that all results Theorems 14–17 are independent of the root choice (and of section metrics boundedly re‑rooting equivalent).
+- Odd‑D gadget sanity check: For D=3, Q_3=K_4−e. Each application reduces δ by 2 without creating new boundary deficits. Iterating yields δ=1 and forces exactly one cross edge in any 3‑regular extension.
+
+Obstacles
+
+- For meagreness without assuming the Baire property of A⊆Y, the implication π^{-1}(A) meagre ⇒ A meagre can fail in general for quotient maps. Restricting to Baire‑property sets is both natural and sufficient here.
+- Alternative metrics: To actually produce a metric changing typicality (beyond the no‑go region), one needs a topology where basic neighborhoods need not contain any rooted cylinder and which is provably Baire; constructing such a topology with a clean combinatorial neighborhood description remains open.
+
+Next steps
+
+- Move Lemmas 1–2, Theorem 3, and Corollary 4 into proofs.md with full details and references (quotient maps, Baire spaces, open images of Baire spaces).
+- Record Proposition 7 and Corollary 8 (odd‑D gadget) in proofs.md; this also patches the FLP/even‑odd parity construction noted in the feedback.
+- Formalize the tail topology and settle its Baire status; if Baire, Observation 10 implies bridgeless is not comeagre there.
+- Explore a “pattern‑inclusion” ultrametric on Y based on equality of sets of rooted r‑balls S_r(G); verify ultrametricity on the quotient and analyze the category of bridge‑related sets. Prove or refute that both “has a bridge” and “bridgeless” have empty interior in this topology.

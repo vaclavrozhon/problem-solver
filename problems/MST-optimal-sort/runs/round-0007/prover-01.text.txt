@@ -1,0 +1,80 @@
+# Asymptotic comparison between MST_log and Reg_log
+
+We work on the point set P_π = {(i, π(i)) : i = 1,…,n} ⊂ R^2. Fix a norm ||·|| on R^2 and a logarithm base (changing either only rescales constants). For u,v∈P_π define the edge weight w(u,v) = log(1 + ||u − v||). Let MST_log^{||·||}(π) be the total w-weight of a minimum spanning tree (MST) on P_π.
+
+For i ≥ 2 set
+- Δ_i := |π(i) − π(i−1)|,
+- t_i := min{i − j : 1 ≤ j < i, |π(i) − π(j)| = 1}, with t_i := i − 1 if no such j exists,
+- d_i := 1 + #{ k < i : min(π(i−1),π(i)) < π(k) < max(π(i−1),π(i)) },
+- r_i := min{ d_i + t_i, i }.
+Define Reg_log(π) := ∑_{i=2}^n log(1 + r_i). Note that for all i ≥ 2, d_i ≥ 1 and t_i ≥ 1, hence r_i ≥ 2 and Reg_log(π) ≥ (n − 1)·log 3.
+
+We write MST_log(π) for the L∞ case (||·|| = ||·||_∞). All constants below depend only on the norm and the log base.
+
+
+Theorem 1 (One-sided domination in L∞). For all π,
+
+MST_log(π) ≤ Reg_log(π).
+
+Proof.
+Let G(t) be the threshold graph on P_π joining pairs at L∞-distance ≤ t, with κ_G(t) components. By the layer-cake identity and Kruskal’s algorithm,
+
+MST_log(π) = ∫_0^∞ (κ_G(t) − 1) dt/(1 + t),
+
+where the identity holds for Lebesgue-a.e. t (ties occur on a null set and do not affect the integral).
+
+Define a sparse subgraph H(t) ⊆ G(t) as follows. For each i ≥ 2 add:
+(i) the time edge (i−1,i) if Δ_i ≤ t; and
+(ii) if there exists j<i with |π(i)−π(j)|=1, let s_i := i − j (the temporal distance to the most recent earlier true value-neighbor) and add the edge (j,i) whenever s_i ≤ t. If no such j exists, no value-neighbor edge is added for any t.
+
+Clearly when an edge is added its L∞-length is ≤ t (time edge: ||p_i−p_{i−1}||_∞ = max{1,Δ_i} ≤ t since Δ_i ≤ t implies t ≥ 1; value edge: ||p_i−p_j||_∞ = max{1,s_i} ≤ t since s_i ≤ t implies t ≥ 1). Hence H(t) ⊆ G(t), so κ_G(t) ≤ κ_H(t).
+
+Expose vertices in increasing i and let κ_i(t) be the number of components in H(t) induced by {1,…,i}. We have κ_1(t)=1. For i≥2, if at least one of the two candidate edges is present, p_i attaches to prior vertices and κ_i(t) ≤ κ_{i−1}(t); if both are absent (i.e., Δ_i > t and either no value neighbor exists or s_i > t), then p_i starts a new component and κ_i(t) = κ_{i−1}(t)+1. Therefore
+
+κ_H(t) ≤ 1 + |{ i ∈ {2,…,n} : Δ_i > t and (no value neighbor exists or s_i > t) }|.
+
+Integrating,
+
+MST_log(π) ≤ ∑_{i=2}^n ∫_0^∞ 1{t < min(Δ_i, s_i)} dt/(1+t) = ∑_{i=2}^n log(1 + min{Δ_i, s_i}),
+
+where by convention s_i = +∞ if no earlier true neighbor exists. Finally, for each i,
+- if a value neighbor exists, then min{Δ_i, s_i} ≤ min{Δ_i, t_i} ≤ r_i, since d_i ≤ Δ_i and r_i = min(d_i + t_i, i) ≥ min(Δ_i + t_i, t_i) ≥ min(Δ_i, t_i);
+- if none exists, then s_i = +∞ and min{Δ_i, s_i} = Δ_i ≤ i = r_i (since t_i = i − 1 and thus r_i = min(d_i + (i − 1), i) = i).
+Thus log(1 + min{Δ_i, s_i}) ≤ log(1 + r_i) for all i, and summing yields MST_log(π) ≤ Reg_log(π). ∎
+
+
+Corollary 2 (Domination for any norm; explicit constant). Let ||·|| be any norm on R^2 and set b := sup_{||z||_∞=1} ||z|| ∈ [1,∞). Then for all π,
+
+MST_log^{||·||}(π) ≤ (1 + (log b)/log 3) · Reg_log(π).
+
+Proof.
+For any edge e, 1 + ||e|| ≤ b(1 + ||e||_∞), hence log(1 + ||e||) ≤ log b + log(1 + ||e||_∞). Summing over an L∞-MST gives MST_log^{||·||}(π) ≤ (n−1)·log b + MST_log(π). Apply Theorem 1 and Reg_log(π) ≥ (n−1)·log 3 to absorb the additive term. For L_p in R^2 one has b = 2^{1/p}, giving MST_log^{(p)}(π) ≤ (1 + (log 2)/(p·log 3)) · Reg_log(π). ∎
+
+
+Theorem 3 (Universal logarithmic reverse bound). For any fixed norm ||·|| there exists c>0 such that for all π and n,
+
+Reg_log(π) ≤ (log(1+n)/c) · MST_log^{||·||}(π).
+
+Proof.
+By norm equivalence, there exists α>0 with ||z|| ≥ α||z||_∞ for all z. Any two distinct permutation points satisfy ||·||_∞ ≥ 1, hence every MST edge has norm ≥ α and weight ≥ c := log(1 + α). Therefore MST_log^{||·||}(π) ≥ (n − 1)·c. On the other hand r_i ≤ i yields Reg_log(π) ≤ ∑_{i=2}^n log(1 + i) ≤ (n − 1)·log(1 + n). Divide to conclude. For concrete norms: L∞ gives c = log 2; L2 gives c = log(1 + √2); L1 gives c = log 3. ∎
+
+
+Theorem 4 (Separation; no constant-factor reverse domination). There is no universal C with Reg_log(π) ≤ C·MST_log^{||·||}(π) for all π. In fact, for any fixed norm, there exist permutations with Reg_log/MST_log = Θ(log n).
+
+Proof.
+For even n, define π by interleaving the lower and upper halves: π(2m−1)=m and π(2m)=n/2+m for m=1,…,n/2.
+
+- MST_log^{||·||}(π) = Θ(n): Consider the spanning tree connecting the odd-indexed vertices in order and the even-indexed vertices in order, plus one bridge between the two chains. Each intra-chain edge has difference (Δx,Δy)=(2,1), hence constant ||·||-length and constant log-weight; the bridge contributes O(log n). A matching Ω(n) lower bound holds since every MST has n−1 edges each of weight ≥ c>0 (Theorem 3).
+
+- Reg_log(π) = Θ(n log n): For i=2m−1≥3, t_{2m−1}=2 (neighbor m−1 at index 2m−3) and d_{2m−1}=m−1, so r_{2m−1}=m+1. For i=2m≥2, t_{2m}=2 (neighbor n/2+m−1 at index 2m−2) and d_{2m}=m, so r_{2m}=m+2. Therefore
+
+Reg_log(π) = ∑_{m=1}^{n/2} [log(2+m) + log(3+m)] = Θ(n log n).
+
+Hence Reg_log/MST_log = Θ(log n). ∎
+
+
+Conclusions.
+- Reg dominates MST: in L∞, MST_log(π) ≤ Reg_log(π); for any fixed norm, MST_log^{||·||}(π) ≤ (1 + (log b)/log 3)·Reg_log(π) with b = sup_{||z||_∞=1} ||z||.
+- MST does not dominate Reg by a constant: there are permutations with Reg_log/MST_log = Θ(log n).
+- Universal reverse bound: for all π, Reg_log(π) ≤ (log(1+n)/c)·MST_log^{||·||}(π), with explicit c depending only on the norm.
+Thus the worst-case multiplicative gap between Reg_log and MST_log is Θ(log n), and this is optimal up to constants.

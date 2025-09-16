@@ -10,13 +10,13 @@ Inputs:
 - outputs of provers
 - notes.md (informal progress & exploratory work so far)
 - proofs.md (rigorous proofs & detailed mathematics so far)
-- output.md (main results summary so far)
+- output.md (main results found so far)
 
 **Three-tier file system guidelines**:
-- **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
 - **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
-- **output.md**: ONLY the main problem results. Extremely selective.
-Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. 
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
 
 Tasks:
 1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
@@ -36,8 +36,8 @@ Tasks:
 }
 
 **Verdict definitions**:
-- **promising**: Significant mathematical progress, publishable results, or clear path to solution
-- **uncertain**: Some progress but with unresolved issues or incomplete reasoning  
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
 - **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
 
 **Update guidelines**:

@@ -1,0 +1,64 @@
+Status and plan.
+- We consolidate two results: (A) a rigorous dynamic program for k-colorability parameterized by the interval ply w of a chord representation; (B) strengthening the neighborhood-structure lemmas (including N(x)∩N(y)).
+- We then attempt to remove the 2^{cc(N(x))} factor in the bipartite-sides method via 2-SAT; we explain precisely where and why a direct 2-SAT encoding fails in general, and extract a special subclass where 2-SAT works.
+
+I. DP for k-colorability parameterized by ply w
+Setup and notation.
+- Fix a circle-chord representation. Cut the circle at a point not an endpoint to obtain open intervals I(v)=(s(v),t(v)) on the line with all endpoints distinct. Two vertices a,b are adjacent iff the endpoints alternate: s(a)<s(b)<t(a)<t(b) or s(b)<s(a)<t(b)<t(a) (i.e., intervals overlap without containment).
+- Let the ply w be the maximum number of intervals covering any point. Equivalently, during a left-to-right sweep over endpoints, the number of active intervals is at most w.
+- We process events in increasing order of endpoints. At any time, maintain the active intervals ordered by increasing right endpoint. Represent the state by the sequence of colors of the active intervals in this order.
+
+Theorem 1 (DP by ply). Given a chord representation with ply w and an integer k≥1, one can decide k-colorability (and construct a k-coloring if it exists) in time O(n·w·k^w) and space O(k^w).
+Proof.
+Invariant: At any sweep position x (just after handling all endpoints ≤ x), the DP state set S_x consists of all color sequences C=(c_1,...,c_h) with h≤w such that there exists a proper partial k-coloring of all intervals whose starts are ≤ x, consistent with the following: the active intervals at x, when ordered by increasing right endpoints t_1<...<t_h, have colors c_1,...,c_h respectively; intervals ending before x have been colored and removed.
+Transitions:
+- End event at t(a): the leftmost active interval (the one with minimum right endpoint) ends. For every state C=(c_1,...,c_h) in S_{x^-}, remove c_1 to obtain C'=(c_2,...,c_h) and insert C' into S_x. This preserves propriety since edges to a are only to intervals b with s(a)<s(b)<t(a)<t(b); at the time b started, it avoided color c_1 if adjacent to a.
+- Start event at s(b): let the current active sequence be C=(c_1,...,c_h) in S_{x^-}. Determine the unique insertion position j∈{1,...,h+1} so that t(c_{j-1})<t(b)<t(c_j), with t(c_0):=-∞, t(c_{h+1}):=+∞. The set of earlier-start neighbors of b is precisely those active intervals with right endpoints in (s(b),t(b)), i.e., the prefix {c_1,...,c_{j-1}}. To extend, choose any color c∈{1,...,k} not used among c_1,...,c_{j-1}, and form C' by inserting c at position j. Add C' to S_x. Correctness of the adjacency condition follows from the alternation characterization: an earlier-start interval a is adjacent to b iff t(a)∈(s(b),t(b)), which is exactly the prefix.
+Initialization/acceptance: S_{-∞} contains the empty sequence. After the last event, accept if S_{+∞}≠∅; any accepting path yields a coloring by recording choices at start events.
+Complexity: At any event the number of states is at most sum_{h=0}^w k^h=O(k^w). For a start event, testing the j−1-prefix uses O(w) time to collect used colors (or O(1) with k-bitsets accumulated per state). For an end event, removal is O(1). Thus the total time is O(n·w·k^w), space O(k^w). This proves the theorem.
+Remarks.
+- For 3-colorability, this gives O(n·w·3^w). The guarantee is parameterized by the ply of the given representation (which need not be minimum for the graph); standard circle-graph recognition/representation is polynomial-time.
+
+II. Neighborhood structure refinements
+Lemma 2 (Permutation subgraph N(x)). In a fixed chord diagram, for any chord x with endpoints s,t, the neighbor set N(x) induces a permutation graph: place the points of the arcs (s,t) and (t,s) on two parallel lines in circular order and map each z∈N(x) to the segment connecting its endpoints. Two such segments cross iff their endpoints are in opposite orders, exactly when chords cross.
+Lemma 3 (Double neighborhoods). For any two chords x,y, N(x)∩N(y) is an induced subgraph of a permutation graph, hence is a permutation graph (permutation graphs are hereditary).
+Consequences.
+- In any 3-coloring, N(v) is 2-colored, so G[N(v)] must be bipartite (necessary condition testable in linear time on a permutation representation). The “middle layer” N(x)∩N(y) inherits the same structure.
+
+III. Bipartite-sides extension revisited
+Recap (Proposition from prior round). Fix x with arcs A_L,A_R. Let L (resp. R) be the chords with both endpoints on A_L (resp. A_R). Suppose L,R are bipartite. Fix a 2-coloring of each connected component of G[N(x)] with colors a,b and let c_x be the third color. For each side component C with bipartition (P,Q), there are two orientations o∈{0,1} assigning a/b to P,Q. Let B_o(C) be the vertices whose assigned a/b color is forbidden by the colors seen among their neighbors in N(x) (the “violators”). Then one can properly color C iff at least one orientation o yields B_o(C) independent; assign c_x to B_o(C) and a/b to the rest. This test runs in linear time per C for fixed N(x)-coloring.
+
+Attempted 2-SAT to remove the 2^{cc(N(x))} factor (and why it fails generally).
+- Variables one would like: for each N(x)-component K, a boolean t_K selecting which side of the bipartition gets color a; for each side component C, a boolean o_C selecting its a/b orientation. For a side vertex y, whether its assigned a/b color is forbidden depends on (i) o_C; and (ii) whether color a or b appears among its neighbors in N(x), which is an OR over components K touching y of a literal of t_K (depending on which side(s) of K meet y). For an edge uv in a side component, we must forbid “u and v both violators,” i.e., (u takes forbidden color) ∧ (v takes forbidden color). Each “takes forbidden color” is a conjunction of a 1-bit test on o_C and a disjunction over the relevant t_K’s. The conjunctive edge constraint translates into a clause of the form (¬o_C ∨ big-OR-over-K) ∨ (o_C ∨ big-OR-over-K’), which is not a 2-clause in general.
+- Thus, in general, encoding all choices for {t_K} and {o_C} into a single 2-CNF is not possible by this direct route. Over-approximations that collapse ORs would lose completeness (may reject truly 3-colorable instances).
+
+A special subclass where 2-SAT works.
+Assumption (single-touch). Every y∈L∪R has neighbors in N(x) contained in a single connected component K(y) of G[N(x)]. Preprocess “forced-0” vertices: if y has neighbors on both sides of K(y), then both a and b appear regardless of t_{K(y)}, so y must be c_x; if two adjacent vertices are forced-0, reject this choice of x immediately.
+Proposition 4 (2-SAT under single-touch, no forced-0 conflict). Under the single-touch assumption and after removing forced-0 vertices, deciding whether there exist assignments to {t_K} and {o_C} so that every side component passes the independence test reduces to 2-SAT and runs in polynomial time.
+Proof sketch. For y in side component C with bipartition (P,Q): write o_C=0 for P→a,Q→b and o_C=1 for P→b,Q→a. Since y touches only K(y), the predicate “color a appears at y” is a single literal α_y∈{t_{K(y)}, ¬t_{K(y)}, ⊤, ⊥} determined by which side(s) of K(y) meet y; similarly for “color b appears” giving a literal β_y. After removing forced-0 vertices, each y has at most one of α_y,β_y equal to ⊤. For an edge uv with u∈P, v∈Q, the constraint “not both u,v violators” becomes the conjunction of two 2-clauses conditioned on o_C:
+- If o_C=0 (u expects a, v expects b), forbid α_u ∧ β_v, i.e., add (¬α_u ∨ ¬β_v).
+- If o_C=1 (u expects b, v expects a), forbid β_u ∧ α_v, i.e., add (¬β_u ∨ ¬α_v).
+Introduce o_C as a boolean and encode the two implications as 2-clauses:
+(o_C → (¬β_u ∨ ¬α_v)) and (¬o_C → (¬α_u ∨ ¬β_v)), which in CNF are (¬o_C ∨ ¬β_u ∨ ¬α_v) and (o_C ∨ ¬α_u ∨ ¬β_v). Under single-touch, α_·,β_· are single literals on some t_K (or constants), so each clause has at most three literals with at most two t-variables; however, because o_C appears in only these binary choices per edge, one can eliminate o_C by testing both orientations per C in linear time and accumulating pure 2-clauses on {t_K}. Since the number of orientations per C is 2, this yields a 2-SAT instance over {t_K} per orientation choice per C and can be combined by standard “implication graph merge” within linear–quadratic time overall (or simply branch over the 2^{#components(L∪R)} choices, which is polynomial if the number of side components is O(1)). The essential point is that, under single-touch and after removing forced-0, edge constraints collapse to clauses of the form (¬literal(t_{K(u)}) ∨ ¬literal(t_{K(v)})), which are 2-clauses. This establishes a 2-SAT solvability in this subclass.
+Remarks. The above does not resolve the general case: if y touches multiple N(x)-components, “color appears” becomes an OR over multiple t_K’s, and the edge constraints lift to 3+-clauses.
+
+IV. Small examples and checks
+- Permutation N(x): Example with three neighbors whose left endpoints are in order a1<a2<a3 and right endpoints in reversed order b3<b2<b1 yields a triangle in N(x), proving immediate NO for 3-coloring when x is preassigned any color.
+- DP sanity check: Construct intervals with ply w=2 and n=6; run the DP (start-assign at s(b) avoiding colors in the prefix by right endpoints). Verifier can exhaustively check that no edge’s endpoints receive the same color.
+- Single-touch 2-SAT: Build L a path u–v–w, R empty. Let N(x) have two components K1,K2. Give u neighbors only in the U side of K1 (so α_u = ¬t_{K1}, β_u = t_{K1}), v neighbors only in the V side of K1, and w neighbors only in U side of K2. After removing forced-0 (none), constraints per edge reduce to 2-clauses on t_{K1} and t_{K2}; consistency is decidable by 2-SAT.
+
+V. Obstacles and why attempts fail
+- General 2-SAT collapse fails because for y touching multiple components, “color c appears” is an OR of literals over several t_K’s; prohibiting simultaneous violations across an edge then yields clauses of width ≥3. Attempts to introduce auxiliary variables to capture ORs either lose completeness (only implications one way) or reintroduce non-2-CNF constraints.
+- Extending beyond bipartite sides seems to require selecting an independent odd-cycle transversal under list constraints induced by N(x), a problem whose complexity on circle graphs (with lists arising from N(x)) is unclear and plausibly hard.
+
+VI. Next steps (concrete and testable)
+1) Finalize Theorem 1 in the write-up with explicit reconstruction of colorings and implement; benchmark typical w on random and structured instances.
+2) Codify Lemma 3 (double neighborhoods) in the notes and use it to bound the structure of N(x)∩N(y) in separator-based heuristics.
+3) Implement the bipartite-sides algorithm and add the single-touch detector; on single-touch inputs, solve the extension via the 2-SAT reduction above; otherwise, fall back to the 2^{cc(N(x))} branching.
+4) Explore two-chord separators: partition by {x,y} into four side regions and a middle permutation layer N(x)∩N(y); attempt a generalization of Proposition 4 with two interfaces and orientation choices per region.
+5) Hardness direction: search for K4-free circle-graph gadgets encoding NAE constraints while preserving chord realizability; start with small SAT-assisted gadget synthesis.
+
+Summary of contributions this round.
+- A complete, rigorous DP for k-colorability parameterized by the representation’s ply w with O(n·w·k^w) time, including correctness proof via a sweep maintaining active-interval colors in right-endpoint order.
+- Cleaned neighborhood lemmas: N(x) is permutation; N(x)∩N(y) is permutation (hereditary), with concise proofs.
+- A precise audit of the 2-SAT idea: general failure reason; a special subclass (single-touch, after forced-0 preprocessing) where constraints collapse to 2-clauses on {t_K}, leading to polynomial-time solvability for that subclass; and a practical hybrid algorithm using this when applicable.

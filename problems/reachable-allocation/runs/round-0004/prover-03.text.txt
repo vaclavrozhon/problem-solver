@@ -1,0 +1,41 @@
+Ideas
+- Correct and strengthen the star analysis. We prove two structural lemmas on stars: (i) center-object monotonicity; (ii) each leaf swaps at most once. We then refute the previous uniqueness claim by exhibiting a concrete counterexample with two distinct terminal allocations (sinks) having the same final center object. We keep the “compute one terminal sink and test global PO” as a valid poly-time sufficient certificate, but uniqueness of the terminal allocation is false.
+- Consolidate standard verifiers: target reachability on trees (good-edge scheduler) and global PO (improvement digraph acyclicity) as formal building blocks for NP membership.
+
+Rigorous lemmas (stars)
+Setup: Star with center vertex c and leaves L. Agents are fixed on vertices; objects move by swaps on edges {c,ℓ}. Center’s strict preference order over objects: ≻_c. For a leaf ℓ with endowment h_ℓ, define acceptance set T_ℓ = {x : x ≻_ℓ h_ℓ}. A swap at state (center holds x, leaf ℓ holds h_ℓ) is allowed iff h_ℓ ≻_c x and x ∈ T_ℓ.
+
+Lemma 1 (center monotonicity). Along any allowed swap sequence, the center’s held object strictly increases in ≻_c.
+Proof. If center holds x and swaps with leaf ℓ, then h_ℓ ≻_c x by the swap condition. Hence the new center object is strictly higher in ≻_c. ∎
+
+Lemma 2 (leaf swaps at most once). Along any allowed swap sequence, each leaf ℓ participates in at most one swap.
+Proof. Suppose ℓ swaps when the center holds x, so ℓ receives x and center receives h_ℓ. Later, a second swap with ℓ would require the center to prefer ℓ’s current object (which is x) to its current center object, contradicting Lemma 1, as the center’s object strictly increases and thus never returns below x. ∎
+
+Acceptance digraph and the center’s final object
+Construct a directed graph on objects B: add arc x→h_ℓ iff x ∈ T_ℓ (leaf ℓ accepts x). By Lemma 1, all swaps correspond to following arcs x→h_ℓ with h_ℓ ≻_c x (center moves monotonically up). Let Y be the set of objects reachable from the initial center object x_0 by directed paths that are strictly ≻_c-monotone at each step. Y is finite and nonempty; let y⋆ be its ≻_c-maximum.
+Lemma 3. In any maximal (no further allowed swap) sequence, the center ends with y⋆; conversely, y⋆ is reachable by a sequence of allowed swaps.
+Proof. Any swap corresponds to a graph arc x→h_ℓ with h_ℓ ≻_c x; thus any terminal center object y lies in Y and y ≼_c y⋆. If y ≺_c y⋆ then, by the path witnessing y⋆ from y, another allowed swap would exist, contradicting maximality. Conversely, following a witnessing ≻_c-monotone path from x_0 to y⋆ yields a valid swap sequence (each target leaf still holds its endowment by Lemma 2 and the monotonicity), so y⋆ is reachable. ∎
+
+Counterexample: non-uniqueness of terminal allocation on a star
+Let objects be {b,a,x0}, initial center object x0; two leaves ℓ1 (endowment a), ℓ2 (endowment b). Center: b ≻_c a ≻_c x0. Leaves: ℓ1: x0 ≻_ℓ1 a ≻_ℓ1 b; ℓ2: x0 ≻_ℓ2 a ≻_ℓ2 b. Then both sequences are valid:
+- Path 1: x0→b (swap center with ℓ2). Terminal: center b; leaves (ℓ1:a, ℓ2:x0).
+- Path 2: x0→a→b (swap with ℓ1 then ℓ2). Terminal: center b; leaves (ℓ1:x0, ℓ2:a).
+Both are sinks (no allowed swap remains), yet differ on leaf allocations. Hence uniqueness of the terminal allocation is false, although the final center object y⋆=b is unique by Lemma 3.
+
+Poly-time certificate on stars (sufficient)
+- Compute Y and y⋆ in O(n^2): build arcs x→h_ℓ for all (x,ℓ) with x ∈ T_ℓ; BFS/DFS from x_0 while only traversing arcs x→x′ with x′ ≻_c x. Record a parent to reconstruct one path to y⋆. Simulate swaps along this path to build a terminal allocation µ_term. Then test µ_term for global PO via the improvement-digraph acyclicity test (O(n^2)). If PO holds, output µ_term; else inconclusive (other sinks may or may not be PO).
+
+General verifiers (trees)
+- Fixed-target reachability in O(n^2) by the good-edge scheduler (unique dipaths; swap along good edges until the target is reached or a dead-end is certified). Produces a witness sequence if reachable.
+- Global PO test in O(n^2): improvement digraph (agent→strictly better objects; object→current owner); PO iff acyclic.
+- Hence TREE-REACHABLE-PE ∈ NP: a certificate is a matching µ; verify reachability and PO in poly-time.
+
+Parameterization notes
+- Number of movers k (agents whose final object differs) yields an XP algorithm by enumerating agent subsets and permutations in time O(n^k·k!·poly(n)); a true FPT f(k)·poly(n) remains open.
+
+Obstacles
+- On stars, although y⋆ is unique, the set of terminal allocations is not, and the existence of a globally PO sink cannot be decided by inspecting a single sink in general. A full polynomial characterization of PO among star sinks remains open.
+
+Next steps
+- Develop a DP on stars over the ≻_c-monotone acceptance DAG to decide existence of a PO sink without enumerating all paths (state likely tracks a frontier summary sufficient for the improvement-digraph’s cycle absence). Validate on small instances.
+- For trees, continue with a treewidth-based DP (states: partial injections on bags; root filters = reachability + PO). Add pruning by local no-swap constraints.

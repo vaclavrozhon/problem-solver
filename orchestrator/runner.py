@@ -15,7 +15,7 @@ from .problem_agents import (
 from .paper_agents import (
     call_paper_suggester, call_paper_fixer
 )
-from .utils import write_status, auto_commit_round, gather_context_files
+from .utils import write_status, auto_commit_round, gather_context_files, check_stop_signal, StopSignalException
 from .agents import ensure_three_tier_files
 
 
@@ -40,6 +40,10 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
     
     # Vector store removed; papers are appended as plain text in the prompt
 
+    # Check for stop signal before starting provers
+    if check_stop_signal(problem_dir):
+        raise StopSignalException("Stop signal detected before provers")
+    
     # Phase 1: Run provers (potentially in parallel)
     write_status(problem_dir, "prover", round_idx)
     
@@ -99,6 +103,10 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
             
             print(f"  [prover] Results: {successful_provers} successful, {failed_provers} failed")
     
+    # Check for stop signal before verifier
+    if check_stop_signal(problem_dir):
+        raise StopSignalException("Stop signal detected before verifier")
+    
     # Phase 2: Run verifier
     try:
         verifier_output = call_verifier_combined(problem_dir, round_idx, num_provers, focus_description)
@@ -113,6 +121,10 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
             "error_phase": "execution"
         })
         raise
+    
+    # Check for stop signal before summarizer
+    if check_stop_signal(problem_dir):
+        raise StopSignalException("Stop signal detected before summarizer")
     
     # Phase 3: Run summarizer
     try:
@@ -158,6 +170,9 @@ def run_paper_round(problem_dir: Path, round_idx: int):
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
     
+    # Check for stop signal
+    if check_stop_signal(problem_dir):
+        raise StopSignalException("Stop signal detected before paper writing round")
     
     # Ensure 3-tier file system exists
     ensure_three_tier_files(problem_dir)

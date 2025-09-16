@@ -2,50 +2,28 @@
 
 
 
-3D unique color under c3: strategy and notes
+# 3D color c3: validated tools, obstacles, and plan
 
-- Coloring c3(e)=(T,ℓ) records the sign type modulo global sign and the full componentwise minimum ℓ, including the equal coordinates (E(T)). This prevents loss of information across slices.
+- Types and colors: For an edge type T (sign pattern up to global sign), let J(T) be nonzero coordinates, E(T) the zeros. Fix an orientation s(T) so that P(T) are the + indices, N(T) the − indices. The color records T and minima m_i for i in J(T).
 
-- Dichotomy:
-  1) Slice case: If a coordinate slice (e.g., z=t) contains ≥2 points, apply the proven d=2 theorem on that slice. Because c3 remembers the fixed coordinate value t in ℓ and has E(T) including that coordinate, uniqueness in the slice implies global uniqueness (edges off the slice have z in J(T) or different ℓ_z).
-  2) Coordinatewise injective case: If every coordinate slice contains ≤1 point, then all coordinates are distinct across U. Two subcases:
-     - If an incomparable pair exists, pick any mixed-sign type (some + and some −). A product multiplicity r·s argument (fixing a representative sign vector) shows both factors are ≤1 under injectivity and equal 1 for the realized color, hence multiplicity 1.
-     - If no mixed-sign edges exist, U is a chain in the product order. Injectivity forces strict increase in each coordinate along the chain. The [+++]-type at the penultimate element has exactly one NE neighbor, so multiplicity 1.
+- Master multiplicity (validated): For each t∈[n]^{E(T)}, define A_t={u∈U: u_P=m_P, u_E=t, u_M>m_M} and B_t={v∈U: v_M=m_M, v_E=t, v_P>m_P}. The number of edges with color (T,m) equals Σ_t |A_t|·|B_t|. Key corollaries:
+  • (+++) J={x,y,z}: multiplicity = 1_{m∈U}·|NE3(m)|.
+  • J={x,z}, y equal: multiplicity = Σ_β r_β(α,γ)·s_β(α,γ), with r_β= #{(α,β,z)∈U: z>γ}, s_β= #{(x,β,γ)∈U: x>α}.
+  • J={x} only: multiplicity = Σ_{β,γ} 1_{(α,β,γ)∈U}· #{(x,β,γ)∈U: x>α}.
 
-- Multiplicity (useful facts):
-  - [+++]-type with lower corner α has multiplicity 1_{α∈U}·|NE_3(α)|.
-  - One-odd-coordinate types (e.g., [++−]) factor as r·s, where r counts points on the α-anchored line increasing in the odd coordinate and s counts points in the fixed-level plane strictly NE in the other two coordinates. Under injectivity, r,s≤1.
+- Lex-max antichain (validated): If a is lex-max among 3D-eligible points (NE3(a)≠∅) under (z,y,x) lex order, then NE3(q)=∅ for all q∈NE3(a).
 
-- This yields a short complete proof in 3D. The same method scales to dimension d by induction: either reduce on a coordinate hyperplane or use the injective case (unique mixed-sign color, or chain gives unique [+,…, +]).
+- Special case proved: If U has injective projections in x, y, z (no coordinate repeats), then G[U] contains a uniquely colored edge under c3.
 
-Plan for d=3 under color c_3(T, \ell):
+- Main obstacle to lifting 2D propagation: When dropping in z, we must certify an r=1 factor in a product count that is taken over all of U (not just NE(a)). Vertical duplicates ((x,y) repeated at multiple z) can invalidate naive choices.
 
-- Slice reduction: If some z-slice U_z[t] contains at least two points, apply the proven d=2 theorem on that slice (with the 2D color remembering which coordinates are equal). The 3D color of the chosen in-slice edge has T_z=0 and records t in \ell_z, so any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness lifts from 2D to 3D.
+- Working plan:
+  1) Choose a lex-max eligible a. Let δ be the topmost z with NE3(a)[z=δ]≠∅ and γ the highest lower such z. Pick an in-plane partially row-good pair b1,b2 on z=δ (topmost row with at least two points, rightmost two). Show r_β(x(b1),γ)=1 and, by (H), s_β≥2 at z=γ to produce two witnesses there; this is the (++−) forcing step.
+  2) Handle vertical duplicates: enforce a selection rule avoiding (x,y) pairs that recur above δ; if unavoidable, use the |J|=1 multiplicity to force a unique color on a minimal (y,z)-fiber.
+  3) Prove a 3D “no eligible ⇒ unique color” lemma using minimal supporting planes and |J|=1,2 formulas (3D analogue of the 2D endgame).
+  4) Establish a 3-way dichotomy (z-/y-/x-plane-good) for a lex-max eligible point, then adapt the 2D iterative contradiction using cone-lex maxima.
 
-- Complementary case: If every z-slice contains at most one point of U, list vertices by increasing z: v_1,\dots,v_m with z_1<\cdots<z_m. The edge v_{m-1}v_m has \ell_z=z_{m-1}. No other edge has this \ell_z value: any edge with \ell_z=z_{m-1} must use v_{m-1} and a partner above z_{m-1}, which is uniquely v_m. Thus c_3(v_{m-1}v_m) is unique.
-
-- This resolves d=3 without extra counting. For higher d, the same idea suggests induction: either a (d−1)-dimensional slice contains ≥2 points (reduce to d−1), or every slice along the last coordinate has ≤1 point and the edge between the top two levels locks in a unique last-coordinate entry in \ell.
-
-
-d=3 unique color under c_3: concise plan
-
-- Slice lifting: If some z-slice U_t has at least two points, apply the proven d=2 theorem on that slice. Because c_3 records that z is equal (z∈E(T)) and stores ℓ_z=t, any edge with the same 3D color must lie in the same slice and have the same 2D color. Hence uniqueness in the slice implies global uniqueness.
-- Complementary case: If every z-slice has at most one point, list points by increasing z as v_1<⋯<v_m. The edge v_{m-1}v_m has ℓ_z=z(v_{m-1}). No other edge can realize ℓ_z=z(v_{m-1}) (it would need the unique point at z(v_{m-1}) paired with a point above it, which is uniquely v_m). Thus c_3(v_{m-1}v_m) is unique.
-- This yields a short complete proof in 3D. The same split suggests a straightforward induction in general dimension d: either reduce on a (d−1)-slice and lift, or use the top-two-level argument on the last coordinate.
-
-
-d=3 finalized proof under c_3:
-- Slice lifting: If some z-slice U_z[t] has at least two points, apply the d=2 theorem on that slice. Because c_3 stores z in E(T) and ℓ_z=t, uniqueness in the slice implies global uniqueness (any color match must lie in the same slice and match the 2D label).
-- If every z-slice has at most one point, order vertices by z. The edge between the second-highest and highest z-levels has lower-corner z equal to the second-highest realized z value, forcing endpoints uniquely; hence its color is unique.
-
-Note: A purported counterexample against the top-two-level lemma (e.g., multiple [+++] edges with identical ℓ from a lower vertex) does not contradict the lemma; the top-two edge’s ℓ_z is distinct and forces uniqueness.
-
-Next: Extend to general dimension d. Define c_d analogously; either a (d−1)-slice has ≥2 points (reduce and lift), or every last-coordinate slice has ≤1 point and the edge between the top two last-coordinate levels is unique by the same ℓ-last argument. Optionally, use a general A_+·A_- multiplicity to handle mixed-sign types and explore quantitative bounds on the number of unique colors.
-
-Clarification: the top-two-levels lemma
-
-Assume every z-slice U∩{z=t} has size ≤1, and let the realized z-values be z_1<⋯<z_m (m≥2). Consider the edge between the unique points at z_{m-1} and z_m. Any edge f with the same color must have the same lower-corner z-entry, ℓ_z(f)=z_{m-1}. This forces one endpoint to be the unique point at z=z_{m-1} and the other to be at some z>z_{m-1}. Since z_m is the only realized level above z_{m-1}, the partner is uniquely the point at z_m. Hence f is exactly this top-two edge, so its color is unique.
-
-Note the lemma uses the second-highest realized level (z_{m-1}). Examples showing multiple [+++] edges with the same lower corner at a lower level (e.g., using the minimum z) do not contradict this lemma.
-
-Plan forward: (i) Keep the d=3 proof as slice-lifting + top-two z-levels. (ii) Extend to general d via the same dichotomy on the last coordinate. The multiplicity framework A_+·A_- provides a useful general tool but is not needed for the minimal existence proof.
+- Division of labor suggested:
+  • P01: Formalize the topmost-plane propagation and certify r=1; write it up cleanly.
+  • P02: Refine the cross-plane lemma (fix δ topmost, quantify r over U), and design a duplicate-avoidance rule.
+  • P03: Complete the 13-type multiplicity dictionary and push the slice anchoring toward guaranteed isolation or a balanced |J|=3 trigger.

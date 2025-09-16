@@ -1,0 +1,279 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Problem 7. Clique Dynamics of Whitney triangulations
+(suggested by Anna Margarethe Limbach)
+Source: Proposed by F. Larrión, V. Neumann-Lara, and M. A.
+Pizaña in 2002 [4].
+Definitions.
+• Given a graph G, its clique graph kG is the intersection graph
+of its maximal complete subgraphs, called cliques. This means the
+set of cliques of G is the vertex set of kG, and two vertices of kG
+are adjacent if and only if they intersect non-trivially as cliques.
+The operator k that maps each graph to its clique graph is called the
+clique graph operator, and one can apply it iteratively to generate
+the sequence of iterated clique graphs k
+0G = G, k
+1G = kG, k
+2G =
+k(kG), k
+3G, . . ..
+• If the sequence of iterated clique graphs of a graph G consists of
+pairwise non-isomorphic graphs, G is called k-divergent, otherwise,
+k-convergent, and if it contains the graph that consists of a singleton
+(and then becomes stationary there) G is called k-null.
+• A graph is called locally cyclic, if each open neighbourhood of a
+vertex induces a cycle.
+• A Whitney-triangulation of a compact surface is a triangulation
+such that each triangle of its underlying graph is a face of the
+surface. Whitney triangulations of closed surfaces are locally cyclic
+with minimum degree ≥ 3 and the only one with minimum degree 3
+is the K4 that triangulates the sphere.
+From another perspective one can start with such a locally cyclic
+graph and obtain a closed surface by “filling in the triangles”.
+
+Question
+Is the underlying graph of a finite Whitney triangulation of
+the disk always k-null?
+
+
+
+11
+Related results:
+• The K4 is k-null.
+• The octahedron graph is k-divergent.
+• The icosahedron graph is k-divergent.
+• All locally cyclic graphs with minimum degree ≥ 7 are k-convergent.
+• Every closed surface admits a k-divergent Whitney triangulation.
+• Every closed surface with negative Euler characteristic admits a
+k-convergent Whitney triangulation.
+• Every Whitney triangulation of the disk such that every interior
+vertex has degree ≥ 6 is k-null.
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Structural facts we will use for Whitney triangulations of the disk
+- The underlying graph G is K4-free. Otherwise the four 3-cycles of a K4 would all be faces, every edge of that K4 would be incident with two faces within the K4, yielding a closed 2D component incompatible with a disk with boundary.
+- Every maximal clique of G is a facial triangle: Whitney implies every 3-cycle is a face, and K4-free prohibits larger cliques.
+- The link of an interior vertex v is a chordless cycle on N(v): the faces around v are exactly the triangles (v, w_i, w_{i+1}) in cyclic order; any chord among nonconsecutive neighbors would create a 3-cycle (v, w_i, w_j) that cannot be realized as a face without breaking the manifold structure.
+- In particular, interior vertices have degree ≥ 4 (deg 3 would force the neighbor triangle to be a face, contradicting that it is subdivided by the three v-incident faces).
+- For an interior vertex v with deg(v) ≥ 4, the set T(v) of faces incident to v is a clique in kG and is maximal: a face f not containing v can include at most two consecutive neighbors of v, hence meets at most three consecutive faces in T(v); for deg(v) ≥ 4 there exists a face of T(v) disjoint from f.
+- For an interior face t with all three edges interior, N(t) (t together with the faces across its three edges) induces a K4 in kG and is a maximal clique.
+
+Special k-null families verified
+- Fans (exactly one interior vertex): all faces meet at the apex, so kG is complete; hence k^2G ≅ K1.
+- Two-face disk (two triangles sharing one interior edge): kG ≅ K2 and k^2G ≅ K1.
+- Hexagon with a central interior triangle (outerplanar triangulation with three chords forming a central triangle): exactly four faces; all pairs intersect, so kG ≅ K4 and k^2G ≅ K1.
+
+Open targets and plan
+- Classify maximal cliques of kG: Conjecture that every non-star maximal clique is N(t) for some interior face t. Needed: a rigorous reduction showing any pairwise-intersecting family of faces with no common vertex has size ≤ 4 and is contained in N(t).
+- Outerplanar case (no interior vertices): pursue ear-removal induction. Track how maximal cliques of kG change and prove that k(kG) remains acyclic (or otherwise identify a monotone invariant). Verify carefully that adding/removing an ear does not create cycles in the clique graph.
+- Computation: exhaustively generate small disk Whitney triangulations to test k-iterations and search for counterexamples to k-nullness in low-degree interior regimes (4 and 5).
+
+
+Additional structural tools and partial classification
+- Local Helly across an interior edge: If uv is an interior edge with incident faces uvw and uvx, any face that meets both uvw and uvx must contain u or v. Otherwise it would have to contain both w and x, forcing the edge wx and thus a K4 on {u,v,w,x}, contradicting K4-freeness.
+- Shared-edge classification (partial): Let C be a maximal clique in kG that contains two faces t=uvw and g=uvx sharing the interior edge uv. Partition C into A (faces containing u but not v) and B (faces containing v but not u). If B=∅, then C=T(u); if A=∅, then C=T(v). If both A and B are nonempty, then every a∈A and b∈B must share a common vertex in {w,x} (the only common neighbors of u and v). This forces all faces in A and B to contain the same anchor (say w), whence A⊆{f_{uw}} and B⊆{f_{vw}}, so C⊆{t,g,f_{uw},f_{vw}} and maximality yields C={t,g,f_{uw},f_{vw}}=N(t). Symmetrically, if the common anchor is x then C=N(g).
+- Caution: Non-star cliques without any edge-sharing pair remain unclassified. A plausible Helly-type statement is that any pairwise-intersecting family of facial triangles with no two sharing an edge has a common vertex; proving this would complete the classification.
+
+Program milestones
+- Complete the above shared-edge classification (done; see proofs.md) and then settle the no-edge-sharing case via a minimal-counterexample analysis around a face with minimal number of boundary edges.
+- Outerplanar (no interior vertices): model faces as nodes of the dual tree; for each boundary vertex v, the incident faces form a contiguous path S(v). Conjecture: maximal cliques of kG are exactly T(v) with S(v) inclusion-maximal. Aim to show k(kG) is a forest via ear-removal, yielding k-nullness.
+- Continue small-instance computations for guidance (particularly with interior degrees 4 and 5).
+
+Refinements and corrections
+- Local Helly across an interior edge (uv with faces uvw and uvx): any face meeting both must contain u or v. This rule underpins all local classifications.
+- Maximality of N(t): for a fully interior face t=abc, the set C(t)={t and the three faces across ab, bc, ca} induces K4 in kG and is maximal. Any face f meeting all of C(t) leads to a K4 obstruction.
+- Shared-edge classification: Any maximal clique containing two faces on an interior edge uv equals T(u), T(v), or C(t) for one of the two uv-faces t.
+- Three-triangle lemma: If three faces are pairwise intersecting, have no common vertex, and no pair shares an edge, then they are exactly the three neighbors of a fully interior face. Consequently, such a 3-set is not maximal since it extends to C(t).
+
+Corrections
+- Size-3 vertex-stars T(v) can be maximal (e.g., hexagon with faces ABC, ACD, ADE, DEF has maximal cliques T(A) and T(D)). Remove any restriction |T(v)|≥4 from global classification statements.
+- Outerplanar Helly claim is false: maximal outerplanar triangulations can contain a fully interior triangular face (e.g., central triangle ACE in a hexagon). The triple {ABC, CDE, EFA} is pairwise intersecting with no common vertex.
+
+Open tasks
+- No-edge-sharing cliques: Prove rigorously that any pairwise-intersecting family with no shared edges is either (i) contained in a single T(v) and hence extendable unless it equals T(v), or (ii) exactly the three neighbors of a fully interior face and thus extendable to C(t). This will complete the classification: maximal cliques of kG are precisely T(v) or C(t).
+- Outerplanar case: With the corrected catalogue (T(v) and possibly C(t)), set up an ear-removal induction and track how these maximal cliques transform under k. Aim to show k(kG) becomes a forest or has a decreasing potential.
+- Computation: continue exhaustive checks (n≤20 faces; interior degrees 4–5) to test the classification and k-iteration stabilization.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas
+- Close the remaining gap: classify cliques S of kG with no edge-sharing pair. Prove that either S is contained in a single vertex-star T(v) (hence not maximal unless S=T(v)), or S is exactly the triple of edge-neighbors of a fully interior face (hence not maximal, as it extends to N(t)).
+- With this, we obtain a complete classification of maximal cliques of kG: they are precisely vertex-stars T(v) and the 4-cliques N(t) for fully interior faces t. A clean corollary is ω(kG)=max{4, max_v |T(v)|}.
+
+Tools recalled (established earlier)
+- K4-freeness; all primal maximal cliques are facial triangles.
+- Link of an interior vertex is a chordless cycle; T(v) is a clique; for interior v, T(v) is maximal in kG.
+- Local Helly across an interior edge: if uv is interior with faces uvw, uvx, then any face meeting both must contain u or v.
+- If S contains two faces sharing an interior edge, then S=T(u), or T(v), or N(t) for one of the two uv-faces (anchor argument).
+- For fully interior t=abc, N(t)={t and its three edge-neighbors} is a maximal K4 of kG.
+
+Key new lemma: the three-triangle lemma
+Lemma 1 (Three-triangle lemma).
+Let F1,F2,F3 be facial triangles that are pairwise intersecting, no pair shares an edge, and F1∩F2∩F3=∅. Then there is a fully interior face t=abc such that {F1,F2,F3}={f_ab,f_bc,f_ca}, the three faces across the edges of t.
+Proof.
+Let c be the unique vertex in F1∩F2, a the unique vertex in F2∩F3, and b the unique vertex in F3∩F1. Then: F1 contains b and c (it meets F2 at c and F3 at b); F2 contains c and a; F3 contains a and b. Thus bc, ca, ab are edges (each appears in F1,F2,F3 respectively). Hence a,b,c form a 3-cycle; by Whitney, abc bounds a face t. Edge bc lies in F1 and t, so bc is interior; similarly ab and ca are interior. Moreover, F1 cannot contain a (else a∈F1∩F2∩F3), so F1 is the unique face across bc; similarly F2=f_ca and F3=f_ab. ∎
+
+Classification of no-edge-sharing cliques
+Proposition 2 (No-edge-sharing cliques are extendable).
+Let S be a clique in kG (a pairwise-intersecting family of facial triangles) in which no two members share an edge. Then exactly one of the following holds:
+(i) There is a vertex v such that S⊆T(v).
+(ii) |S|=3 and S={f_ab,f_bc,f_ca} for some fully interior face t=abc.
+In particular, no such S is maximal in kG: in case (i) it extends within T(v) (unless S=T(v)), and in case (ii) it extends to N(t)=S∪{t}.
+Proof.
+If ⋂S≠∅ pick v∈⋂S; then S⊆T(v), proving (i). Suppose ⋂S=∅. Pick three distinct faces F1,F2,F3∈S. They are pairwise intersecting; since S has no edge-sharing pair, Lemma 1 applies, yielding a fully interior t=abc with {F1,F2,F3}={f_ab,f_bc,f_ca}. We show S has no other face. Let f∈S\{F1,F2,F3}. To intersect f_ab, f contains a or b; to intersect f_bc, f contains b or c; to intersect f_ca, f contains c or a. If f contains two of {a,b,c}, then f shares an edge with one of F1,F2,F3, forbidden. Hence f contains at most one of {a,b,c}; but then f cannot intersect all three of F1,F2,F3, a contradiction. Thus S={F1,F2,F3}, proving (ii). The extension claims follow: in (i) add any other face through v; in (ii) add t. ∎
+
+Global classification of maximal cliques of kG
+Theorem 3 (Maximal cliques of kG).
+Let G be the underlying graph of a finite Whitney triangulation of the disk. Then every maximal clique S of kG is of one of the two types:
+- S=T(v) for some vertex v (interior or boundary) such that T(v) is maximal in kG; or
+- S=N(t) for some fully interior triangular face t.
+Conversely, each such T(v) and each N(t) is a maximal clique of kG.
+Proof.
+The converse holds by definition for those T(v) that are maximal and by the proven maximality of N(t). For the forward direction, let S be a maximal clique. If S contains two faces sharing an interior edge, the shared-edge classification yields S=T(u), T(v), or N(t) for one of the two faces on that edge, as required. If S has no edge-sharing pair, Proposition 2 implies S⊆T(w) for some w or S is the triple {f_ab,f_bc,f_ca}. In the former case, maximality forces S=T(w); in the latter, S is not maximal since S∪{t} is a larger clique (contradiction). Thus S is of the stated types. ∎
+
+Corollary 4 (Clique number of kG).
+For a Whitney triangulation G of the disk, ω(kG)=max{4, max_v |T(v)|}.
+Proof.
+By Theorem 3, the largest cliques are among the T(v) and the N(t), and |N(t)|=4. ∎
+
+Examples
+- Fan (one interior vertex v): the only maximal clique is T(v), which is all faces; hence kG is complete and k^2G≅K1.
+- Two-face disk: the unique interior edge has the two incident faces; the only maximal clique is T(w) for each endpoint w (size 2); kG≅K2, k^2G≅K1.
+- Central-triangle hexagon: the fully interior face t gives N(t)≅K4; by Corollary 4, ω(kG)=4; adding t collapses to K1 at the next iteration.
+
+Obstacles and checks
+- Boundary stars T(v): our classification does not assume T(v) is always maximal; the theorem only asserts that any maximal clique is a T(v) (when such T(v) is maximal) or an N(t). This neatly bypasses the variability for boundary vertices.
+- Size-2 maximal cliques can occur (e.g., two-face disk) but are of star type and are captured by Theorem 3.
+
+Next steps
+- Formalize Theorem 3 and its lemmas into proofs.md; in particular, Proposition 2 closes the “no-edge-sharing” gap flagged by the verifier.
+- Use the classification to analyze k(kG): its vertices correspond to {T(v)} and {N(t)}; record exact intersection patterns T(u)∩T(v) (nonempty iff uv is an edge), T(v)∩N(t) (nonempty iff v∈V(t) or v is the third vertex across one edge), and N(t)∩N(t′). Aim to bound ω(k(kG)) and identify conditions forcing k^2G complete (hence k-null in two steps).
+- Outerplanar case: exploit the dual-tree structure. T(v) corresponds to a contiguous path of faces in the dual tree; use interval-graph machinery to describe kG from these paths and apply Theorem 3 (there are no fully interior faces when the dual is a path). Target an ear-removal induction proving k-nullness for all maximal outerplanar disks.
+
+Summary
+- Proved the three-triangle lemma and a full classification (Proposition 2) of no-edge-sharing cliques.
+- Completed the global classification (Theorem 3): maximal cliques of kG are exactly vertex-stars T(v) and the 4-cliques N(t) around fully interior faces. Immediate corollary: ω(kG)=max{4, max_v |T(v)|}.
+- These results strengthen the local structure needed for analyzing k-dynamics and set up the next step: structural analysis of k(kG) via stars and interior 4-cliques.
+
+
+=== Prover 2 Output ===
+
+Ideas
+- Close the “no edge-sharing” gap: classify cliques C of kG formed by facial triangles with the property that no two share an edge. We prove such C either has a common vertex (thus C⊆T(v)) or has size exactly 3 and equals the three neighbors of a fully interior face t (hence not maximal, since it extends to C(t)).
+- With this, finish the global classification: every maximal clique of kG is either a full vertex-star T(v) or a fully interior face-centered K4 C(t). This removes the incorrect size restriction on T(v) noted by the verifier.
+- Record useful intersection formulas among T(·) and C(·) families to prepare a structural analysis of k(kG).
+
+Notation and preliminaries
+- G is a finite Whitney triangulation of the disk. Its maximal cliques are exactly the facial triangles; write F(G) for the set of faces.
+- For a vertex v∈V(G), T(v):={faces of G containing v}.
+- For a face t=abc, define C(t):={t}∪{the opposite face across each interior edge of t}. Thus |C(t)|∈{1,2,3,4}, with |C(t)|=4 iff all three edges of t are interior (“fully interior face”).
+- Basic facts we use (proved in earlier rounds and checked by the verifier): G is K4-free; every 3-cycle is a face; the link of an interior vertex is a chordless cycle; “local Helly across an interior edge”: for an interior edge uv with uvw and uvx the incident faces, any face meeting both must contain u or v. Also, the only common neighbors of the endpoints of an edge uv are the two third vertices of the two faces on uv.
+
+A key auxiliary lemma
+Lemma 1 (Two common neighbors only). If uv is an edge of G with incident faces uvw and uvx, then the common neighbors of u and v in G are exactly {w,x}.
+Proof. If z is adjacent to both u and v, then uvz is a 3-cycle, hence a face by the Whitney property. An edge in a triangulation is in exactly two faces; therefore z∈{w,x}. ∎
+
+No-edge-sharing cliques
+Lemma 2 (No-edge-sharing cliques are either vertex-stars or 3-neighborhoods). Let C⊆F(G) be a clique in kG such that no two faces in C share an edge. Then either:
+(i) there is a vertex v with C⊆T(v), or
+(ii) |C|=3 and C is exactly the set of the three neighbors of a unique fully interior face t (equivalently, C=C(t)\{t}).
+Proof. If C contains three faces τ1,τ2,τ3 with no common vertex, then, since no pair in C shares an edge, Lemma 1 implies that each pair τi,τj intersects in exactly one vertex and these three pairwise intersections are distinct. By the argument in the “three-triangle” lemma from previous rounds, τ1,τ2,τ3 are the unique three neighbors of a fully interior face t=abc, where {a,b,c} are these three intersection vertices. Moreover, any fourth face τ meeting all of τ1,τ2,τ3 would have to contain at least two of {a,b,c} (by Lemma 1 applied to pairs), hence share an edge with one of τi’s, contradicting our no-edge-sharing hypothesis. Thus |C|=3 and we are in case (ii).
+Otherwise, every triple of faces in C has a common vertex. Fix distinct τ0,τ1∈C. Because no two faces in C share an edge, τ0∩τ1 is a single vertex, denote it by v. For any τ∈C, the triple {τ0,τ1,τ} has a common vertex; the only common vertex of τ0 and τ1 is v, hence v∈τ. Therefore v∈⋂_{τ∈C}τ, proving C⊆T(v), i.e., case (i). ∎
+
+Maximal cliques: full classification
+Proposition 3 (Maximal cliques via a shared interior edge; corrected). Let C be a maximal clique in kG that contains two faces on the same interior edge uv. Then C=T(u), or C=T(v), or C=C(t′) for one of the two uv-faces t′. In the mixed case (faces containing u but not v and v but not u occur), the “anchor” argument forces C to be exactly C(t′).
+Proof. This is the refined “anchor” proof from prior rounds, using Lemma 1 and the local Helly across uv; details have been vetted in feedback and are omitted here for brevity. ∎
+
+Proposition 4 (Maximality of C(t)). If t is a fully interior face, then C(t) induces K4 in kG and is a maximal clique.
+Proof. Any two elements of C(t) share a vertex of t, so C(t) induces K4. Let f∉C(t) be a face intersecting all members of C(t). If f contains none of {a,b,c}, it misses t; impossible. If f contains two of {a,b,c}, then it shares an edge with t, hence equals t or the opposite face across that edge, both in C(t); contradiction. If f contains exactly one, say a, then to meet the opposite-face across bc (which omits a) f must contain x_bc, the third vertex of that opposite; but then the edges ab, ac, b x_bc, c x_bc and a x_bc give a K4 on {a,b,c,x_bc}, violating K4-freeness. Thus no such f exists and C(t) is maximal. ∎
+
+Theorem 5 (Global classification of maximal cliques of kG). Let G be a Whitney triangulation of the disk. Then every maximal clique of kG is either of the form T(v) for some vertex v, or of the form C(t) for some fully interior face t.
+Proof. Let C be a maximal clique. If C contains two faces sharing an interior edge, apply Proposition 3. Otherwise, C has no edge-sharing pairs. By Lemma 2, either C⊆T(v) for some v, in which case maximality forces C=T(v), or |C|=3 and C=C(t)\{t} for a fully interior t, which is not maximal by Proposition 4. ∎
+
+Intersection calculus (for use in k(kG))
+- T(u)∩T(v) is precisely the set of faces incident with edge uv; it has size 2 if uv is interior, size 1 if uv is boundary, and is empty if uv∉E(G).
+- For a fully interior t=abc, C(t)∩T(a)={t, face across ab, face across ca} has size 3; C(t)∩T(x_ab)={face across ab} has size 1; similarly for b,c and the other opposite vertices. Hence each C(t) meets exactly 6 distinct T(·)’s unless some of those T(·) are non-maximal and thus absent in k(kG).
+- If t1 and t2 are fully interior and share an edge, then C(t1)∩C(t2)={t1,t2}; if they share no edge, |C(t1)∩C(t2)|≤1 (often 0). In particular, among C(·)-type vertices in k(kG) the induced subgraph has maximum degree at most 3 via edge-sharing in the primal.
+
+Examples
+- Hexagon with central fully interior triangle ACE (faces: ACE; ABC, CDE, EFA). kG is K4, so k^2G≅K1 (C(t) is the unique maximal clique).
+- Hexagon triangulation with faces ABC, ACD, ADE, DEF. Maximal cliques of kG are T(A) and T(D) (both size 3), hence k^2G≅K2 and k^3G≅K1.
+
+Obstacles and remarks
+- Dynamics beyond classification: H:=kG is not a triangulation, so Theorem 5 does not recursively apply to H. However, Theorem 5 gives an explicit list of H’s maximal cliques, enabling a direct study of J:=k(H)=k^2G. Vertices of J correspond to those T(v) that are maximal in H and to all fully interior faces t (via C(t)). A key next step is to characterize when T(v) is maximal in H (boundary cases may or may not be maximal) and to describe adjacency in J via the intersection calculus above.
+- Outerplanar ear-removal. Fully interior faces can occur even in maximal outerplanar triangulations (e.g., triangle ACE in a hexagon), so any ear-removal induction must track both T(v)- and C(t)-type cliques. The dual graph is a tree, and T(v) correspond to contiguous paths therein; C(t) correspond to degree-3 branching around fully interior triangles. This suggests J is “tree-like” (sparse), but a precise invariant ensuring k-nullness remains to be proved.
+
+Next steps (checkable)
+1) Formalize in proofs.md: Lemma 1; Lemma 2 with the short “fix two faces” argument; Proposition 3 with the corrected anchor proof; Proposition 4; Theorem 5; and the intersection calculus claims with brief proofs.
+2) Characterize maximality of T(v) in H: give necessary and sufficient conditions in terms of inclusions among the paths of faces around vertices (in the outerplanar case, paths in the dual tree), and how the presence of a fully interior face C(t) subsumes some T(v).
+3) Describe J=k^2G explicitly in small families: outerplanar triangulations up to n=10, and disks with one or two interior vertices of degree 4 or 5. Verify that J tends to be a forest or a cactus; if so, iterate k and record stabilization times.
+4) Seek a potential function Φ(G) defined on Whitney disks such that Φ(kG)<Φ(G) strictly, using counts of fully interior faces and inclusion-maximal vertex-stars. A promising candidate is the number of maximal cliques of kG plus a weighted sum of the sizes of their pairwise intersections.
+
+Summary
+- We closed the “no edge-sharing” case (Lemma 2) and, combined with the shared-edge classification, proved Theorem 5: every maximal clique of kG is either a vertex-star T(v) or a fully interior face-centered C(t). This corrects the prior size restriction and aligns with the verifier’s feedback.
+- We added intersection formulas between T(·) and C(·), setting up the analysis of J=k^2G. The outerplanar ear-removal program must accommodate C(t)-type cliques; the dual-tree viewpoint remains promising for showing k-nullness in that subcase.

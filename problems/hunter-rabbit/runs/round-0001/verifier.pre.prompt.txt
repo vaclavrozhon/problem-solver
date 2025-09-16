@@ -1,0 +1,373 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Definitions.
+• The hunters and rabbit problem is a pursuit-evasion game played
+on an undirected graph. A strategy for k hunters is a sequence
+s1, s2, · · · , sn of subsets of k vertices. A strategy is winning if, for
+every walk v1, v2, · · · , vn in the graph (not necessarily simple), there
+is i such that vi ∈ si. Intuitively, the evader is walking on the graph
+(it has to move at each turn by following exactly one edge) and must
+avoid the k vertices that the pursuers examine at each time step.
+
+• The evasion number of a graph G is the smallest k for which there
+is a winning strategy with k hunters.
+
+Question: Is it the case that, for any constant k , we can recognize
+the graphs of the evasion number k in polynomial time? (E.g. n^{O(k)})
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas
+- Formalize the forward dynamics. If P_i is the set of all possible rabbit positions just before round i, and hunters shoot S_i (|S_i|≤k) at round i, then the survivors move to neighbors and we get
+  P_{i+1} = N(P_i \ S_i).
+  A length-n schedule S_1,…,S_n is winning iff P_{n+1}=∅ starting from P_1=V(G).
+- Treating the evasion number h(G) as the minimum k for which there is some finite winning schedule (equivalently: there exists a schedule that makes P_t=∅ at some t; this then solves all horizons by truncation).
+- Two immediate bounds that can be checked and used algorithmically:
+  1) Lower bound: h(G) ≥ ω(G)−1 (ω = clique number). Proof: with k ≤ ω−2 shooters and an ω-clique, at each round ≥2 clique-vertices remain unshot; the rabbit can stay within the clique and at each step choose a neighbor unshot next round.
+  2) Upper bound: h(G) ≤ τ(G) (minimum vertex cover). Proof: let S be a vertex cover. Play S at round 1 and again at round 2. Then P_2 = N(V\S) ⊆ S (since V\S is independent), so P_2 ⊆ S and shooting S again yields P_3=∅.
+- Exact values on basic families (to calibrate):
+  • Cliques: h(K_r)=r−1 (LB=ω−1, UB=τ=r−1 match).
+  • Cycles: h(C_n)=2 (n≥3). One shooter never wins on a cycle because from any vertex there are two neighbors; at step i+1 the rabbit can always move to the neighbor that is not s_{i+1}. Two shooters win by playing two antipodal vertices every round: from any position the rabbit’s unique move next round enters the shot set.
+  • Paths: h(P_n)=1 (n≥2). We verified explicitly for n=3,4 by writing a short schedule; a general “1-shooter sweep” exists (induction on n; see Next steps for a proof plan). This already shows h can be strictly smaller than τ and smaller than pathwidth+1.
+
+Examples (toy computations via P_{i+1}=N(P_i\S_i))
+- P4 with order 1–2–3–4 and k=1: a winning 6-step schedule is S=(3,2,4,1,2,3). Forward sets: P1={1,2,3,4}, P2={1,2,3}, P3={2,4}, P4={1,3}, P5={2,4}, P6={3}, P7=∅.
+- C5 with k=2: S1={1,3} ⇒ P2={1,3,4,5}; S2={4,5} ⇒ P3={2,4}; S3={2,4} ⇒ P4=∅.
+
+Obstacles / what fails
+- Attempting to equate h(G) with pathwidth or treewidth runs into counterexamples immediately: for trees (pathwidth=1) we have h=1 (consistent), for cycles (pathwidth=2) we have h=2 (consistent), but for many graphs h < pathwidth+1 (e.g., C5: pw=2 but h=2<3; paths: pw=1 yet often h=1<<2 upper bound from bags). The direct “boundary-of-ordering” schedule proof does not mesh with the exact timing P_{i+1}=N(P_i\S_i). So equality with pathwidth/treewidth remains unproven and likely false as an identity.
+- A naive state-search on subsets P_i is exponential (2^n states). We need structure to get n^{O(k)}.
+
+Checkable lemmas (to move to proofs.md)
+- Lemma 1 (Dynamics): A schedule S_1,…,S_n is winning iff the forward recursion P_{i+1}=N(P_i\S_i), P_1=V, yields P_{n+1}=∅.
+- Lemma 2 (Clique LB): h(G) ≥ ω(G)−1. Proof sketch above.
+- Lemma 3 (Vertex-cover UB): h(G) ≤ τ(G). Proof sketch above. Corollary: h is FPT-approximable from above by k=τ (and test τ≤k in n^{O(k)} time via standard VC-FPT).
+- Lemma 4 (Cycles need 2): h(C_n)=2 for n≥3. Proof: k=1 fails as argued; k=2 wins by fixing two opposite vertices each round.
+- Lemma 5 (Paths need only 1): h(P_n)=1 for all n≥2. Constructive schedules exist; see P4 example. A clean general inductive “leaf-sweep” proof is plausible: under P_{i+1}=N(P_i\{v}), playing a leaf in a suitable back-and-forth traversal shrinks the possible-interval on the path until a singleton is reached; then one more shot empties P.
+
+Algorithmic consequences so far
+- Quick FPT certificates for NO/YES in many cases:
+  • If ω(G) ≥ k+2 we can immediately answer NO (h(G) > k). Decidable in O(n^{k+2}).
+  • If τ(G) ≤ k we can immediately answer YES (h(G) ≤ k) and even output a 2-round winning schedule S,S.
+- These two tests run in n^{O(k)} and already recognize a large fraction of instances.
+- On chordal graphs, h(G)=ω(G)−1 holds (conjectured; consistent with all examples), hence recognition reduces to ω≤k+1 which is n^{O(k)}. This gives a concrete, verifiable target class.
+
+Next steps (towards n^{O(k)} in general)
+1) Prove h(T)=1 for all trees T. Formalize the interval-shrinking invariant for paths and generalize via centroid/leaf pruning to trees. This will supply a nontrivial exact computation on a broad class and a critical structural insight (forests vs cycles for k=1), with a poly-time recognizer for k=1 (acyclic ⇔ YES).
+2) Seek a tighter combinatorial characterization of h in terms of standard parameters. We already have ω−1 ≤ h ≤ τ. Check whether h ≤ tw and/or h ≤ pw holds in general, and whether h is sandwiched between tw and ω−1 on more classes (chordal, series-parallel, outerplanar). If h ≤ tw, then treewidth ≤ k would imply a winning schedule with k shooters; since tw≤k is testable in linear time for fixed k, this would answer the main question positively.
+3) DP on small separators: Although arbitrary P-states blow up, an optimal step tends to use S_i that is a vertex cover of G[P_i] (making P_{i+1} ⊆ N(P_i\S_i) as small as possible). Explore a DP whose states are (H,S) where H is an induced subgraph determined by a small separator S (|S|≤k), and that simulates P-evolution across S using only the cut-structure. A plausible outcome is an n^{O(k)}-time recognition.
+4) Verify and then elevate: h(C_n)=2; h(K_r)=r−1; h on block graphs equals ω−1; h on cactus graphs is max over blocks; these are checkable and give more exact cases.
+
+Summary answer (current status)
+- We can already recognize many YES/NO cases in n^{O(k)} time via the sandwich ω−1 ≤ h ≤ τ; in particular, τ(G)≤k implies YES and ω(G)≥k+2 implies NO.
+- For k=1, strong evidence suggests a complete polynomial characterization (forests) is within reach; we supply an explicit winning schedule on paths and a general cycle-based obstruction.
+- Establishing an n^{O(k)} algorithm in full generality likely hinges on relating h to standard width parameters (treewidth/pathwidth) or on a separator-based DP; both are realistic next steps. Pending a precise equivalence, the “Yes, via treewidth” path remains an attractive route: proving h ≤ tw would immediately yield polynomial recognition for each fixed k.
+
+
+=== Prover 2 Output ===
+
+Ideas
+
+- Formalize the game as a “time-expanded” hitting problem on a layered DAG. This gives an NP certificate and a dynamic-programming verifier.
+- Extract easy but useful bounds: a general upper bound via vertex cover; a general lower bound via complete bipartite subgraphs; exact values for K_n and K_{p,q}.
+- Give a clean state-evolution identity Q_{i+1} = N(Q_i) \ S_{i+1} (where Q_i are the possible rabbit positions at time i), which is both necessary and sufficient for correctness of a schedule. This gives a concise target for future dynamic-programming or hardness proofs.
+- Work out small examples (paths, stars) to calibrate intuition and to disprove over-optimistic claims about k=1.
+- Provide a necessary obstruction detectable in n^{O(k)} time: the presence of K_{k+1,k+1} as a subgraph implies h(G) ≥ k+1. This gives a quick rejection test for h(G) ≤ k.
+
+Rigorous statements and proofs
+
+Notation. For a (simple) graph G=(V,E), let N(X) := {v ∈ V : ∃ x∈X with vx∈E} denote the (open) neighborhood of X.
+
+Lemma 1 (Layered-DAG formulation and verifier). Fix k. A schedule S = (S_1,…,S_n) with |S_i| ≤ k is winning iff the layered directed acyclic graph H with layers L_1,…,L_n (each a copy of V), and arcs (u,i)→(v,i+1) whenever uv ∈ E, contains no L_1–L_n path avoiding the set C := ⋃_{i=1}^n (S_i ×{i}). Equivalently, if we define Q_1 := V \ S_1 and for i≥1,
+- Q_{i+1} := N(Q_i) \ S_{i+1},
+then S is winning iff Q_t = ∅ for some t ≤ n. Moreover, given S, this can be checked in O(nm) time.
+
+Proof. A length-n rabbit walk v_1,…,v_n maps to a path (v_1,1)→…→(v_n,n) in H and is uncaught iff v_i ∉ S_i for all i; i.e., the path avoids C. Dynamic programming on H detects such a path in O(nm) time by propagating reachable sets: R_1 := V\S_1; R_{i+1} := (neighbors of R_i) \ S_{i+1}. This equals the stated Q_{i+1}.
+
+Lemma 2 (Monotonicity under subgraphs). If H is a subgraph of G, then h(H) ≤ h(G).
+
+Proof. Any rabbit walk in H is also a rabbit walk in G. If k hunters win on G with schedule S, the same S wins on H.
+
+Proposition 3 (Upper bound via vertex cover). Let τ(G) be the size of a minimum vertex cover. Then h(G) ≤ τ(G).
+
+Proof. Fix a minimum vertex cover C. Use S_1 = C and S_2 = C (and arbitrary afterwards). If the rabbit starts in C, it is caught at time 1. Otherwise it starts in V\C and must move into C at time 2, where it is caught.
+
+Proposition 4 (Lower bound via complete bipartite subgraphs). If G contains K_{s,t} as a (not necessarily induced) subgraph, then h(G) ≥ min{s,t}.
+
+Proof. The rabbit can confine itself to the K_{s,t}. At each step it is on one side and must move to the other side. With fewer than min{s,t} hunters, the hunters cannot shoot all vertices on the destination side at that time step; the rabbit always moves to a non-shot neighbor. Hence no schedule of size < min{s,t} can be winning.
+
+Corollary 5 (Exact value on complete bipartite graphs). For G = K_{p,q}, h(G) = min{p,q}.
+
+Proof. Lower bound is Proposition 4. Upper bound: shoot the smaller side at every step; the rabbit is caught by time 1 or 2.
+
+Proposition 6 (Complete graphs). For G = K_n, h(K_n) = n.
+
+Proof. If k < n, at each time the rabbit picks any vertex outside S_i; since all vertices are mutually adjacent, this can be maintained for all steps, so no schedule of size < n can win. With k = n, shoot all vertices at time 1.
+
+Consequences and quick tests
+
+- Necessary obstruction. If G contains K_{k+1,k+1} as a subgraph, then h(G) ≥ k+1 (Proposition 4). Thus h(G) ≤ k implies G is K_{k+1,k+1}-free. Detecting a K_{k+1,k+1} subgraph is doable in n^{O(k)} time (e.g., brute force over (k+1)-tuples on each side), giving a quick rejection test consistent with the requested n^{O(k)} regime.
+- Coarse upper bound. h(G) ≤ τ(G). This is often loose (e.g. paths), but is tight on K_{p,q} and K_n.
+
+Examples and small cases
+
+- Stars K_{1,m}. Here h(K_{1,m}) = 1. Upper bound by τ=1; lower bound by K_{1,m}.
+- Paths P_n. For n ≥ 4, one hunter does not suffice (e.g., P_4 with S = (2,3,2,3) fails; a surviving walk is 3,2,3,4). Two hunters suffice for all n ≥ 2 by taking S_i to be the two middle vertices at every step: any rabbit at a leaf must step into one of these in at most 2 steps.
+- Cycles. C_3 = K_3 has h=3. C_4 = K_{2,2} has h=2. For odd cycles ≥ 5, the exact value needs careful analysis; the τ upper bound gives h(C_{2r+1}) ≤ r+1.
+
+Obstacles and failure modes
+
+- Non-adaptivity matters. The operator Q_{i+1} = N(Q_i) \ S_{i+1} is not monotone decreasing in general because of the neighborhood expansion; this prevents a straightforward DP over subsets Q_i.
+- Hitting all length-n walks with per-layer budgets is a “grouped hitting set” in a layered DAG. While verification is polynomial (Lemma 1), the existence of a schedule seems to encode a nontrivial covering problem. A naive search over schedules is exponential in n, and a naive DP over states Q_i is exponential in |V|.
+- The natural backward DP: define F_1 = {X ⊆ V : |N(X)| ≤ k} and iteratively F_{j+1} = {X : ∃Y∈F_j with Y ⊆ N(X) and |N(X) \ Y| ≤ k}. Then h(G) ≤ k iff V ∈ F_t for some t ≤ n and additionally |V \ Q_1| ≤ k. Although exact, F_j can be exponentially large in general.
+
+Next steps (concrete, testable)
+
+1) Hardness for fixed k. Try to reduce from a canonical NP-hard problem to the special case k=1 (or k=2) of the “layered per-layer-bounded cut” in the time-expanded graph H. A promising target is to encode a SAT instance by variable gadgets arranged along layers, so that choosing one vertex per layer to delete blocks all length-n paths iff the formula is unsatisfiable. Establishing NP-completeness for k=1 would give a negative answer to the question; establishing W[1]-hardness parameterized by k via gadgets that force K_{k,k} choices would argue against n^{f(k)} algorithms.
+
+2) FPT on structural parameters. The Q_{i+1} operator only depends on adjacency; graphs of bounded treewidth or bounded neighborhood diversity may admit polynomial-time algorithms for fixed k via type-compression. Concretely, on graphs of neighborhood diversity d, attempt a DP over layer-indexed type-subsets Y_i ⊆ [d], with branching bounded by O(d^k) per layer and an automaton of size O(d). This should be implementable and checkable.
+
+3) Tighten bounds. The general bounds h(G) ≥ max_{K_{s,t}⊆G} min{s,t} and h(G) ≤ τ(G) are crude. Investigate improved lower bounds via vertex expansion: if |N(X)| ≥ k+1 for all nonempty X ⊆ V, then the last-step emptiness is impossible, so h(G) ≥ k+1. Formalize this and test on expanders.
+
+4) Exact values on basic families. Complete a systematic study of h on:
+- paths P_n (prove h(P_n)=2 for n≥4); trees of bounded degree (bounds in terms of leaves or height);
+- cycles C_n (determine h(C_n) for all n);
+- grids and hypercubes (use K_{s,t} obstructions vs τ upper bounds).
+
+5) ILP-with-separation approach. Formulate the decision as 0–1 variables x_{i,v} with constraints |{v: x_{i,v}=1}| ≤ k and requiring that every length-n walk has some i with x_{i,v_i}=1. The separation oracle is exactly the DP of Lemma 1. Even if the ILP is hard, this may yield exact algorithms for small n and heuristics; if integrality gaps are small on some classes, it could lead to polynomial-time recognition there.
+
+Summary
+
+- The decision problem “h(G) ≤ k?” is in NP with a simple O(nm) verifier (Lemma 1).
+- We proved h(K_n)=n; h(K_{p,q})=min{p,q}; h(G) ≤ τ(G) and h(G) ≥ max_{K_{s,t}⊆G} min{s,t}.
+- There is a necessary, easily checkable obstruction for h(G) ≤ k: the presence of K_{k+1,k+1} (rejectable in n^{O(k)} time).
+- For small families (stars, small paths), we computed h exactly; notably, one hunter already fails on P_4.
+- The central recursion Q_{i+1} = N(Q_i) \ S_{i+1} precisely characterizes schedules and is a natural pivot for both algorithmic (type-compression DP) and hardness (layered cut) directions.
+
+These provide multiple auditable avenues: immediate experiments on cycles/trees; implementing the type-compression DP on bounded neighborhood diversity graphs; and attempting a k=1 hardness reduction via layered gadgets in H.
+
+
+=== Prover 3 Output ===
+
+Ideas
+- Recast the game as a deterministic “possible positions” evolution. For a fixed sequence of shots S1,…,Sn (Si⊆V, |Si|≤k), define P1:=V\S1 and, for i≥1,
+  Pi+1 := N(Pi) \ Si+1, where N(X):=⋃_{x∈X} N(x). A schedule is winning iff Pn=∅. Thus deciding h(G)≤k is equivalent to the existence of some length-n sequence of size-k shots driving this recurrence to ∅.
+- This yields a state graph on 2^V with transitions X → Y iff Y⊆N(X) and |N(X)\Y|≤k. We want ∃ path from V to ∅. Two immediate properties:
+  (i) Monotonicity: If X⊆X′ then Pi(X)⊆Pi(X′) for any fixed schedule S. In particular, the family Good_k of sets X from which the hunters can force ∅ is downward-closed.
+  (ii) End condition: If |N(X)|≤k then one more step can make the next state empty by taking S=N(X).
+
+Basic bounds (easy, rigorous)
+- Lower bound: h(G) ≥ ω(G) (clique number). Indeed, if k<ω(G), the rabbit can restrict to a K_{ω(G)} and move inside it (complete adjacency), always finding an unshot neighbor.
+- Upper bound: h(G) ≤ τ(G) (vertex cover number). Strategy: Fix a minimum vertex cover D, |D|=τ. Shoot S_i:=D for all i. Any walk enters D in at most one step (since V\D is independent), hence capture occurs by time 2.
+- Consequences: For K_n, h(K_n)=n−1 (both bounds give n−1). For C_m with m≥4, 2≤h(C_m)≤τ(C_m)=⌊m/2⌋, and in fact h(C_m)=2 (explicit schedules exist; see examples below). For paths P_n, h(P_n)=1.
+
+Exact classification for k=1
+Theorem. h(G)=1 iff G is a forest.
+
+Proof.
+(⇒) If G contains a cycle C, then no 1-hunter schedule wins. Let S1,…,Sn be any sequence of single vertices. Define P1=V\{S1}. We claim inductively that for each i, Pi∩V(C)=V(C)\{Si∩V(C)}. Indeed, if Pi contains all cycle vertices except possibly one, then every vertex of C has a neighbor in Pi (a cycle is 2-regular), hence V(C)⊆N(Pi) and so Pi+1∩V(C)=V(C)\{Si+1∩V(C)}. Thus Pi never empties. So h(G)>1.
+(⇐) Suppose G is a forest. We use the “double-hit support” rule: For any current state P (induced forest), and any vertex u adjacent to at least one leaf of the induced forest G[P], two consecutive shots at u transform P to P′:=P \ ( {u} ∪ Leaves_{G[P]}(u) ). This follows from the identity P′ = N( N(P)\{u} )\{u} and the fact that a vertex x∈P is removed iff all its neighbors in G[P] lie in {u}. Starting from P0=V, repeatedly pick any vertex u adjacent to a leaf of the current induced forest and shoot u twice; each such pair strictly decreases |P|. The forest becomes empty after finitely many iterations. Therefore h(G)=1. ∎
+
+Worked examples (small families)
+- P_n: h(P_n)=1 by the forest theorem. E.g., on P_5, shots 2,2,4,4 suffice (two pairs pruning neighbors of 2 then 4).
+- C_m (m≥4): h(C_m)=2. One explicit pattern for C_5: shoot {1,3},{1,3},{1,4},{1,4},{3,5} to drive P to ∅ (short variants exist). For C_4: {1,3},{1,3} already wins.
+- K_n: h(K_n)=n−1. With k=n−1, shoot the (n−1)-set D every round; the unique unshot vertex u cannot be used twice consecutively, so the rabbit enters D at step 2 and is captured. For k≤n−2, the rabbit alternates within the ≥2 unshot vertices.
+
+Algorithmic corollaries (provable now)
+- Recognizing h(G)=1 is linear-time: G is a forest iff acyclic; by the theorem.
+- Quick filters for general k:
+  • If ω(G)>k then h(G)>k (reject).
+  • If τ(G)≤k then h(G)≤k (accept). Both ω and τ are poly-time computable (τ via bipartite reduction is only for bipartite graphs; in general τ is NP-hard to compute exactly but has good approximations; nevertheless τ≤k is a sufficient, not necessary, certificate for h≤k).
+
+State-graph formulation (for experimentation and small n)
+- Exact decision h(G)≤k is equivalent to reachability from V to ∅ in the state graph whose vertices are subsets X⊆V and with edges X→Y whenever Y⊆N(X) and |N(X)\Y|≤k. Out-degree per state is Σ_{i=0}^k C(|N(X)|,i)=n^{O(k)}. This is immediately implementable and yields an exact solver for graphs up to moderate size, suitable for generating data and conjectures (e.g., all minimal obstructions for k=2 up to, say, 10 vertices).
+
+Why the general recognition is nontrivial
+- The state space is 2^n in the worst case; although the per-state branching is n^{O(k)}, a priori the number of reachable states may still be exponential. A generic n^{O(k)} bound thus requires a structural argument bounding (for winning instances) the length of any successful chain and/or the number of distinct reachable states by n^{O(k)}. We currently lack such a bound.
+- The view “layered temporal cut with per-layer budget k” (choose at most k vertices per time layer to hit all layer-respecting walks) suggests hardness: cut problems with partition matroid constraints are typically NP-hard. Our game is a very special such cut (the layer graph is repeatedly the same base graph), so a careful reduction might show NP-hardness already for k=2. This remains to be established.
+
+Obstacles
+- Bounding the number of relevant states for general graphs (beyond forests) under the transition Y⊆N(X), |N(X)\Y|≤k is the main barrier to a general n^{O(k)} algorithm.
+- Simple parameters (treewidth/pathwidth) do not immediately characterize h: e.g., pw(C_5)=2 but h(C_5)=2<τ(C_5)=3; K_3 has pw 2 but h=2; paths have pw 1 but h=1. We do have ω(G)≤h(G)≤τ(G), but τ can be much larger than h.
+
+Next steps (concrete, testable)
+1) k=2 classification for sparse families.
+   - Compute h on all graphs up to 10 vertices via the state-graph DP to enumerate minimal obstructions for h≤2. Expect K_3 as one obstruction; look for others (e.g., K_{2,3}? ladders? small grids?).
+2) Prove that 1-hunter fails on any graph containing a cycle (done) and extend to: if G contains an induced subgraph H with δ(H)≥2, then h(G)≥2 (trivial from the 1-hunter impossibility). Seek analogous necessary conditions for h≥3.
+3) FPT on bounded treewidth: Formulate a DP over a tree decomposition that carries as state the set of “possible positions” restricted to the bag and k-shot history to propagate the P-recursion. This should yield an algorithm deciding h(G)≤k in time f(k,tw)·n, and is a good intermediate milestone.
+4) Hardness for constant k≥2: Attempt a reduction from SAT/Vertex Separation/Temporal Cut to our reachability with per-layer budget on a fixed base graph, by encoding time layers via gadgets that reuse vertices. If successful, this would imply that, for some constant k, recognizing h(G)≤k is NP-hard, answering the original question in the negative.
+
+Summary of main rigorously proven contributions here
+- Exact characterization for k=1: h(G)=1 iff G is a forest, with a constructive schedule (double-shot supports) and a simple impossibility proof for cycles.
+- General bounds: ω(G) ≤ h(G) ≤ τ(G).
+- State-graph equivalence suitable for exact computation on small instances and for generating data for k=2.
+- Concrete plan to attack k=2 (both empirically and structurally) and to pursue either an n^{O(k)} algorithm (via structural bounds/DP over decompositions) or hardness (via tailored reductions).
+
+
+=== Prover 4 Output ===
+
+# Ideas
+
+- Reformulate the game as a deterministic recurrence on sets of possible rabbit positions. This produces a crisp necessary-and-sufficient condition for a schedule to be winning and is easy to check for any fixed schedule. It also reframes the recognition problem as the existence of a layer-wise hitting set in a time-expanded graph, a structure amenable to min–max reasoning and LP-duality heuristics.
+- Extract general lower bounds (minimum degree, degeneracy), monotonicity under subgraphs, and compute the evasion number exactly on key families (complete graphs, complete bipartite graphs, cycles). These give nontrivial certificates and guide what an XP algorithm must handle.
+- Conjecture: the evasion number equals the degeneracy. This matches all examples we can prove and offers an immediate linear-time recognition if true. Outline of a proof strategy is given. This is a testable claim for the verifier via brute force on small graphs.
+
+# Formal reformulation (rigorous)
+
+Let G = (V,E) be a simple undirected graph on n = |V| ≥ 1. For a schedule s = (s_1, …, s_n) with s_i ⊆ V, |s_i| = k, define
+- R_1 := V \ s_1,
+- R_{i+1} := N(R_i) \ s_{i+1} for i = 1, …, n-1.
+
+Proposition 1 (equivalence). The schedule s is winning (i.e., for every walk v_1,…,v_n with v_{i+1} ∼ v_i there exists i with v_i ∈ s_i) if and only if R_n = ∅.
+
+Proof. Induct on i that R_i is exactly the set of vertices v such that there exists a length-i walk v_1,…,v_i with v_j ∉ s_j for all j. For i=1 this is R_1 = V \ s_1. If the claim holds for i, then v ∈ R_{i+1} iff v ∈ N(R_i) and v ∉ s_{i+1}, i.e., there exists u ∈ R_i with u ∼ v and v ∉ s_{i+1}; by IH, this is equivalent to the existence of a walk of length i+1 avoiding shots up to time i+1. Thus R_n = ∅ iff no length-n avoiding walk exists, i.e., s is winning. ∎
+
+Interpretation: Given s, the evader’s possible positions at time i are R_i; capture by time n is equivalent to R_n = ∅.
+
+# General bounds and monotonicity (rigorous)
+
+Lemma 2 (minimum-degree lower bound). If k < δ(G), then no schedule with k hunters is winning.
+
+Proof. Let δ := δ(G). Fix any schedule s. Choose v_1 ∈ V \ s_1. Suppose v_i chosen with v_i ∉ s_i. Since deg(v_i) ≥ δ > k, at most k neighbors are in s_{i+1}, hence there exists v_{i+1} ∈ N(v_i) \ s_{i+1}. This constructs an avoiding walk of any prescribed length, contradicting winning. ∎
+
+Corollary 3 (subgraph monotonicity). If H ⊆ G is a subgraph then e(H) ≤ e(G).
+
+Proof. Any schedule that is winning on G is also winning against walks confined to H. ∎
+
+Corollary 4 (degeneracy lower bound). If d(G) denotes the degeneracy of G (maximum minimum degree over all subgraphs), then e(G) ≥ d(G).
+
+Proof. By definition there is a subgraph H with δ(H) = d(G); apply Lemma 2 and Corollary 3. ∎
+
+# Exact values for key families (rigorous)
+
+Theorem 5 (complete graphs). e(K_n) = n − 1.
+
+Proof. Lower bound: δ(K_n) = n − 1, so e(K_n) ≥ n − 1 by Lemma 2. Upper bound: with k = n − 1, take s_i = V \ {x} for a fixed x and all i. Then R_1 = {x}, R_2 = N({x}) \ s_2 = (V \ {x}) \ (V \ {x}) = ∅. ∎
+
+Theorem 6 (complete bipartite). For K_{a,b} with a ≤ b, e(K_{a,b}) = a.
+
+Proof. Lower bound: δ = a. Upper bound: take s_i = A (the size-a side) for all i. Then R_1 = B, R_2 = N(B) \ A = A \ A = ∅. ∎
+
+Theorem 7 (cycles). For m ≥ 3, e(C_m) = 2.
+
+Proof. Lower bound: δ(C_m) = 2. Upper bound: let u,v be antipodal if m even (or any two nonadjacent vertices if m odd). Take s_i = {u,v} for all i. Then R_1 = V \ {u,v}. In a cycle, N(V \ {u,v}) = {u,v}, so R_2 = {u,v} \ {u,v} = ∅. ∎
+
+Example 8 (paths). On P_4 with vertices 1–2–3–4, k=1 suffices; e(P_4)=1. For instance s=(1,3,2,3) yields
+- R_1={2,3,4},
+- R_2=N(R_1)\{3}={1,2,4},
+- R_3=N(R_2)\{2}={4},
+- R_4=N({4})\{3}=∅.
+
+# Layered-graph (time expansion) viewpoint
+
+Let H be the layered DAG with vertex set V×{1,…,n} and edges (u,i)→(v,i+1) iff uv∈E(G). A schedule s with k picks defines S = ⋃_i (s_i×{i}). Proposition 1 is equivalent to: s is winning iff S intersects every layer-respecting (layer-1 to layer-n) path in H. Thus e(G) is the minimum k such that there exists a per-layer hitting set S with |S∩(V×{i})| ≤ k intersecting all such paths. This is a “layer-budget path hitting” problem.
+
+Simple packing obstructions: if H contains k+1 vertex-disjoint layer-respecting paths, then clearly no S with per-layer budget k can hit them all (every layer would need ≥k+1 shots). The converse is false in general (because leaving ≤k vertices per layer does not guarantee a surviving path unless the surviving vertices align into a walk). Still, this provides a polynomial-time (max-flow) certificate that e(G) > k whenever such a packing exists.
+
+# Conjecture and consequences
+
+Conjecture 9. e(G) = d(G) (degeneracy) for all finite graphs G.
+
+Evidence:
+- K_n: e = n−1 = d.
+- K_{a,b}: e = min(a,b) = d.
+- Cycles C_m: e = 2 = d.
+- Forests: d = 1; consistent with all tested small trees (paths, stars, small caterpillars) where k=1 schedules exist (Example 8). A systematic proof for all forests remains open here.
+
+If Conjecture 9 holds, then recognition for fixed k is linear-time: compute d(G) (via standard peeling) and check d(G)=k. Even without equality, Corollary 4 provides a fast NO-certificate: if d(G)>k then e(G)>k.
+
+# Obstacles / why naive approaches fail
+
+- Pure packing (Menger) is insufficient: e.g., K_n has n vertex-disjoint layer paths in the time-expanded graph, yet k=n−1 shots per layer suffice by choosing the same n−1 vertices every round to force an impossible “stay put” at the unique survivor.
+- Greedy minimization of |R_i| at each step need not be globally optimal (the identity of which k vertices are removed affects future neighborhoods). The state space of R_i is exponential.
+
+# Toward algorithms for fixed k
+
+- Layered cut with per-layer budgets: For fixed k, one can work in H and ask if there exists S of size ≤k per layer hitting all L1–Ln paths. This is a hitting set with special structure. Even though a direct min–max characterization is unclear, the following are tractable checks:
+  - NO-certificate: find k+1 vertex-disjoint layer paths (max-flow in H) – immediate.
+  - YES-heuristic: attempt to build S layer-by-layer using minimum vertex cuts between layer 1 and layer i with the extra constraint that we use ≤k per layer. This suggests an LP with exponentially many path constraints; separation reduces to shortest path in H with vertex weights. Investigate integrality for this very special layered case.
+- Parameterized by k: a bounded-branching DP over layers that keeps only the “relevant” part B_i := N(R_i) and guesses S_{i+1} ⊆ B_i (|S_{i+1}|=k). From B_i there are at most O(n^k) transitions to B_{i+1}. The challenge is to bound the number of distinct B_i encountered; identifying a compressed state space (e.g., via neighborhood equivalence modulo k) could lead to an n^{O(k)} algorithm.
+
+# Next steps (auditable work)
+
+1) Verification by computation for small n: Exhaustively compute e(G) for all graphs up to n=8 (or all trees up to n=12) and compare with degeneracy. This directly tests Conjecture 9 and will likely suggest a proof strategy or counterexample.
+
+2) Trees and forests: either prove e(T)=1 for all trees T (which, combined with cycles⇒e≥2, would fit degeneracy) or find a counterexample. A promising approach is to construct a schedule from an Euler traversal with carefully chosen repetitions (as in Example 8) and prove R_n=∅ by induction on the number of leaves.
+
+3) Layered LP/flow duality: Formalize the LP for layer-budget path hitting and analyze integrality on layered DAGs. Even a constant-factor integrality bound might yield an XP recognition via iterative rounding for fixed k.
+
+4) Obstruction theory beyond disjoint paths: Characterize minimal sets of layer paths that force e(G)≥k+1 (robust packings that survive any ≤k per-layer deletions). If these obstructions admit polynomial-time detection for fixed k, we obtain an n^{O(k)} recognition.
+
+# Summary of provable content for inclusion
+
+- Proposition 1: R-recursion equivalence.
+- Lemma 2 and Corollaries 3–4: lower bounds via min degree and degeneracy; monotonicity under subgraphs.
+- Exact values: e(K_n)=n−1; e(K_{a,b})=min(a,b); e(C_m)=2 (m≥3). Worked example e(P_4)=1.
+- Practical NO-test: if d(G)>k then e(G)>k (linear time).
+- Conjecture: e(G)=d(G). If true, recognition is linear time. Otherwise, the above layered-graph framework and parameterized DP outline suggest a path toward n^{O(k)} or at least FPT-time recognition.

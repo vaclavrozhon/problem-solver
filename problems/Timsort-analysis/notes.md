@@ -2,36 +2,26 @@
 
 
 
-## Entropy-adaptivity of TimSort: corrected target and plan
+We target entropy adaptivity of TimSort on inputs decomposed into runs of lengths ℓ1,…,ℓr with Σℓi=n and H=Σ (ℓi/n) log2(n/ℓi).
 
-- The target “comparisons ≤ n·H + O(n)” (leading constant 1) is false for TimSort. Buss–Knop construct run-length sequences yielding merge cost ≥ (3/2)·n·log n − O(n); since H ≤ log n, TimSort requires ≥ (3/2)·n·H − O(n) comparisons on those inputs. Hence we cannot prove the original claim.
-- Correct bounds for Python’s patched TimSort (with the additional #5 condition):
-  - Coarse: comparisons = O(n + n·H) via starting/ending-sequence decomposition and token accounting.
-  - Sharp: comparisons ≤ (3/2)·n·H + O(n), tight (there are matching lower-bound inputs).
+Key status:
+- The statement “TimSort uses ≤ n H + O(n) comparisons (leading constant 1)” is false. Buss–Knop exhibited run-length sequences that force ≥ (3/2 − o(1)) n log2 n comparisons for TimSort; for these inputs, H ≈ log2 n.
+- True: Python TimSort (with the de Gouw et al. fix, i.e., the extra guard r2 + r3 ≥ r4) achieves comparisons ≤ O(n + n H). We now have a self-contained proof.
+- Stronger/tight: comparisons ≤ (3/2) n H + O(n) is provable via a potential-function analysis; this is tight. We will formalize this later.
 
-Sketch of the coarse O(n + nH) argument
-- Model: merging runs of sizes a,b uses ≤ a+b−1 comparisons; run detection takes O(n) comparisons; so total comparisons ≤ total merge cost + O(n).
-- Split each iteration into a starting sequence (#1 followed by maximal #2’s) and an ending sequence (merges #3/#4/#5, possibly with #2’s, until invariant restored).
-- Invariant (after collapse): r_{i+2} > r_{i+1} + r_i and r_{i+1} > r_i; consequence: along the stack, r_{i+2} ≥ 2 r_i, giving exponential growth and a height bound.
-- Starting sequences: cost O(n) in total, via geometric decay (last #2 implies r > r_k and r_k ≥ 2^{(k−1−i)/2} r_i; the weighted sum ∑(k+1−i) r_i ≤ γ·r for a constant γ).
-- Ending sequences: tokens per element (2 c + 1 s) credited whenever its height decreases; spends per case #2/#3/#4/#5 are covered; s-token balances stay nonnegative because the patched #5 forces another merge. Each element encounters O(1 + log(n/r)) height levels (height after starting sequence ≤ 4 + 2 log2(n/r)), so total tokens minted sum to O(∑ r (1 + log(n/r))) = O(n + nH). This equals ending-sequence merge cost.
-- Final collapse: handled by appending a sentinel run (> n) or charged O(n).
+Proof strategy for O(n + nH):
+1) Model TimSort’s core stack rules (top=R1, below=R2,…): After pushing a new run, repeatedly apply (in order):
+   #2: if h≥3 and r1>r3 merge (R2,R3); #3: if h≥2 and r1≥r2 merge (R1,R2); #4: if h≥3 and r1+r2≥r3 merge (R1,R2); #5 (fix): if h≥4 and r2+r3≥r4 merge (R1,R2). Finally collapse.
+   Cost model: merge(a,b) costs a+b; comparisons ≤ total merge cost + O(n) for scanning.
+2) Fibonacci-type invariant: At quiescence (before the next push), r1<r2, r1+r2<r3, r2+r3<r4, and for i≥3: ri+ri+1<ri+2. Hence exponential growth down the stack: ri ≤ 2^{(i+1−j)/2} rj.
+3) Decompose each iteration into a starting sequence (maximal consecutive #2’s after push) and an ending sequence (subsequent merges until next push). Show starting sequences have total cost O(n): for a starting sequence that merges k preexisting runs R1,…,Rk, the cost is ≤ γ r with a universal constant γ, using r>rk and the exponential growth bound.
+4) Token accounting for ending sequences: Each element receives 2 c-tokens and 1 s-token upon push and whenever its height drops during an ending merge. Charge merges as follows: #2: top two runs pay 1 c each; #3: top run pays 2 c; #4/#5: top run pays 1 c, second run pays 1 s. Show no deficits: s-tokens used by R2 in #4/#5 are immediately re-credited on the subsequent merge (the ending sequence must continue), and c-credits on height drops cover c-charges.
+5) Stack-height bound for a run of length r after its starting sequence: h ≤ 4 + 2 log2(n/r), since r1=r ≤ r3 ≤ 2^{2−h/2} n by the exponential-growth bound. Thus each element accrues O(h)=O(1+log(n/r)) credits, paying for O(h) merge cost. Summing over all elements yields O(Σ r (1+log(n/r)))=O(n+nH).
+6) Add O(n) for run detection/overhead. Hence comparisons ≤ O(n+nH).
 
-Plan for sharp (3/2)·nH + O(n)
-- Use potential Φ(r) = (3/2) r log2 r. Balanced merges (sizes within a factor φ^2) satisfy cost ≤ ΔΦ. Group the remaining merges in each ending sequence into singletons or pairs so that each group’s cost ≤ ΔΦ(group), except possibly the first group which exceeds by ≤ r (length of the just-pushed run). These r-slacks sum to O(n). Hence total merge cost ≤ ΔΦ + O(n) = (3/2)·n·H + O(n). Lower bound: Buss–Knop family gives ≥ (3/2)·n·H − O(n).
+Lower bound: Any comparison sort needs ≥ nH − O(n) comparisons when the run partition is known, by counting n!/(ℓ1!…ℓr!) and Stirling.
 
-Assumptions
-- Python’s corrected TimSort (with case #5). Galloping only reduces comparisons. Converting merge cost to comparisons adds O(n).
-
-Next
-- Write up proofs in proofs.md (coarse and sharp bounds) and adjust output.md to state the corrected main theorem (3/2 factor).
-
-## Coarse entropy bound with explicit constants (Python-patched TimSort)
-
-- We finalize the coarse bound comparisons = O(n + nH). Using the stack invariant and the starting/ending split:
-  - Starting sequences: total merge cost ≤ γ n with γ = 2\sum_{j\ge1} j\,2^{-j/2} = 6\sqrt{2} + 8 \approx 16.485.
-  - Ending sequences: token scheme (2 c + 1 s credited per height decrease) and the height bound h ≤ 4 + 2 log2(n/r) imply ending-sequence merge cost ≤ 12 n + 6 n H.
-- Immediate follow-up after #4/#5 (patched case #5): every #4/#5 merge is followed by another merge in the same ending sequence, ensuring s-tokens are re-credited before reuse.
-- Final collapse is absorbed by appending a sentinel run of length > n (or charged O(n)), so all merges are within the main loop.
-- Hence comparisons ≤ merge cost + O(n) ≤ (γ + 12) n + 6 n H.
-- Sharp bound remains (3/2)·n·H + O(n) via the potential method; to be written with the balanced-merge, forbidden-pattern, and pairing/grouping lemmas.
+Next steps:
+- Polish constants and edge cases (empty/singleton runs, final-collapse folding), then promote the O(n + nH) result to output.md.
+- Optionally, finalize the potential-function proof for the tight (3/2) nH + O(n) upper bound and add it to proofs.md.
+- If the goal truly requires a leading constant 1, switch to a nearly optimal stable mergesort (e.g., powersort/peeksort): comparisons ≤ nH + O(n).

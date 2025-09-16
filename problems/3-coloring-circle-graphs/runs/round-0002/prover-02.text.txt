@@ -1,0 +1,91 @@
+# Ideas (round objective)
+
+- Consolidate two rigorous ingredients: (i) a fully detailed DP for k-colorability parameterized by interval ply w, and (ii) a polynomial-time extension test (via 2-SAT) under the “bipartite sides” assumption for a fixed pivot chord x, given a 2-coloring of G[N(x)].
+- Clarify that N(x) and N(x)∩N(y) are permutation graphs (hereditary), replacing earlier “trapezoid” remarks.
+- Extract an FPT corollary in the parameter cc(N(x)) (number of connected components of G[N(x)]) for instances admitting a pivot x with bipartite sides.
+
+# Preliminaries
+
+- Circle graphs ≡ overlap graphs of intervals: Fix a point on the circle avoiding endpoints; map each chord ab to the interval (a,b) along the circle’s cyclic order. Two chords intersect iff their intervals overlap without containment: s(u) < s(v) < t(u) < t(v) or vice versa.
+- Ply w: maximum number of intervals covering any point in the linearized representation. It bounds the sweep-line active set size.
+
+# Lemma A (Neighborhoods are permutation graphs)
+
+Statement. For any chord x, the induced subgraph G[N(x)] is a permutation graph. Consequently, for any x,y, the graph G[N(x)∩N(y)] is also permutation.
+
+Proof. Draw the circle and chord x. The neighbors of x are exactly chords with one endpoint on the left arc of x and one on the right arc. Order N(x) by their left endpoints along the left arc, and independently by their right endpoints along the right arc. Two neighbors u,v cross (hence are adjacent in G[N(x)]) iff the relative order of their left endpoints is inverted relative to the order of their right endpoints. This is exactly the permutation graph definition on the two linear orders. Permutation graphs are hereditary, so any induced subgraph such as N(x)∩N(y) is permutation. ∎
+
+# Theorem 1 (DP for k-colorability parameterized by ply)
+
+Statement. Given an interval-overlap representation with ply w for a circle graph G on n chords, one can decide k-colorability in time O(n · w · k^w) and space O(k^w). The same bound holds when starting from a graph input after computing a representation in poly(n) time.
+
+Proof. Sort the 2n endpoints e_1,…,e_{2n}. Let A_t be the active set between e_t and e_{t+1}. A proper k-coloring of G corresponds to assigning colors to intervals so that, at any t, within each color the active intervals form a single containment chain (a LIFO stack), since any two simultaneously active same-color intervals cannot overlap and cannot be disjoint; hence they must be nested.
+
+DP states. At position t, a state is a k-tuple (S^1_t,…,S^k_t) forming a partition of A_t, with the property that each S^c_t is totally ordered by decreasing right endpoints (a stack). For each S^c_t store r_top(c), the minimum right endpoint in S^c_t (∞ if empty).
+
+Initialization: S_0 = {(∅,…,∅)}.
+
+Transition. Process e_{t+1}:
+- If e_{t+1} is the start of interval j with right endpoint r_j, then for every current state and every color c such that either S^c_t is empty or r_j < r_top(c), generate a successor by pushing j onto S^c_t and setting r_top(c) ← r_j.
+- If e_{t+1} is the end of interval j, then a state survives iff there exists a unique color c with j ∈ S^c_t and r_j = r_top(c); pop j from S^c_t and reset r_top(c) to the next minimum in S^c_t (or ∞ if empty).
+
+Correctness. By induction on t, reachable states correspond exactly to colorings of intervals whose starts appear among {e_1,…,e_t} that are consistent with some global k-coloring of all intervals that end after t. The push condition enforces that a new same-color interval starts inside the current top of that color, preventing same-color overlap; the pop condition enforces LIFO within each color, which is necessary to keep nested chains valid. Conversely, any valid k-coloring induces a unique path of states by the same push/pop discipline.
+
+Complexity. |A_t| ≤ w implies at most k^{|A_t|} ≤ k^w states at any t. Maintaining r_top requires O(1) per push, and O(w) per pop to find the next minimum (or O(1) with per-stack linked lists). Across 2n events this gives O(n · w · k^w) time and O(k^w) memory per layer. ∎
+
+Remark. This is FPT in w; note w depends on the given (or computed) representation and can be Θ(n) in the worst case.
+
+# Proposition 2 (Bipartite-sides extension via 2-SAT)
+
+Setup. Fix a chord x and aim for a 3-coloring with col(x)=3. Let L (resp. R) be the chords with both endpoints on the left (resp. right) arc of x; let N(x) be the chords crossing x. Suppose G[L] and G[R] are bipartite; fix bipartitions L = A_L ⊔ B_L and R = A_R ⊔ B_R. Fix a proper 2-coloring of G[N(x)] with colors {1,2} (equivalently, fix the orientation of each bipartite component of N(x)).
+
+For y ∈ L, define S_y ⊆ {1,2} as the set of colors appearing among neighbors of y in N(x) (equivalently, among left endpoints in y). Analogously define S_y for y ∈ R from right endpoints. We must decide if colors can be assigned to L ∪ R using colors {1,2,3} so that: (i) vertices with z_y=0 are colored 1/2 respecting the fixed bipartitions (A-side gets one color, B-side the other, per component), (ii) vertices with z_y=1 use color 3, and (iii) constraints from S_y are respected.
+
+Construction (2-SAT per side). For each component K of L (or R), introduce a Boolean p_K indicating whether A_K uses color 1 (p_K=0) or 2 (p_K=1). For each y ∈ K, introduce z_y indicating whether y is colored 3 (z_y=1) or uses the side color (z_y=0). Add clauses:
+- For every edge uv of K: (¬z_u ∨ ¬z_v) to ensure the z=1 vertices form an independent set.
+- If S_y = {1,2}, add z_y as a unit clause (y must be 3).
+- If S_y = {1}: then
+  • y ∈ A_K: add (z_y ∨ p_K) (if z_y=0 then A_K must not be color 1).
+  • y ∈ B_K: add (z_y ∨ ¬p_K) (if z_y=0 then B_K must not be color 1).
+- If S_y = {2}: then
+  • y ∈ A_K: add (z_y ∨ ¬p_K) (if z_y=0 then A_K must not be color 2).
+  • y ∈ B_K: add (z_y ∨ p_K) (if z_y=0 then B_K must not be color 2).
+- If S_y = ∅, add ¬z_y (no need to use color 3).
+Solve the 2-SAT instance independently for K ⊆ L and K ⊆ R.
+
+Correctness. Given the fixed 2-coloring of N(x), any valid extension with col(x)=3 yields an assignment with z_y=1 exactly for 3-colored vertices, and p_K matching the orientation used on K; all clauses are satisfied by construction. Conversely, any satisfying assignment produces a valid 3-coloring: for each component K, assign colors {1,2} to A_K,B_K as specified by p_K; vertices with z_y=1 use color 3; independence of the z=1 set ensures no monochromatic edge in color 3; constraints guarantee that no vertex kept in {1,2} is assigned a forbidden color. Edges between L and R do not exist, and edges to N(x) are respected by S_y’s definition; edges inside N(x) are proper by the fixed 2-coloring. ∎
+
+Complexity. For fixed x and fixed 2-coloring of N(x), the reduction and 2-SAT solving are linear in |V(G)| + |E(G)|.
+
+# Corollary 3 (FPT in cc(N(x)) under bipartite-sides)
+
+Algorithm. For each choice of pivot x, first test if G[L] and G[R] are bipartite; if not, skip x. Compute the connected components of G[N(x)]. For each component, there are exactly two orientations of its 2-coloring; enumerate all 2^{cc(N(x))} choices. For each choice, run the 2-SAT extensions on L and R as in Proposition 2. If any choice succeeds, G is 3-colorable; else, try the next x.
+
+Runtime. O(n · 2^{cc(N(x))} · poly(n)) across all x. This is FPT in t = min_x cc(N(x)) on instances admitting at least one pivot x with bipartite sides.
+
+Remarks. The 2-SAT step strictly improves on a purely greedy orientation: it permits assigning color 3 to a side-vertex with a singleton S_y when necessary, provided the set of such vertices is independent.
+
+# Examples and checks
+
+- Pivot with universal chord. If some x meets every other chord, then N(x) = V\{x}. A 3-coloring exists iff G−x is bipartite; the algorithm detects this with L=R=∅ and a single 2-coloring check on N(x).
+- Small instance. Let x split the circle; let N(x) induce a path on four vertices (bipartite, cc=1). Suppose on L there are two vertices y1,y2 adjacent; the left endpoints in y1 include both colors (S_{y1}={1,2}), while S_{y2}={1}. The 2-SAT forces z_{y1}=1 and (z_{y2} ∨ p_{K_L}). If z_{y2}=0 then p_{K_L}=1; otherwise y2 may be set to 3 provided z_{y1}=1∧z_{y2}=1 is disallowed by the edge clause. The construction behaves as intended.
+
+# Obstacles and limits
+
+- Removing the 2^{cc(N(x))} factor. Integrating the orientation variables of N(x) into a single 2-SAT is blocked by “existence” predicates of the form “some neighbor with color c lies inside y,” which expand to disjunctions over multiple components. This naturally yields clauses beyond 2-CNF. A viable relaxation is to precompute orientation-invariant bans: if both sides of some component contribute endpoints inside y, then color c is forced in y regardless of orientation; this can prune the search but does not eliminate exponential branching in the worst case.
+- General instances. If no pivot x has bipartite sides, Proposition 2 does not apply. Extending it would require handling odd-cycle transversals on the sides together with independence constraints; the “independent odd cycle transversal” variant is algorithmically delicate.
+- Ply-based DP. The O(n·w·k^w) algorithm is worst-case exponential when w is large; improving it unconditionally seems to require a new, more compressed invariant than per-interval color on the active set.
+
+# Next steps (concrete and testable)
+
+- Proof polishing: Move Theorem 1 and Lemma A into proofs.md with complete, self-contained arguments and precise data-structure details for O(1) r_top maintenance.
+- Implementation: (i) DP for k-colorability vs ply; (ii) the pivot-based algorithm with the 2-SAT extension; measure cc(N(x)) distribution and frequency of bipartite sides in random and benchmark instances.
+- Pruning heuristics: In the pivot algorithm, compute orientation-invariant bans per vertex y to reduce the branching tree over cc(N(x)). Use early 2-SAT infeasibility checks to backtrack.
+- Structural: Explore two-chord separators {a,b} and whether regions separated by N(a)∪N(b) admit a similar 2-SAT extension (N(a)∪N(b) is permutation by Lemma A; enumerate its 2-colorings per component).
+- Hardness direction: Start a SAT-guided search for small 3-coloring gadgets within circle graphs (wire, inverter, equality), using chord-diagram realizability constraints to validate gadgets.
+
+# Provisional items for output.md
+
+- Theorem 1 (DP in ply w) with full proof and complexity.
+- Lemma A (G[N(x)] permutation; hereditary consequence).
+- Proposition 2 (2-SAT extension under bipartite sides for fixed 2-coloring of N(x)) and Corollary 3 (FPT in cc(N(x)) when such a pivot exists).

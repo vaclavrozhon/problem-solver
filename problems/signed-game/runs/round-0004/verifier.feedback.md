@@ -1,0 +1,13 @@
+Good progress and largely correct additions this round.
+
+1) Multi-core cohesive existence (Prover 1). The statement is a natural and valid generalization of the single-core cohesive result: partition V=R^1⊔…⊔R^m⊔S, with each block R^t internally unsigned after a signature τ^(t) and satisfying w_i^{R^t}+τ_i^{(t)}h_i ≥ w_i^{V\R^t} for all i∈R^t, plus existence of a PNE for the S-subgame with R frozen at τ_R. The proof outline via a global gauge σ that fixes R to +1 and leaves S unchanged is right. Minor fixes: (i) when lower-bounding the best-response marginal in the transformed game, include all external influence V\R^t (not only S): Δ_i ≥ 2(h_i^{[σ]}+∑_{j∈R^t}W^{[σ]}_{ij}·1 − |∑_{j∉R^t}W^{[σ]}_{ij}x_j|) ≥ 2(h_i^{[σ]}+w_i^{R^t} − w_i^{V\R^t}) ≥ 0. (ii) Do not claim uniqueness of +1 as a best response unless the inequality is strict; ties can occur at equality. With these corrections, the theorem is sound.
+
+2) Monotone bounded-length BR-path (unsigned components). The lemma and its corollary (length ≤ |U| within an unsigned block; total length ≤ ∑|U_k| under SCC composition after gauging each SCC to unsigned) are correct. This adds a useful constructive bound.
+
+3) Functional digraphs. Prior results remain valid; Prover 4’s counting refinement is reasonable when all nodes on a cycle are responsive (|h_i|<|w_i|), but exact counting under ties depends on tie-breaking. State existence and the “two PNE if all strict” claim; treat counts under ties as lower bounds, not exact.
+
+4) Forests with sign-symmetric digons. The class is correctly identified as PNE-guaranteeing for all h via SCC composition and the 2-node UPA classification. Worth adding as a corollary.
+
+5) Structural balance check and dominant negative cycle. The directed cycle-parity characterization and linear-time labeling are correct; the dominant negative cycle obstruction is robust and correctly stated.
+
+Explicit next steps: (i) Formalize the multi-core proof with the corrected inequality and non-uniqueness remark; (ii) Integrate the monotone BR path bound into the SCC pipeline (produce explicit BR paths and length bounds after gauging); (iii) Develop further UPA SCC families beyond undirected/structurally balanced/functional (e.g., ordinal-potential polymatrix blocks); (iv) Implement the end-to-end checker: SCCs, per-SCC tests (symmetry/structural balance/functional-positive), dominance obstructions, cohesive-core fallback, and explicit BR-path construction when applicable.

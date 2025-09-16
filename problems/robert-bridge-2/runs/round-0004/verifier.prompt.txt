@@ -1,0 +1,519 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+## Setting
+
+- Fix an integer \(D \ge 2\).
+- Let \(\mathbf{G}_\bullet\) be the space of **countably infinite, connected, rooted graphs** \((G,\rho)\).
+- For \((G,\rho) \in \mathbf{G}_\bullet\) and \(r \in \mathbb{N}\), let \(B_r(G,\rho)\) denote the rooted (closed) ball of radius \(r\) about \(\rho\).
+- Equip \(\mathbf{G}_\bullet\) with the **local (Benjamini–Schramm) metric** \(d_\bullet\) given by
+  \[
+  d_\bullet\big((G,\rho),(H,\sigma)\big)=2^{-R},
+  \qquad
+  R=\sup\{r\in\mathbb{N} : B_r(G,\rho)\cong B_r(H,\sigma)\}.
+  \]
+  (Equivalently, \(d_\bullet((G,\rho),(H,\sigma))<2^{-r}\) iff \(B_r(G,\rho)\cong B_r(H,\sigma)\).)
+- Degree‑constrained subspaces:
+  - \(\mathbf{G}_{\bullet,\le D}\): all rooted graphs with \(\Delta(G)\le D\).
+  - \(\mathbf{G}_{\bullet,= D}\): all rooted graphs with \(\Delta(G)= D\).
+  We write \(\mathbf{G}_{\bullet,D}\) for either of these when the distinction is unimportant.
+- A subset \(S\subseteq \mathbf{G}_\bullet\) is **nowhere dense** if the interior of \(\overline{S}\) is empty. A set is **meagre** (first category) if it is a countable union of nowhere dense sets; its complement is **comeagre**. A property is called **typical** if the corresponding set is comeagre.
+- An edge \(e\) of an (unrooted) graph \(G\) is a **bridge** if \(G-e\) has more connected components than \(G\). A bridge is **2‑way infinite** if both components are infinite and **1‑way infinite** otherwise.
+
+---
+Prove or disprove:
+
+
+## Conjecture — Metric sensitivity of typicality
+There exists a **natural alternative metric** on the same underlying set \(\mathbf{G}_{\bullet,D}\) for which the collection of **typical properties** differs from those under \(d_\bullet\). In particular, determine whether there is a reasonable metric in which **bridgeless graphs are typical**, or prove that no such metric can change their typicality.
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Working hypothesis: Robustness of bridge atypicality under tame topologies.
+
+Definitions (to be formalized):
+- A tame topology on X=G_{\bullet,D} has a countable base consisting of sets A(F,Π), where F is a rooted r-ball and Π is a finite boundary datum on a finite subset S of the boundary L_r(F). Π should specify: (i) residual degree budget at each v∈S (an integer in [0,D−deg_F(v)]), and (ii) finitely many local forbiddances of new adjacencies between specified boundary atoms; any completion must respect these.
+- Basic cylinders C(F)=\{G: B_r(G)≅F\} are special cases A(F,∅). The topology is required to be generated by these A(F,Π), and the space should be Polish (hence Baire).
+
+Goal: For all tame τ and for X=G_{\bullet,≤D} (D>2) and X=G_{\bullet,=D} with odd D, the bridgeless set is nowhere dense. For even D regular, bridgeless is already comeagre under d_• (1‑way bridges impossible; 2‑way bridges meagre), so no flip is needed.
+
+Bridge‑forcing sketch (≤D):
+- Given nonempty A(F,Π), extend F to a larger ball F′ by attaching a finite tree gadget T outside a buffered annulus so that exactly one edge e crosses from F‑side to T‑side, and saturate degrees of all vertices on both sides that could create additional outside connections. Ensure T is disjoint from S so Π is unaffected.
+- In any completion respecting Π, degrees on the cut interface are saturated; hence no new outside edge can connect T to the rest, and e remains the unique cut‑edge, i.e., a bridge. Also leave ample unsaturated boundary elsewhere to admit infinite completions.
+
+Odd D regular gadget: Replace the degree‑saturation by a D‑regular odd gadget ensuring a unique cut‑edge while keeping all degrees exactly D. To be written in full detail (parity bookkeeping, buffer, and compatibility with Π).
+
+Planned verification checklists:
+- Precisely define Π and show A(F,Π) form a base; prove nonemptiness criteria and that the space is Polish.
+- Show common “finite‑coding” metrics (weighted sums of finitely many r‑ball tests) are tame.
+- Write the bridge‑forcing lemma rigorously for ≤D and odd D regular.
+- Explore whether logical/Stone topologies are tame; if not, test whether bridge‑forcing still yields nowhere denseness.
+
+
+Agenda and corrections
+
+- Robust bridge forcing: Attaching a leaf or a short pendant path does NOT force a bridge in all extensions, since extensions may add edges at the leaf. Correct forcing uses a finite D‑saturated bubble on one side: build a finite connected subgraph H whose vertices all have degree D (in \le D) or exactly D (in =D), except a designated vertex w with degree D−1 inside H; connect w to a boundary vertex u in the core by a single edge e=uw. Saturate all vertices of H (including w after adding e) to degree D within the prescribed ball, and do not add any other edges between H and the core. Then in every extension respecting the degree bound, no new edges can be added at H, so e remains the unique edge across the cut and is a bridge. The H side is finite; the other side can be extended to infinity via other boundary vertices.
+- Cylinder‑rich topologies: We call a topology cylinder‑rich if for every open neighborhood U of x there exists r with the cylinder {y: B_r(y)≅B_r(x)} contained in U. This covers the local metric and many natural local metrics (weighted multi‑radius edit distances, etc.). In any cylinder‑rich topology, the above gadget yields a cylinder on which every graph has a bridge, so bridgeless sets are nowhere dense in G_{•,≤D} and in G_{•,=D} for odd D.
+- Even D‑regular parity: In D‑regular graphs with even D, every bridge is 2‑way infinite; 1‑way infinite bridges are impossible by degree‑sum parity on a finite component.
+- Nonlocal attempts: Adding a global boolean “has a bridge” coordinate makes that property open and cannot render “bridgeless” typical. An end‑sensitive topology may alter typicality but needs proof of metrizability/Baire property and density arguments to rule out 1‑edge cuts.
+
+Open tasks
+- Formalize the saturated‑bubble construction in regular (=D) odd case, including existence of infinite D‑regular extensions realizing the refined ball.
+- Prove (or refute) that “has a 2‑way infinite bridge” is meagre in ≤D and =D; this would imply comeagre bridgeless for even D.
+- Specify and study a natural nonlocal, Baire topology (e.g., end‑profile inverse limit) where bridgeless might be typical; verify all topological properties first.
+
+Refinements and corrections to the topology and forcing scheme
+
+- Cylinder‑open vs cylinder‑rich: For invariance of nowhere‑denseness across alternative metrics/topologies, we require that the new topology contains the local (Benjamini–Schramm) cylinders as open sets (call such topologies cylinder‑open). The weaker condition that each open set contains some local cylinder (cylinder‑rich) is insufficient to transfer category statements.
+
+- Robust bridge forcing (final): Pendant leaves do not force bridges. Use a finite saturated bubble H attached by a single edge e to the core so that every vertex of H has degree D within the prescribed ball (and degree exactly D in the =D case). Then e remains a bridge in every completion. This works uniformly in ≤D and in =D for odd D; it is impossible for even D in the =D case due to parity (only 2‑way bridges can occur).
+
+- 2‑way infinite bridges (D>2): For each k, the property “there is a 2‑way infinite bridge at distance ≤k” is nowhere dense. Construction: inside any cylinder, classify edges within distance ≤k as safe (one side has no boundary vertex with residual degree <D, hence cannot become infinite in any completion) or critical (both sides have a boundary vertex with residual degree). For critical edges, add one new neighbor to each such boundary vertex and link all these new neighbors into a single external cycle just outside the base radius; then each critical edge lies on a finite cycle entirely within a slightly larger ball. This yields meagreness of the union over k, and density follows by attaching two infinite branches connected by a single edge far outside.
+
+- Even D‑regular: By parity, bridges are necessarily 2‑way infinite; with the meagreness above, bridgeless graphs are comeagre under the local topology.
+
+Open items
+- Provide a canonical odd‑regular finite bubble (e.g., a chain of K_{D+1}−e gadgets) and a clean extension existence lemma in =D.
+- Catalog natural alternative metrics that are cylinder‑open (equivalent reweightings, FO‑local, decorated locals) and record invariance. Investigate genuinely nonlocal, Baire topologies if one seeks a change in typicality.
+
+Two-way infinite bridges are dense meagre; bridgeless is comeagre for even D-regular
+
+Setup: For D>2, fix k and let P_k be the set of rooted graphs that have a 2-way infinite bridge at distance ≤k. For any realized r-ball F with r≥k, construct an extension H by attaching, to each boundary vertex v with deg_F(v)<D, a new vertex x_v at distance r+1 and then connecting the x_v along a single cycle via additional new vertices outside B_r. Choose the construction so that at least one new vertex (on the outside cycle) still has residual degree to allow an infinite continuation; this ensures nonemptiness of the refined cylinder.
+
+Key observations:
+- If, in F−e, one side of an edge e at distance ≤k contains no boundary vertex with residual degree, then in any completion within the cylinder C(F) that side cannot become infinite, so e can never be a 2-way infinite bridge.
+- Otherwise, pick boundary vertices v_A and v_B with residual degree on the two sides. In H there is a path from v_A to v_B outside B_r, so every such e lies on a cycle contained in B_{r+2}(H). Therefore, with F′=B_{r+2}(H), the cylinder C(F′) contains no graph from P_k.
+Thus P_k is nowhere dense. Taking P=⋃_k P_k, we get that the set of graphs with a 2-way infinite bridge is meagre. The same construction shows P is dense by adding, in any cylinder, a far-away double ray connected by a single edge. For even D-regular graphs, any bridge is 2-way infinite; hence bridgeless is comeagre under the local topology.
+
+Cylinder-rich (strongly local) topologies: A topology is cylinder‑rich if every open neighborhood around x contains a local cylinder C(B_r(x)). In any such topology, the sealed finite-component (“saturated bubble”) forcing shows bridgeless is nowhere dense in G_{•,≤D} and in G_{•,=D} for odd D. This covers many natural local metrics (weighted sums of r-ball disagreements, FO-local, edit-on-balls).
+
+Consolidation: cylinder‑rich invariance and bridge forcing
+
+- Cylinder‑rich topologies: We adopt the hypothesis that every open neighborhood around x contains some local cylinder C(B_r(x)). This includes the Benjamini–Schramm topology and many natural local metrics (weighted sums over r‑ball disagreements, FO‑local metrics). Under this hypothesis, any property whose complement can be forced by refining a cylinder is nowhere dense.
+
+- Sealed‑bubble forcing (≤D, odd =D): Replace pendant leaves by a finite D‑saturated bubble H attached to the core by a single edge e. All vertices of H have total degree D inside the chosen ball (in =D, exactly D). No completion can add edges incident to H without changing the ball or violating degrees; hence e remains a bridge in every completion. For ≤D the existence of H with degree sequence (D,…,D,D−1) follows by Erdős–Gallai with n chosen so Dn is odd, plus Hakimi’s connectivity criterion; for odd D regular, an explicit gadget H arises from K_{D+2} minus a Hamiltonian cycle plus a maximum matching leaving one unmatched vertex.
+
+- Two‑way bridges: For each k, classify edges at distance ≤k in a cylinder as safe (one side has no boundary vertex with residual capacity) or critical (both sides do). Only boundary vertices can connect to the outside while preserving the r‑ball, so safe edges cannot become 2‑way bridges. For critical edges, attach an external cycle through selected boundary vertices to place each such edge on a finite cycle within a slightly larger ball. Hence P_k is nowhere dense; ⋃_k P_k is meagre and dense.
+
+- Even D regular: By parity, 1‑way bridges are impossible; combining with the meagreness of 2‑way bridges shows bridgeless is comeagre under the local topology (and any equivalent cylinder‑rich metric).
+
+To‑dos: finalize the explicit existence proofs for H (≤D via EG+Hakimi; odd =D via K_{D+2} construction) and the D‑regular infinite completion lemma (2‑switch with edges outside H). Catalogue cylinder‑rich metrics and record Polish/Baire status.
+
+Parity and forcing summary; metric class and current status
+
+- Forcing bridges: Pendant leaves do not force a bridge. Use a sealed finite bubble S fully inside a ball: saturate all vertices of S to degree D within the ball and attach S to the core by a single edge e. Then in any completion respecting the ball, no new edges can be added at S, so e remains a bridge.
+- Parity obstruction (even D): In any graph where every vertex of a finite set S has degree D (even), the cut size |∂S| must be even. Hence |∂S|=1 is impossible. Therefore the sealed‑bubble forcing cannot work for even D (including ≤D), explaining why leaf‑forcing fails.
+- Odd D: The sealed‑bubble method works in both ≤D and =D. A finite connected simple graph with degree sequence (D,…,D,D−1) exists (EG), so joining its D−1 vertex by one edge to the core yields a bridge in all completions.
+- 2‑way infinite bridges: For each k, shield every edge within distance ≤k by attaching a single new neighbor to each boundary vertex with residual capacity and connecting these new neighbors in one external cycle. Then those inner edges lie on cycles in any completion of the refined ball. Hence “2‑way infinite bridge at distance ≤k” is nowhere dense; the union over k is meagre. The set is also dense by adding a far‑away double ray with a single connector.
+- Even D‑regular: Parity forbids 1‑way bridges; with the meagreness of 2‑way bridges, bridgeless is comeagre under the local topology.
+- Metric class: Strongly local (cylinder‑dominating) metrics: small d‑balls sit inside some local cylinder. Weighted local and FO‑local metrics are of this type and Polish. In any such metric, the odd‑D sealed‑bubble forcing shows bridgeless is nowhere dense in ≤D (odd D) and =D (odd D).
+
+Open items
+- Provide a clean D‑regular completion lemma (odd D) to realize refined balls as infinite D‑regular graphs.
+- Clarify the status of bridgeless nowhere denseness in ≤D for even D (likely impossible via cylinder‑based forcing due to parity). 
+- Catalogue natural metrics in the strongly local class; for any nonlocal candidates, first prove Baire/Polish and then revisit forcing/density.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas
+- We isolate a broad, Baire-safe class of alternative metrics on X=G_{\bullet,D}: strongly local (cylinder-dominating) metrics. We then prove an invariance lemma: any property whose complement can be forced inside a cylinder remains nowhere dense under any such metric.
+- We implement this forcing for “bridgeless” when D is odd (both ≤D and =D). The forcing gadget is a sealed finite bubble attached by a single edge; we give a complete existence and a simple D-regular completion lemma based on attaching (D−1)-ary infinite trees.
+- For even D we prove a parity obstruction forbidding sealed one-edge cuts in cylinder-based forcing on ≤D. Consequently, the odd-D result cannot be extended to even D via degree saturation alone. We also give a clean proof that “2-way infinite bridge” is meagre (and dense) uniformly across strongly local metrics.
+
+Definitions
+- Strongly local (cylinder-dominating) metric. A metric d on X is strongly local if there exists ψ:(0,1]→\mathbb{N} with d(x,y)<ε ⇒ B_{ψ(ε)}(x)≅B_{ψ(ε)}(y). Equivalently, every d-ball around x contains some local cylinder C(B_r(x)). Examples: weighted local metrics d_w(x,y)=∑_{r≥0} w_r·1_{B_r(x)≄B_r(y)} with w_r↘0 and ∑ w_r<∞; FO-local metrics using Gaifman locality; all are Polish and strongly local.
+- Cylinder C(F):= {x∈X: B_r(x)≅F} for an r-ball F.
+
+Lemma 1 (robust nowhere-denseness under strongly local metrics)
+Let d be strongly local on X and S⊂X satisfy: for every r-ball F with C(F)≠\varnothing there is r′≥r and an r′-ball F′ extending F with C(F′)≠\varnothing and C(F′)⊆X\S. Then S is nowhere dense in (X,d).
+Proof. If U is a nonempty d-open set around x, choose ε>0 with B_d(x,ε)⊂U and r=ψ(ε). Then B_d(x,ε)⊂C(B_r(x)). By hypothesis, some F′ extending B_r(x) satisfies C(F′)⊂X\S and is nonempty. For any y∈C(F′) and δ>0 with ψ(δ)≥r′, we have B_d(y,δ)⊂C(F′)⊂X\S. Hence every nonempty d-open U contains a nonempty d-open subset disjoint from S. Thus int_d(\overline{S}^d)=∅.
+
+Odd D forcing gadget and completion
+Lemma 2 (sealed bubble for odd D). Fix odd D≥3. There exists an n≥D+2 (odd) and a connected simple graph T on vertices {t_0,…,t_{n−1}} with degree sequence (D−1,D,…,D). Given any cylinder C(F) with a boundary vertex u∈L_r(F) having deg_F(u)<D, form F′ by adjoining a disjoint copy of T and a single edge e=ut_0. Then in any extension of F′ within X=G_{\bullet,≤D} or X=G_{\bullet,=D} (odd D), the edge e is a 1‑way infinite bridge.
+Proof. Existence of T: The Erdős–Gallai inequalities hold for d=(D,…,D,D−1) when n is odd and n≥D+2: parity ∑ d_i=Dn−1 is even (D and n odd); for 1≤k≤n−1, Dk≤k(k−1)+(n−k)min(D,k) holds by the standard split k≤D and k≥D+1 (the latter reduces to 0≤k^2−(1+2D)k+nD, minimized at k=D+1 with value D(n−D−1)≥D>0). Connectivity follows by degree-preserving edge switches. In F′, every vertex in T has degree D (counting e at t_0). Hence no extension may add edges incident to T without violating the ≤D or =D constraint. The only edge between T and its complement is e, so deleting e separates the finite set T from the rest (infinite), making e a 1‑way infinite bridge in every extension.
+
+Lemma 3 (D-regular completion outside a finite preball). Fix D≥3. Let H be a finite connected graph with max degree ≤D. For each vertex v∈V(H), let c(v)=D−deg_H(v)≥0. For each of the c(v) units, attach a disjoint rooted infinite (D−1)-ary tree T_{v,i} whose root s_{v,i} has degree D−1 in T_{v,i}, and add the edge vs_{v,i}. Denote G the union of H and all T_{v,i}. Then G is infinite, connected, and D‑regular.
+Proof. Each root s_{v,i} gains one extra neighbor v and reaches degree D; every other node of T_{v,i} has one parent and D−1 children, hence degree D. Each v in H gains c(v) new neighbors and reaches degree D. Connectivity holds since each T_{v,i} is attached to H.
+Consequently, in Lemma 2, C(F′)≠\varnothing in both ≤D and =D (odd) by taking H:=F′ and completing via Lemma 3.
+
+Parity obstruction for even D
+Proposition 4 (no sealed one-edge cut when D is even). Let D be even. Let S be a finite vertex set in a graph G whose every vertex has degree D in G. Then |∂S| is even. In particular, there is no way to realize a sealed finite side with exactly one cross-edge in ≤D by saturating all vertices of that side to degree D.
+Proof. The handshaking identity gives ∑_{v∈S} deg_G(v)=2|E(S)|+|∂S|. If deg_G(v)=D for all v∈S, then D|S|=2|E(S)|+|∂S|, so |∂S|≡D|S| (mod 2), which is even since D is even.
+Corollary 5 (impossibility of cylinder-forcing a 1‑way bridge for even D in ≤D). Work in X=G_{\bullet,≤D} with D even. Suppose a cylinder refinement C(F′) purportedly forces an edge e to be a bridge in every extension. Let S be the component (in F′−e) that is intended to be the finite side across e. If some vertex of S has deg_{F′}(v)<D, then an extension may add a new neighbor of v outside the ball, creating an additional cross-edge and violating the bridge property. Hence every v∈S must satisfy deg_{F′}(v)=D, contradicting Proposition 4. Thus no cylinder can force a bridge at bounded distance in ≤D when D is even.
+Comment. This does not rule out bridgeless being nowhere dense by some more delicate argument; it only forbids the sealed-bubble forcing for even D in ≤D. It also explains why pendant-leaf forcing fails.
+
+Two‑way infinite bridges are meagre (and dense)
+For k∈\mathbb{N}, let P_k be the set of graphs in X in which some 2‑way infinite bridge meets B_k (equivalently, there exists an edge e with both components of G−e infinite and d(ρ,e)≤k).
+Lemma 6. For any strongly local metric d on X and any D≥3, each P_k is nowhere dense.
+Proof. Fix a nonempty d-open set U and x∈U. Let ε>0 with B_d(x,ε)⊂U and r=ψ(ε)≥k. Let F=B_r(x). Consider the set E_k of edges of F whose distance to the root is ≤k. Call e∈E_k safe if, in F−e, at least one component contains no boundary vertex with residual capacity (<D); otherwise e is critical. In any completion of F, a safe e cannot be 2‑way infinite bridge (one side is necessarily finite). For the set S of boundary vertices with residual capacity in components of critical edges, adjoin for each v∈S one new vertex x_v at distance r+1 and add the edge vx_v. Connect the x_v’s into a single simple cycle using additional new vertices placed at distance r+2 (degrees ≤2 so far). Let F′ be the resulting (r+2)-ball; degrees in F′ do not exceed D, and all edges e∈E_k now lie on a cycle contained in F′. Therefore no extension of F′ can contain a 2‑way infinite bridge meeting B_k. By Lemma 3, C(F′)≠\varnothing in ≤D and in =D (odd); in =D (even) complete outside F′ by attaching (D−1)-ary trees to all residual stubs as well. Hence U contains a smaller d-open set disjoint from P_k.
+Lemma 7. For any D≥3, P:=⋃_{k} P_k is dense.
+Proof. Given any cylinder C(F), adjoin far away (beyond radius r+1) two disjoint infinite rays R_1,R_2 and connect their initial vertices by a single edge e, leaving degrees ≤D and keeping the root-ball unchanged. In any completion, both sides of e are infinite, and e is a bridge. This yields a refinement cylinder contained in P.
+Corollary 8. For any strongly local metric on X and D≥3, the set of graphs with a 2‑way infinite bridge is meagre and dense.
+
+Consequences for bridgeless typicality
+- Odd D (≤D and =D): By Lemma 2 and Lemma 1, “bridgeless” is nowhere dense (hence meagre) under any strongly local metric.
+- Even D, =D: 1‑way bridges are impossible by parity on a finite component; with Corollary 8, 2‑way bridges form a meagre set, so “bridgeless” is comeagre under any strongly local metric.
+- Even D, ≤D: Sealed-bubble forcing is impossible (Corollary 5). The typicality of “bridgeless” under d_\bullet remains open here; our method does not decide it. Note this casts doubt on the blanket statement “bridgeless is nowhere dense in ≤D for all D>2” (in the extended abstract). If that claim is intended, it must proceed by a different argument than sealed saturation; we invite scrutiny for even D.
+
+Examples of strongly local metrics (Polish)
+- Weighted local metrics d_w: as above; cylinders are clopen, and d_w induces the product topology on the inverse system of finite r-balls.
+- FO-local metrics: Enumerate FO-types up to quantifier depth m around the root, weight by w_m→0; Gaifman locality gives the strongly local property. The topology is again a Polish subspace of a product of finite discrete spaces.
+
+Nonlocal attempts and Baire issues
+- Adding global bridge-profile coordinates H_r (existence of a bridge meeting B_r) to define d_new=d_\bullet+∑2^{−r−1}|H_r(x)−H_r(y)| tends to make the bridge set open (hence not meagre) and breaks completeness: sequences pushing a single bridge farther out are Cauchy but have incompatible limits for H. Without proving Polish/Baire, such metrics are not “reasonable” for typicality.
+
+Obstacles
+- Even D, ≤D: Establishing the actual category status of “bridgeless” under d_\bullet. Our parity obstruction shows the standard sealed-bubble method cannot apply, but it does not preclude bridgeless being nowhere dense by a subtler construction or being comeagre.
+
+Next steps
+1) Even D, ≤D: Either construct an explicit cylinder refinement that forces a 1‑way bridge without sealed saturation (unlikely), or prove an impossibility theorem: for D even, for every cylinder C(F) and every edge e within bounded distance, there exists an extension in which e lies on a cycle (hence no forcing). This would refute the claim of nowhere-denseness in even D for ≤D.
+2) Formalize the shielding proof (Lemma 6) in full detail for both ≤D and =D, including consistent degree bookkeeping at the boundary and completion via Lemma 3.
+3) Catalogue strongly local metrics (weighted local, ultrametrics from decorated balls, FO-local) and record Polishness; conclude invariant typicality for bridgeless in odd D and =D even.
+4) If pursuing a positive metric flip, first propose a nonlocal but Polish/Baire topology, then analyze whether bridgeless can be comeagre without making “has a bridge” open or killing Baire-ness.
+
+Summary
+- We proved a robust invariance scheme (Lemma 1) for strongly local metrics and used a sealed-bubble gadget (Lemma 2) plus a simple D-regular completion lemma (Lemma 3) to show bridgeless is meagre for odd D (≤D and =D) under any such metric. For =D with even D, bridgeless is comeagre, since 2‑way bridges are meagre (Corollary 8) and 1‑way bridges are impossible. For ≤D with even D, sealed forcing is impossible by a parity obstruction (Proposition 4), leaving the category status open and calling for refined arguments. This narrows where a “metric sensitivity” counterexample might exist and provides rigorous tools for the verifier to formalize in proofs.md.
+
+
+=== Prover 2 Output ===
+
+Ideas
+- Close the main technical gap: give a clean, parity‑correct “sealed bubble” forcing that works in ≤D for all D>2 (including even D). The key is to avoid prescribing the unique cross‑edge inside the ball when D is even; instead, force that exactly one cross‑edge must be added in any connected completion, by leaving exactly one vertex in the sealed bubble with spare capacity 1 (degree D−1 in the ball). This yields a bridge in every completion without contradicting parity.
+- State and prove a general cylinder‑rich forcing lemma: in any topology where every open neighborhood contains a local cylinder, a property is nowhere dense once one can refine every cylinder to a smaller cylinder lying in the complement.
+- Keep the odd‑regular (=D) case via the earlier “explicit cross‑edge in the ball” gadget, and supply a regular completion lemma to realize the refined ball in an infinite D‑regular graph.
+- Record that 2‑way infinite bridges are meagre (but dense), so for even D‑regular bridgeless is already comeagre under the local (and any equivalent cylinder‑rich) topology.
+
+Cylinder‑rich forcing principle
+Definition (cylinder‑rich). A topology τ on X=\mathbf G_{\bullet,D} is cylinder‑rich if for every x∈X and every τ‑open U⊆X with x∈U there exists r such that the local cylinder C(B_r(x))⊆U.
+Lemma CR. Let τ be cylinder‑rich. If for every local cylinder C(F) there exists a local cylinder C(F′)⊆C(F) with C(F′)∩S=∅, then S is nowhere dense in (X,τ).
+Proof. Given any nonempty τ‑open U, pick a cylinder C(F)⊆U, then C(F′)⊆U\S by hypothesis. Hence every nonempty open set contains a nonempty open subset disjoint from S, so int_τ(\overline S)=∅.
+
+Forcing a bridge in ≤D for all D>2
+Lemma 1 (sealed bubble with one spare stub). Fix D>2. For any nonempty cylinder C(F) in \mathbf G_{\bullet,\le D}, there exists a larger radius r′ and a cylinder C(F′)⊆C(F) such that every (G,ρ)∈C(F′) contains a bridge.
+Proof. Let r be the radius of F and choose a boundary vertex b∈L_r(F) with deg_F(b)<D (this exists since C(F) has infinite extensions). Inside the (yet to be) enlarged ball, build a finite connected “bubble” S disjoint from B_r(F) and attach it to b by no edges at this stage. Construct S so that every v∈S\{z} has degree D inside the enlarged ball, and a designated vertex z∈S has degree D−1 inside the enlarged ball; ensure no edges leave S within the ball. This is possible by taking any finite connected simple graph S_0 with max degree ≤D and then “D‑regularizing” S_0\{z} inside the ball via finite filler gadgets while keeping deg(z)=D−1; standard degree‑sequence realization (Erdős–Gallai) plus the usual edge‑switching argument yields such a finite connected filler. Also leave elsewhere on the boundary of the enlarged ball some vertex u with residual capacity <D to admit infinite completions (so C(F′) is nonempty).
+Now set F′ to be the ball up to radius r+R containing S and b, still with no edge between S and B_r(F). Consider any completion (G,ρ)∈C(F′). Because G is connected, there must be at least one edge between S and V(G)\S. All vertices of S\{z} already have degree D in G (they cannot receive new edges without violating Δ≤D), so any such cross‑edge must be incident with z. But deg_{F′}(z)=D−1, hence z can accept at most one new edge in G (else Δ> D). Therefore exactly one edge crosses δ(S) in G. Consequently, that unique edge e is a bridge in G (its removal disconnects S from the rest). Thus every graph in C(F′) contains a bridge.
+Remark (parity). The construction avoids prescribing the cross‑edge inside the ball when D is even, so there is no parity obstruction: the single cross‑edge is forced by connectivity and capacity, not by preplacing a cut of size 1.
+Corollary 2. In any cylinder‑rich topology on \mathbf G_{\bullet,\le D} with D>2, the set of bridgeless graphs is nowhere dense.
+
+Odd D‑regular forcing and completion
+Lemma 3 (odd‑regular bridge forcing in a cylinder). Let D=2t+1>2. For any nonempty cylinder C(F) in \mathbf G_{\bullet,=D} there exists a cylinder C(F′)⊆C(F) such that every (G,ρ)∈C(F′) has a bridge.
+Construction and proof. Use the earlier gadget: choose b∈L_r(F) with deg_F(b)<D, add a path b–y–z at larger radius, and attach a finite connected graph H with all vertices D‑regular except z having degree D−1, then include yz inside the ball so deg(z)=D. Saturate degrees of all new vertices inside the ball to D, and ensure no other edge links H to the old part besides by. Let S:=V(H)∪{y}. In any D‑regular completion of C(F′), every vertex of S has degree D already within the ball, and δ(S)∩E(B_{r′})={by}. As in Lemma 1, no new edges can leave S, hence |δ(S)|=1 and by is a bridge in all completions.
+Lemma 4 (odd D‑regular infinite completion). The refined ball F′ in Lemma 3 admits an infinite connected D‑regular simple completion.
+Proof. Let T be the infinite D‑regular tree. Choose finitely many pairwise distant vertices in T, delete at most one incident edge at each to free one stub per chosen vertex, and pair the finite multiset of “free stubs” outside the ball so that all degrees become D again. Then identify the finitely many residual boundary stubs of F′ bijectively with those free stubs in T. This yields a simple, connected, infinite D‑regular completion. Standard “switching” avoids multiple edges by the distant choice.
+Corollary 5. In any cylinder‑rich topology on \mathbf G_{\bullet,=D} with odd D>2, bridgeless is nowhere dense.
+
+Two‑way infinite bridges are meagre (but dense)
+For k∈\mathbb N, let P_k be the set of rooted graphs having a 2‑way infinite bridge at distance ≤k from the root.
+Lemma 6 (P_k is nowhere dense, ≤D). Fix D>2 and k. Given any cylinder C(F) with radius r≥k, refine to C(F′)⊆C(F) as follows. Let E_k be the finite set of edges of F at midpoint distance ≤k. For each e∈E_k, if in F−e at least one side has no boundary vertex of residual capacity (<D), then e can never become 2‑way in any extension; ignore it. For the remaining e, pick boundary vertices v_A,v_B on the two sides with residual capacity. In F′ enlarge the ball by adding new neighbors s_A^e,s_B^e to v_A,v_B (consuming 1 unit of capacity) and connect s_A^e to s_B^e via a single outside vertex c_e, creating a cycle through e entirely within the enlarged ball; do this disjointly for different e. This preserves Δ≤D. Then no e∈E_k can be a bridge in any completion of C(F′), hence P_k is avoided. The same works in =D after locally saturating used boundary vertices to degree D with small fillers. Thus P_k is nowhere dense in \mathbf G_{\bullet,D}.
+Proposition 7 (2‑way bridges are meagre and dense). P:=\bigcup_k P_k is meagre. It is dense because, in any cylinder, one can attach far away a double ray and connect it to the core by a single edge without affecting the inner ball.
+Corollary 8 (even‑regular case). In \mathbf G_{\bullet,=D} with even D>2, every bridge is 2‑way infinite (parity). Hence the set of bridged graphs is meagre, so bridgeless is comeagre under the local (and any equivalent cylinder‑rich) topology.
+
+Natural alternative metrics
+- Weighted local metrics d_a generated by summable positive weights on r‑ball disagreements induce exactly the local topology; they are cylinder‑rich (proof sketched earlier). FO‑local metrics on bounded‑degree classes are cylinder‑rich by Gaifman locality. Thus typicality (meagre/comeagre/nowhere dense) coincides with the local metric for these natural alternatives.
+- By Lemma CR and the forcing above, within any cylinder‑rich topology: bridgeless is nowhere dense in ≤D (all D>2) and in =D (odd D>2). In even D‑regular, bridgeless is already comeagre.
+
+Examples
+- ≤D, D=4: From any cylinder, build S with all vertices degree 4 in the ball except z of degree 3, no cross‑edge in the ball. Every connected completion must add exactly one edge from z to the outside, yielding a 1‑way bridge.
+- =3‑regular: Use the path b–y–z and an H with deg(z)=2, others 3, saturate inside the ball; by is then a bridge in all completions; infinite 3‑regular completions exist by Lemma 4.
+
+Obstacles and checks
+- The parity obstruction is now handled correctly: for ≤D with even D we do not preplace the single cross‑edge; connectivity forces it, with unique capacity at z.
+- We avoided the false “nowhere dense preserved under refinement” claim by working under the cylinder‑rich hypothesis and using Lemma CR.
+- The regular completion lemma is constructive; a more detailed switching proof can be supplied if needed.
+
+Next steps
+- Package the finite “D‑regularization inside a ball” filler used in Lemma 1 into a crisp lemma: given any finite seed with max degree ≤D and a designated vertex z, one can add finitely many vertices/edges inside the ball to make all vertices except possibly z attain degree D while keeping the graph connected; provide a short proof via Erdős–Gallai plus connectivity by switchings.
+- Formalize that weighted‑local and FO‑local metrics are Polish and cylinder‑rich; record that typical sets agree with the Benjamini–Schramm metric.
+- If searching for a metric changing typicality, move beyond cylinder‑rich: develop an end‑profile inverse‑limit topology and test whether “no one‑edge cut across any finite S” becomes comeagre; first establish Baire/metrizability.
+
+
+=== Prover 3 Output ===
+
+Scope
+I audit the current write‑up for correctness and completeness, focusing on: (i) foundational topological facts (cylinders, closure), (ii) the bridge‑forcing mechanisms (and their limits), (iii) the meagreness/density of 2‑way infinite bridges, (iv) metric/topology sensitivity, and (v) the edge‑chromatic claim. I point out errors/gaps and supply precise lemmas and proofs where feasible.
+
+Foundations: cylinders and closure (fix Lemma 13)
+- Cylinders are clopen in the local topology. If F is a realized r‑ball and x_n ∈ G_•^F with x_n → x in d_•, then for s ≤ r one has B_s(x_n) ≅ B_s(x) eventually, hence B_r(x) ≅ F and x ∈ G_•^F. Thus G_•^F is closed. It is open by definition.
+- Correct nowhere‑dense criterion via cylinders. A set S is nowhere dense iff for every realized cylinder G_•^F there exists a realized cylinder G_•^{F′} ⊆ G_•^F with G_•^{F′} ∩ cl(S) = ∅. In all arguments below we construct G_•^{F′} with G_•^{F′} ⊆ X \ S, which is stronger (and implies disjointness from the closure automatically since G_•^{F′} is open).
+- Nonemptiness of cylinders in G_{•,≤D}. For a realized r‑ball F in G_{•,≤D}, some boundary vertex v ∈ L_r(F) must satisfy deg_F(v) < D; otherwise no infinite extension is possible. Conversely, if there is boundary residual capacity, an infinite extension exists by attaching a (≤ D) tree. This sharpens the “nonempty if a boundary vertex has residual degree” bullet in Lemma 13.
+- Distance of an edge. Please define dist(ρ,e) = min{dist(ρ,u): u incident with e}. Later properties “edge at distance ≤ k” should be stated with this precise convention, and when we say “e ∈ B_k” we mean both endpoints lie in B_k.
+
+Parity obstruction for single‑edge cuts at even D
+Lemma (parity). Let D be even. In any graph G and any finite vertex set S for which every v ∈ S has deg_G(v) = D, the edge boundary |∂S| is even. In particular, |∂S| = 1 is impossible.
+Proof. Sum of degrees in S equals D|S|, which is even. Also ∑_{v∈S} deg_G(v) = 2|E(S)| + |∂S|. Since 2|E(S)| is even, |∂S| is even.
+Corollaries.
+- In D‑regular graphs with even D, 1‑way infinite bridges cannot exist.
+- In ≤ D spaces with even D, any attempt to force a bridge by sealing a finite component S so that all vertices in S have degree D in the resulting infinite graphs is impossible if the cut has size 1. Hence any robust “degree‑saturation” forcing of a 1‑edge cut fails in this case.
+
+Robust bridge forcing: correct construction and its scope
+Issue in the write‑up. Theorem 14’s pendant‑leaf argument is invalid: extensions may attach new edges at the leaf, destroying bridgelessness in the limit or in other completions. One must block all additional exits from the “bubble side.”
+
+Lemma (sealed finite bubble, ≤ D; odd D‑regular). Fix D ≥ 2. Let X be G_{•,≤D}, or G_{•,=D} with D odd. For any realized cylinder G_•^F (radius r) and for any boundary vertex u ∈ L_r(F) with deg_F(u) ≤ D − 1, there exist R > r and a realized cylinder G_•^{F′} ⊆ G_•^{F} such that every (G,ρ) ∈ G_•^{F′} has a bridge e incident with u.
+Proof (construction and verification).
+- Build a finite connected “bubble” H outside B_r with a designated vertex w (disjoint from B_r). Choose H so that every vertex of H except w has degree D within the induced subgraph on B_R, and w has degree D − 1 within H. Add a single edge e = uw. After adding e, every vertex of H has degree D within B_R. Thus, in any completion with B_R fixed, no vertex of H can acquire additional edges (≤ D constraint; in =D we require exactly D). Hence across the cut (V(H), V(G) \ V(H)) there is exactly one edge, e, so e is a bridge.
+- Nonemptiness: when defining F′ = B_R, leave at least one vertex on L_R(F′) with residual capacity so that infinite extensions exist. In the =D case (odd D), we can ensure D‑regular completions by attaching outside disjoint D‑regular trees along the remaining stubs.
+- Parity restriction: this forcing is impossible in G_{•,=D} for even D (and, by the parity lemma, also impossible for ≤ D if all bubble vertices are saturated to D). Thus the lemma is stated only for ≤ D (all D) and for = D with odd D.
+
+Explicit odd‑regular bubble
+Construction H for odd D ≥ 3. Let m = D + 2 (odd). Start with K_m. Remove the edges of a Hamiltonian cycle C_m to reduce every vertex’s degree from m − 1 = D + 1 to D − 1. In K_m \ E(C_m) choose a maximum matching M that leaves a prescribed vertex w unmatched (possible because m is odd). Adding M increases the degree of matched vertices by 1, yielding degree D for all matched vertices, while deg(w) = D − 1. The resulting simple, connected H has the required degree sequence. Using H in the sealed‑bubble lemma gives Theorem 14(ii) rigorously for odd D.
+
+Two‑way infinite bridges: meagre and dense (Theorem 16, completed)
+We now supply a complete proof that the set of graphs with a 2‑way infinite bridge is meagre but dense in G_{•,D} for every D > 2, in both ≤ D and = D.
+
+Definition. For k ∈ N, let P_k be the set of rooted graphs that have a 2‑way infinite bridge e with dist(ρ,e) ≤ k and both endpoints of e in B_k.
+
+Claim 1: P_k is nowhere dense. Let G_•^{F} be any realized cylinder with radius r ≥ k. Consider the finite set E_k of edges of F with both endpoints in B_k. For e ∈ E_k, write F − e as A ∪ B. Call e critical if both A and B contain at least one boundary vertex v ∈ L_r(F) with deg_F(v) < D; otherwise e is safe.
+- If e is safe, say A has no boundary vertex with residual capacity. In any completion of F to an infinite graph with the same r‑ball (hence no edges incident to A’s boundary vertices can be added inside B_r), the component corresponding to A remains finite. Therefore e cannot be a 2‑way infinite bridge in any such completion (even though it might be a 1‑way bridge).
+- For the finitely many critical edges, choose a set S ⊆ L_r(F) that contains one residual boundary vertex from each side of each critical e. Outside B_r attach, for each v ∈ S, a new vertex x_v adjacent to v. Connect the x_v into a single simple cycle C that lies entirely outside B_r. Let H be this finite extension and set F′ = B_{r+2}(H). Then for every critical e = ab, there exists v_A ∈ S in A and v_B ∈ S in B and paths in F − e from a to v_A and from b to v_B. The external cycle provides a path from v_A to v_B outside B_r. Thus there is a cycle through e lying entirely in B_{r+2}(H), and e is not a bridge in any completion that preserves B_{r+2}. Therefore G_•^{F′} ⊆ G_•^{F} \ P_k. Nonemptiness: reserve at least one fresh boundary stub (possibly by adding an extra vertex y beyond C with degree < D) to permit infinite completions; in = D one later fills stubs outside B_{r+2} to ensure D‑regularity.
+Hence P_k is nowhere dense.
+
+Claim 2: ⋃_{k} P_k (the set of graphs with a 2‑way infinite bridge) is meagre. Immediate by countable union of nowhere dense sets (Claim 1).
+
+Claim 3: ⋃_{k} P_k is dense. Let G_•^{F} be any realized cylinder (radius r). There is some boundary vertex u with deg_F(u) < D in ≤ D; in = D, there exists at least one boundary stub across the entire boundary counting multiplicity of deficit to D. Build outside B_r two disjoint, infinite D‑bounded trees T_1 and T_2 (or D‑regular trees in the = D case once all local degrees are filled), and connect them by a single edge e far beyond radius r+1. Join u to T_1 by a long path (and optionally another boundary vertex to T_2 by a long path) so that B_r remains unchanged. Then e is a 2‑way infinite bridge in the resulting graph. Thus every cylinder intersects ⋃_{k} P_k, proving density.
+Conclusion. The set of graphs with a 2‑way infinite bridge is dense meagre.
+
+Consequences for typicality by parity
+Corollary (even D regular). In G_{•,=D} with even D, every bridge is 2‑way infinite (parity). Therefore the set “has a bridge” is meagre (by the meagreness of 2‑way bridges), and the complement “bridgeless” is comeagre (typical) in the standard local topology.
+
+Scope and limits of Theorem 14(i)
+- Odd D (≤ D and = D): The sealed‑bubble forcing provides, inside any cylinder, a subcylinder on which every graph has a bridge. Thus the set of bridgeless graphs is nowhere dense in these spaces. This part of Theorem 14 is recoverable with full rigor.
+- Even D, = D: The same forcing cannot work (parity obstruction). Combined with the previous corollary, bridgeless is actually comeagre in this case, so the correct statement is the opposite of “nowhere dense.”
+- Even D, ≤ D: The current proof sketch “attach a leaf” is invalid, and the sealed‑bubble method is blocked by the parity lemma if one tries to robustly forbid extra exits from the finite side. I see no alternative robust forcing in the local topology that would make “has a bridge” unavoidable in all completions. This casts serious doubt on Theorem 14(i) “for all D > 2” in the ≤ D setting when D is even. I recommend either restricting (i) to odd D or proving an impossibility claim: no r′‑ball can force a bridge in all completions when D is even (a plausible lemma: any would‑be bridge can be neutralized by adding an external bypass using residual capacity on the finite side). At minimum, mark even D in ≤ D as open pending a correct argument.
+
+Theorem 15 (no cut vertex nowhere dense): status and fix
+- For all D ≥ 2 (both ≤ D and = D), one can force a cut vertex robustly by taking two finite connected “blobs” whose vertices are saturated to degree D within the ball (in = D exact; in ≤ D at most D), identifying them at a single articulation vertex v (whose degree within the ball can be less than D), and ensuring all blob vertices other than v have no residual capacity within the ball. In any completion preserving the ball, no bypass edges between blobs can be added (blob vertices are saturated within the ball), hence v is a cut vertex in every completion. This supplies the missing details for Theorem 15.
+
+Theorem 17 (edge‑chromatic number): current argument invalid
+- The claim “removing an edge preserves χ′ = D + 1 by parity” is false in general (e.g., K_3). To prove “χ′ = D is nowhere dense,” one needs a finite class‑II forcer H_D (χ′(H_D) = D + 1) that remains a class‑II obstruction under supergraphs, plus an embedding lemma that respects degree budgets inside the cylinder. Candidates: for even D, overfull subgraphs (|E(H)| > ⌊D|V(H)|/2⌋) force class II; for odd D, odd‑order D‑regular graphs. The write‑up should either supply such a forcer and a rigorous local embedding argument (saturate H_D‑side within the ball) or mark this theorem as open.
+
+Topology/metric sensitivity: what can and cannot change
+- Typicality is a topological notion. Equivalent metrics yield identical typical sets. To transfer the sealed‑bubble forcing argument to alternative metrics/topologies, it suffices that the alternative topology τ contains all local cylinders as open sets (call such τ cylinder‑open). Then, given any τ‑open set U, choose a cylinder G_•^F ⊆ U, and refine to a subcylinder G_•^{F′} on which every graph has a bridge (odd D cases), proving that the bridgeless set is nowhere dense in τ as well.
+- Even D, = D: bridgeless is comeagre already in the local topology, hence in any equivalent/cylinder‑open metric.
+- Caution. Do not claim any monotonicity of meagreness/no‑where‑denseness under arbitrary refinements/coarsenings. For coarser topologies, τ′‑dense open sets need not be dense in τ; nowhere‑denseness also behaves non‑monotonically. Only explicit forcing inside open basic sets is safe.
+- Nonlocal candidates. If one seeks a metric where bridgeless becomes typical in the odd‑D or ≤ D cases, the topology must not be cylinder‑open. E.g., topologies that can enforce “forbid attachments” at designated boundary vertices (your “tame” A(F,Π) with forbiddances) are strictly finer and might alter typicality, but require proofs of Polishness/Baire property. Before pursuing, formalize A(F,Π), verify separability/completeness/Baire, and then revisit bridge density.
+
+Examples and sanity checks
+- Pendant‑leaf counterexample. In ≤ D, attach a leaf at u inside the ball. In a completion, add two disjoint long paths from the leaf vertex to distant vertices and connect their endpoints via an edge beyond the ball; the original leaf‑edge lies on a cycle in this completion and is not a bridge. Thus “attach a leaf” is not a robust forcer.
+- Explicit cubic bubble (D = 3). Using K_5, remove a 5‑cycle, add a matching leaving w unmatched to get degrees (3,3,3,3,2); then add the cut edge e = uw. Place this gadget outside the given ball as per the sealed‑bubble lemma to force a bridge in G_{•,=3}.
+
+Actionable next steps
+1) Amend Lemma 13: insert closure where needed, and add the clopen cylinder fact with a short proof.
+2) Replace Theorem 14’s leaf argument with the sealed‑bubble forcing. State Theorem 14 precisely as: (a) in G_{•,=D} with odd D and in G_{•,≤D} with odd D, bridgeless is nowhere dense; (b) in G_{•,=D} with even D, bridgeless is comeagre; (c) in G_{•,≤D} with even D, the status is open (or supply a correct forcing, if any).
+3) Insert the full proof that “2‑way infinite bridges” form a dense meagre set (Claims 1–3 above), and explicitly define “edge at distance ≤ k.”
+4) Provide an explicit odd‑D bubble H (the K_{D+2} − C + M construction) with a short proof, and a D‑regular completion lemma to ensure nonemptiness of the refined cylinder.
+5) Either supply a finite class‑II forcer and embedding lemma for Theorem 17 or mark it as an open problem.
+6) State a topology invariance lemma for any cylinder‑open alternative metric: in such topologies, the odd‑D negative result for bridgeless typicality persists and the even‑D regular positive result persists.
+
+Conclusion
+- With the corrected sealed‑bubble forcing, bridgeless is nowhere dense in the odd‑D settings (≤ D and = D). The set of graphs with a 2‑way infinite bridge is dense meagre for all D > 2, yielding that bridgeless is comeagre in = D with even D. The current claim that bridgeless is nowhere dense in ≤ D for all D > 2 is unsupported for even D; parity blocks any robust 1‑edge cut forcing, and a different valid argument is needed or the statement should be restricted. Theorem 17 requires a new proof or retraction. Finally, under any cylinder‑open alternative metric, these typicality conclusions remain unchanged; a change in typicality, if possible, must come from a genuinely nonlocal topology, whose Baire/Polish status and density properties remain to be established.
+
+
+=== Papers (text) ===
+
+=== Paper (papers/paper1.txt) ===
+## Extended Abstract (re‑typeset from the authors’ text)
+
+**Proceedings of the 13th European Conference on Combinatorics, Graph Theory and Applications — EUROCOMB’25**  
+Budapest, August 25–29, 2025
+
+### Typical properties of countable graphs: flows and bridges  
+*(Extended abstract)*  
+
+**Robert Šámal**\* · **Hadi Zamani**\*
+
+#### Abstract
+We have two aims. **First**, we study nowhere‑zero flows in countably infinite graphs, observing the different roles of two types of bridges. **Second**, we study how typical graphs with these types of bridges are. As there is no natural probability measure to use, we turn to an analytic approach: we study which sets are nowhere dense and which are meagre.
+
+In finite graphs, bridges play a crucial role—it is easy to see that every flow assigns value \(0\) to every bridge. It is also known that graphs with a bridge are not typical: both dense random graphs and random regular graphs are bridgeless w.h.p. [3, 1]. We ask how this transfers to countable graphs. In Section 1 we explain differences between bridges and flows and, via compactness, we prove a version of Seymour’s 6‑flow theorem for countable graphs.
+
+In Section 2 we explore nowhere‑dense and meagre sets. This is called for because the usual probabilistic models collapse: extending Erdős–Rényi to countably infinite graphs yields the Rado graph a.s., so we are effectively studying a single graph up to isomorphism. Attempting random regular graphs via the configuration model [1] would require a uniform distribution on perfect matchings of a countable set (e.g., neighbors of the first vertex), which does not exist. Consequently, we turn to Baire category: meagre/co‑meagre sets (also “first/second category”).
+
+\* *Computer Science Institute of Charles University, Prague, Czech Republic. Supported by grant 25‑16627S of the Czech Science Foundation. This project has received funding from the European Research Council (ERC) under the EU’s Horizon 2020 programme (grant agreement No 810115).*
+  
+*Emails:* samal@iuuk.mff.cuni.cz · hadiz@iuuk.mff.cuni.cz
+
+---
+
+### 1. Nowhere‑zero flows for infinite graphs
+
+**Definition 1 (weak flow).**  
+Given an orientation \(D\) of a graph \(G\) and an abelian group \(A\), a **weak \(A\)‑flow** is a function \(\varphi:E(G)\to A\) such that **Kirchhoff’s law for each vertex cut** holds:
+\[
+\forall v\in V(G):\quad \sum_{e\in \delta^-(v)}\varphi(e)=\sum_{e\in \delta^+(v)}\varphi(e).
+\]
+
+**Definition 2 (strong flow).**  
+Given \(D,G,A\) as above, a **strong \(A\)‑flow** is a function \(\varphi:E(G)\to A\) such that **Kirchhoff’s law for each cut** holds:
+\[
+\forall S\subseteq V(G):\quad \sum_{e\in \delta^+(S)}\varphi(e)=\sum_{e\in \delta^-(S)}\varphi(e).
+\]
+
+In either case, \(\varphi\) is a **nowhere‑zero** weak/strong \(A\)‑flow if \(\varphi^{-1}(0)=\varnothing\).
+
+**Definition 3 (bridge).**  
+An edge \(e\) of \(G\) is a **bridge** if deleting \(e\) increases the number of connected components. A bridge is **2‑way infinite** if both resulting components are infinite, and **1‑way infinite** otherwise.
+
+Every strong flow is a weak flow. While the two notions are equivalent on finite graphs, they diverge on infinite graphs: e.g., on a two‑way infinite path, a nowhere‑zero weak \(A\)‑flow exists but a strong one does not. In [6] the authors construct a 3‑connected graph with two ends that admits a nowhere‑zero weak \(A\)‑flow but no nowhere‑zero strong \(A\)‑flow. Nearly all finite flow theorems extend to infinite **strong** \(A\)‑flows via topological compactness; here we use **logical** compactness to obtain:
+
+**Theorem 4.**  
+*A countably infinite, locally finite graph without a 1‑way infinite bridge has a nowhere‑zero weak 6‑flow.*
+
+---
+
+### 2. Metric space of rooted connected graphs
+
+Since no good probability measure exists for countable graphs, we study typicality via a metric topology and Baire category.
+
+**Definition 5 (ε‑neighborhood).**  
+For a metric space \((X,d)\) and \(x\in X\), the ε‑neighborhood is \(U_\varepsilon(x)=\{y\in X:\ d(x,y)<\varepsilon\}\). The closed neighborhood \(\overline{U}_\varepsilon(x)\) uses \(d(x,y)\le \varepsilon\).
+
+**Definition 6 (open set).**  
+A set \(U\subseteq X\) is open if \(\forall x\in U\ \exists \varepsilon>0:\ U_\varepsilon(x)\subseteq U\).
+
+We now fix the graph space and metric.
+
+**Definition 9 (space of rooted graphs).**  
+Let \(\mathbf{G}_\bullet\) be the set of all connected rooted graphs (up to root‑preserving isomorphism). For \(D>2\), let \(\mathbf{G}_{\bullet,\le D}\) be those with all degrees \(\le D\), and \(\mathbf{G}_{\bullet,=D}\) those with all degrees \(=D\).
+
+**Definition 10 (r‑ball).**  
+For \((G,v)\), the rooted r‑ball is
+\[
+B_r(G,v)=(\,G[\{y\in V(G): d(v,y)\le r\}],\,v\,).
+\]
+
+**Definition 11 (metric \(d_\bullet\)).**  
+For \((G_1,v_1),(G_2,v_2)\in\mathbf{G}_\bullet\),
+\[
+d_\bullet\big((G_1,v_1),(G_2,v_2)\big)=\inf\{2^{-r} : B_r(G_1,v_1)\cong B_r(G_2,v_2)\}.
+\]
+This is a metric [5].
+
+**Definition 12 (extensions of an r‑ball).**  
+For an r‑ball \(F=B_r(G,v)\), define
+\[
+\mathbf{G}_\bullet^F=\{(G',v')\in \mathbf{G}_\bullet : B_r(G',v')\cong F\}.
+\]
+
+**Lemma 13 (basic facts in \((\mathbf{G}_\bullet,d_\bullet)\)).**  
+- For each \((G,x)\), \(r\in\mathbb{N}\), and \(0<\varepsilon<1\):
+  \[
+  U_{2^{-r}+\varepsilon}((G,x))=U_{2^{-r}}((G,x))=\mathbf{G}_\bullet^{B_r(G,x)}.
+  \]
+- \(\mathbf{G}_\bullet^F\) is nonempty if \(F\) is an r‑ball in \(\mathbf{G}_{\bullet,\le D}\) that contains a vertex of degree \< \(D\) at distance \(r\) from the root.
+- A subset \(S\subseteq \mathbf{G}_\bullet\) is nowhere dense iff
+  \(\forall\) r‑balls \(F\ \exists\) r′‑ball \(F'\) with \(\mathbf{G}_\bullet^{F'}\subseteq \mathbf{G}_\bullet^{F}\setminus S\).
+- For all \(D>2\), \(\mathbf{G}_{\bullet,D}\) is not meagre.
+
+---
+
+### Main results on typical properties
+
+**Theorem 14.**  
+*The set of bridgeless graphs is nowhere dense (i) in \(\mathbf{G}_{\bullet,\le D}\) for all \(D>2\); and (ii) in \(\mathbf{G}_{\bullet,=D}\) for all odd \(D>2\).*  
+In D‑regular graphs with even \(D\), 1‑way infinite bridges cannot exist; instead we obtain:
+
+**Theorem 15.**  
+*The set of graphs without a cut vertex is nowhere dense in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+**Theorem 16.**  
+*The set of graphs with a 2‑way infinite bridge is meagre (but not nowhere dense) in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+We also considered other (a)typical properties:
+
+**Theorem 17.**  
+*The set of graphs with edge‑chromatic number \(D\) is nowhere dense in \(\mathbf{G}_{\bullet,D}\) for all \(D>2\).*
+
+---
+
+### 3. Proof sketches
+
+**Proof of Theorem 4 (sketch).**  
+Let the vertices of \(G\) be \(v_1,v_2,\ldots\) and orient each edge \(\{v_i,v_j\}\) from the smaller to the larger index. For each radius \(r\), augment the r‑ball \(B_r(G,v_1)\) to a finite multigraph \(G_r\) by adding a sink vertex \(v_\infty\) and connecting boundary edges to \(v_\infty\). Introduce Boolean variables \(F_{e,1},\dots,F_{e,6}\) encoding which of six nonzero values an edge \(e\) receives, enforce exclusivity \(\bigvee_i F_{e,i}\) and \(\bigwedge_{j\ne i}\neg F_{e,j}\), and write linear parity constraints at each vertex (Kirchhoff’s law). Let \(F_{G_r}\) be the conjunction over vertices of \(G_r\); then every finite subset of the constraint family \(\{F_{G_r}\}_r\cup\{F_{e,i}\}_e\) is satisfiable (by [7]), hence by compactness [4] the whole set is satisfiable, yielding a nowhere‑zero weak 6‑flow on \(G\).
+
+**Proof idea for Theorem 14.**  
+Given an r‑ball \(F\), construct an r′‑ball \(F'\) such that every extension of \(F'\) contains a bridge. For \(\mathbf{G}_{\bullet,\le D}\), attach a leaf to a boundary vertex of degree \<\(D\). For \(\mathbf{G}_{\bullet,=D}\) handle regularity via parity gadgets: define \(S(F)=\sum_{v\in L_r}(D-\deg v)\) where \(L_r\) is the boundary; use \(K_{D+1}-e\) gadgets and tree‑like expansions to force parity \(S(F)=1\), then attach a new vertex to create a bridge. Hence the bridgeless set is nowhere dense.
+
+**Proof idea for Theorem 15.**  
+In even \(D\)‑regular graphs, use gadgets to force a cut vertex; in odd \(D\) or degree‑bounded spaces, this also follows from the previous construction.
+
+**Proof idea for Theorem 16.**  
+Being “there is a 2‑way infinite bridge at distance \(k\)” is nowhere dense; take a union over \(k\in\mathbb{N}\) to get a meagre (but not nowhere‑dense) set.
+
+**Proof idea for Theorem 17.**  
+For each \(D\), there exist \(D\)‑regular graphs with \(\chi'(G)=D+1\) (even \(D\): complete graphs or any odd‑order \(D\)‑regular graph; odd \(D\): by Tutte’s theorem). Removing an edge preserves \(\chi'=D+1\) by parity. Embed parity gadgets within r‑balls so that every extension has edge‑chromatic number \(D+1\), hence the set is nowhere dense.
+
+---
+
+### 4. Future work (the conjectures)
+
+**Question 18.** *Is the fact that a property is nowhere dense or meagre independent of the root?*  
+A change of root gives one type of change of metric; however, many metrics on the space of countable graphs are possible.
+
+**Question 19.** *Is there another metric on \(\mathbf{G}_{\bullet,D}\) where typical properties are different?*  
+For instance, is there a metric in which **bridgeless graphs are typical**?
+
+We also aim to investigate additional (a)typical properties in the spirit of Theorem 17.

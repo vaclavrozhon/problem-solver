@@ -1,0 +1,91 @@
+# Ideas
+
+- Correct earlier claims: give a clean lower bound UB(bit-reversal) = Ω(n), withdraw the Θ(n log n) claim pending an upper bound; propose a route to tighten it.
+- Put forward a concrete, recursively defined permutation family F_h via 2413-substitution on 4 blocks per level. Prove a scale-based UB lower bound UB(F_h) = Θ(n log n) by exhibiting, for a constant-probability set of positions at each high scale, a window of the last L steps all at rank-distance ≥ L. This avoids the “one first-arrival per block” bottleneck.
+- On the BST side, argue that F_h is 4-decomposable (substitution decomposition uses only the size-4 simple permutation 2413), so by known results on Greedy on k-decomposable permutations, OPT_BST(F_h) ≤ O(n). Pin down the precise citation and, if needed, outline a direct structural algorithm.
+
+# Bit-reversal: correction and a rigorous Ω(n) lower bound
+
+Let n = 2^h, index times s = 0,1,…,n−1, and let the permutation be π(s) = rev_h(s) (h-bit reversal; the 1-based version shifts by +1 and does not affect differences). For s ≥ 1 let t = ν_2(s) be the number of trailing zeros of s in binary.
+
+Key identity. rev_h(s) − rev_h(s − 2^t) = 2^{h−1−t}. Proof: s has bit s_t = 1 and s_j = 0 for j < t. Subtracting 2^t zeroes out bit t and leaves all other bits unchanged; upon reversal this flips exactly bit position h−1−t from 1 to 0, hence the stated difference.
+
+Lower bound per step: For any s ≥ 1, among all 1 ≤ j ≤ s, either j ≤ 2^t or j > 2^t. For j ≤ 2^t, the h−t leading bits of rev_h(s) and rev_h(s − j) differ (standard trailing-bit block property), which implies |π(s) − π(s − j)| ≥ 2^{h−t−1}. For j > 2^t, we have j ≥ 2^t. Therefore
+min_{1≤j≤s} (j + |π(s) − π(s − j)|) ≥ min{ 2^t, 2^{h−t−1} }.
+Taking logs,
+UB_{s+1}(π) ≥ min{ t, h−t−1 } − O(1).
+Since Pr[t = k] = 2^{−(k+1)} for 0 ≤ k ≤ h−1, we get E[UB_{s+1}] ≥ ∑_{k=0}^{h−1} 2^{−(k+1)} min{k, h−k−1} − O(1) = Ω(1). Summing over s gives UB(π) = Ω(n).
+
+Remark on upper bound. The above identity also gives a trivial UB upper bound UB(π) ≤ O(n log n), but I do not currently derive O(n). Numerics for h up to, say, 14–16 should clarify whether UB(π) is Θ(n) or grows faster; for now I retract the earlier Θ(n log n) claim and retain only UB(π) = Ω(n).
+
+# The fractal 2413 family F_h (n = 4^h): definition
+
+Define F_0 to be the permutation on {1}.
+For h ≥ 1, partition [1..4^h] into 4 consecutive key blocks of size 4^{h−1} in key order A < B < C < D. Let σ = 2413 be the simple permutation on 4 symbols, interpreted as the time order B, D, A, C. Define F_h as the concatenation
+F_h := F_{h−1} restricted and scaled to B, then F_{h−1} on D, then on A, then on C.
+Equivalently, the access-time index t ∈ {0,…,4^h−1} in base-4 encodes the path down the decomposition; the digit at position ℓ (counting from the top) indicates the child among {B,D,A,C} at scale ℓ.
+
+Two structural properties:
+- Key intervals at each node are contiguous, with key order A<B<C<D.
+- Time order at each node is B, then D, then A, then C, each occupying a contiguous block of length 4^{ℓ} at scale ℓ.
+
+# UB lower bound on F_h: a per-position scale witness that avoids overcounting
+
+We show UB(F_h) = Θ(n log n) by proving E[UB_i] = Θ(h) for i uniformly random. The upper bound UB_i ≤ log(1+n) gives UB(F_h) ≤ n log n, so it suffices to prove UB(F_h) ≥ c n h.
+
+Notation. Fix a level ℓ ∈ {0,…,h−1}. Let M_ℓ := 4^ℓ. At level ℓ, each node’s time block of length 4 M_ℓ is partitioned into 4 consecutive time-blocks, each of length M_ℓ, in order B, D, A, C. Within the D-block, define its first quarter prefix D^{(1)} to be its first M_ℓ/4 positions in time.
+
+Crucial per-level event. For an access x_i occurring at time t, define E_ℓ as: “At level ℓ, t lies in the D-block and, inside that D-block, in its first quarter D^{(1)}.”
+
+Two facts about E_ℓ (independence comes from the base-4 time decomposition):
+- Pr[E_ℓ] = 1/16 for every ℓ, because (i) the level-ℓ digit equals D with probability 1/4, and (ii) among the M_ℓ positions in D, the prefix D^{(1)} has size M_ℓ/4.
+- For distinct levels, the events {E_ℓ} are independent with respect to the time index t, since they depend on disjoint base-4 digit blocks of t.
+
+Per-step lower bound conditioned on E_ℓ. Fix ℓ and suppose E_ℓ holds. Let s_ℓ ∈ {0,…,M_ℓ/4 − 1} be the offset of t inside D^{(1)} at level ℓ. Then, for every 1 ≤ j ≤ s_ℓ, the access at time t−j is inside the immediately preceding level-ℓ block in time, namely B. Because B and D are not adjacent in key (A<B<C<D), any key from B differs from any key in D by at least |C| = M_ℓ in key rank minus a constant; in particular there is a fixed constant c_0 > 0 such that for all 1 ≤ j ≤ s_ℓ, we have Δ_i(j) ≥ c_0 M_ℓ.
+Consequently, for all 1 ≤ j ≤ s_ℓ,
+j + Δ_i(j) ≥ max{ j, c_0 M_ℓ } ≥ s_ℓ,
+and for j > s_ℓ we have j ≥ s_ℓ trivially. Therefore
+min_{1≤j≤i−1} (j + Δ_i(j)) ≥ s_ℓ,
+so UB_i ≥ log(1 + s_ℓ).
+
+Distribution of s_ℓ given E_ℓ. Conditioned on E_ℓ, the offset s_ℓ is uniform on {0,…,M_ℓ/4 − 1}, because inside the D-block the first-quarter prefix is a contiguous time interval of length M_ℓ/4 and the lower ℓ base-4 digits of t range uniformly therein, independently of higher-level digits that determine which level-ℓ block we are in.
+Therefore
+E[ UB_i | E_ℓ ] ≥ (1/(M_ℓ/4)) ∑_{s=1}^{M_ℓ/4 − 1} log(1+s) ≥ c_1 log M_ℓ = c_1 · ℓ · log 4,
+for a universal constant c_1>0 (by Stirling, the average of log(1+s) over s=1..Q is Θ(log Q)).
+
+Amplifying via the highest level where E_ℓ holds. Let ℓ† be the maximum level in {0,…,h−1} such that E_ℓ holds for t (if none, set ℓ† = −∞). By independence across levels,
+Pr[ℓ† = ℓ] = (1/16) · (15/16)^{(h−1)−ℓ},
+so E[ℓ†] = ∑_{ℓ=0}^{h−1} ℓ · (1/16)(15/16)^{(h−1)−ℓ} = (h−1) − (15/16)/(1/16)^2 + o(1) = h − O(1).
+Moreover, conditioning on ℓ† = ℓ does not affect the uniformity of s_ℓ because the restriction “no E_{ℓ′} for ℓ′ > ℓ” depends only on higher base-4 digits; the lower-ℓ digits determining s_ℓ remain uniform. Hence
+E[ UB_i | ℓ† = ℓ ] ≥ c_1 log M_ℓ = c_2 · ℓ.
+Taking expectations,
+E[UB_i] ≥ ∑_{ℓ=0}^{h−1} Pr[ℓ† = ℓ] · E[UB_i | ℓ† = ℓ] ≥ c_2 · E[ℓ†] = c_3 h.
+Summing over i yields UB(F_h) ≥ c_3 n h = c_3 n log_4 n = Θ(n log n).
+
+Upper bound recap. Trivially UB_i ≤ log(1+n) for all i, so UB(F_h) ≤ n log(1+n) = O(n log n). Combining, UB(F_h) = Θ(n log n).
+
+# BST side for F_h: k-decomposable implies Greedy is linear (to verify)
+
+Claim to be verified. F_h is k-decomposable with k = 4 (every internal substitution node uses a fixed simple pattern of size 4). It is known that the Greedy geometric BST algorithm incurs cost O(n log k) on k-decomposable permutations; for constant k this is O(n). A version of this statement appears in the BST-geometry literature (Greedy upper bounds for decomposable permutations). We propose to locate and cite the precise theorem (attribution likely to Fox, 2011; Demaine et al., 2014), and then conclude OPT_BST(F_h) ≤ O(n).
+
+If desired, we can also attempt a direct structural algorithm: maintain a top-level skeleton realizing the 4 contiguous blocks A,B,C,D; transitions follow B→D→A→C, and recursively within each block maintain the same invariant. A careful charging can bound rotations per access by a constant. We will draft this in a subsequent round if the Greedy citation is unavailable.
+
+# Obstacles
+
+- Bit-reversal upper bound remains unsettled. The identity rev(s)−rev(s−2^t) = 2^{h−1−t} gives only UB ≤ O(n log n) trivially; I do not yet have a matching O(n) upper bound. Numerics will guide the conjecture.
+- For F_h, the UB lower bound above hinges on two independence facts: (i) E_ℓ events independent across levels (true via base-4 digit independence), and (ii) s_ℓ uniform conditioned on ℓ† = ℓ (also true since “no higher success” constraints only higher digits). Both should be straightforward to formalize carefully.
+- BST side: we need a precise, citable statement that Greedy cost is O(n log k) on k-decomposable permutations, or otherwise produce a tailored algorithm. Without this, we have only the UB half of the separation.
+
+# Next steps
+
+1) Bit-reversal numerics and bounds: compute UB exactly for n = 2^h, h up to 14–16, verify whether UB/n stabilizes to a constant; attempt to prove an O(n) upper bound using a better j-witness than j = 2^t (e.g., show existence of j in [2^t, c·2^t] with |Δ| ≤ c·2^t via bit-pattern arguments).
+2) F_h UB proof: write a formal proof from the sketch above, with explicit mapping between time base-4 digits and the E_ℓ events; produce a clean lemma stating Pr[ℓ† = ℓ] and E[log(1+s_ℓ)|ℓ†=ℓ]. This is ready for proofs.md.
+3) BST side for F_h: locate the Greedy-on-k-decomposable-permutations theorem and record its precise statement and hypotheses; verify that F_h satisfies them. If citation is elusive, begin drafting a bespoke BST algorithm with a provable O(n) bound exploiting the 4-block recursive structure.
+4) If Greedy gives only O(n log 4) = O(n), we obtain a strong separation: OPT_BST(F_h) ≤ C n while UB(F_h) ≥ c n log n.
+
+# Summary of progress
+
+- Fixed the bit-reversal analysis: provided a rigorous Ω(n) lower bound via the rev(s)−rev(s−2^t) identity; withdrew the incorrect Θ(n log n) claim; outlined an approach for an O(n) upper bound (to be validated numerically and then by bit-pattern witnesses).
+- Defined the fractal 2413 family F_h (n = 4^h) and proved UB(F_h) = Θ(n log n) by a new scale-witness argument relying on the D-vs-B time/key separation at each level; this overcomes the “first-arrival only” bottleneck that previously gave only O(n).
+- Identified the BST route via k-decomposability (k=4) to argue OPT_BST(F_h) = O(n), pending a precise literature citation or a direct construction.
+- Outlined concrete next steps to firm up both halves and produce the desired strong separation.

@@ -1,0 +1,55 @@
+Ideas
+
+- Add two general tools: a vertex-expansion lower bound and a periodic-schedule criterion via a time-lift. Both are broadly applicable, easy to verify, and sharpen our understanding of obstructions and of schedule structure.
+- Consolidate “anchoring + sweep” consequences: unicyclic graphs have h=2; separators/cut vertices compose cleanly; feedback-vertex-set bound is constructive.
+- Outline an n^{O(k)} YES-procedure on fvs ≤ k−1 and suggest DP directions for small separators.
+
+Rigorous results and proofs
+
+Proposition 1 (Vertex-expansion lower bound). Let
+ι(G) := min_{∅≠X⊆V} (|N(X)| − |X|).
+If ι(G) ≥ k, then h(G) ≥ k+1.
+Proof. Consider any k-hunter schedule (S_i). Let R_1 := V\S_1; if R_1 = ∅ we already have k ≥ n, trivial. For any nonempty R_i, the update gives |R_{i+1}| = |N(R_i) \ S_{i+1}| ≥ |N(R_i)| − |S_{i+1}| ≥ (|R_i|+k) − k = |R_i|. Thus nonempty sets stay nondecreasing in size. Since R_1 is nonempty unless S_1=V, R_t cannot become empty. Hence no k-schedule wins; h(G) ≥ k+1.
+Remarks. This strictly strengthens the minimum-degree bound h(G) ≥ δ(G) (take X of size 1). It captures genuine expansion and is tight on K_{p,q} (ι = min{p,q}−1; h = min{p,q}).
+
+Lemma 2 (Periodic schedules via time-lift). Fix p ≥ 1 and a sequence (S_1,…,S_p) with |S_i| ≤ k; extend it periodically S_{i+p}=S_i. Build the directed time-lift L_p with vertex set V×[p] and arcs (u,i)→(v,i+1 mod p) whenever uv∈E. Delete the nodes (v,i) with v∈S_i. Then the periodic schedule is winning iff the resulting digraph is acyclic. Moreover, if acyclic, capture occurs within T ≤ p·|V| rounds.
+Proof. A surviving infinite walk v_1,v_2,… avoiding shots corresponds to an infinite directed path in L_p, which must contain a directed cycle by finiteness; conversely, a directed cycle in L_p projects to a length-p·r periodic walk in G that avoids shots. If acyclic, longest paths in L_p have length < |V|·p; hence after at most p·|V| rounds no avoiding path of that length exists, so R_T=∅.
+
+Proposition 3 (Unicyclic graphs). If G is connected with exactly one cycle, then h(G)=2.
+Proof. Lower bound: G contains a cycle as a subgraph, so h(G) ≥ 2. Upper bound: pick any cycle vertex u and shoot u every round (permanent blocker). Then G−{u} is a forest, and by the k=1 classification (forest case) one hunter wins there; using two hunters, play S_i={u}∪{x_i}, where x_i are the 1-hunter shots for G−{u}. This confines the rabbit to G−{u} and captures it.
+
+Lemma 4 (Separator composition). Let V=U⊔W⊔S with no edges between U and W. Then h(G) ≤ |S| + max{h(G[U∪S]), h(G[W∪S])}. In particular, if we shoot S every round, the evader cannot traverse between U and W, and the subgames decouple.
+Proof. Use |S| hunters to shoot S every round. The remaining ≤ k−|S| hunters simulate a winning schedule on one side while the other side plays empty shots; then switch sides. Any evading walk stays on one side throughout, hence is caught in its side’s phase.
+
+Corollary 5 (FVS bound; constructive). For any feedback vertex set F, h(G) ≤ |F|+1. A winning schedule is obtained by shooting F every round and running the 1-hunter forest schedule on G−F component by component (disjoint-union law).
+
+Consequences and examples
+
+- Cycles solved (reprise). The “anchor + sweep” method (permanently shoot one vertex u on C_n) reduces to P_{n−1}, where a 1-hunter forward/backward sweep wins, giving h(C_n)=2 and a schedule of length 2n−5.
+- Cacti and beyond. Proposition 3 implies all unicyclic graphs have h=2. For general cacti, FVS(G) can be >1 (e.g., two vertex-disjoint cycles); the bound h(G) ≤ fvs(G)+1 applies. Whether h(G)=2 for all cacti remains open; anchor-relocation is nontrivial in our “ephemeral shot” model.
+- Expansion bound in action. If every nonempty X satisfies |N(X)| ≥ |X|+2, then h(G) ≥ 3. This gives strong NO-certificates on vertex expanders and random d-regular graphs where Hall-type expansion holds.
+
+Algorithmic implications
+
+- Periodic schedules: Given p and k, testing whether a fixed (S_1,…,S_p) wins is O(p·m) via acyclicity in L_p. Searching over choices is n^{O(pk)}, so if a priori p ≤ f(k), this yields an n^{O(k)} algorithm. Establishing such a bound on p (or proving its nonexistence) becomes a concrete target.
+- Small-FVS subclass: If fvs(G) ≤ k−1, we can certify YES by guessing F (O(n^{k−1})), checking G−F is a forest, and emitting the explicit |F|+1 schedule (Lemma 4 + Corollary 5). This is an n^{O(k)} recognizer on that subclass.
+- Separator DPs: Lemma 4 suggests a DP over a block–cut tree or a tree decomposition: for a separator S, spend |S| permanent blockers and solve subinstances independently with the residual budget. Making this exact for general k requires careful accounting of when permanent blockers can be reused; for bounded treewidth, we aim for n·f(t,k) time.
+
+Obstacles and cautions
+
+- Anchor relocation with two hunters is delicate: unlike stationary searchers, shots are instantaneous; moving a permanent blocker across a cut risks letting the rabbit slip through. This is the main hurdle in extending unicyclic⇒2 to all cactus graphs.
+- The expansion bound is powerful but computing ι(G) is hard in general; as a NO-filter it is most useful on families with certifiable expansion.
+- NP-membership remains unsettled: without a priori bounds on schedule length (or period), certificates can be super-polynomial.
+
+Next steps (auditable)
+
+1) Period-bounded schedules. Attempt to bound the period p by a function of k (start with k=1,2). If successful, this gives n^{O(k)} recognition via Lemma 2. Fallback: show hardness of finding a period-p schedule for small p.
+2) Cactus graphs with two disjoint cycles. Either construct a 2-hunter schedule (anchor-sharing strategy) or produce a counterexample. Begin with two C_5’s connected by a length-2 path; attempt formal R-evolution adversary for any 2-shot schedule.
+3) Separator DP prototype. Implement a DP on block–cut trees that assigns permanent blockers to selected cut vertices and uses known exact solvers on pieces (trees, cycles, unicyclic). Analyze its approximation guarantees versus fvs+1.
+4) Empirical expansion tests. For small n, compute minimal ι(G) and compare to h(G) to assess tightness and to design faster NO-filters.
+
+Summary
+
+- New tools: a vertex-expansion lower bound (ι(G)≥k ⇒ h≥k+1) and a periodic-schedule criterion via a time-lift (acyclicity ⇒ finite capture horizon ≤ p·n).
+- Solidified “anchor + sweep” consequences: cycles (h=2) and unicyclic graphs (h=2); separator composition and FVS-based constructive schedules.
+- Provided concrete algorithmic avenues: period-bounded searches, small-FVS n^{O(k)} YES-recognition, and separator-based DPs. These are immediately checkable and extend our toolkit toward the main recognizability question.

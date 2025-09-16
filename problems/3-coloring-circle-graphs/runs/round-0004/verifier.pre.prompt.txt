@@ -1,0 +1,360 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Complexity of 3-coloring circle graphs
+
+Definitions.
+• A graph is called a circle graph if it can be represented as an
+intersection graph of chords in a circle. (That is, each vertex gets
+assigned a chord in a circle, and two vertices are adjacent iff their
+chords intersect.)
+Question: What is the complexity of 3-coloring circle graphs?
+Related results:
+• For k-coloring of circle graphs with k ≥ 4, we know the problem
+is NP-complete.
+• For most superclasses of circle graphs, 3-coloring is known to be
+NP-complete, usually because the superclasses also contain the class
+planar graphs.
+• Unger gave an algorithm for 3-coloring circle graphs in time
+O(n log n) using a backtracking algorithm for a 3-SAT instance
+with a specific structure based on the circle graph, however Bachmann, Rutter, and Stumpf have shown counterexamples to both
+the reduction to 3-SAT and the backtracking algorithm.
+
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Problem. Decide the complexity of 3-coloring circle graphs (intersection graphs of chords of a circle). Unger’s O(n log n) algorithm was refuted (Bachmann–Rutter–Stumpf). For k ≥ 4, k-coloring circle graphs is NP-complete.
+
+Key observations consolidated this round:
+- Representation: Cutting the circle away from endpoints turns chords into open intervals (s(x), t(x)) with x,y adjacent iff their intervals overlap without containment: s(x) < s(y) < t(x) < t(y) or vice versa.
+- Neighborhood structure: For any chord x, N(x) induces a permutation graph: neighbors of x have one endpoint on each side arc; adjacency among them is determined by inversion between the two side orders. Consequently, in any 3-coloring N(x) must be bipartite.
+- Two-chord view: For any x,y, the set N(x)∩N(y) is an induced subgraph of N(x) and hence also a permutation graph (permutation graphs are hereditary). This tightens and replaces a tentative “trapezoid” claim.
+
+Parameterized algorithm (ply w):
+- Define the interval ply w as the maximum number of intervals covering a point in the linearized representation. A sweep-line DP over the 2n endpoints maintains proper colorings of the active set; on the start of b, forbid colors used by current actives a with t(a) < t(b). This yields an algorithm for k-colorability in O(n·w·k^w) time and O(k^w) space. The parameter is representation-dependent; recognizing circle graphs and finding a representation is polytime.
+
+Bipartite-sides decomposition:
+- Fix a chord x. Removing x splits chords into three parts: left side L, right side R, and N(x). If L and R are bipartite, then for any fixed 2-coloring of each component of N(x), each side reduces to choosing one of its two bipartition orientations; vertices that cannot use their prescribed a/b color (due to conflicts with N(x)) are assigned the third color c_x, provided these “violators” form an independent set. This gives a polynomial-time extension test per choice and overall runtime O(3·2^{cc(N(x))}·poly(n)) for a fixed x; trying all x multiplies by n. This is polytime whenever cc(N(x)) is bounded and both sides are bipartite.
+
+Limits and obstacles:
+- Necessary local conditions (e.g., N(v) bipartite for all v) are far from sufficient; known triangle-free circle graphs can have chromatic number 5 (Ageev). The ply parameter can be Θ(n) even for easy instances. Extending the side method beyond bipartite sides appears to require an independent odd cycle transversal with list constraints.
+
+Next steps:
+- Unify and finalize the DP proof (k-colorability, O(n·w·k^w)). Implement and benchmark typical w values.
+- Replace the double-neighborhood trapezoid claim by the hereditary-permutation fact in all notes.
+- Explore a 2-SAT encoding to eliminate the 2^{cc(N(x))} factor; alternatively, branch on a small independent odd-cycle transversal per side.
+- Investigate two-chord separators and whether a global decomposition can be derived by combining permutation substructures.
+- Hardness attempt within K4-free circle graphs (gadget search aided by SAT/ILP).
+
+Additional consolidated points this round
+
+- Path-decomposition viewpoint. Let the 2n endpoints be sorted and consider the elementary segments between consecutive endpoints. For each segment σ, the bag B(σ) of intervals covering σ has size ≤ w (the ply). The sequence (B(σ)) is a path decomposition of the overlap graph: each vertex x appears in bags for σ ⊂ (s(x), t(x)) (contiguous), and each edge xy (with s(x)<s(y)<t(x)<t(y) or vice versa) is covered by any σ ⊂ (s(y), t(x)). Thus pathwidth ≤ w−1. The sweep DP is exactly standard DP on this path decomposition.
+
+- Structural: tiny ply. If w ≤ 2, the overlap graph is acyclic (a forest): in any cycle, pick the interval with the smallest right endpoint; its two neighbors start before and end after it, so some point is covered by three intervals—a contradiction.
+
+- Bipartite-sides pivot algorithm. For a chord x, if both sides L and R are bipartite and G[N(x)] is 2-colored, then each side component C admits a valid extension iff at least one orientation (assigning a/b to its bipartition) yields an independent set of violators; equivalently, one can encode the side as a 2-SAT instance with variables for component orientations and z-variables marking vertices assigned the third color. This gives polytime per fixed coloring of N(x) and yields an overall FPT algorithm in 2^{cc(N(x))} when such a pivot exists.
+
+- Limits. The attempt to fold all N(x)-component orientation choices into a single 2-SAT generally fails because “color appears” at a side vertex becomes an OR over multiple components. A special “single-touch” subclass (each side vertex sees at most one N(x)-component) admits cleaner 2-SAT constraints, but avoiding branching over side-component orientations still needs a careful, fully polynomial argument.
+
+- Next steps. Implement the ply-DP and the pivot algorithm (with 2-SAT packaging), measure typical w, cc(N(x)), and frequency of bipartite sides; explore two-pivot separators and orientations; pursue characterization for w ∈ {3,4}; and continue gadget search towards hardness within K4-free circle graphs.
+
+New audited observations and extensions
+
+- Bags are permutation graphs. For any elementary segment σ between consecutive endpoints, the active set B(σ) has one endpoint on each side of σ; G[B(σ)] is a permutation graph under the left/right endpoint orders. This strengthens local structure beyond neighborhoods.
+
+- Balanced separator (via sweep). There exists a segment σ with a(σ) := |{x : t(x) ≤ σ}| in [n/3, 2n/3]. Since every elementary segment has |B(σ)| ≥ 1 (between the first start and last end), c(σ) := |{x : s(x) ≥ σ}| = n − |B(σ)| − a(σ) ≤ n − 1 − n/3 < 2n/3, so removing B(σ) separates the graph into two parts of size ≤ 2n/3. This uses the path-decomposition separation property of the sweep bags.
+
+- List-coloring and counting. The sweep/path-DP extends to list k-coloring and to counting colorings with runtime O(n·w·k^w) and space O(k^w), by maintaining per-bag proper list-respecting states and aggregating counts on identical projected states.
+
+- Degeneracy bound. In any overlap representation with ply w, the graph is (2w−2)-degenerate: for a vertex b, at most w−1 earlier-start neighbors are active just right of s(b), and at most w−1 later-start neighbors are active just left of t(b); hence degree ≤ 2w−2 in any induced subgraph, yielding the degeneracy bound.
+
+- Side-interface S(y) by prefix sums. For a pivot x and a fixed 2-coloring of N(x), all S(y) for y on a side arc can be computed in linear time via prefix sums over the arc’s endpoint order.
+
+- Formal 2-SAT packaging (bipartite sides). With variables for side-component orientations and per-vertex z_y (color 3), independence and avoidance of forbidden colors reduce to 2-CNF; combined with branching over the 2-colorings of N(x)-components, this yields polytime per pivot and FPT in cc(N(x)).
+
+- Caution on oct ≤ 1. The proposed iff criterion for extending across a side component with odd-cycle transversal ≤ 1 is not established; necessity fails if neighbors of the apex are forced to color 3. Treat this as a sufficient condition or as a branching-based FPT approach (parameter t + cc(N(x))).
+
+Next actions: finalize proofs for the bag-permutation lemma, balanced separator (with the |B(σ)| ≥ 1 detail), list/counting DP, and degeneracy bound; implement DP and pivot+2-SAT; test empirical parameters w and cc(N(x)).
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Status
+I consolidate several structural and algorithmic facts that are directly checkable from a chord (interval-overlap) representation, including new rigorous proofs and explicit encodings useful for algorithms and hardness attempts.
+
+Helly-type property for cliques in overlap (circle) graphs
+Lemma 5 (Cliques have a common intersection). Let S be a clique in the overlap graph of open intervals on a line (obtained by cutting the circle). Then ⋂_{x∈S} (s(x), t(x)) ≠ ∅.
+Proof. Order S so that s(x1)<…<s(xk). Since S is a clique, for the pair x1,xk we must have s(x1)<s(xk)<t(x1)<t(xk). In particular, s(xk)<t(x1). For any i with 1<i<k, from x1∼xi we get s(x1)<s(xi)<t(x1)<t(xi); from xi∼xk we get s(xi)<s(xk)<t(xi)<t(xk). Hence s(xk)<t(xi) and s(xi)<t(x1). Choose p with s(xk)<p<t(x1). Then for all i we have s(xi)≤s(xk)<p and p<t(x1)≤t(xi), so p∈(s(xi), t(xi)). ∎
+
+Corollary 5.1. For a circle graph G with circular ply w: (i) ω(G) ≤ w; (ii) For any elementary segment σ between consecutive endpoints, any clique S has S⊆B(σ) for any σ contained in ⋂_{x∈S} (s(x), t(x)); hence ω(G)=max_σ ω(G[B(σ)]).
+
+Algorithmic corollary (computing ω). Since G[B(σ)] is a permutation graph (Lemma 3 from prior round), ω(G[B(σ)]) is the length of a longest decreasing subsequence between the two orders and is computable in O(|B(σ)| log |B(σ)|). Scanning all σ yields ω(G) in time O(∑_σ |B(σ)| log |B(σ)|) = O(n·w·log w).
+
+Degeneracy bound from ply
+Lemma 6 (Degeneracy ≤ 2w−2). In any induced subgraph H of G with representation inherited from G and ply ≤ w, there is a vertex of degree ≤ 2w−2.
+Proof. Take v with minimum start s(v) among vertices of H. Partition N_H(v) into E (earlier-start) and L (later-start) neighbors. If u∈E then s(u)<s(v)<t(u)<t(v) (overlap without containment). All such u are active immediately to the right of s(v), where at most w−1 vertices other than v are active; hence |E| ≤ w−1. If u∈L then s(v)<s(u)<t(v)<t(u). All such u are active immediately to the left of t(v), where again at most w−1 vertices other than v are active; hence |L| ≤ w−1. Therefore deg_H(v)=|E|+|L| ≤ 2w−2, as claimed. Since H was arbitrary, G is (2w−2)-degenerate. ∎
+
+Corollary 6.1. If w≤2 then Δ(G)≤2 and G is a forest (prior proposition). Combining yields that for w≤2, G is a disjoint union of paths.
+
+Balanced separator via sweep (proof finalized)
+Lemma 7 (Balanced separator of size ≤ w). There exists a segment σ such that removing S=B(σ) separates G into A (left) and C (right) with |A|,|C| ≤ 2n/3.
+Proof. Enumerate elementary segments σ1,…,σm. Let a(i)=|{x: t(x)≤σi}|, c(i)=|{x: s(x)≥σi}|, and b(i)=|B(σi)|. Note a(1)=0, a(m)=n, c(1)=n−b(1) ≤ n−1, c(m)=0; both a and c change by at most 1 between consecutive segments; for each i, a(i)+b(i)+c(i)=n. By discrete intermediate value, choose i with a(i)∈[n/3,2n/3]. Then c(i)=n−b(i)−a(i) ≤ n−1−n/3 < 2n/3 because b(i)≥1 between the first start and the last end. Removing B(σi) separates already-ended vertices from not-yet-started ones by the path-decomposition property, yielding the bound. ∎
+
+Bags are permutation graphs (recall)
+Lemma 3 (from prior round). For any σ, G[B(σ)] is a permutation graph defined by the left/right endpoint orders around σ.
+
+List-coloring and counting DP (recall, with explicit transitions)
+Theorem 2 (from prior round, with explicit introduce/forget). On the path decomposition {B(σ)}, maintain per bag all proper list-respecting colorings c: B→{1,…,k}; introduce u adds c(u)∈L(u) avoiding {c(a): t(a)<t(u)}; forget u projects. Complexity O(n·w·k^w) time, O(k^w) space. Aggregating counts per projected state yields # of colorings.
+
+Pivot side-extension encoded as 2-SAT (fully explicit)
+Setup. Fix a pivot chord x and a color c_x∈{1,2,3} for x. Assume G[N(x)] is bipartite (necessary in any 3-coloring) and fix a proper 2-coloring of each component with colors {α,β}={1,2,3}\{c_x}. Let L and R be the side subgraphs (vertices with both endpoints on the left/right arc), and suppose a side component C is bipartite with bipartition (U_C,V_C).
+
+Variables. For each side component C, a Boolean o_C (orientation): o_C=0 assigns color α to U_C and β to V_C; o_C=1 swaps. For each vertex y on the side, a Boolean z_y indicating y takes color c_x (z_y=1) vs a side color (z_y=0).
+
+Forbidden-color sets f_y. Define f_y⊆{α,β} as the set of side colors that appear on neighbors of y in N(x) under the fixed 2-coloring. Then any valid extension must avoid giving y a side color in f_y.
+
+Clause construction.
+- If f_y contains α, add (y∈U_C ? (¬o_C ∨ z_y) : (o_C ∨ z_y)); if f_y contains β, add (y∈U_C ? (o_C ∨ z_y) : (¬o_C ∨ z_y)). If f_y={α,β}, also add unit clause (z_y).
+- For every edge yz within the side, add (¬z_y ∨ ¬z_z) to forbid adjacent c_x assignments.
+Call Φ the conjunction of all such clauses across all side components; the two sides L and R are independent given N(x) and x, so build Φ_L and Φ_R separately.
+
+Lemma 8 (Correctness of 2-SAT packaging). For a fixed pivot x, chosen c_x, and fixed 2-coloring of G[N(x)], Φ_side is satisfiable iff there exists a proper 3-coloring of the side consistent with these choices.
+Proof. (⇒) From a satisfying assignment, define colors: if z_y=1, set col(y)=c_x; else set col(y)=α or β according to o_C and y’s side of the bipartition. Clauses ensure: (i) y’s side color is not in f_y (implication forces z_y=1 whenever the oriented side color would be forbidden), so all edges to N(x) are proper; (ii) (¬z_y∨¬z_z) forbids adjacent vertices both taking c_x; hence side edges are proper. (⇐) Given a proper extension, set z_y=1 iff col(y)=c_x; set o_C to match the side colors on U_C/V_C. Then every implication clause is satisfied (otherwise y would have a forbidden side color), and no edge has both z’s true. ∎
+
+Computing f_y on a side in linear time
+Lemma 9. For a fixed 2-coloring of N(x), the sets f_y for all side vertices y on L (resp. R) can be computed in O(|L|+|N(x)|) time.
+Proof. Along the left arc, sweep from one endpoint to the other, processing events: (i) the left/right endpoints of side chords y; (ii) the unique left endpoint of each neighbor n∈N(x) (neighbors have exactly one endpoint on the left arc). Maintain counters A,B = number of processed N(x)-endpoints colored α,β respectively. At the left endpoint of y record (A_left,B_left); at the right endpoint record (A_right,B_right). Then y sees α (resp. β) in N(x) between its endpoints iff A_right>A_left (resp. B_right>B_left). Thus f_y is determined. ∎
+
+Putting the pivot algorithm together
+Proposition 9.1. If there exists a pivot x such that both side-subgraphs L and R are bipartite, then for each choice of c_x and for each 2-coloring of each component of N(x) (there are 2^{cc(N(x))} such), the existence of an extension to a 3-coloring can be decided in polynomial time by solving Φ_L and Φ_R (each a 2-SAT instance). Overall runtime O(3·2^{cc(N(x))}·poly(n)).
+
+Remarks and limitations
+- The branching factor 2^{cc(N(x)))} cannot, in general, be merged into a single global 2-SAT without additional assumptions (“single-touch” case is a special tractable subclass). The above packaging is correct and implementable.
+- Combined with Theorem 2, we have: decision, list-coloring, and counting are FPT in ply w with O(n·w·3^w) time; ω(G)≤w and computable in O(n·w·log w); balanced separators of size ≤ w exist; degeneracy ≤ 2w−2 (hence m ≤ (w−1)n by charging edges to later-start endpoints), giving simple sparsity bounds.
+
+Examples/sanity
+- For w=2: Δ≤2 and no cycles (Lemma 6 and prior acyclicity) ⇒ disjoint union of paths; trivially 3-colorable.
+- For C5: w≥3 (by acyclicity), pathwidth ≤2, DP decides 3-colorability correctly.
+
+Next steps
+- Move Lemmas 5–9 and Proposition 9.1 into proofs.md with full details. Implement: (i) list/count DP; (ii) pivot+2-SAT with f_y by Lemma 9; measure w and cc(N(x)) on random/benchmark datasets.
+- Explore whether ω or cc(N(x)) are typically small in practice, making pivot method efficient; test balanced separator recursion vs. DP.
+- Structural: investigate w=3 class; is there a polynomial-time 3-coloring algorithm specialized to pathwidth 2 beyond brute-force DP? Potential for improved constants via bag-permutation pruning.
+- Hardness: develop realizable palette and wire gadgets respecting circle representation; start from the palette triangle and the simple “forbid color i” and “force color i” connectors (both realizable by chord crossings), then build equality/NAE gadgets incrementally.
+
+
+=== Prover 2 Output ===
+
+# Aim
+Consolidate and extend auditable structural/algorithmic pieces toward the 3-coloring problem on circle graphs: finalize and tighten proofs flagged in feedback (balanced separator, degeneracy), add implementable subroutines (computing S(y) in linear time), and extract a modest new parameterized extension of the pivot approach.
+
+# Preliminaries (overlap model)
+- Represent chords as open intervals (s(x), t(x)) along the circle’s cyclic order after cutting at a non-endpoint. Adjacency: x ∼ y iff s(x) < s(y) < t(x) < t(y) or symmetrically.
+- Ply w: the maximum number of intervals covering any point (between consecutive endpoints). Let the elementary segments be the open gaps between consecutive endpoints.
+
+# Lemma 1 (each sweep bag is a permutation graph)
+Fix an elementary segment σ. Let B(σ) be the set of intervals covering σ. Then G[B(σ)] is a permutation graph.
+
+Proof. Every y ∈ B(σ) has one endpoint to the left of σ (its start s(y)) and one to the right (its end t(y)). Order B(σ) by the left endpoints {s(y)} and independently by the right endpoints {t(y)}. For u,v ∈ B(σ), u ∼ v iff their relative orders are inverted: say s(u) < s(v) but t(u) > t(v), or vice versa. This is exactly the permutation-graph definition. ∎
+
+# Lemma 2 (path decomposition of width ≤ w−1)
+Let σ_1, …, σ_{2n−1} be the elementary segments in order; define bags B_i = B(σ_i). Then (B_i) is a path decomposition of G with width ≤ w−1.
+
+Proof. Vertex coverage/contiguity: An interval x covers precisely the contiguous set of segments σ ⊂ (s(x), t(x)), so the set of bags containing x is contiguous. Edge coverage: If x ∼ y (assume s(x)<s(y)<t(x)<t(y)), then every σ ⊂ (s(y), t(x)) is covered by both x and y, so some bag contains {x,y}. Width: |B_i| ≤ w by definition of ply. ∎
+
+Corollary. The endpoint sweep DP for k-colorability is the standard DP over this path decomposition, with at most k^{|B_i|} ≤ k^w states per bag.
+
+# Theorem A (DP for k-colorability: O(n·w·k^w))
+Given an overlap representation with ply w, k-colorability can be decided in time O(n·w·k^w) and space O(k^w). The same holds starting from a graph after computing a representation in poly(n) time.
+
+Proof sketch (finalized). At each event, maintain a state that partitions the active set A_t into k color-stacks; per color, store the top interval (minimum right endpoint). Start events push onto any color whose top has strictly larger right endpoint; end events pop iff the ending interval is the top of its color. Correctness follows from the invariant that same-color active intervals must form a containment chain; LIFO is necessary and sufficient for extensibility. There are ≤ k^{|A_t|} ≤ k^w states per layer; transitions per event cost O(k) (or O(1) amortized with fixed k) and pop recomputation O(1) with per-color linked stacks. Over 2n events: O(n·w·k^w) time, O(k^w) space. ∎
+
+Extensions. The same DP handles list-k-coloring (restrict allowed push colors to L(j)) and counting colorings (carry counts per canonical state and sum over predecessors) within the same bounds.
+
+# Lemma 3 (balanced separator by a sweep bag; corrected proof)
+There exists an index i with a(i) := |{x : t(x) ≤ e_i}| ∈ [⌈n/3⌉, ⌊2n/3⌋], and for such i we have c(i) := |{x : s(x) ≥ e_{i+1}}| ≤ 2n/3 − 1. Consequently, removing S := B(σ_i) separates G into two induced subgraphs on at most 2n/3 vertices each.
+
+Proof. The sequence a(i) is nondecreasing from a(0)=0 to a(2n−1)=n. Let i be the minimum index with a(i) ≥ n/3; thus a(i−1) < n/3 ≤ a(i). Since i lies between the first start and the last end, the segment σ_i is covered by at least one interval, so |B(σ_i)| ≥ 1. Using n = a(i) + |B(σ_i)| + c(i), we get c(i) = n − |B(σ_i)| − a(i) ≤ n − 1 − n/3 < 2n/3. The path-decomposition property of (B(σ)) implies that removing B(σ_i) disconnects vertices whose intervals end before e_{i+1} from those that start after e_{i+1}, so the removal separates G into the two parts counted by a(i) and c(i). ∎
+
+Remark. This yields a standard divide-and-conquer template with separator S = B(σ_i), but no a priori bound on |S| beyond w is available in general.
+
+# Lemma 4 (degeneracy bound ≤ 2w−2)
+Any overlap graph with ply w is (2w−2)-degenerate. In particular, m ≤ (w−1)n.
+
+Proof. Consider any induced subgraph H and pick a vertex b ∈ V(H) whose right endpoint t(b) is minimum among vertices of H. Classify neighbors of b in H as earlier-start (s(a) < s(b)) or later-start (s(a) > s(b)). If a is an earlier-start neighbor, then t(a) > s(b) (they overlap), so a is active immediately to the right of s(b). At that point, there are at most w−1 active intervals besides b; thus b has at most w−1 earlier-start neighbors. If a is a later-start neighbor, then s(a) < t(b) and t(a) > t(b), so a is active immediately to the left of t(b). There are at most w−1 active intervals besides b there, giving at most w−1 later-start neighbors. Hence deg_H(b) ≤ 2w−2, and every induced subgraph has a vertex of degree ≤ 2w−2. Summing degrees gives m ≤ (w−1)n. ∎
+
+# Pivot interface and linear-time computation of S(y)
+Fix a pivot chord x (with color fixed to 3 in the extension test). Let A be the left arc from x_L to x_R and B the right arc from x_R to x_L. Let L be chords with both endpoints on A, R analogously on B, and N(x) the chords crossing x.
+
+Interface Lemma (restated). For y ∈ L, N(y)∩N(x) consists exactly of those z ∈ N(x) whose A-endpoint lies strictly between y’s endpoints along A. Symmetrically for y ∈ R via the B-endpoint.
+
+Computing S(y) in O(|L|+|N(x)|). Fix a 2-coloring of G[N(x)] with colors {1,2}; color each z ∈ N(x) by its side endpoint on A (for L) or B (for R). Along arc A, sort the endpoints of N(x) and build prefix sums P_c over c ∈ {1,2} that count colored endpoints up to each elementary subarc. For y with endpoints at positions ℓ<r on A, define S_y ⊆ {1,2} by: c ∈ S_y iff P_c(r−1) − P_c(ℓ) > 0. This reports whether some z of color c lies between y’s endpoints, exactly as required by the interface lemma. The same holds for R using B. Overall O(|N(x)| + |L|) and O(|N(x)| + |R|) time per side after sorting.
+
+# Proposition B (side extension via 2-SAT; formal)
+Given pivot x with col(x)=3, if both G[L] and G[R] are bipartite and a 2-coloring of each component of G[N(x)] is fixed, then feasibility of a 3-coloring extending these choices is checkable in linear time by two independent 2-SAT instances (one per side), as previously specified: variables p_K per side component K (orientation) and z_y per vertex y (use of color 3), clauses enforcing (i) independence of z=1 vertices, (ii) forced z=1 when S_y={1,2}, (iii) avoidance of forbidden side color when S_y ∈ {1} or {2}, and (iv) forced z=0 when S_y=∅. See prior notes for the explicit clause mapping. This yields runtime O(2^{cc(N(x))}·poly(n)) per pivot over the orientations of G[N(x)].
+
+# A modest FPT generalization of the pivot approach
+We parameterize the number of side vertices colored 3 beyond those forced by S_y={1,2}. For a fixed pivot x with bipartite sides and a fixed orientation of G[N(x)] components, define F_side = {y : S_y={1,2}} (forced to z_y=1) and let t be a nonnegative integer. Consider whether there exists an extension coloring with at most t additional side vertices per side assigned color 3.
+
+Proposition C (FPT in t + cc(N(x))). For fixed x, bipartite sides, and a chosen orientation of G[N(x)], one can decide whether there exists an extension with at most t additional 3-colored vertices per side in time O(f(t)·poly(n)), where f(t) = Σ_{i=0}^t (Δ^i) with Δ the maximum side degree, multiplied by 2^{cc(N(x))} across the orientations. Concretely, branch on choosing up to t vertices per side to set z=1 (always respecting independence via immediate pruning), then solve the resulting 2-SAT as in Proposition B (with all remaining z fixed to 0 except the forced ones). If any branch succeeds, accept.
+
+Justification. After fixing a branch Z of optional z=1 vertices, the residual constraints are exactly those of Proposition B (with z fixed), which reduce to 2-SAT per side and can be solved in linear time. Independence of Z is enforced by branching only on independent augmentations (or by adding (¬z_u ∨ ¬z_v) for edges). The overall branching factor depends on the side graph’s degrees; depth ≤ t per side. While crude, this gives an explicit FPT extension beyond the purely bipartite-sides case (t=0). Note: More refined FPT in t is achievable by classic bounded-search on independent sets, but the above suffices as a testable, implementable baseline.
+
+Caveat. The above does not address breaking odd cycles on the sides; it only allows relaxing color conflicts against N(x). Handling odd cycles suggests branching on an independent odd-cycle transversal per side; this is a natural parameterized avenue but requires additional machinery.
+
+# Examples
+- w ≤ 2 implies forest. Consider three intervals forming a 3-cycle x–y–z–x under overlap. Let x have minimum t(x). Then s(y) < s(x) < t(y) and s(z) < s(x) < t(z), so just right of s(x) at least x,y,z are active, contradicting w ≤ 2. Hence no cycles; the graph is a forest (bipartite).
+
+- Pivot with modest branching. Let N(x) be a path on four vertices (cc=1). On side L, a component K is a 4-cycle y1–y2–y3–y4–y1 with S_{y1}={1,2} (forced z=1), S_{y2}={1}, S_{y3}={2}, S_{y4}=∅. Forced z_{y1}=1; z_{y4}=0. The 2-SAT clauses constrain p_K via y2,y3. If these conflict, we may branch with t≥1 to set z_{y2}=1 or z_{y3}=1 (while respecting independence), restoring satisfiability.
+
+# Obstacles and clarifications
+- Global 2-SAT over all orientations (no branching): Constraints induced by side vertices with S_y ∈ {1},{2} take the form (¬z_y) ⇒ (p_K ⊕ q_C = α_y). Parity between two orientation variables is 2-CNF only when not gated; the gate produces 3-clauses (z_y ∨ …), so a plain 2-CNF encoding is not available in general. This pinpoints why the 2^{cc(N(x))} branching is presently necessary.
+- Separator-based subexponentiality: While Lemma 3 gives balanced separation, separator sizes are |B(σ)| with no sublinear bound in general; thus no general subexponential algorithm follows from this separator alone.
+- Representation dependence: All ply-parameterized guarantees are for the given (or computed) representation; minimizing ply over all representations is nontrivial and not used here.
+
+# Next steps (auditable)
+- Move Lemmas 1–4 and Theorem A (with list/color-counting corollaries) to proofs.md with full details; include explicit data structures for O(1) push/pop and state hashing for DP.
+- Implement: (i) the O(n·w·3^w) DP (including list-coloring and counting modes), (ii) the pivot algorithm with 2-SAT per side and with the optional FPT branching in Proposition C. Benchmark on random and structured instances; measure w, cc(N(x)), and empirical branching.
+- Explore two-pivot separators structurally: formalize the four-arc partition induced by two chords a,b; prove that M:=N(a)∩N(b) is permutation and work out interface sets to outer arcs. Attempt an orientation-plus-2-SAT extension akin to the single-pivot case for subclasses where outer arcs are bipartite.
+- Investigate characterization at tiny ply: for w=3,4, provide explicit linear-time deciders leveraging Theorem A and quantify typical w in computed circle representations.
+- Hardness direction: Continue SAT-aided gadget search inside K4-free circle graphs (wires, equality, NAE constraints), guided by the N(x) permutation structure.
+
+# Provisional items for output.md
+- Theorem A (DP for k-colorability, list-coloring, counting) with path-decomposition proof and complexity O(n·w·k^w).
+- Lemma 1 (bags are permutation graphs), Lemma 3 (balanced separator with corrected proof), Lemma 4 (degeneracy ≤ 2w−2; m ≤ (w−1)n).
+- Pivot-side 2-SAT packaging and linear-time computation of S(y); Proposition B (polytime extension under bipartite sides) and Proposition C (FPT in t + cc(N(x)) generalization).
+
+
+
+=== Prover 3 Output ===
+
+Overview
+We strengthen and clean several structural lemmas and algorithmic subroutines, provide full proofs (balanced separator, bag-permutation, degeneracy), and formalize a complete 2-SAT reduction for the bipartite-sides pivot extension (under a fixed 2-coloring of N(x)). We also correct the earlier “oct ≤ 1” claim by giving a sufficient condition and a concrete counterexample to necessity.
+
+1) Structural lemmas and proofs
+Lemma 1 (Bags are permutation graphs). Let the circle be cut into open intervals I(v)=(s(v),t(v)) with endpoints all distinct and adjacency = overlap without containment. Fix an elementary segment σ between consecutive endpoints. Let B(σ) be the set of intervals covering σ. Then G[B(σ)] is a permutation graph.
+Proof. Every y ∈ B(σ) has s(y) < σ < t(y). Place the points to the left of σ (in increasing order) on a top line and the points to the right of σ (in increasing order) on a bottom line. Map y to a segment joining s(y) on the top line to t(y) on the bottom line. For y,z ∈ B(σ), they intersect in the overlap graph iff their endpoints alternate s(y)<s(z)<t(y)<t(z) or s(z)<s(y)<t(z)<t(y), which is equivalent to inversion between the two orders and hence segment crossing. Thus G[B(σ)] is a permutation graph.
+
+Lemma 2 (Balanced separator via sweep). Let the endpoints be sorted and σ range over elementary segments. Define a(σ):=|{v : t(v) ≤ σ}| and c(σ):=|{v : s(v) ≥ σ}|. Then there exists σ with a(σ) ∈ [n/3, 2n/3] and |B(σ)| ≥ 1; for such σ we have max(a(σ), c(σ)) ≤ 2n/3. Hence removing B(σ) separates the graph into two induced subgraphs of size ≤ 2n/3.
+Proof. As σ sweeps from before the first start to after the last end, a(σ) increases from 0 to n by unit steps. By the discrete intermediate value property, there is σ with a(σ) ∈ [n/3, 2n/3]. Between the first start and the last end, every elementary segment is covered by at least one interval, hence |B(σ)| ≥ 1. Then c(σ) = n − a(σ) − |B(σ)| ≤ n − n/3 − 1 ≤ 2n/3, and similarly a(σ) ≤ 2n/3 by choice. Removing B(σ) disconnects vertices ending before σ from those starting after σ; this is the standard separation property of path decompositions.
+
+Lemma 3 (Degeneracy ≤ 2w−2). If the ply is w (i.e., max_σ |B(σ)| = w), then the overlap graph is (2w−2)-degenerate.
+Proof. Order vertices by increasing right endpoint t. Consider a vertex b at its start s(b). Among earlier-start vertices, at most w−1 intervals are active at any point in the open segment just to the right of s(b); all earlier-start neighbors of b must be active at some point in (s(b), t(b)), so there are ≤ w−1 of them. Symmetrically, consider just to the left of t(b): among later-start vertices, at most w−1 are active there, and any later-start neighbor must be active in (s(b), t(b)) and end after t(b), hence counted among these. Thus deg(b) ≤ (w−1)+(w−1)=2w−2 in every induced subgraph obtained by repeatedly removing the minimum-t vertex. Hence degeneracy ≤ 2w−2.
+
+2) DP extensions (lists and counting) parameterized by ply w
+Theorem 4 (List-coloring and counting). Given a chord representation of ply w and lists L(v) ⊆ [k], one can decide list-k-colorability and count the number of list-respecting k-colorings in time O(n·w·k^w) and space O(k^w).
+Proof. Use the sweep DP that maintains the colors of the active set ordered by increasing right endpoint. At a start s(b), determine the insertion position j by t-order; the set of earlier-start neighbors is the prefix 1..(j−1). Extensions are allowed colors in L(b) \
+ {colors used in the prefix}. Counting aggregates over choices for b; list-feasibility prunes choices. End events pop the leftmost active. Complexity and correctness follow identically to the non-list case; counts of identical states are accumulated.
+
+3) Pivot x: computing side-interface S(y) fast
+Lemma 5 (Prefix computation of S(·)). Fix a pivot chord x with arcs A_L, A_R and a fixed 2-coloring of each component of G[N(x)] into {a,b}. For y ∈ L, S(y) ⊆ {a,b} is the set of colors that appear among neighbors of y in N(x) (equivalently, colors of u_z on A_L with u_z ∈ the interval of y). Then S(y) for all y ∈ L can be computed in O(|L|+|N(x)|) time by binary-marked prefix sums along A_L; similarly for R.
+Proof. Enumerate endpoints u_z of z∈N(x) on A_L in circular order and set two binary arrays marking presence of color a or b at each position. Build prefix sums P_a, P_b. For y with endpoints (ℓ(y), r(y)) on A_L, we have a ∈ S(y) iff P_a(r(y)) − P_a(ℓ(y)) > 0, similarly for b. Total time is linear in arc size.
+
+4) Bipartite-sides extension via 2-SAT (complete and exact under fixed N(x)-2-coloring)
+Setup. Fix pivot x and its color c_x, and fix a 2-coloring of each component of G[N(x)] with colors a,b. Let H be a connected side-subgraph (either L or R) that is bipartite with a fixed bipartition (P,Q). For y ∈ V(H), S(y) ⊆ {a,b} is computed as in Lemma 5.
+Variables. Introduce one boolean o_H (orientation) with semantics: o_H=0 means assign color a to P and b to Q; o_H=1 means assign b to P and a to Q. For each y ∈ V(H), introduce z_y with semantics: z_y=1 iff y is assigned color c_x.
+Clauses.
+- Independence of c_x: For every edge uv ∈ E(H), add (¬z_u ∨ ¬z_v).
+- For y ∈ P: if a ∈ S(y), add (o_H ∨ z_y); if b ∈ S(y), add (¬o_H ∨ z_y).
+- For y ∈ Q: if b ∈ S(y), add (o_H ∨ z_y); if a ∈ S(y), add (¬o_H ∨ z_y).
+Let F(H) be the conjunction of these 2-clauses.
+
+Theorem 6 (Exact 2-SAT reduction for bipartite side). With the above construction and fixed N(x)-2-coloring and c_x, H admits an extension to a proper 3-coloring iff F(H) is satisfiable.
+Proof. (⇒) Suppose a proper extension exists. Define o_H according to the a/b colors used on the 2-coloring of H’s bipartition in the extension; set z_y=1 iff y is colored c_x. If y ∈ P and o_H=0, then y is assigned a if z_y=0; since the extension is proper, a ∉ S(y) whenever z_y=0, so the clause (o_H ∨ z_y) is satisfied (either o_H=1 or z_y=1) when a ∈ S(y); symmetrically for other cases. Any edge uv with z_u=z_v=1 is impossible in a proper coloring, hence (¬z_u ∨ ¬z_v) holds. Thus the assignment satisfies F(H).
+(⇐) Conversely, suppose F(H) is satisfiable. Use the satisfying assignment to color: vertices with z_y=1 get c_x; vertices with z_y=0 get a/b according to o_H and their side in (P,Q). Edges with both endpoints z=0 are properly 2-colored by construction. Edges with one endpoint z=1 are properly colored with distinct colors. Edges with both z=1 do not occur by the independence clauses. For any y with z_y=0, the gating clause guarantees that its assigned a/b color is not forbidden by S(y), so edges to N(x) are proper. Hence we obtain a valid extension on H.
+Complexity. For a fixed N(x)-coloring and c_x, F(H) has O(|E(H)|+|V(H)|) 2-clauses and is solvable in linear time. Different side components are independent; solve F(H) per component and combine.
+Remark. This formulation strictly generalizes the earlier “violators must be independent” criterion: it allows z_y=1 even when y is not a violator, provided independence holds.
+
+Corollary 7 (Full pivot algorithm under bipartite sides). For a fixed pivot x, try c_x ∈ {1,2,3} and for each connected component of G[N(x)] try both 2-colorings. For each side component H, build F(H) and test satisfiability. If all sides succeed, accept. Overall time O(3 · 2^{cc(N(x))} · poly(n)) for fixed x; try all x to be complete under the “some pivot with bipartite sides” hypothesis.
+
+5) Correction on the oct ≤ 1 extension claim
+We correct the earlier bidirectional claim; below is a sufficient condition with proof, and a counterexample to necessity.
+
+Proposition 8 (Sufficient condition with single deletion). Let H be a side component and fix N(x)-2-coloring and c_x. If there exists v ∈ V(H) and an orientation o of H′:=H−{v} such that the set B_o(H′) of vertices y ∈ V(H′) whose assigned a/b color under o lies in S(y) is independent in H′ and N_H(v) ∩ B_o(H′) = ∅, then H admits an extension: color v and B_o(H′) with c_x and V(H′)\B_o(H′) by o.
+Proof. Identical to the “if” direction of prior statements; edges within B_o(H′) are absent (independence), edges incident to v avoid B_o(H′) by assumption, and all remaining edges are properly colored.
+
+Counterexample to necessity. Take H=C_5 with vertices v1–v2–v3–v4–v5–v1. Fix N(x)-2-coloring so that S(v1)=S(v3)=S(v5)={a,b} (forced c_x), S(v2)={a}, and S(v4)={b}. Then H is extendable (assign c_x to v1,v3,v5; color v2 with b and v4 with a). However, for any choice of v, either H−{v} yields B_o(H′) containing a neighbor of v (e.g., v1’s neighbor v5 forced into B) or yields B_o(H′) non-independent (e.g., deleting v2 leaves v1 and v5 both in B_o(H′) with an edge between them). Thus no v satisfies the sufficient condition, showing the condition is not necessary.
+
+6) Examples and sanity checks
+- Bag-permutation: Build four intervals covering a segment σ with orders s: a<b<c<d and t: d<c<b<a; all pairs in B(σ) are adjacent; K4 is a permutation graph.
+- Degeneracy: A construction with w=3 can realize a vertex of degree 4=2w−2 (tight up to constants) by placing two earlier- and two later-start neighbors active across (s(b),t(b)).
+- Side 2-SAT: For H a path u–v–w with bipartition P={u,w}, Q={v} and S(u)={a}, S(v)=∅, S(w)={b}, the formula consists of (o_H ∨ z_u), (¬o_H ∨ z_w), and (¬z_u ∨ ¬z_v), (¬z_v ∨ ¬z_w), (¬z_u ∨ ¬z_w). It is satisfiable (e.g., o_H=0, z_u=1, z_v=z_w=0) and yields a valid extension.
+
+7) Obstacles
+- Eliminating the 2^{cc(N(x))} factor by a single 2-SAT over all N(x)-component 2-colorings fails in general: whether a side vertex’s color a (or b) “appears” is an OR over literals tied to multiple N(x)-components, inducing clauses of width ≥ 3 when guarding edge constraints across side edges.
+- The oct ≤ 1 sufficient test is not necessary; general completeness for oct ≤ t by branching on |X| ≤ t independent odd-cycle transversals is nontrivial due to the interaction with S(·) and may require larger c_x-sets than a minimum OCT.
+
+8) Next steps
+- Move proofs of Lemmas 1–3 and Theorem 4 into proofs.md; add Corollary 7 with the exact 2-SAT mapping.
+- Implement: (i) list/counting DP; (ii) pivot algorithm with side 2-SAT; (iii) prefix-sums computation of S(·).
+- Empirics: measure w, cc(N(x)), and frequency of pivots with bipartite sides on random and structured circle graphs.
+- Two-pivot separators: develop a four-region decomposition around chords x,y; the middle layer N(x)∩N(y) is permutation (hereditary), suggesting a bounded-interface CSP composition generalizing Theorem 6.
+- Parameterized exploration: attempt an FPT algorithm parameterized by (t + cc(N(x))) that branches on at most t independent deletions per side and then applies the 2-SAT extension (sufficient method), with attention to counterexamples and completeness gaps.
+
+Summary
+- Rigorous proofs: bag-permutation lemma; balanced separator with corrected bound; degeneracy ≤ 2w−2; list/counting DP in O(n·w·k^w).
+- Algorithmic: exact 2-SAT formulation for bipartite side extension under a fixed N(x)-2-coloring (stronger and cleaner than the “independent violators” criterion) and linear-time computation of S(y).
+- Correction: the proposed oct ≤ 1 characterization is only sufficient, not necessary; provided a concrete counterexample illustrating the failure of necessity.

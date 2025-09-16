@@ -1,0 +1,306 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+
+Let M be a tridiagonal matrix with complex numbers z_1, z_2, ..., z_n on diagonal, all entries right below the main diagonal are 1 and all entries right above are -1, e.g.
+
+z_1 -1   0
+1    z_2 -1
+0   1       z_3
+
+Furthermore, the numbers on diagonal satisfy linear condition
+z_1 + 2 z_2 + 3z_3 + ... n z_n =0.
+
+Prove that there is no nilpotent matrix of this form.
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas
+
+- Use the grading induced by H = diag(1,2,...,n). With E the subdiagonal ones, F the superdiagonal ones, and D = diag(z_1,...,z_n), our matrix is M = D + E − F. One checks [H,E] = E, [H,F] = −F, [H,D] = 0, hence [H,M] = E + F.
+- The given condition ∑_{i=1}^n i z_i = 0 is exactly tr(HM) = 0. Nilpotency would also force tr(M) = 0 and more Newton identities. Exploit trace/commutator identities and explicit combinatorics of this tridiagonal pattern.
+- Corner-entry rigidity: the (1,n) and (n,1) entries of M^{n-1} are independent of z’s. This provides rigid constraints when combined with nilpotency (M^n = 0) and commutators with H. Try to squeeze a contradiction with tr(HM)=0.
+
+Elementary lemmas (rigorous)
+
+Lemma 1 (grading identities).
+Let H = diag(1,2,...,n), E = (e_{i+1,i})_{i=1}^{n-1}, F = (e_{i,i+1})_{i=1}^{n-1}, and D = diag(z_1,...,z_n). Then [H,E] = E, [H,F] = −F, [H,D] = 0. Consequently, for M = D + E − F, we have [H,M] = E + F.
+Proof. Straightforward on basis vectors: E e_i = e_{i+1}, F e_i = e_{i-1}, and H e_i = i e_i.
+
+Lemma 2 (similarity flow).
+Define M(t) = e^{tH} M e^{−tH}. Then M(t) = D + e^{t} E − e^{−t} F. In particular M(t) is similar to M, so they have the same characteristic polynomial. Also d/dt|_{t=0} M(t) = [H,M] = E + F.
+
+Lemma 3 (vanishing traces with [H,M]).
+For any k ≥ 0, tr([H,M] M^{k}) = 0. In particular tr((E+F) M^{k}) = 0.
+Proof. tr([H,M] M^{k}) = tr(HM^{k+1}) − tr(M H M^{k}) = 0 by cyclicity.
+
+Lemma 4 (trace of M^2; necessary condition for nilpotency).
+For interior 2 ≤ i ≤ n−1, (M^2)_{ii} = z_i^2 − 2; for i = 1,n, (M^2)_{ii} = z_i^2 − 1. Hence tr(M^2) = ∑_{i=1}^n z_i^2 − 2(n−1). If M is nilpotent, tr(M^2) = 0, so ∑_{i=1}^n z_i^2 = 2(n−1).
+Proof. Compute (M^2)_{ii} = ∑_k M_{ik} M_{ki}; only k ∈ {i−1,i,i+1} contribute, with products 1·(−1) and (−1)·1 on off-diagonals.
+
+Lemma 5 (corner entries of M^{n−1}).
+We have (M^{n−1})_{1n} = (−1)^{n−1} and (M^{n−1})_{n1} = 1, independent of z’s.
+Proof. Decompose M = D + E − F into homogeneous “grades” with respect to ad_H. The (1,n) entry has grade 1−n = −(n−1). The only way to achieve this total grade in the product of n−1 copies of M is to take the grade −1 component (−F) at each factor; any D (grade 0) or E (grade +1) would raise the grade above −(n−1). Thus (M^{n−1})_{1n} = (−1)^{n−1}(F^{n−1})_{1n} = (−1)^{n−1}. Similarly, for (n,1) one must choose E at each factor.
+
+Lemma 6 (a fixed entry of [H,M] M^{n−2}).
+([H,M] M^{n−2})_{1n} = (−1)^{n−2}.
+Proof. Using [H,M] = E+F, and the same grading argument: (E M^{n−2})_{1n} vanishes (grade too high), while (F M^{n−2})_{1n} equals (M^{n−2})_{2n}, obtained uniquely by choosing (−F) at each of the n−2 factors of M^{n−2}, hence (−1)^{n−2}.
+
+Corollary 6.1 (an explicit identity if M is nilpotent).
+If M^n = 0, then for v := M^{n−2}e_n we have
+(−1)^{n−2} = e_1^T[H,M]v = e_1^T(HM^{n−1} − MHM^{n−2})e_n = (−1)^{n−1} − [z_1 v_1 − 2 v_2],
+so z_1 v_1 − 2 v_2 = −2 (−1)^{n−2}, where v_1 = (M^{n−2})_{1n} and v_2 = (M^{n−2})_{2n}.
+Proof. Insert Lemma 5 into HM^{n−1}, and compute M H v using the first row of M and H diagonal.
+
+Special cases (fully resolved)
+
+- n=2. The characteristic polynomial is λ^2 − (z_1+z_2)λ + (z_1 z_2 + 1). Nilpotency forces z_1+z_2 = 0 and z_1 z_2 = −1. The extra condition z_1 + 2z_2 = 0 then gives z_1 = −2z_2 and z_1 z_2 = −1 ⇒ (−2) z_2^2 = −1 ⇒ z_2^2 = 1/2, so z_1+z_2 = −2z_2 + z_2 = −z_2 ≠ 0, contradiction. Hence no nilpotent in this family for n=2.
+- n=3. Using the recurrence p_k(λ) = (λ−z_k)p_{k−1}(λ)+p_{k−2}(λ), nilpotency requires z_1+z_2+z_3=0 and z_1 z_2 + z_1 z_3 + z_2 z_3 + 2 = 0. The third coefficient is c_{3,3} = −(z_3(z_1 z_2 + 1) + z_1). Imposing the weighted condition z_1 + 2z_2 + 3z_3 = 0 together with z_1+z_2+z_3=0 gives z_2 = −2 z_1 and z_3 = z_1. Then the second condition yields z_1^2 = 2/3. Substituting into c_{3,3} gives c_{3,3} = 2 z_1^3 − 2 z_1 ≠ 0. Hence the characteristic polynomial cannot be λ^3. So no nilpotent in this family for n=3.
+
+Combinatorial identities for coefficients
+
+- Coefficient of λ^{n−1}: c_{n,1} = −∑ z_i. Nilpotent ⇒ ∑ z_i = 0.
+- Coefficient of λ^{n−2}: c_{n,2} = ∑_{i<j} z_i z_j + (n−1) = −(1/2)∑ z_i^2 + (n−1). Nilpotent ⇒ ∑ z_i^2 = 2(n−1), consistent with Lemma 4.
+- Coefficient of λ^{n−3} (sketch). It is the negative sum of 3×3 principal minors. Each such minor equals z_i z_{i+1} z_{i+2} + z_i + z_{i+2} if the indices are consecutive; or (z_j z_{j+1} + 1) z_k if it consists of a single adjacent pair plus an isolated index; or z_i z_j z_k if all three are isolated. Summing all yields
+σ_3 = ∑_{1≤i<j<k≤n} z_i z_j z_k + ∑_{k=1}^n w_k z_k,
+where w_1 = w_2 = w_{n−1} = w_n = n−2 and w_k = n−1 for 3 ≤ k ≤ n−2. Thus c_{n,3} = −σ_3. Under ∑ z_i = 0, the linear part simplifies to −(z_1+z_2+z_{n−1}+z_n). For n=3 this reduces to the explicit c_{3,3} above and provides the contradiction. For general n, this decomposition isolates a small boundary-dependent linear form in z.
+
+Obstacles
+
+- A direct global contradiction for all n seems to require combining the rigid corner identities (Lemma 5–6–Cor. 6.1) with a summation/weighting that inserts the given condition tr(HM)=0. The naive trace identities tr((E+F)M^k)=0 are too weak.
+- Coefficients c_{n,k} for k≥3 mix higher symmetric polynomials of z and boundary linear terms. One needs to force a mismatch via the extra linear constraint ∑ i z_i = 0; n=3 showcases this, but a general closed-form for c_{n,3} including the cubic part is combinatorially involved.
+
+Next steps
+
+- Systematically exploit M^n=0 on corner entries using the unique-path phenomenon (Lemma 5) to derive linear recurrences for the last column v := M^{n−1}e_n (i.e., Mv=0 with v_1 = (−1)^{n−1} and v_0=0). Combine with e_1^T[H,M]M^{n−2}e_n = (−1)^{n−2} (Cor. 6.1) and its right-end analogue e_n^T M^{n−2}[H,M] e_1 to extract boundary identities linking z_1,z_2,z_{n−1},z_n only. Aim: an identity of the form α_1 z_1 + α_2 z_2 + α_{n−1} z_{n−1} + α_n z_n = const ≠ 0, contradicting ∑ i z_i = 0 after eliminating interior z’s via nilpotency constraints (e.g., ∑ z_i = 0, ∑ z_i^2 = 2(n−1)).
+- Push the 3×3 principal minor sum σ_3 one step further: express its cubic part in terms of ∑ z_i, ∑ z_i^2, ∑ z_i^3 and boundary corrections, then use ∑ z_i = 0 and the given ∑ i z_i = 0 to show c_{n,3} ≠ 0 for all n ≥ 4. The n=3 computation already shows the mechanism.
+- Verify and formalize a general path-graded formula for (M^{n−2})_{2n} and (M^{n−2})_{n−1,1} (degree-1 in z with explicit boundary supports), then combine with Cor. 6.1-like identities to isolate z_1+2z_2+⋯+n z_n.
+
+Summary of progress
+
+- Established structural commutator and similarity identities: [H,M] = E+F and M(t) = D + e^{t}E − e^{−t}F. Derived vanishing traces tr([H,M]M^k)=0.
+- Computed tr(M^2) explicitly; nilpotency forces ∑ z_i^2 = 2(n−1).
+- Proved rigid corner-entries for M^{n−1}: (M^{n−1})_{1n} = (−1)^{n−1}, (M^{n−1})_{n1} = 1, independent of z. From this, extracted a boundary identity z_1 v_1 − 2 v_2 = −2(−1)^{n−2} for v = M^{n−2}e_n.
+- Fully settled n=2 and n=3: no nilpotent matrices of the prescribed form satisfy ∑ i z_i = 0.
+- Identified the linear (in z) part of the coefficient c_{n,3} as a boundary term −(z_1+z_2+z_{n−1}+z_n) under ∑ z_i=0, suggesting a robust route to contradiction in general via boundary analysis.
+
+These are all testable lemmas and computations. The proposed next steps aim to close the general case by turning the corner-entry and boundary linear identities into an explicit contradiction with ∑ i z_i = 0 for arbitrary n ≥ 4.
+
+
+=== Prover 2 Output ===
+
+Ideas
+
+- Use two complementary tools tailored to this tridiagonal pattern:
+  1) path-counting for specific entries of powers of M (in particular the (1,n)-entry), which produces identities whose right-hand side is a fixed symmetric polynomial in z_1,…,z_n plus small constants; and
+  2) trace identities for low powers of M, which, for nilpotent M, force explicit algebraic constraints on z_1,…,z_n.
+- The linear constraint Σ_{k=1}^n k z_k = 0 can be recognized as tr(H M)=0, with H=diag(1,2,…,n). This allows us to compute mixed traces like tr(H M^2) and tr(H M^3), which turn out to be very simple in this model and yield additional, checkable relations.
+
+Lemmas (rigorous)
+
+Lemma 1 (endpoint entry of M^{n-1} and M^n). Let M be the given n×n tridiagonal with superdiagonal −1 and subdiagonal +1. Then
+- (M^{n-1})_{1n} = (−1)^{n−1}.
+- (M^n)_{1n} = (−1)^{n−1} Σ_{i=1}^n z_i.
+
+Proof. Interpret (M^k)_{ij} as the sum of weights of length-k paths from i to j in the line graph {1,…,n}, where a diagonal stay at vertex r contributes weight z_r, an up-step (r→r+1) contributes −1, and a down-step (r→r−1) contributes +1. To go from 1 to n in k steps, the net number of up-steps minus down-steps must be n−1. For k=n−1, no stays or down-steps are possible; the unique path consists of n−1 up-steps, whose product is (−1)^{n−1}. For k=n, exactly one stay occurs (no down-steps); it can occur at any vertex i=1,…,n, yielding weight z_i times (−1)^{n−1} from the up-steps. Summing over i gives the second identity. ∎
+
+Corollary 2 (trace constraints for nilpotency). If M is nilpotent, then necessarily
+- Σ_{i=1}^n z_i = 0 (trace zero),
+- Σ_{i=1}^n z_i^2 = 2(n−1) (since tr(M^2)=0 and tr(M^2)=Σ z_i^2 − 2(n−1)),
+- Σ_{i=1}^n z_i^3 + 3(z_1+z_n) = 0 (since tr(M^3)=0 and tr(M^3)=Σ z_i^3 + 3(z_1+z_n); see proof below).
+
+Proof of the last two identities. Write M=D+S with D=diag(z_i), S having 1 on the subdiagonal and −1 on the superdiagonal. Then S is real skew-symmetric (S^T=−S), so tr(S)=tr(S^3)=0. Also DS and SD have zero diagonal, hence tr(DS)=tr(SD)=0, and S^2 has diagonal entries −1 at i=1,n and −2 at 2≤i≤n−1, i.e., tr(S^2)=−2(n−1). Thus
+- tr(M^2)=tr(D^2)+2tr(DS)+tr(S^2)=Σ z_i^2 − 2(n−1),
+- tr(M^3)=tr(D^3)+3tr(DS^2)+tr(S^3)=Σ z_i^3 + 3(−z_1 − 2Σ_{i=2}^{n−1} z_i − z_n) = Σ z_i^3 + 3(z_1+z_n),
+using Σ z_i = 0 in the last step. ∎
+
+Small cases (complete contradictions)
+
+- n=2. Nilpotency forces z_1+z_2=0 and z_1 z_2+1=0, i.e. z_1=−z_2 and z_1^2=1. The linear constraint z_1+2z_2=0 then gives z_2=0, contradiction with z_1^2=1.
+- n=3. Nilpotency forces: z_1+z_2+z_3=0; z_1 z_2+z_1 z_3+z_2 z_3+2=0; and z_1 z_2 z_3+z_1+z_3=0 (char poly constant term). The linear constraint z_1+2z_2+3z_3=0 plus trace zero implies 2z_1+z_2=0. Eliminating z_3 and using the three nilpotency equations yields z_2^2=3 and, from 2z_1+z_2=0, also z_2^2=4, a contradiction. Hence no nilpotent matrix exists for n≤3.
+
+Further identities involving H=diag(1,2,…,n)
+
+- The linear constraint is tr(HM)=Σ k z_k=0.
+- A fixed, z-independent identity: tr(H S^2)=−(n^2−1). Indeed, S^2 has diagonal (−1, −2,…, −2, −1), hence tr(H S^2)=−(1+2(2+…+n−1)+n)=−(n^2−1).
+- Consequently tr(H M^2)=tr(H D^2)+tr(H(DS+SD))+tr(H S^2)=Σ k z_k^2 − (n^2−1), because DS+SD has zero diagonal, so its contribution vanishes against diagonal H. This gives a concrete checkable value for tr(H M^2) under any z. (Nilpotency does not force tr(H M^2)=0, but this formula allows one to audit examples and derive further constraints when combined with other identities.)
+
+Obstacles
+
+- The general contradiction for arbitrary n likely requires combining several low-degree invariants (trace constraints tr(M^2)=0, tr(M^3)=0, possibly principal minor sums coming from the λ^{n−3} coefficient) with the linear relation Σ k z_k=0. We have established all necessary identities to carry this out for n=2,3 and provided universal identities (Lemma 1 and Corollary 2) to be re-used.
+- A direct use of tr(H M^2) fails because nilpotency does not force it to vanish. One needs to exploit higher-order identities where Σ k z_k interacts nontrivially with fixed contributions from S.
+
+Next steps
+
+- Compute the sum of principal 3×3 principal minors (the λ^{n−3} coefficient) explicitly for general n. For our tridiagonal with equal-magnitude off-diagonals, one can show
+  S_3 = Σ_{i<j<k} z_i z_j z_k + Σ_{1≤i≤n−2} (z_i) + Σ_{3≤k≤n} (z_k)
+  = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ_{r=1}^n z_r + (z_1+z_n),
+  hence, using Σ z_i=0, nilpotency forces Σ_{i<j<k} z_i z_j z_k + (z_1+z_n)=0. This is consistent with tr(M^3)=0 above (Newton’s identities). The goal is to combine this with Σ k z_k=0 to force a contradiction for all n≥4.
+- Push to the next coefficient (order 4) or to tr(M^4)=0 and express it via Σ z_i^4, Σ z_i^2, and fixed S-terms. With Σ z_i=0 and Σ k z_k=0, the resulting linear system in the symmetric sums should become inconsistent.
+- Alternatively, use path counting to write closed forms for (M^{n+2})_{1n} and (M^{n+3})_{1n}; the linear part of (M^{n+3})_{1n} should be a nonzero multiple of Σ k z_k, yielding an immediate contradiction if M is nilpotent (so this entry must be 0) and Σ k z_k=0 is the only possible canceler of all lower-degree parts. We already verified the base counts and will formalize the general count in the next round.
+
+Summary
+
+- We established robust, reusable identities (endpoint entries of powers; low-degree trace formulas) and completely ruled out n=2 and n=3.
+- We reduced the general problem to combining a handful of symmetric-sum identities (coming from tr(M^2)=tr(M^3)=0 and principal minor sums) with Σ k z_k=0. Two concrete routes are outlined: (i) advance the characteristic polynomial coefficient identities to order 4; (ii) complete a general path-count for (M^{n+3})_{1n} and extract the linear term in z, expected to be a nonzero multiple of Σ k z_k, giving the contradiction under nilpotency.
+
+
+
+=== Prover 3 Output ===
+
+# Status
+- There is no existing draft (notes/proofs/output) to critique; I focus on setting up a rigorous framework and extracting verifiable lemmas that will likely be needed for a full proof.
+- I also flag the edge case n=1: the zero 1×1 matrix is nilpotent, so the claim must be interpreted for n ≥ 2.
+
+
+# Setup and Notation
+- Let M = Z + K where Z = diag(z_1, …, z_n) and K has 1 on the subdiagonal and −1 on the superdiagonal.
+- Denote the standard shifts L (ones on subdiagonal) and U (ones on superdiagonal). Then K = L − U, and the symmetric off-diagonal matrix S = L + U will also be useful.
+- The given linear constraint is ∑_{i=1}^n i z_i = 0. We will repeatedly exploit commutator identities involving D = diag(1, 2, …, n).
+
+
+# Ideas
+1) Trace identities for small powers.
+   For nilpotent M, tr(M^k) = 0 for all k ≥ 1 in characteristic 0. So explicit formulas for tr(M), tr(M^2), tr(M^3) yield necessary algebraic constraints on z_i. These are checkable and can be used to rule out small n and guide the general case.
+
+2) Endpoint-path identities.
+   Using a path expansion (each factor K moves by ±1, each Z contributes a stay with weight z_i), one can compute specific entries of M^k. In particular, for the (n, 1)-entry:
+   - (M^{n-1})_{n,1} = (−1)^{n−1} (unique all-up path).
+   - (M^n)_{n,1} = (−1)^{n−1} ∑_{i=1}^n z_i (unique position for one stay on the monotone path).
+   - (M^{n+1})_{n,1} = (−1)^{n−1}(h_2(z_1,…,z_n) − (n−1)), where h_2 is the complete homogeneous symmetric polynomial of degree 2: h_2 = ∑_{i≤j} z_i z_j. (This agrees with direct computation for n=2 and fits the path picture: either two stays or one down-step.)
+   These formulas give a clean sequence of necessary relations under nilpotence (they must all be zero).
+
+3) Noncommutative expansion of tr((Z+K)^3).
+   Isolating linear-in-z contributions via the identity: the linear part of tr(M^{2m+1}) is (2m+1) tr(Z K^{2m}). For m=1 we can compute tr(Z K^2) explicitly; higher-degree parts can be organized too. This produces a compact and verifiable formula for tr(M^3).
+
+
+# Rigorous Lemmas
+Lemma 1 (Basic commutators and parity).
+- [D, L] = L, [D, U] = −U, hence [D, K] = S and [L, U] = −H where H = diag(1, 0, …, 0, −1).
+- K is skew-symmetric: K^T = −K. K^p has zero diagonal for odd p (parity blocks return-to-origin in an odd number of steps).
+Proof. Direct entrywise verification.
+
+Lemma 2 (Trace formulas for low powers).
+For every n ≥ 2:
+- tr(M) = ∑_{i=1}^n z_i.
+- tr(M^2) = ∑_{i=1}^n z_i^2 − (2n − 2).
+- tr(M^3) = ∑_{i=1}^n z_i^3 − 3(z_1 + 2z_2 + … + 2 z_{n−1} + z_n).
+Proof.
+- tr(M) is immediate.
+- For tr(M^2): [M^2]_{ii} = z_i^2 + (sub×super from neighbors). At i=1,n these contribute −1; for 2≤i≤n−1 they contribute −2. Summing: tr(M^2) = ∑ z_i^2 − [(n−2)·2 + 2·1] = ∑ z_i^2 − (2n−2).
+- For tr(M^3): expand (Z+K)^3 into 8 words; only Z^3, ZK^2, KZK, K^2Z survive in trace; tr(Z^2K)=tr(KZ^2)=0 (K has zero diagonal), tr(ZKZ) telescopes to 0. Hence tr(M^3) = tr(Z^3) + 2 tr(ZK^2) + tr(KZK). With K^2 diagonal equal to (−1, −2, …, −2, −1) and (K Z K)_{ii} = −(z_{i−1} + z_{i+1}) (empty terms at endpoints vanish), one obtains tr(M^3) = ∑ z_i^3 − 3(z_1 + 2z_2 + … + 2 z_{n−1} + z_n).
+
+Corollary 3 (Necessary nilpotency constraints).
+If M is nilpotent (n≥2), then
+- ∑ z_i = 0, and ∑ z_i^2 = 2n − 2,
+- ∑ z_i^3 = 3(z_1 + 2z_2 + … + 2 z_{n−1} + z_n).
+These are necessary but not claimed sufficient.
+
+Lemma 4 (Endpoint entries of powers).
+For any n ≥ 2,
+- (M^{n−1})_{n,1} = (−1)^{n−1}.
+- (M^n)_{n,1} = (−1)^{n−1} ∑_{i=1}^n z_i.
+- (M^{n+1})_{n,1} = (−1)^{n−1}(h_2(z_1,…,z_n) − (n−1)), where h_2 = ∑_{1≤i≤j≤n} z_i z_j.
+Proof (sketch, fully checkable via path expansion or induction on k).
+- A length-(n−1) path from 1 to n must be the unique all-up path; each up contributes factor −1.
+- A length-n path must insert one stay z_i somewhere along that path; there is exactly one position for each i.
+- A length-(n+1) path is either (i) two stays on the monotone path (giving h_2) or (ii) exactly one down-step and no stay (exactly n−1 such positions, contributing +1 in product of steps, and (−1)^{n−1} from the up steps). This reproduces the claimed formula.
+
+
+# Examples (sanity checks)
+- n=2: M = [[z_1, −1],[1, z_2]], constraint z_1 + 2 z_2 = 0. Nilpotent would require trace 0 → z_1 + z_2 = 0 and det 0 → z_1 z_2 + 1 = 0. The linear condition forces z_1 = −2 z_2; combining gives z_2 = 0 from trace, contradicting determinant. So n=2 impossible.
+- n=3: Using Corollary 3: ∑ z_i = 0, ∑ z_i^2 = 4, ∑ z_i^3 = 3(z_1 + 2 z_2 + z_3). Together with z_1 + 2 z_2 + 3 z_3 = 0 is already a nontrivial overdetermined system. Exhaustively solvable, but not needed here; the pattern suggests inconsistency for many choices.
+
+
+# Obstacles and Gaps
+- The current identities (traces, endpoint entries) give strong necessary conditions, but they do not yet yield a global contradiction for all n with only the single extra constraint ∑ i z_i = 0. In particular, for general complex z_i, the cubic constraint can be accommodated.
+- A promising direction is to continue the endpoint-entry expansion: for k = n+2 one expects (M^{n+2})_{n,1} = (−1)^{n−1}(h_3 − 3·ϕ(z)), where ϕ(z) = z_1 + 2 z_2 + … + 2 z_{n−1} + z_n (this is consistent with the linear-in-z part of tr(M^3) and agrees with the pattern "single down-step plus one stay" counting). Verifying the full formula rigorously (including all higher-degree terms) would give another necessary equation under nilpotence. Combining it with ∑ i z_i = 0 might force a contradiction.
+- Another track: diagonal similarity transforms S diag(i^{i−1}) symmetrizes the off-diagonal (to i’s). This cuts signs and may simplify counting or SOS-type identities, but complex symmetry does not force nilpotence to vanish by itself (complex symmetric nilpotents exist). Care is needed.
+
+
+# Next Steps (actionable, checkable)
+1) Formalize the endpoint-entry expansion for all k ≥ n−1 via a clean combinatorial recurrence. Conjecture:
+   (M^{n−1+m})_{n,1} = (−1)^{n−1} ∑_{j=0}^{⌊m/2⌋} (−1)^j C_{m,j} h_{m−2j}(z_1,…,z_n),
+   with explicit integer coefficients C_{m,j} counting admissible down-steps; verify for m=0,1,2,3 (we have m=0,1,2; m=3 would give the expected h_3 − 3ϕ(z)).
+   A complete proof by induction on m would supply a tower of necessary equations that, together with ∑ i z_i = 0, should be incompatible for all n ≥ 2.
+
+2) Use the linear-in-z identity for odd powers: for r odd, the linear part of tr(M^r) equals r tr(Z K^{r−1}). Since K^{2m} has explicitly known diagonal (Newton-type formula for paths), one can explicitly write tr(M^{2m+1}) modulo cubic and higher. Compute r=5 explicitly; the linear part will involve z_1 + 2z_2 + … + 2 z_{n−1} + z_n with a coefficient, giving another necessary relation under nilpotence.
+
+3) Small n verification beyond n=2: do a full elimination for n=3 and n=4 using the constraints from tr(M), tr(M^2), tr(M^3), (M^{n−1})_{n,1}, (M^{n})_{n,1}, (M^{n+1})_{n,1}, and the given ∑ i z_i = 0. This will likely show emptiness of the nilpotent locus under the added linear constraint for these n, reinforcing the general conjecture and perhaps suggesting a uniform algebraic obstruction.
+
+
+# Cautions for the Verifier
+- Ensure all trace expansions correctly account for noncommutativity; a common pitfall is to insert incorrect multinomial coefficients. In Lemma 2 for tr(M^3), we used an exact word-by-word expansion and cyclicity of trace to avoid such errors.
+- Parity arguments (e.g., K^p diagonal vanish for p odd) are essential; double-check boundary terms when converting sums by shifts.
+- The endpoint entry identities (Lemma 4) rest on precise path counting; for (M^{n+1})_{n,1} the split into (two stays) and (one down-step) must be justified carefully (existence and uniqueness of admissible placements). For m=2 this has been checked, and it is straightforward to write a formal induction.
+
+
+# Summary
+- We established clean, verifiable identities: tr(M), tr(M^2), tr(M^3), and endpoint entries (M^{n−1})_{n,1}, (M^n)_{n,1}, (M^{n+1})_{n,1}. These already rule out n=2 and provide strong necessary constraints for general n.
+- The likely path to a complete proof is to push the endpoint-entry expansion one more step (k = n+2) and/or the odd-power trace expansion (r=5), to obtain a necessary condition that contradicts the given linear constraint ∑ i z_i = 0. I outlined how to formalize this via complete homogeneous symmetric polynomials and path counting.
+- No contradictions in the current derivations; the main risk is mishandling noncommutative expansions. The proposed next steps are precise and checkable.

@@ -1,0 +1,35 @@
+Ideas
+- Strengthen the graph-level guarantees by classifying functional digraphs (outdegree ≤ 1). Their SCCs are directed cycles or singletons. We prove that such a graph guarantees a PNE for every external field h if and only if every directed cycle has positive sign product. This yields a linear-time recognizer and a constructive PNE.
+- Isolate and prove the single-cycle criterion (universally PNE-admitting iff positive sign product), then lift to functional digraphs via SCC composition (reverse topological order), using that singletons are trivial and cycles become unsigned under an admissible gauge.
+- Provide small diagnostic examples and connect to the paper’s robust obstructions (odd negative cycles) and to structural balance of SCCs.
+
+Single directed cycle: universal PNE criterion
+Setup: Players on a directed simple cycle C = (1→2→…→k→1), weights W_{i,i+1} ≠ 0 on cycle edges only (indices cyclic), all other W_{ij}=0, external field f ∈ R^C arbitrary. Utilities: u_i(x)=x_i(f_i+W_{i,i+1}x_{i+1}).
+Lemma (cycle UPA ⇔ positive sign product). The subgame on C admits a PNE for every external field f if and only if ∏_{i=1}^k sgn(W_{i,i+1}) = +1.
+Proof.
+(⇒) Necessity. If ∏ sgn(W_{i,i+1}) = −1, set f=0 and scale |W_{i,i+1}| large. Best responses force x_i = −sgn(W_{i,i+1}) x_{i+1}. Multiplying all k constraints yields 1 = ∏(−sgn W_{i,i+1}) = −1, impossible. Hence for this W,f no PNE exists, contradicting universal existence.
+(⇐) Sufficiency. If ∏ sgn(W_{i,i+1}) = +1, there exists σ ∈ {±1}^C solving σ_i σ_{i+1} = sgn(W_{i,i+1}) for all i. Then [σ]W[σ] has nonnegative cycle weights: W^{[σ]}_{i,i+1} = |W_{i,i+1}|. The transformed subgame is unsigned, hence supermodular; for any external field f^{[σ]} = [σ]f it admits a PNE. Mapping back via x = [σ]y preserves best responses (Lemma NashGauge). Thus the original cycle has a PNE for every f. ∎
+
+Functional digraphs (outdegree ≤ 1): uniform guarantee
+Definition. A functional digraph has outdeg(i) ≤ 1 for all i. Its SCCs are either (i) singletons, or (ii) directed cycles; the condensation is a DAG whose sinks are the cycles.
+Theorem (functional digraphs: uniform guarantee ⇔ all cycles positive). Let G be a functional digraph. For any real weights W supported on G (zero diagonal) and any h ∈ R^V, the SNC game admits a PNE for every h if and only if every directed cycle C in G satisfies ∏_{e∈C} sgn(W_e) = +1.
+Proof.
+(⇐) Sufficiency. Decompose into SCCs; cycles are sinks. For each cycle C, by the Lemma, the C-subgame is universally PNE-admitting (UPA) for all external fields. Singletons are trivially UPA. Process SCCs in reverse topological order: fix a PNE on each sink cycle (exists for any external field), then treat predecessors whose external fields are now fixed, and so on. By the SCC composition theorem (notes/output), concatenation of per-SCC PNEs yields a global PNE. Since cycles were UPA, this holds for every h.
+(⇒) Necessity. If some cycle C has negative sign product, then by the Lemma choose h supported on C (e.g., h_C=0) witnessing nonexistence of a PNE in the C-subgame. Setting all other weights from C to outside zero makes the C-subgame independent; thus the full game has no PNE for that h. Hence universal guarantee fails. ∎
+
+Algorithmic consequences
+- Recognition and construction in O(|V|+|E|): detect cycles in functional digraph; check sign product per cycle; if all positive, build a PNE by (a) gauging each cycle to unsigned, compute a PNE (e.g., Tarski iteration), (b) then assign predecessors greedily (singletons) in reverse topological order.
+
+Examples
+- 3-cycle: 1→2→3→1. If sgn(W_{12}W_{23}W_{31})=+1, then for any h there is a PNE (gauge to unsigned). If negative, h=0 and dominant edges yield no PNE (contradiction constraints).
+- Two disjoint cycles with incoming trees: PNE exists for all h iff each cycle’s sign product is positive; the trees’ nodes play best responses given cycle states.
+
+Relation to structural balance
+- On a single cycle, “positive sign product” is precisely the cycle-balance condition; equivalently, ∃σ with [σ]W[σ] nonnegative on the cycle. Thus the theorem fits the SCC structural-balance criterion in this special class.
+
+Obstacles
+- Beyond functional digraphs, SCCs may be complex. A full UPA classification remains open; necessary obstructions include odd-negative signed cycles (Lemma 3 in prior rounds). Exact-potential SCCs (symmetric W_{UU}) and unsigned-after-gauge SCCs are UPA; identifying further UPA families is a key next step.
+
+Next steps
+- Extend UPA tests to general SCCs via parity constraints on all directed cycles (switching to test unsignedness) and explore additional potential structures (exact/ordinal potentials, polymatrix decomposability).
+- Integrate the functional-digraph classifier into the SCC pipeline: cycles positive ⇒ yes; else attempt cohesive-core criteria across SCCs to still ensure PNE in mixed graphs.

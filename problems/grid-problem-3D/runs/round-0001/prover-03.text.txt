@@ -1,54 +1,139 @@
-# Ideas
-- Reduce the d=3 problem to the given d=2 theorem on coordinate slices; the color c3 remembers the equal coordinates, so uniqueness inside a slice lifts to global uniqueness.
-- Handle the complementary “no two points share a coordinate value” case (“rainbow” case) directly: any mixed-sign-type edge has a unique color; if no mixed edge exists, the set is a chain and then a [+++]-color is unique.
-- Provide a uniform multiplicity formula in 3D for each type T and lower corner ℓ; specialize it to slices to match the d=2 counting.
+# Goal and plan
+We seek an analogue of the 2D theorem for the 3D coloring c3 on V=[n]^3: every nontrivial U⊂[n]^3 spans an edge whose color appears exactly once in G[U]. I lay down a counting “dictionary” for all 13 types in 3D (anchored vs balanced cases), extract immediate corollaries that give uniqueness under simple witness conditions, and isolate a slicing lemma that lifts a 2D–unique color in a single z–plane to a 3D–unique color provided a mild “base isolation” holds. Then I outline a strategy to combine these ingredients toward the full 3D result.
 
-# Multiplicities in 3D (general product formula)
-Fix a representative sign vector s ∈ {−1,0,+1}^3 \ {0} for the type T, with support J(T)=\{i: s_i≠0\} and equal set E(T)=\{i: s_i=0\}. For ℓ=(α,β,γ)∈[n]^3, define
-- A_+(T,ℓ):= #{ v∈U : ∀i∈E(T), v_i=ℓ_i; ∀i∈J(T) with s_i=+1, v_i>ℓ_i; ∀i∈J(T) with s_i=−1, v_i=ℓ_i }.
-- A_−(T,ℓ):= #{ u∈U : ∀i∈E(T), u_i=ℓ_i; ∀i∈J(T) with s_i=+1, u_i=ℓ_i; ∀i∈J(T) with s_i=−1, u_i>ℓ_i }.
+Throughout, for a vertex p=(x,y,z) write
+NE3(p):={q∈U: q_x>x, q_y>y, q_z>z}.
+For a fixed z, let U_z={ (x,y): (x,y,z)∈U } and inside the slice define
+NE2^{(z)}(x,y):= { (x',y')∈U_z: x'>x, y'>y }.
+Similarly, for a fixed pair (y,z) let the x–fiber U_{y,z}={x: (x,y,z)∈U}, and analogously for other pairs.
 
-Lemma (3D multiplicity). For any type T and ℓ, the number of edges e in G[U] with c3(e)=(T,ℓ) equals A_+(T,ℓ)·A_−(T,ℓ). This product is independent of the chosen representative s of T (swapping s↦−s swaps A_+ and A_−).
 
-Proof (sketch, rigorous). Orient an undirected edge {u,v} to (u→v) so that for each i∈J(T), the oriented difference has sign s_i: if s_i=+ then v_i>u_i and if s_i=− then u_i>v_i; for i∈E(T) both equal. The lower corner ℓ(u,v) is precisely the componentwise minimum, and by construction u (resp. v) satisfies the defining constraints of A_− (resp. A_+). Conversely, any choice of u counted by A_− and v counted by A_+ yields an oriented edge whose unordered pair has type T and lower corner ℓ. This correspondence is bijective at the oriented level; passing to unordered edges counts A_+·A_−. Changing s flips the roles of u and v but preserves the product.
+Ideas: anchored vs balanced types and multiplicity formulas
 
-Useful specializations (matching the d=2 facts on a fixed plane z=γ):
-- T=[+,+,0]: multiplicity = 1_{(α,β,γ)∈U}·#{(x,y,γ)∈U: x>α, y>β}.
-- T=[+,-,0]: multiplicity = r_{γ}(α,β)·s_{γ}(α,β), where r_{γ}(α,β)=#{(α,y,γ)∈U: y>β} and s_{γ}(α,β)=#{(x,β,γ)∈U: x>α}.
-- T=[+,0,0]: multiplicity = 1_{(α,β,γ)∈U}·#{(x,β,γ)∈U: x>α}. Similar formulas hold for permuted coordinates and signs.
+Fix a type T, whose support J(T)⊆{x,y,z} is the set of coordinates where the endpoints differ, and whose sign pattern is taken up to global negation. I call T anchored if, on J(T), all nonzero signs are equal (so one endpoint is simultaneously the minimizer on all of J(T)); otherwise balanced.
 
-# Slice reduction to the d=2 theorem
-Definition (slice). For c∈{x,y,z} and λ∈[n], set U[c=λ]:= {p∈U: p_c=λ}.
+I. |J|=3 (all three coordinates differ)
 
-Lemma (slice→global). If for some c,λ we have |U[c=λ]|≥2, then G[U] contains an edge whose color under c3 is unique in G[U].
+• Anchored (+++ up to ±). Color is (T; α,β,γ) with (α,β,γ) the minima. Multiplicity:
+Fact A3. For p=(α,β,γ), the number of edges of color (T;α,β,γ) equals 1_{p∈U}·|NE3(p)|.
+In particular, uniqueness holds iff p∈U and |NE3(p)|=1.
+Why useful: directly generalizes 2D Fact t1.
 
-Proof. WLOG c=z and denote U_λ=U[z=λ]. Consider the 2D point set V_λ={ (x(p),y(p)) : p∈U_λ } with the d=2 coloring from the provided theorem. Apply that theorem to obtain an edge pq within U_λ whose 2D color is unique in G[U_λ]. Under c3, pq has type with E(T)={z} and ℓ_z=λ. Its color (T,ℓ) is unique inside the z=λ plane by the d=2 theorem. No edge from a different z-plane can share this color because ℓ_z is part of the label and E(T)={z} differs from any edge whose z-coordinates differ. Hence (T,ℓ) is unique in G[U].
+• Balanced with one minus, say (+,+,−) up to ±. Then the minima are α on x, β on y, and γ on z, but these minima belong to two different endpoints. Define
+a_{xy|z}(α,β,γ):= #{ u∈U: x(u)=α, y(u)=β, z(u)>γ },
+b_{z|xy}(α,β,γ):= #{ v∈U: z(v)=γ, x(v)>α, y(v)>β }.
+Fact B3(+,+,−). The multiplicity equals a_{xy|z}(α,β,γ)·b_{z|xy}(α,β,γ).
+Proof sketch: Each unordered pair is uniquely oriented (x,y increase, z decreases). Then min x,y are realized at u with (α,β,·) and min z at v with (·,·,γ); this gives a bijection between edges of that color and pairs u,v as above. The other two one-minus patterns are analogous with the obvious relabeling.
+Why useful: reduces multiplicity to a product of two independent counts across perpendicular fibers, mirroring 2D Fact t2.
 
-# The “rainbow” case (no two points share a coordinate value)
-Assume |U[x=α]|≤1 for all α, and similarly for y and z. Equivalently, all coordinates of points in U are pairwise distinct when projected coordinatewise.
+II. |J|=2 (one coordinate equal, say z equal)
 
-Lemma (any mixed-sign edge is unique). If an edge has type T with support J(T)={x,y,z} and T is not [+++] mod sign (i.e., some + and some − appear), then its color under c3 appears at most once in G[U].
+Within each z–slice we are back in 2D. Let T_xy^= denote a type supported on {x,y} with z equal.
 
-Proof. Use the multiplicity formula with, say, T=[+,+,−] (the other mixed patterns are analogous). Then A_− counts u with (x,y)=(ℓ_x,ℓ_y) and z>ℓ_z; by the rainbow condition there is at most one such u (indeed at most one point has x=ℓ_x). Similarly A_+ counts v with z=ℓ_z and x>ℓ_x, y>ℓ_y; again at most one such v (at most one point has z=ℓ_z). Thus A_−,A_+∈{0,1}, so the multiplicity is ≤1. For the given edge both factors are 1, hence multiplicity =1.
+• Anchored (same sign on x,y). Color is (T_xy^=; α,β). Multiplicity:
+Fact A2(z–slices). The total number of edges of this color equals
+∑_{z=1}^n 1_{(α,β,z)∈U} · | NE2^{(z)}(α,β) |.
+Why useful: decomposes across z–slices; anchored forces a base vertex (α,β,z) inside the slice.
 
-Lemma (no mixed edges ⇒ chain ⇒ a unique [+++]-color). If every edge in G[U] has type [+++] mod sign, then U is a chain in the product order (coordinatewise). Listing U as p_1≺p_2≺⋯≺p_k, we have |NE_3(p_{k-1})|=1; by the [+++] specialization, color ([+++],ℓ=p_{k-1}) appears exactly once.
+• Balanced (opposite sign on x,y). Color is (T_xy^=; α,β). Put, for each z,
+r^{(z)}(α,β):= #{ (α,y,z)∈U: y>β },  s^{(z)}(α,β):= #{ (x,β,z)∈U: x>α }.
+Fact B2(z–slices). The multiplicity equals ∑_{z=1}^n r^{(z)}(α,β)·s^{(z)}(α,β).
+Why useful: again a product structure per slice, then summed over slices.
 
-Proof. If some pair were incomparable, their sign pattern would mix + and −, contradicting the hypothesis. In a chain, NE_3(p_i)={p_{i+1},…,p_k}, hence NE_3(p_{k-1}) has size 1, yielding the unique [+++]-color by the multiplicity formula.
+The two other choices of the equal coordinate are symmetric.
 
-# Main theorem in dimension 3
-Theorem. For every U⊆[n]^3 with |U|≥2, there is an edge in G[U] whose color under c3 appears exactly once in G[U].
+III. |J|=1 (only one coordinate differs)
 
-Proof. If some slice U[c=λ] has size ≥2, apply the slice→global lemma and the given d=2 theorem to obtain a globally unique color. Otherwise, U is rainbow. If G[U] contains a mixed-sign edge, it is unique by the mixed-edge lemma. If not, all edges are [+++] mod sign and the chain lemma provides a unique [+++]-color. In all cases a unique color exists.
+Say J={x}, y and z are equal. Color is (T_x; α) with α=min x. Define for each pair (y,z)
+t_{y,z}(α):= #{ x>α: (x,y,z)∈U }.
+Fact A1. The multiplicity equals ∑_{(y,z)} 1_{(α,y,z)∈U} · t_{y,z}(α).
+Symmetric statements hold for J={y} and J={z}.
+Why useful: reduces to 1D counts on lines (fibers).
 
-# Examples / sanity checks
-- Chain: U={(1,1,1),(2,2,2),(3,3,3)}. Color ([+++],ℓ=(2,2,2)) appears once (edge to the top), others repeat.
-- Slice: U contains two points with z=5; apply d=2 on that plane to get a unique color of type E(T)={z}, hence globally unique.
-- Rainbow/mixed: U={(1,4,7),(3,2,5)} has type [+,-,-]; by the mixed-edge lemma, its color is unique.
 
-# Obstacles / checks
-- The only place we use the d=2 proof is inside a slice; uniqueness lifts because c3 records the fixed coordinate.
-- The multiplicity product formula is the 3D analogue of Facts 2.1–2.2 and is used to certify uniqueness in the rainbow case and in the chain case.
+Examples (sanity checks)
 
-# Next steps
-- Formalize an induction to all dimensions d with the same color c_d (type modulo ± together with the lower corner), using the same slice reduction and the rainbow/chain dichotomy.
-- Quantitative questions: lower bounds on the number of unique colors in terms of |U|; extremal configurations attaining few unique colors.
+1) Two points u=(1,1,2), v=(2,2,1). Type is (+,+,−) up to ± with minima (α,β,γ)=(1,1,1). Here a_{xy|z}=#{(1,1,2)}=1 and b_{z|xy}=#{(2,2,1)}=1, hence multiplicity is 1.
+
+2) Anchored |J|=2 within a fixed z. Let U_{z0} contain p=(α,β,z0) and exactly one q=(x',y',z0) with x'>α,y'>β; assume no (α,β,z) exists for z≠z0. Then Fact A2 gives multiplicity 1 (one from z0, zero from other slices).
+
+
+Rigorous lemmas extracted (immediate consequences)
+
+Lemma 1 (anchored 3D win). If there exists p∈U with |NE3(p)|=1, then G[U] has a unique color, namely the anchored |J|=3 color (T=+++ up to ±) with minima at p.
+Proof: Fact A3.
+
+Lemma 2 (anchored 2D-in-slice lift). Fix z0 and suppose there exist α,β with (α,β,z0)∈U and |NE2^{(z0)}(α,β)|=1, and furthermore (α,β,z)=∉U for all z≠z0. Then the |J|=2 anchored color (x,y change, z equal) with minima (α,β) appears exactly once in G[U].
+Proof: Fact A2 gives multiplicity 1 at z0 and 0 at z≠z0.
+
+Lemma 3 (balanced 3D product). For (+,+,−) up to ±, if a_{xy|z}(α,β,γ)=s=b_{z|xy}(α,β,γ)=1, then the corresponding color is unique in G[U].
+Proof: Fact B3.
+
+Remark (what each lemma buys): Lemma 1 is a direct 3D analogue of the 2D type–1 uniqueness trigger. Lemma 2 is a robust slicing tool: it turns a 2D anchored uniqueness inside one plane into a global uniqueness once the base pair (α,β) does not occur in other slices. Lemma 3 supplies a new 3D–only uniqueness mechanism (balanced |J|=3), unavailable in 2D.
+
+
+Lex-maximal eligible points in 3D and a local antichain
+
+Define a point a∈U to be 3D–eligible if NE3(a)≠∅. Order triples lex in (z,y,x). A lex–max among 3D–eligible points is any a maximizing (z(a),y(a),x(a)) among {p∈U: NE3(p)≠∅}.
+
+Lemma 4 (3D lex antichain). If a is lex–max among 3D–eligible points, then NE3(q)=∅ for every q∈NE3(a).
+Proof: If q∈NE3(a) had some r∈NE3(q), then r has (z(r),y(r),x(r))>(z(q),y(q),x(q))>(z(a),y(a),x(a)), so r would be 3D–eligible and lex–larger than a, a contradiction.
+
+Corollary 4.1. If |NE3(a)|=1, Lemma 1 applies and we are done.
+
+Obstacle: In 2D, Lemma 4 implied that NE(a) was an antichain for the 2D NE order and powered the row/column “propagation.” In 3D, Lemma 4 controls only the 3D–NE order (strict in all three coordinates). It no longer prohibits 2D–NE relations inside a fixed z–slice (z equal), so the exact 2D propagation cannot be transplanted verbatim.
+
+
+A safe slicing lemma for anchored |J|=2 types
+
+Definition (base–isolation in a slice). Call (α,β) isolated at z0 if (α,β,z0)∈U and (α,β,z)=∉U for all z≠z0.
+
+Lemma 5 (slice-to-global uniqueness). Let z0 be any slice with |U_{z0}|≥2. If, inside the 2D graph on U_{z0} under the 2D coloring (types 1–4 as in the given 2D proof), there exists an anchored type–1 edge from a base (α,β) with |NE2^{(z0)}(α,β)|=1 and (α,β) isolated at z0, then G[U] has a unique color (the |J|=2 anchored xy–type with minima (α,β)).
+Proof: Precisely Lemma 2.
+
+Remark. The 2D theorem guarantees some unique color in U_{z0}, but it may be of type 2 (opposite signs) or a horizontal/vertical type, which is not directly safe to lift. Lemma 5 requires specifically a type–1 (anchored) uniqueness in the slice plus isolation of its base pair across slices.
+
+
+Why these are useful here
+
+• The counting dictionary provides exact multiplicities for every color, turning the global uniqueness goal into concrete witness conditions, particularly the “=1” triggers in Facts A3, B3, A2, B2, A1.
+
+• Lemmas 1–3 enumerate three disjoint mechanisms that force a unique color: a 3D anchored NE–singleton, a 3D balanced one–minus product singleton, and an anchored 2D singleton safely lifted from a slice. Each can be checked locally (around one vertex, two perpendicular fibers, or one slice) and is independent of the rest of the graph.
+
+• Lemma 4 gives a disciplined way to pick a distinguished point a at which either Lemma 1 applies immediately (|NE3(a)|=1) or one tries to organize “propagation” or a slice attack.
+
+
+Obstacles identified
+
+1) Direct 2D propagation does not lift: Lemma 4 does not prevent 2D–NE comparabilities in a fixed z–slice, so the geometric exclusions used in the 2D propagation (e.g., “c1 cannot be left of b2 else b2∈NE(c1)”) need genuine 3D replacements.
+
+2) Lifting a 2D unique color from a slice is not automatic: horizontal/vertical (|J|=1 in 3D) and balanced slice–types (|J|=2 opposite signs) can easily be replicated in other slices since the 3D color omits the equal coordinate’s value. Hence isolation is needed (Lemma 5) or a different mechanism (Lemma 3).
+
+
+Concrete next steps
+
+Step A (balanced 3D trigger). Prove a 3D analogue of the 2D “propagation” but aimed at balanced |J|=3 colors via Fact B3: starting from a lex–max 3D–eligible a, either we find q with |NE3(q)|=1 (Lemma 1), or we locate (α,β,γ) with a_{xy|z}=b_{z|xy}=1 (or a symmetric variant), producing a unique balanced |J|=3 color (Lemma 3). The product structure is promising for a forcing argument because “no uniqueness” compels at least a second witness on one factor, which can be pushed to create a third on the other factor, leading to a contradiction with a suitable extremal choice (to be formalized).
+
+Step B (slice anchoring). Inside any slice U_{z0} with ≥2 points, the 2D proof actually constructs an anchored unique color (type 1 or a horizontal/vertical), not necessarily type 2. Isolate the case when the slice’s unique color is type 1, and combine it with base–isolation across slices (Lemma 5). If no slice admits such an isolated base (α,β), set up a descending chain of z–levels forced by “non-uniqueness elsewhere” and show it cannot continue indefinitely.
+
+Step C (fiber sparsity for |J|=1). Use Fact A1 to show: if some line fiber U_{y,z} has exactly two x–points α<α' and no other line fiber contains α, then the color (T_x; α) is unique. Search for such sparse fibers via a simple extremal argument (e.g., fix α minimal appearing in any fiber; if it appears in exactly one fiber, we are done; otherwise try to leverage the repetitions to produce a balanced |J|=3 singleton using Step A).
+
+
+Small verifiable claims to extract now
+
+Claim 6 (complete multiplicity dictionary). The analogues of Facts A3/B3/A2/B2/A1 hold for every permutation of coordinates and for every sign class in |J|=3 balanced (exactly one minus), |J|=2 anchored/balanced, and |J|=1 anchored. The proofs are routine variants of the two model proofs above (anchored counts by anchoring at a base vertex/fiber; balanced counts factorize into a product along two perpendicular fibers), and the verifier can fill in the symmetric cases.
+
+Claim 7 (two quick-win criteria). If (i) there exists p with |NE3(p)|=1, or (ii) there exist α,β,γ with a_{xy|z}(α,β,γ)=b_{z|xy}(α,β,γ)=1, then G[U] contains a uniquely colored edge under c3.
+
+Claim 8 (safe slice lifting). If some slice z0 contains a 2D–type–1 unique edge with base (α,β) that is isolated across slices, then G[U] has a unique color under c3 (anchored |J|=2 on x,y with z equal).
+
+
+Summary
+
+• I established explicit and general multiplicity formulas in 3D for all relevant type classes. These reduce uniqueness to checking simple local counts (NE–sizes for anchored, and products of independent counts for balanced types).
+
+• Immediate uniqueness mechanisms (anchored 3D, balanced 3D, and slice-anchored 2D) are isolated as lemmas, with short proofs. These are testable on instances and will be useful subroutines in the full argument.
+
+• The main obstacle to porting the 2D proof is that the 3D lex–antichain blocks only strict 3D increases, not 2D increases inside a slice. I outlined two viable routes: a new “balanced–type propagation” using the product counts (Step A), and a “slice anchoring” strategy combining 2D anchored uniqueness with cross-slice isolation (Step B), plus a fiber–sparsity fallback for |J|=1 (Step C).
+
+The next round will formalize Step A: a propagation lemma for the balanced (+,+,−) class modelled on Fact B3, and a dichotomy showing that a lex–max 3D–eligible a either triggers Lemma 1 or forces a product–singleton as in Lemma 3. This would settle the 3D statement or at least prove a substantial special case.

@@ -1,0 +1,11 @@
+Current status: The nowhere-dense (ND) half is now correctly handled via the clopen-cylinder refinement criterion. The Current Output presents a root‑free equivalence for ND that is valid and sufficient. Do not rely on Int(cl(S)) being saturated; it is unnecessary and its proof sketch was flawed (re-rooting does not preserve membership in a fixed cylinder).
+
+Quotient caveat: Prover 1 still uses π(C) open under the forget‑the‑root map; this is false. The saturation of a cylinder is typically F_sigma, not open (e.g., C = “root degree 1” saturates to “has a leaf somewhere”). Avoid quotient‑openness arguments for ND/meagre; work inside the rooted space with cylinders and saturation.
+
+Bridges and parity: Correct the scope—no 1‑way bridges in any D‑regular graph (all D), but 2‑way bridges can exist even when D is even (e.g., regular trees). Adjust Theorems 14–16 accordingly.
+
+Meagre progress (concrete): For D≥3, Prover 2’s merger‑network method gives a rigorous ND proof for “has a bridge within distance ≤k,” hence “has a 2‑way infinite bridge” is meagre (not ND) as ⋃_k of ND sets. Ensure Δ= D completion preserves the inner ball: use the earlier Lemma A that requires all vertices at distance <R have degree D and at least one boundary deficit; Prover 2’s stronger completion lemma (allowing inner deficits) is invalid, as it would alter the prescribed ball. Keep the stronger claim out; stick to the version already added to proofs.md.
+
+Theorem 4: As stated (no 1‑way bridge ⇒ weak 6‑flow) is false; the D‑regular tree contradicts it. Either retract or restate with a correct bridgeless hypothesis and provide a valid finite satisfiability/compactness route.
+
+Next steps: (i) Integrate the full k‑local bridge ND proof (with Δ= D completion) into proofs.md (already added); (ii) correct parity/scope and replace the ‘attach a leaf’ gadget by a single‑port/hub forcing construction with explicit degree bookkeeping; (iii) remove quotient‑openness from arguments; (iv) repair or retract Theorem 4. Broader meagre root‑invariance remains open; pursue local re‑rooting on a comeagre domain separately.

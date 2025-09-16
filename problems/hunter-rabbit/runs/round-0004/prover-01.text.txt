@@ -1,0 +1,47 @@
+Ideas
+- Extend our 2-hunter toolkit beyond cycles by introducing an anchor-transfer lemma and a targeted funneling lemma on trees. Use them to solve a nontrivial cactus subclass: necklaces (block–cut tree is a path, each block is a cycle; pendant trees are allowed). This yields explicit schedules and linear-time recognition for h≤2 on that class.
+- Provide a rigorous proof of the periodic-lift criterion for repeated schedules (useful for verifying families of periodic strategies by finite acyclicity checks).
+
+Lemmas and proofs
+- Lemma 1 (Targeted funneling on trees with one hunter). Let T be a tree and v∈V(T) a designated target. There exists a 1‑hunter schedule S (dependent on v) such that, starting from R_1=V\S_1 and R_{i+1}=N(R_i)\S_{i+1}, one reaches a time t with R_t⊆{v} (hence one more shot at v captures).
+  Proof. Root T at v. Iteratively delete leaves ℓ≠v by shooting their parent u twice in consecutive rounds. The key invariant (proved and used in the forest classification) is: for any leaf ℓ with neighbor u and any set X, one has ℓ∉N(N(X)\{u}); thus after two shots at u, ℓ is excluded and never reappears. By repeating this for all leaves distinct from v, we obtain a schedule of length 2(|V(T)|−1) that maps the dynamics on T to the dynamics on the single vertex {v}, i.e., R_t⊆{v}. One additional shot at v captures. This construction specializes to paths and yields steering to any chosen vertex.
+
+- Lemma 2 (Anchor transfer). Let a be a cut vertex in G, and let H be the component of G−{a} that contains a neighbor b of a. Suppose at some time i we have R_i⊆H∪{a}. Then the round i+1 shot S_{i+1}={a,b} enforces R_{i+1}⊆H′, where H′ is the component of G−{b} that contains H (i.e., we may thereafter treat b as the new anchor and regard the “left of a” side as sealed). In particular, nothing can cross from H to G−H in that round, and no survivor remains at a or b.
+  Proof. By definition, R_{i+1}=N(R_i)\{a,b}. Since R_i⊆H∪{a} and all edges from H to G−H go through a, any move from H to G−H must pass through a, which is shot. Hence no vertex outside H∪{a} is reached. Within H, every neighbor of b that enters b is eliminated (b∈S_{i+1}). Thus R_{i+1}⊆H\{b}, the component of G−{b} that contains H, establishing the transfer. Symmetrically, one can transfer back by a shot {a,b} when R is confined to the appropriate side relative to b.
+
+- Lemma 3 (Periodic lift criterion). Fix p≥1 and a period‑p schedule (S_1,…,S_p) repeated indefinitely. Form the time‑lift L_p with vertex set V×{1,…,p} and directed edges (x,t)→(y,t+1 mod p) whenever xy∈E(G), and remove all (v,t) with v∈S_t. The repeated schedule is winning (i.e., for some T, R_T=∅ starting from R_1=V\S_1) if and only if the surviving directed graph L_p is acyclic.
+  Proof. Forward: If L_p has a directed cycle, then by mapping cycles to time‑labels, there exists an infinite biinfinite walk respecting the shots; projecting layer indices gives an infinite rabbit walk avoiding capture, contradicting winning. Backward: If L_p is acyclic, topologically sort its vertices and note that along R_{i+1}=N(R_i)\S_{i+1}, the maximum topological level of any member of R strictly decreases every round (levels are considered modulo p via layer indices). Since the level set is finite, after at most |V|·p steps R becomes empty. Equivalently, there is no infinite allowable walk.
+
+Main theorem (new class solved)
+- Theorem 4 (Two hunters suffice on necklaces). Let G be a cactus whose block–cut tree is a path; i.e., G consists of cycles C_1,…,C_m arranged linearly (neighbors share a single articulation vertex), possibly with pendant trees attached to cycle vertices. Then h(G)=2.
+  Proof. Lower bound: If m≥1 then G contains a cycle, so h(G)≥2 by the k=1 classification. For the upper bound, root the block–cut path at C_1 and let x_i denote the unique articulation between C_i and C_{i+1} (for i=1,…,m−1). We construct a 2‑hunter schedule using an invariant “anchored side” and Lemmas 1–2.
+  Initialization: Choose a_1 to be any vertex of C_1 if m=1; otherwise choose a_1 to be any neighbor of x_1 on C_1. Hunter A shoots a_1 every round until instructed otherwise. Hunter B is mobile.
+  Inductive invariant at block i (1≤i≤m): Before processing C_i, (I1) A is anchored at a_i∈V(C_i) that lies on the articulation side toward C_{i−1} (for i=1 take a_1 as above), and (I2) R is contained in the suffix subgraph consisting of C_i together with C_{i+1},…,C_m and all their pendant trees. The base case holds trivially for i=1.
+  Processing C_i:
+  • Consider the path P_i:=C_i−{a_i}. Choose a target y_i∈V(P_i) as follows: if i<m, set y_i:=x_i (the articulation to C_{i+1}); if i=m, choose any y_m∈V(P_m).
+  • While A keeps shooting a_i, have B run the 1‑hunter targeted funneling schedule from Lemma 1 on P_i toward y_i (interpreting pendant trees attached to P_i as part of a tree; funneling ignores branches by leaf deletions). After finitely many rounds, R∩V(P_i)⊆{y_i}. In particular, no survivor in C_i lies outside {a_i,y_i}.
+  • If i<m, perform one anchor‑transfer round with S={a_i,y_i} (Lemma 2), thereby moving the anchor to a_{i+1}:=y_i and preserving the suffix invariant (I2) with i replaced by i+1. If i=m, shoot y_m; this captures all survivors in C_m−{a_m}, and any survivor at a_m must move (with A shooting a_m every round) into C_m−{a_m} where it is then funneled to y_m and captured. Thus the process terminates.
+  Correctness: By induction, after processing C_i we maintain (I1)–(I2) for i+1 until i=m, when capture occurs. Pendant trees do not obstruct funneling because Lemma 1 holds on trees and we never allow passage to the left of the current anchor (Lemma 2 guarantees safe transfers). Hence two hunters suffice. Together with the lower bound, h(G)=2.
+  Schedule length: Each funneling step on P_i takes O(|P_i|+size of pendant trees incident to C_i) rounds, and each transfer costs one round. Total length is O(|V|).
+
+Corollaries and algorithmic consequences
+- Corollary 5 (Linear-time recognition and schedules on necklaces). Given a necklace G, h(G)=2 if and only if G contains a cycle (else h=1). The above constructive proof yields an O(n)-length 2‑hunter schedule computable in O(n) time by traversing the block–cut path.
+- The targeted funneling lemma (Lemma 1) also yields a simple proof that h(C_n)=2 (choose any anchor a and target either neighbor on C_n−{a}) and generalizes our earlier unicyclic h=2 proof in a unified way.
+
+Examples (sanity checks)
+- Two cycles in series. Let C_1 share x_1 with C_2. Anchor at a_1 adjacent to x_1 in C_1. Funnel C_1−{a_1} to y_1=x_1, transfer with S={a_1,x_1} to anchor at x_1, then funnel C_2−{x_1} to some y_2 and shoot y_2. Hunters and set‑evolution computations on small instances (e.g., two C_5’s) match the general argument.
+- Pendant trees. A C_6 with paths attached to two distinct vertices is cleared by anchoring at a_1 and applying the tree‑aware funnel on P_1=C_6−{a_1}: pendant branches are peeled by double‑shots at their attachment neighbors as part of the funnel to the chosen y_1, consistent with Lemma 1.
+
+Obstacles and limits
+- General cactus graphs (block–cut tree a tree) are subtler: processing a child cycle while preserving a barrier at the parent articulation seems to require temporary dual anchoring; our 2‑hunter method uses a one‑round double‑shot {parent,child} to transfer the anchor but cannot keep both anchored while sweeping the entirety of a child subgraph. Extending the necklace proof to general cactus requires a more global invariant or a refined steering that ensures the state R resides entirely in the child side at transfer times and does not “leak back” during recursive clears of siblings; this remains open.
+- For block graphs with large cliques, two hunters are insufficient in general (h(K_r)=r−1), so different composition principles are needed; exploring whether h(G)=ω(G)−1 holds for block graphs (or more generally chordal) remains a promising, tractable subproblem.
+
+Next steps
+- Formalize and add to proofs.md: Lemma 1 (targeted funneling), Lemma 2 (anchor transfer), Lemma 3 (periodic lift), and Theorem 4 (necklaces h=2) with detailed inductive invariants.
+- Extend from necklaces to all cactus graphs: develop a DFS schedule that uses anchor transfers at carefully chosen times when R is provably confined to the processed subtree; either supply the steering invariants or identify a counterexample.
+- Implement a linear‑time recognizer for h≤2 on necklaces and unicyclic graphs (already implied), and a generator of the explicit schedules.
+- Use the periodic‑lift criterion to search for bounded‑period winning schedules for small k on broader classes (outerplanar, series‑parallel), which may yield n^{O(k)} recognizers by checking acyclicity on a finite lift.
+- Explore block graphs: attempt a proof that h(G)=ω(G)−1 for block graphs via “push‑to‑parent” shots within cliques, or produce a minimal counterexample.
+
+Summary of progress
+- Introduced and proved two key tools: targeted funneling on trees with one hunter and the anchor‑transfer round. Using these, proved that two hunters suffice for all necklace cacti (cycles in series with pendant trees), with explicit O(n) schedules and linear‑time recognition. Also provided a rigorous periodic‑lift criterion for periodic schedules. This extends the exact landscape beyond cycles/unicyclic to a broader class, and clarifies the structural requirements for managing separators with two hunters.

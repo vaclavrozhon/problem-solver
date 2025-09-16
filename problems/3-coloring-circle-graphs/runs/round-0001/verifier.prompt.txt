@@ -1,0 +1,284 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Complexity of 3-coloring circle graphs
+
+Definitions.
+• A graph is called a circle graph if it can be represented as an
+intersection graph of chords in a circle. (That is, each vertex gets
+assigned a chord in a circle, and two vertices are adjacent iff their
+chords intersect.)
+Question: What is the complexity of 3-coloring circle graphs?
+Related results:
+• For k-coloring of circle graphs with k ≥ 4, we know the problem
+is NP-complete.
+• For most superclasses of circle graphs, 3-coloring is known to be
+NP-complete, usually because the superclasses also contain the class
+planar graphs.
+• Unger gave an algorithm for 3-coloring circle graphs in time
+O(n log n) using a backtracking algorithm for a 3-SAT instance
+with a specific structure based on the circle graph, however Bachmann, Rutter, and Stumpf have shown counterexamples to both
+the reduction to 3-SAT and the backtracking algorithm.
+
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Status and goal
+- The exact complexity of 3-coloring circle graphs remains open. The purported O(n log n) algorithm of Unger is invalid (Bachmann–Rutter–Stumpf). I isolate structural lemmas and give an FPT algorithm under a natural “circular ply” parameter that is directly checkable from a chord representation. I also record neighborhood structure (permutation/trapezoid) that can be exploited in future decompositions.
+
+Setup: circle graphs as overlap graphs
+- Fix a chord diagram with a circular order of 2n endpoints. Cut the circle at a point not coinciding with an endpoint to obtain a linear order 1<…<2n. Each chord x becomes an interval I(x)=(s(x),t(x)) with s(x)<t(x). Two vertices x,y are adjacent iff s(x)<s(y)<t(x)<t(y) or vice versa (overlap without containment). This is the standard equivalence of circle graphs with overlap graphs of intervals.
+
+Lemma A (Neighborhoods are permutation graphs)
+- Claim: For any vertex/chord X, the induced subgraph on N(X) is a permutation graph.
+- Proof: Let the endpoints of X split the circle into arcs L and R. Each Y∈N(X) has one endpoint on L and one on R. Reading the orders on L and R as two permutations, Y intersects Z∈N(X) iff the orders are inverted on L vs R; that is exactly the permutation graph model. ∎
+- Consequence: G[N(X)] admits polynomial-time optimal coloring; in particular, testing 2-colorability (which must hold in any 3-coloring, since neighbors of X use the two colors different from c(X)) is linear-time. This necessary condition can be efficiently checked for all X.
+
+Lemma B (Double neighborhoods are trapezoid graphs)
+- Claim: For chords X,Y, the subgraph induced by vertices intersecting both X and Y is a trapezoid graph.
+- Proof sketch: The endpoints of X,Y cut the circle into four arcs. Straighten two opposite arcs to two parallel lines; a chord intersecting both X,Y corresponds to a trapezoid whose bases lie on these two lines. Two such chords intersect iff the trapezoids intersect. ∎
+- Consequence: Intersections of neighborhoods of two pivots are also polynomially colorable, giving additional structure for decompositions.
+
+Theorem (FPT algorithm for 3-coloring by circular ply)
+- Parameter: Let w be the maximum number of intervals covering any point of the linearized order (equivalently, the maximum number of chords whose endpoints lie on both sides of some cut point as we sweep the circle). This “circular ply” is computable in O(n) time from the representation.
+- Claim: Given a chord representation, 3-colorability can be decided in time O(n·3^w) and memory O(3^w).
+
+Proof (dynamic programming on the sweep)
+- Process events i=1,…,2n in order. Maintain the set A of active intervals (those with s≤i<t) together with a family S of partial states. A state is a proper coloring c: A→{1,2,3} consistent with all adjacencies introduced so far. The number of actives |A| never exceeds w.
+- Transition at start of interval b with end rank r among current actives: For each state c, the neighbors of b among current actives are exactly those a∈A with t(a)<t(b) (i.e., with end rank ≤r). Define forbidden colors F(c)= { c(a): t(a)<t(b) }. Extend c by choosing any color in {1,2,3}\F(c). If F(c)={1,2,3}, discard. This enforces all new edges incident to b (edges to future intervals will be enforced when those future intervals start).
+- Transition at end of interval a: remove a from A in each state; no new constraints arise (every edge {a,·} was enforced when the other endpoint started).
+- Correctness: Every overlap edge arises at the start of the later-starting interval and is enforced then. Non-edges (nested or disjoint intervals) impose no constraint. By induction over events, S is nonempty at the end iff G is 3-colorable. Since |A|≤w, the number of states is ≤3^w at all times; each transition is processed in time polynomial in 3^w. ∎
+- Extensions: k-colorability runs in O(n·k^w). If w=O(1), the algorithm is linear; if w=O(log n), it is quasi-polynomial.
+
+Examples and sanity checks
+- Cycles C_m are circle graphs with w=2; the DP handles C_5 (needs 3 colors) correctly.
+- Dense nesting (large w) makes the DP exponential, as expected given the unknown general complexity.
+
+Obstacles and why naive ideas fail
+- Necessary condition N(X) bipartite for all X (true in all 3-colorable graphs) is not sufficient; BRS exhibited counterexamples to Unger’s attempt to leverage similar constraints. Our Lemma A only makes those checks faster, not sufficient.
+- Globalizing the permutation-graph structure of N(X) across many pivots needs consistency on overlaps N(X)∩N(Y), for which Lemma B (trapezoid graphs) helps but does not yet yield a polynomial-time global algorithm.
+
+Next steps
+- Algorithmic: (i) Engineer the O(n·3^w) DP; verify on random chord diagrams; (ii) Seek representation-dependent cuts minimizing w heuristically; (iii) Explore whether split decomposition combined with Lemmas A–B yields an XP algorithm with provable bounds.
+- Structural: (i) Characterize when the family of 2-colorings of N(X) across all X is jointly extendable; search for a compact consistency certificate; (ii) Investigate whether K_4-free circle graphs have additional constraints that enable polynomial 3-coloring.
+- Hardness: Attempt gadget constructions within the chord model for NAE-3SAT; aim for K_4-free instances. Use triangle gadgets and permutation/trapezoid neighborhoods to route constraints along the circle ordering.
+
+Summary of concrete, checkable contributions
+- Lemma A (N(X) is permutation) with proof; Lemma B (N(X)∩N(Y) is trapezoid) with proof sketch.
+- Theorem: 3-coloring of a circle graph given its representation is FPT in circular ply w, with an explicit O(n·3^w) DP. This yields immediate polynomial-time solvability for bounded-ply subclasses and a practical exact algorithm for small w.
+
+
+=== Prover 2 Output ===
+
+# Status and aim
+
+- The complexity of 3-coloring circle graphs remains open (Unger’s purported O(n log n) algorithm was invalidated by Bachmann–Rutter–Stumpf; NP-completeness is known for k ≥ 4, but k = 3 is unresolved).
+- Goal: make incremental, verifiable progress via special cases, parameterized algorithms, and crisp obstacles.
+
+# Preliminaries
+
+- Circle graphs ≡ overlap graphs of intervals. If we cut the circle at a point avoiding endpoints, each chord becomes an interval [l, r] on a line; two chords cross iff the intervals overlap (i.e., intersect and neither contains the other). Conversely, given intervals, glue the endpoints around a circle and connect endpoints of each interval to obtain chords; two intervals overlap iff the chords cross. Thus 3-coloring circle graphs ≡ 3-coloring interval-overlap graphs.
+
+- Rephrase: Color intervals with 3 colors so that no two overlapping intervals share a color. Intervals of the same color must form a family closed under nesting and disjointness; among simultaneously active intervals, each color class is a stack (properly nested parentheses).
+
+# A fixed-parameter algorithm by interval ply
+
+Definition (ply). For a set of intervals, its ply w is the maximum number of intervals covering any point (i.e., the maximum size of the active set between consecutive endpoints). Note w is for the interval family, not the overlap graph.
+
+Theorem. Given a circle-graph representation (equivalently an interval family), 3-colorability can be decided in time O(n · w · 3^w) and space O(3^w) where w is the ply. More generally, k-colorability is decidable in O(n · w · k^w).
+
+Sketch of algorithm (deterministic DP over endpoints):
+- Sort the 2n endpoints; let e_1, …, e_{2n} be their order. At position t define the active set A_t of intervals i with l_i ≤ t < r_i.
+- A DP state at time t is a partition (A^1_t, A^2_t, A^3_t) of the active set A_t into three color stacks that is admissible, meaning it could arise from some partial 3-coloring of intervals whose starts are ≤ t, respecting the stack constraint: within each A^c_t, if we denote r_top(A^c_t) as the minimum right endpoint in that set, every interval in A^c_t must have right endpoint ≥ r_top(A^c_t).
+- Initialization: S_0 = { (∅, ∅, ∅) }.
+- Transition from t to t+1:
+  • If e_{t+1} = start of interval j: for each state and color c with either A^c_t = ∅ or r_j < r_top(A^c_t), add j to A^c_t to form a successor state.
+  • If e_{t+1} = end of interval j: a state is valid only if j ∈ A^c_t for a unique c and r_j = r_top(A^c_t) (i.e., j is at the top of its stack); then remove j from A^c_t to form the successor.
+- Accept if S_{2n} contains the empty partition.
+
+Complexity analysis:
+- For each t, |A_t| ≤ w, so the number of partitions is ≤ 3^{|A_t|} ≤ 3^w. Deduplicating states per t yields O(3^w) states at any step.
+- Each transition computes r_top after add/remove in O(1) if we store the per-color current minimum and in O(w) when a removed minimum must be recomputed by scanning the bitmask; overall O(w) per transition suffices.
+- There are 2n steps, so time O(n · w · 3^w). Memory O(3^w) per layer.
+
+Correctness invariant:
+- Inductively, every reachable state corresponds to at least one partial coloring that respects that intervals of the same color are nested when simultaneously active. The start condition r_j < r_top(A^c) ensures any newly colored interval is nested inside the current top of that color; the end condition r_j = r_top ensures LIFO popping of nested intervals. Hence no pair of overlapping intervals receives the same color; conversely, any valid 3-coloring induces such a path of states.
+
+Remarks:
+- Extends verbatim to k colors with branching factor k and state count k^{|A_t|}.
+- This DP explicitly uses the interval representation; since circle graphs are recognizable in polytime and a representation can be found in polytime, the overall algorithm is FPT in w on the graph input as well.
+
+# Limits of the parameter w
+
+- The parameter w can be Θ(n) even for trivially 3-colorable instances (e.g., a chain of nested intervals has ply n but empty overlap graph). Thus the FPT result by ply does not settle the general P vs NP-hardness question.
+
+# Special polynomial-time cases
+
+1) Proper interval representations (no containment).
+- If no interval contains another, “overlap” = “intersection”, so the overlap graph is an interval graph. Interval graphs are perfect; 3-colorability reduces to testing ω ≤ 3, which is computable in linear time after sorting endpoints.
+
+2) Permutation graphs.
+- Permutation graphs are a subclass of circle graphs (map the two lines to two arcs of a circle and straighten segments into chords). They are perfect, so 3-coloring is polynomial-time via perfect-graph coloring (e.g., GLS algorithm). Therefore, 3-coloring is polytime on circle graphs that admit a permutation representation.
+
+# Small examples and sanity checks
+
+- Example where nesting yields a K_3 in the overlap graph: intervals B = [2,7], C = [3,8], D = [4,9] mutually overlap; A = [1,10] contains all and is nonadjacent to B,C,D. The overlap graph is K_3 plus an isolated vertex; 3-colorable by giving B,C,D distinct colors, A reuses any color. The DP above finds this in O(3^w) with w ≤ 4.
+
+- Greedy caveat: a naive online greedy that assigns any feasible color at each start can fail on constructed instances (not included here for brevity); the DP avoids this by exploring all admissible partitions of the active set per endpoint.
+
+# Structural observations possibly useful for future progress
+
+- Cliques: In interval-overlap graphs, any clique corresponds to a family of intervals pairwise intersecting without containment; by Helly’s property, they share a common point. Thus ω equals the maximum size of an antichain (by containment) among intervals active at some cut. For any yes-instance of 3-colorability, ω ≤ 3. However, ω ≤ 3 does not bound the ply w.
+
+- Containment poset: Each color class must be a union of chains together with disjoint components; among active intervals, any single color induces a chain. This “three-stack” structure suggests there might be a flow/matching formulation; we currently do not have a correct compact LP/flow model that enforces the LIFO-nesting constraint globally.
+
+# Obstacles to unconditional P or NP-hardness
+
+- Hardness: Reductions from general 3-COL must land within circle graphs. Planar-3-COL reductions do not directly apply because planar graphs are not contained in circle graphs. Gadget design must respect realizability as chord intersections; robust crossover gadgets remain nontrivial.
+
+- Algorithmic: While the three-stack discipline reveals structure, compressing the DP state to poly(n) without the ply parameter seems to require a nonlocal invariant that we do not yet have (top-of-stack information alone is insufficient to reconstruct pops deterministically).
+
+# Next steps (concrete, testable)
+
+- Implement and test the O(n · w · 3^w) DP on random and structured instances to assess typical ply and practical performance; extend to k colors to check scalability.
+
+- Explore alternative parameters closer to the overlap structure: e.g., the maximum size of an active antichain (which equals ω), plus the number of simultaneously active containments; or the total number of containment pairs. Aim for FPT in (#containment pairs) with a kernelization that contracts laminar chains.
+
+- Identify larger polynomial-time subclasses beyond permutation/proper-interval models: e.g., circle graphs whose circle representation has endpoints confined to a constant number of arcs (t-arc models, t fixed), for which one might combine perfect-graph algorithms and small-ply DP.
+
+- Hardness direction: Try to construct “wire” and “equality/inequality” gadgets within chord diagrams that enforce color propagation, and test via SAT-assisted search whether the resulting graphs are realizable as circle graphs and behave as intended.
+
+# Provisional takeaways for output.md
+
+- Status: 3-coloring circle graphs remains open.
+- Positive result: 3-colorability of circle graphs is FPT in the interval ply w with time O(n · w · 3^w) via a DP over endpoint order that maintains admissible partitions of the active set into three nesting stacks. This extends to k colors with O(n · w · k^w).
+- Special cases in P: proper-interval representations; permutation graphs (hence those circle graphs admitting a permutation representation).
+
+
+
+=== Prover 3 Output ===
+
+Status and goal.
+- The complexity of 3-coloring circle graphs remains open (Unger’s claimed O(n log n) algorithm was refuted by Bachmann–Rutter–Stumpf). For k ≥ 4, k-coloring circle graphs is NP-complete.
+- We extract structural lemmas tailored to 3-coloring and design a polynomial-time algorithm for a nontrivial subclass. This gives auditable steps and concrete subproblems.
+
+Ideas.
+- Use a chord x as a separator. Removing the endpoints of x splits the circle into two arcs; every chord either lies entirely on one arc or crosses x. The neighbor set N(x) of chords crossing x forms a permutation graph. Vertices on the left/right arcs form induced circle graphs L and R with no edges between L and R.
+- In any 3-coloring, if x gets color c, then N(x) must be 2-colored with the remaining two colors. Moreover, for y in L, which of the two non-c colors are forbidden depends only on which colored endpoints of N(x) fall into the interval between y’s endpoints on the corresponding side arc.
+- If L and R are both bipartite, the side-extension problem from a fixed 2-coloring of N(x) becomes easy componentwise; we give a correct polynomial-time algorithm in this case. This yields a new XP/FPT-flavored approach parameterized by the number of connected components of G[N(x)].
+
+Rigorous lemmas and proofs.
+
+Lemma 1 (Permutation subgraph). Let G be a circle graph given by a chord diagram on a circle. Fix a chord x with endpoints s, t. Let N(x) be the set of chords intersecting x. Then G[N(x)] is a permutation graph; a permutation representation can be read off from the circular order of endpoints.
+Proof. Removing s,t splits the circle into two open arcs A_L=(s,t) and A_R=(t,s). Each chord z ∈ N(x) has exactly one endpoint on A_L and one on A_R. Place the points of A_L and A_R on two parallel lines in their circular orders. Map z to the straight segment connecting its endpoint on the top line (A_L) to its endpoint on the bottom line (A_R). Two chords z,z′ in N(x) intersect iff the order of their endpoints is reversed between A_L and A_R, i.e., the two segments cross. That is exactly the defining property of permutation graphs.
+
+Lemma 2 (Neighborhood bipartiteness is necessary). If G is 3-colorable, then for every vertex v, G[N(v)] is bipartite.
+Proof. In a 3-coloring with colors {1,2,3}, suppose v has color 1. Every neighbor of v must be colored 2 or 3. Hence G[N(v)] admits a proper 2-coloring with colors {2,3}; thus it is bipartite.
+
+Lemma 3 (Interface via endpoints on one side). With notation as above, fix a color assignment of N(x) using colors a,b ∈ {1,2,3} \ {c_x}. For y ∈ L (i.e., both endpoints on A_L), define u_z to be the endpoint of z ∈ N(x) on A_L. Then y is adjacent to z iff u_z lies strictly between the two endpoints of y along A_L. Consequently, the set of colors forbidden to y coming from N(x) is exactly the subset of {a,b} that appears among the colors assigned to u_z with u_z in the A_L-interval of y. An analogous statement holds for R using A_R.
+Proof. For z ∈ N(x), its two endpoints lie on different arcs; say u_z ∈ A_L and the other endpoint v_z ∈ A_R. For y with endpoints y_1,y_2 ∈ A_L, the chords y and z cross iff their endpoints alternate around the circle, which here is equivalent to u_z lying strictly between y_1 and y_2 along A_L. Since z’s color is determined globally and y is adjacent to z exactly in this case, the set of forbidden non-c_x colors for y is exactly the set of colors seen among such u_z. The R-case is symmetric.
+
+Algorithmic consequence: the bipartite-sides case.
+
+Setup. Fix a chord x with color c_x. Assume both side subgraphs L (chords with both endpoints in A_L) and R (both endpoints in A_R) are bipartite. Also, by Lemma 2, if G is 3-colorable then G[N(x)] must be bipartite; hence we require it.
+
+We show that under these conditions one can decide 3-colorability in polynomial time given a fixed 2-coloring of G[N(x)] (and thus after considering at most 2^{cc(N(x))} choices over its connected components). The key is a clean side-extension test for L and R.
+
+Proposition 4 (Side extension test in polynomial time). Let H be a bipartite graph (here H = L or H = R). Let a,b be the two colors used on N(x), and c_x the third color. For each vertex y ∈ H, define S(y) ⊆ {a,b} as in Lemma 3: S(y) is the set of non-c_x colors that are forbidden to y by precolored neighbors in N(x). Then there exists a proper coloring of H with colors from {c_x} ∪ ({a,b} \ S(y)) for each y iff for every connected component C of H, at least one of its two bipartition-orientations produces an independent set of “violators” B_o(C), where B_o(C) := { y ∈ C : the a/b color assigned to y by orientation o is not in {a,b} \ S(y) }.
+Moreover, when such an orientation o exists, coloring all vertices of B_o(C) with c_x and the remaining vertices according to orientation o yields a proper coloring of C.
+Proof. Let (P,Q) be a bipartition of C. There are exactly two ways to 2-color C with colors {a,b}: o_1 maps P→a, Q→b and o_2 maps P→b, Q→a. For a given orientation o, any y ∈ C that cannot use its prescribed a/b color must instead use c_x; these are the “violators” B_o(C). If B_o(C) is not independent, two adjacent vertices would both be colored c_x, which is forbidden; hence orientation o is invalid. Conversely, if B_o(C) is independent, then the coloring that assigns c_x to B_o(C) and assigns the a/b color prescribed by o to the rest is proper: edges with both endpoints outside B_o(C) are properly a/b 2-colored by construction; any edge with exactly one endpoint in B_o(C) has distinct colors c_x vs a or b; and edges cannot have both endpoints in B_o(C) because B_o(C) is independent. This proves the characterization.
+
+Corollary 5 (Algorithm under bipartite sides). Fix x. If G[N(x)], L, and R are bipartite, then 3-colorability of G can be decided as follows.
+- For each of the 3 choices of c_x and for each of the 2^{cc(N(x))} choices of 2-colorings of the connected components of G[N(x)]:
+  1) Compute S(y) for all y ∈ L and all y ∈ R (Lemma 3) in total O(n + m) time per choice using prefix data structures on the circular order.
+  2) For each side H ∈ {L,R}, for each connected component C of H, test the two orientations o and o′, compute B_o(C), B_{o′}(C), and check independence in C (linear in |C|). If both orientations are invalid for some C, reject this choice; otherwise pick any valid one and color C accordingly.
+  3) If both sides succeed, extend with the chosen 2-coloring of N(x) and color c_x on x, obtaining a valid 3-coloring of G.
+If any choice succeeds, G is 3-colorable; otherwise, not.
+Complexity. For a fixed x, this is O(3 · 2^{cc(N(x))} · poly(n)). Trying all x multiplies by n. If cc(N(x)) is bounded by a constant (e.g., if G[N(x)] is connected), this is polynomial time.
+Correctness. Necessity of bipartiteness of G[N(x)] is Lemma 2. Given a fixed 2-coloring of N(x), Lemma 3 yields correct lists S(·) on each side. Proposition 4 ensures that the side coloring exists iff every component passes the orientation test; because L and R are disjoint and there are no edges between them, side solutions combine consistently. Edges inside N(x) are proper by construction, and edges between N(x) and L ∪ R are proper by the definition of S(·).
+
+Examples and quick checks.
+- Example 1 (A quick NO certificate via N(x)). Place x with endpoints at 0° and 180°. Choose three chords whose endpoints on A_L are in order a1<a2<a3 and on A_R in order b3<b2<b1; these three pairwise cross, forming a triangle in G[N(x)]. Then G is not 3-colorable (for any color of x, N(x) would have to be 2-colored), and the algorithm rejects immediately because G[N(x)] is not bipartite.
+- Example 2 (Nontrivial yes with bipartite sides). Let x as above. Let N(x) form a path on 4 vertices (a permutation graph that is bipartite and connected). Construct L and R so that each is a disjoint union of paths and even cycles. For either of the two 2-colorings of N(x), the S(·) sets can be computed; each component C of L and R passes the orientation test (one of the two orientations gives an independent set B_o(C)). The algorithm accepts.
+
+Obstacles and what failed.
+- Extending beyond bipartite sides. If L or R contains an odd cycle, we must select some vertices on that side to take color c_x to break all odd cycles (an odd cycle transversal X), and X must be independent (to avoid assigning c_x to adjacent vertices). This becomes: find an independent odd cycle transversal with additional list-2-coloring constraints for the remainder—this resembles the odd cycle transversal problem augmented with independence constraints. We do not currently know a polynomial-time algorithm for that on circle graphs; OCT is NP-hard in general and remains hard on many geometric graph classes. Thus our present algorithm is restricted to bipartite sides.
+- Global condition “G[N(v)] bipartite for all v” is necessary but far from sufficient for 3-colorability (e.g., Mycielski graphs have independent neighborhoods yet may require ≥4 colors; there also exist triangle-free circle graphs of chromatic number 5 due to Ageev). Hence such local checks are not decisive by themselves.
+
+Next steps (concrete, testable).
+1) Strengthen the side condition. Try to replace “L and R are bipartite” by “each component of L and R has odd cycle transversal of size at most t,” handled by branching on the t vertices (independent-set constraint enforced along the way). This yields an FPT algorithm parameterized by t + cc(N(x)). The key subroutine to prove: given a fixed small set X per component (guessed), the extension check reduces to Proposition 4.
+2) Two-chord separators. Generalize the decomposition by using two chords x,y, classifying vertices by which of {x,y} they cross. The middle layer N(x) ∩ N(y) is a permutation graph; the four side regions are circle graphs with sparser interfaces. Derive an extension test akin to Proposition 4 with four sides, still driven by endpoint-presence summaries (Lemma 3 generalizes to each interface arc).
+3) Empirical falsification. Implement the bipartite-sides algorithm and a heuristic search over chords x in random and adversarial circle graphs. Measure how often a chord with bipartite sides exists in 3-colorable and non-3-colorable instances; attempt to construct explicit counterexamples where no such chord exists despite 3-colorability.
+4) Tight 2-SAT encoding exploration. For bipartite sides, attempt to encode the orientation choice per side component together with the 2-coloring choice per N(x)-component into a single 2-SAT instance that avoids the 2^{cc(N(x))} factor.
+5) Literature cross-check. Verify whether odd cycle transversal (or independent OCT) is polynomial on circle graphs. If yes, it would remove the bipartite-sides restriction.
+
+Summary of contributions.
+- Structural: N(x) induces a permutation graph; in any 3-coloring, N(x) is 2-colored (Lemma 2). The constraint from N(x) to a side H is summarized purely by presence-of-color among endpoints within each y-interval on the side arc (Lemma 3).
+- Algorithmic: If some chord x has both sides bipartite, 3-colorability reduces to at most 3·2^{cc(N(x))} side-extension checks, each decided in polynomial time (Proposition 4). This yields a polynomial-time algorithm whenever cc(N(x)) is bounded (e.g., N(x) connected), and provides a concrete parameterized foothold on the general problem.
+- Obstacles: Extending beyond bipartite sides leads to an independent odd cycle transversal with list constraints; its complexity on circle graphs is presently unclear.

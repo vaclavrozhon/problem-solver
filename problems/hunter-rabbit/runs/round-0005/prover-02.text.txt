@@ -1,0 +1,52 @@
+Ideas
+
+- Formalize two reusable tools with complete proofs: (i) periodic time-lift criterion for repeated schedules; (ii) pathwidth upper bound via coupling to monotone node search. Both yield verifiable algorithmic consequences for fixed k.
+- Give a precise “anchor transfer” lemma and use it to prove a new family result: every necklace (cactus whose block–cut tree is a path) has evasion number 2, with an explicit 2‑hunter schedule. This strengthens the unicyclic case and progresses toward cacti.
+- Clarify the vertex-expansion bound’s relationship to minimum degree.
+
+Rigorous statements and proofs
+
+Lemma A (Periodic time-lift). Fix p≥1 and a sequence (S_1,…,S_p) with |S_i|≤k; repeat it periodically. Build the directed graph L_p with vertex set V×[p] and arcs (u,i)→(v,i+1 mod p) if uv∈E. Remove all (v,i) with v∈S_i. Then the periodic schedule is winning iff the remaining L_p is acyclic. If acyclic, the schedule captures within T ≤ p·|V| rounds.
+Proof. Any infinite evasion walk v_1,v_2,… avoiding shots induces an infinite path ((v_i, i mod p)) in L_p, which yields a directed cycle by finiteness. Conversely, a directed cycle in L_p lifts to a periodic evasion walk in G avoiding shots. If acyclic, longest directed paths have length < |V|·p, hence no avoiding walk of that length exists, so R_T=∅ for some T≤|V|·p.
+
+Lemma B (Coupling to monotone node search). Let (S_1,…,S_T) be a monotone node-search schedule using s searchers that clears G (standard “invisible, arbitrarily fast fugitive” model). Define the node-search reachable sets by R^◆_1:=V\S_1 and R^◆_{i+1}:=Reach_{G\S_{i+1}}(N(R^◆_i)), where Reach closes under connectivity in G\S_{i+1}. Then for the same shots (S_1,…,S_T), the hunters’ sets R_i (R_1:=V\S_1; R_{i+1}:=N(R_i)\S_{i+1}) satisfy R_i ⊆ R^◆_i for all i. In particular, if the node-search schedule clears (R^◆_T=∅), then the hunters’ schedule wins (R_T=∅). Consequently, h(G) ≤ s.
+Proof. By induction on i using N(R_i)\S_{i+1} ⊆ Reach_{G\S_{i+1}}(N(R^◆_i)). If R^◆_T=∅ then R_T=∅. The bound follows.
+
+Corollary C (Pathwidth bound). h(G) ≤ pw(G)+1. Proof. By Kinnersley’s theorem (1992) and subsequent expositions (e.g., Fomin–Thilikos 2008), G admits a monotone node-search strategy with s=pw(G)+1 searchers. Apply Lemma B.
+
+Lemma D (Anchor transfer). Let G be split by a cut vertex a into a “left” part L and “right” part R (no L–R edges). Suppose at round t we shoot a (so a ∉ R_t). If additionally N(R_t)∩{a}=∅, then at round t+1 we may stop shooting a (switch to shooting b∈R), and still R_{t+1}∩L=∅.
+Proof. R_{t+1}=N(R_t)\S_{t+1}. Since N(R_t)∩{a}=∅ and N(R_t) has no vertices in L other than possibly a (as L connects to R only via a), we have N(R_t)∩L=∅, hence R_{t+1}∩L=∅.
+
+Theorem E (Necklaces are 2‑hunter). If G is a necklace (its block–cut tree is a simple path), then h(G)=2.
+Proof. Lower bound: any necklace with a cycle has h≥2; if acyclic, h=1 by the forest result. For the upper bound in the cyclic case, fix an orientation of the block–cut path B_1,…,B_m, with cut vertices c_0,…,c_m so that B_i meets B_{i+1} at c_i. We construct a 2‑hunter schedule in m phases. Maintain invariant I(i): at the start of phase i (i∈{1,…,m}), we shoot c_{i−1} every round, and R is contained in the “suffix” consisting of blocks B_i,…,B_m (i.e., R∩(B_1∪…∪B_{i−1})=∅).
+Phase i: Consider H_i, the subgraph induced by B_i together with all trees attached to vertices of B_i except through c_i into B_{i+1}. In G−{c_{i−1}} this H_i is a tree: removing c_{i−1} cuts B_i into a path whose off-cycle attachments are trees, all glued into a tree rooted toward c_i. With the second hunter, run a 1‑hunter winning schedule on H_i (the forest theorem), while continuing to shoot c_{i−1}. During this phase, either the rabbit is captured inside H_i, or it eventually moves (possibly earlier) to the suffix beyond c_i; in either case, by the end of the phase we have R∩V(H_i)=∅, hence R∩V(B_i)=∅. In particular, N(R)∩{c_{i−1}}=∅ at the end of the phase. Now perform a one-round handover: shoot {c_{i−1},c_i}, then proceed to shoot c_i permanently in the next phase. By Lemma D and I(i), the invariant I(i+1) holds. After phase m, either capture already occurred, or the suffix is empty and the handover is vacuous; in both cases the schedule wins. Thus h(G)≤2.
+
+Remark. The same construction yields a linear-time schedule builder for necklaces.
+
+Proposition F (Expansion bound; corrected remark). Let ι(G):=min_{∅≠X⊆V} (|N(X)|−|X|). If ι(G)≥k then h(G)≥k+1.
+Proof. For any k‑schedule (S_i) and any nonempty R_i, |R_{i+1}|=|N(R_i)\S_{i+1}| ≥ |N(R_i)|−k ≥ |R_i|, so R_t never empties. Hence h≥k+1. Note ι(G)≤δ(G)−1, so this does not improve the minimum-degree bound but strengthens it when ι is large.
+
+Examples and checks
+
+- Cycles/unicyclic: recovered as special cases of Theorem E (m=1).
+- Necklaces with pendant trees: the H_i trees are cleared by the 1‑hunter sweep; handover is safe since B_i is emptied from R before releasing c_{i−1}.
+- Periodic schedules: on C_n, the 2‑hunter anchor+sweep schedule can be made periodic with p=2n−5; the lift is acyclic, certifying capture within ≤p·n rounds.
+
+Algorithmic implications
+
+- Classes of bounded pathwidth: By Corollary C, for pw(G)≤k−1 we can accept h(G)≤k in polynomial time (pathwidth ≤k−1 testing is FPT, hence polynomial for fixed k).
+- Necklaces: a linear-time constructor outputs a 2‑hunter winning schedule, settling this family.
+- Periodic verification: Lemma A yields an O(p·m) verifier for period‑p templates; bounding p=f(k) would give an n^{O(k)} search.
+
+Obstacles
+
+- General cacti: Extending Theorem E beyond necklaces requires anchor coordination across branching in the block–cut tree. A naive single-anchor push can recontaminate previously cleared branches after transfer; likely need a two‑anchor invariant or a careful branching-phase order.
+- Pre_k‑fixpoint compression: While exact and expressive, a compressed n^{O(k)} representation of the least fixpoint remains to be established (important‑separator style bounds are a promising route).
+
+Next steps (auditable)
+
+1) Promote Lemma A, Lemma B/Corollary C, Lemma D, and Theorem E to proofs.md. Include explicit H_i construction and the handover round.
+2) Implement a linear‑time schedule constructor for necklaces and a checker via R_{i+1}=N(R_i)\S_{i+1}.
+3) Cacti: attempt a 2‑anchor (+sweeper) framework and prove h(G)≤3 for all cacti. Either tighten to 2 or find a minimal counterexample.
+4) Period bounds: investigate small p for k=2 by exhaustive search on small graphs using the lift, aiming for a function p=f(2).
+5) Treewidth DP: formalize a DP for deciding V∈F_* (least fixpoint under Pre_k) on bounded‑tw graphs; begin with k=2 and t≤3, tracking bag intersections and outside‑shot budgets.

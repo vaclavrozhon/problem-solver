@@ -1,0 +1,49 @@
+Ideas
+- Formalize and correct the multi-core cohesive existence result (block-wise generalization) with a complete gauge-based proof and the correct marginal lower bound involving all outside influences V\R^t. State non-uniqueness of best responses at equality.
+- Add an explicit, bounded-length best-response (BR) path construction for unsigned components and its SCC-composed length bound. This gives constructive algorithms and verifiable path lengths.
+- Add a simple new corollary class: forests with sign-symmetric digons; prove existence by SCC composition (singletons and 2-node same-sign digons are UPA).
+- Sketch an end-to-end algorithmic checker with complexity; includes parity-based structural-balance test and the monotone BR construction.
+
+Theorem (multi-core cohesive existence; corrected)
+Let V=R^1 ⊔ … ⊔ R^m ⊔ S be a partition. For each block R^t, assume there exists τ^{(t)}∈{±1}^{R^t} such that:
+(i) τ_i^{(t)} W_{ij} τ_j^{(t)} ≥ 0 for all i,j∈R^t (equivalently, G_{R^t}^{[τ^{(t)}]} is unsigned);
+(ii) w_i^{R^t} + τ_i^{(t)} h_i ≥ w_i^{V\R^t} for all i∈R^t, where w_i^A=∑_{j∈A}|W_{ij}|.
+Let τ_R be the concatenation of τ^{(1)},…,τ^{(m)} on R:=⊔_t R^t. Assume the S-restricted game with R frozen at τ_R admits a PNE z^*∈{±1}^S (e.g., if G_S is undirected or structurally balanced). Then the full game admits a PNE x^* with x^*_{R^t}=τ^{(t)} for all t and x^*_S=z^*.
+Proof. Define σ∈{±1}^V by σ_i=τ_i^{(t)} on R^t and σ_i=1 on S. In the [σ]-transformed game, each G_{R^t}^{[σ]} is unsigned and h_i^{[σ]}=σ_i h_i=τ_i^{(t)}h_i on R^t. By assumption, z^* is a PNE for the S-restricted transformed game with R frozen at 1_R (since u_i^{[σ]}(1_R,z)=u_i(τ_R,z) on S). For i∈R^t, with (x_R,z)=(1_R,z^*), the marginal is Δ_i^{[σ]}=2( h_i^{[σ]} + ∑_{j∈R^t}W^{[σ]}_{ij}·1 + ∑_{j∉R^t} W^{[σ]}_{ij} x_j ). Using W^{[σ]}_{ij}≥0 on R^t and |∑_{j∉R^t}W^{[σ]}_{ij} x_j| ≤ ∑_{j∉R^t}|W^{[σ]}_{ij}|=w_i^{V\R^t}, we get
+Δ_i^{[σ]} ≥ 2( h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij} − w_i^{V\R^t} ) = 2( τ_i^{(t)}h_i + w_i^{R^t} − w_i^{V\R^t} ) ≥ 0.
+Hence +1 is a best response (not necessarily unique at equality) for every i∈R^t, so x̃^*=(1_R,z^*) is a PNE for the transformed game. Mapping back x^*=[σ]x̃^* is a PNE in the original game with x^*_{R^t}=τ^{(t)} and x^*_S=z^*. ∎
+Remarks. (a) This reduces to the single-core theorem for m=1. (b) S-restricted existence holds if G_S is undirected (potential) or structurally balanced (switch to unsigned). (c) If some inequalities are strict, the block’s action is uniquely best (but uniqueness is not required).
+
+Lemma (monotone, bounded-length BR path on unsigned components)
+Let U⊆V and suppose W_{ij}≥0 for all i,j∈U (unsigned). For any external field f∈ℝ^U, there exists a BR path from −1_U to a PNE of the U-restricted game of length at most |U|, with monotone coordinate updates (each player flips at most once, from −1 to +1).
+Proof. The marginal Δ_i(x)=2(f_i+∑_{j∈U}W_{ij}x_j) is nondecreasing in x when W≥0. Starting at y^{(0)}=−1_U, iteratively flip any i with Δ_i(y^{(k)})>0. Monotonicity implies Δ_i never turns negative for flipped i, hence no reversals. Termination occurs in ≤|U| steps; at termination Δ_i≤0 for i with action −1 and Δ_i≥0 for action +1, so y^{(ℓ)} is a PNE. Each step is a best-response flip. ∎
+
+Corollary (SCC-composed BR-path length bound under unsigned-after-switching SCCs)
+Let U_1,…,U_m be SCCs in a condensation DAG order and suppose for each k there exists a signature σ^{(k)} with (W_{U_kU_k})^{[σ^{(k)}]}≥0 (e.g., U_k is structurally balanced). Then, for any h, there is a BR path to a global PNE of length ≤∑_k |U_k|: process SCCs in reverse topological order, gauge U_k, apply the monotone lemma within U_k (using external field induced by already-fixed later SCCs), and concatenate the within-SCC paths.
+
+Corollary (forests with sign-symmetric digons)
+Let the underlying undirected graph be a forest. For every undirected edge {i,j}, assume either exactly one arc exists or both arcs exist with the same sign (sgn(W_{ij})=sgn(W_{ji})). Then, for any h, the game admits a PNE and a BR path to it.
+Proof. Each SCC is either a singleton or a 2-node digon. Singletons are trivial; a 2-node digon with W_{12}W_{21}≥0 is UPA (after σ it is unsigned, so supermodular for any external field). Contracting SCCs yields a DAG; select PNEs per SCC in reverse order by SCC composition. Concatenating BR paths inside each SCC yields a global BR path. ∎
+
+Algorithmic pipeline (checker and constructor)
+- Input: W (zero diagonal), h.
+1) If the dependency digraph is a DAG, compute a PNE by backward induction in O(|V|+|E|).
+2) Else, compute SCCs (Tarjan/Kosaraju). For each SCC U:
+   (a) If W_{UU} is symmetric ⇒ exact potential; use local improvement to find a PNE (finite termination).
+   (b) Else test structural balance on U: solve parity labels for σ with constraints σ_iσ_j=sgn(W_{ij}) (BFS/UF with parity) in O(|U|+|E_U|). If feasible, gauge to unsigned and use the monotone lemma to build a PNE and a BR path of length ≤|U|.
+   (c) Else, if functional (outdegree ≤1 on U) and every directed cycle has positive sign product ⇒ UPA; construct a PNE (e.g., via switching to unsigned on cycles and greedy on trees).
+   (d) Else, attempt cohesive-core decomposition inside U (as per theorems above) or report obstruction diagnostics (e.g., dominant negative cycles).
+3) If all SCCs pass (a,b,c or a provable d), assemble a global PNE in reverse topological order; concatenate within-SCC BR paths; total BR steps ≤∑|U_k| when all SCCs are unsigned after switching.
+
+Examples
+- Two cohesive blocks. Let R^1,R^2 disjoint, with W_{ij}≥0 on each and S undirected. If τ^{(1)}=1 on R^1 and τ^{(2)}=−1 on R^2, and w_i^{R^1}+h_i ≥ w_i^{V\R^1} for i∈R^1 and w_i^{R^2}−h_i ≥ w_i^{V\R^2} for i∈R^2, and the S-subgame (R frozen) has a PNE, then the full game has a PNE with x_{R^1}=1, x_{R^2}=−1.
+- Forest with a digon. A path 1—2—3—4 with arcs 1→2,2→1 both positive, and single arcs 2→3, 4→3; every SCC is a singleton or the {1,2} digon; by the corollary, a PNE exists for any h, computable in linear time.
+
+Obstacles
+- Beyond unsigned-after-switching and exact-potential SCCs, a full UPA classification is open. Negative cycles that are not dominant do not necessarily preclude PNE for fixed W over all external fields.
+- Counting equilibria under ties depends on tie-breaking; we avoid exact counts, focusing on existence and path bounds.
+
+Next steps
+- Extend UPA families (e.g., ordinal-potential polymatrix blocks) and integrate into the SCC pipeline.
+- Strengthen cohesive-core tools (hierarchical cores) and combine with SCC decomposition.
+- Implement the checker with explicit BR-path construction and empirical tests on random instances; measure path lengths against the ∑|U_k| bound where applicable.

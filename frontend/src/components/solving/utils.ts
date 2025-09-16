@@ -51,9 +51,10 @@ export function getProblemInfo(problem: string, status?: ProblemStatus): Problem
     executionStatus = 'running'
   }
 
-  // Calculate total rounds (current + remaining)
-  const totalRounds = status.overall.current_round + (status.overall.remaining_rounds || 0)
-
+  // Use batch-aware values if available, otherwise fall back to legacy calculation
+  const currentBatchRound = status.overall.current_batch_round || status.overall.current_round
+  const batchSize = status.overall.batch_size || (status.overall.current_round + (status.overall.remaining_rounds || 0))
+  
   // Extract last verdict from the most recent round
   let lastVerdict: string | undefined
   if (status.rounds && status.rounds.length > 0) {
@@ -66,8 +67,8 @@ export function getProblemInfo(problem: string, status?: ProblemStatus): Problem
   return {
     name: problem,
     status: executionStatus,
-    currentRound: status.overall.current_round,
-    totalRounds: totalRounds,
+    currentRound: currentBatchRound,
+    totalRounds: batchSize,
     lastVerdict: lastVerdict
   }
 }
@@ -89,12 +90,17 @@ export function isProblemRunning(status?: ProblemStatus): boolean {
  * Gets a human-readable status description
  * 
  * @param info - Problem info object
+ * @param status - Optional status object for batch context
  * @returns Status description for display
  */
-export function getStatusDescription(info: ProblemInfo): string {
+export function getStatusDescription(info: ProblemInfo, status?: ProblemStatus): string {
   switch (info.status) {
     case 'running':
-      return `Running (Round ${info.currentRound})`
+      // Show batch context if available, otherwise show "?"
+      if (status?.overall.current_batch_round && status?.overall.batch_size) {
+        return `Running (Round ${status.overall.current_batch_round} of batch of ${status.overall.batch_size} rounds)`
+      }
+      return `Running (Round ?)`
     case 'error':
       return 'Error'
     case 'stopped':
@@ -342,5 +348,27 @@ export function debounce<T extends (...args: any[]) => any>(
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId)
     timeoutId = setTimeout(() => func.apply(null, args), delay)
+  }
+}
+
+/**
+ * Gets the appropriate color for a verifier verdict indicator
+ * 
+ * @param verdict - The verifier verdict
+ * @returns Color string for the indicator dot
+ */
+export function getVerdictColor(verdict?: string): string {
+  switch (verdict) {
+    case 'success':
+    case 'promising':
+      return '#28a745' // Green
+    case 'partial success':
+    case 'uncertain':
+      return '#ffc107' // Yellow/Orange
+    case 'unlikely':
+    case 'nothing so far':
+      return '#dc3545' // Red
+    default:
+      return '#6c757d' // Grey (no verdict/backward compatibility)
   }
 }

@@ -1,0 +1,145 @@
+=== SYSTEM ===
+You are a research mathematician. 
+
+You are being run in a loop with a verifier that checks rigor. Your goal is to make **incremental, auditable progress**. You are not expected to solve the problem at once, but to generate new, testable ideas.
+
+Inputs: 
+- task statement 
+- notes.md (informal progress & exploratory work; optional) 
+- proofs.md (rigorously proven results & detailed proofs; optional) 
+- output.md (main results, rigorously presented; optional) 
+- summary of past rounds (optional) 
+- possibly some reference papers.
+
+What counts as progress:
+- Extract lemmas/heuristics from literature. Generalize them for current task, or explain why they could be helpful. 
+- Explore small examples & try to break your own claims with toy counterexamples.
+- Prove special cases or nontrivial bounds.
+- If an approach fails, explain crisply why.
+- Point out flaws in notes.md, proofs.md, or output.md (you are not rewriting these files yourself, that's verifier's job).
+
+**Discipline.** 
+- Read notes, outputs, summaries carefully before proposing new work. 
+- Reference papers if relevant, but focus on *incremental, checkable steps*. 
+- Do not output Markdown code fences, only raw JSON. 
+- Length: at least ~200 words. 
+- Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
+
+**Output**: Write your analysis as Markdown that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
+
+**Return strictly JSON**:
+{
+  "content": "Your complete analysis in Markdown (KaTeX allowed). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
+}
+
+
+=== USER ===
+=== Task (txt) ===
+
+Problem 7. Clique Dynamics of Whitney triangulations
+(suggested by Anna Margarethe Limbach)
+Source: Proposed by F. Larrión, V. Neumann-Lara, and M. A.
+Pizaña in 2002 [4].
+Definitions.
+• Given a graph G, its clique graph kG is the intersection graph
+of its maximal complete subgraphs, called cliques. This means the
+set of cliques of G is the vertex set of kG, and two vertices of kG
+are adjacent if and only if they intersect non-trivially as cliques.
+The operator k that maps each graph to its clique graph is called the
+clique graph operator, and one can apply it iteratively to generate
+the sequence of iterated clique graphs k
+0G = G, k
+1G = kG, k
+2G =
+k(kG), k
+3G, . . ..
+• If the sequence of iterated clique graphs of a graph G consists of
+pairwise non-isomorphic graphs, G is called k-divergent, otherwise,
+k-convergent, and if it contains the graph that consists of a singleton
+(and then becomes stationary there) G is called k-null.
+• A graph is called locally cyclic, if each open neighbourhood of a
+vertex induces a cycle.
+• A Whitney-triangulation of a compact surface is a triangulation
+such that each triangle of its underlying graph is a face of the
+surface. Whitney triangulations of closed surfaces are locally cyclic
+with minimum degree ≥ 3 and the only one with minimum degree 3
+is the K4 that triangulates the sphere.
+From another perspective one can start with such a locally cyclic
+graph and obtain a closed surface by “filling in the triangles”.
+
+Question
+Is the underlying graph of a finite Whitney triangulation of
+the disk always k-null?
+
+
+
+11
+Related results:
+• The K4 is k-null.
+• The octahedron graph is k-divergent.
+• The icosahedron graph is k-divergent.
+• All locally cyclic graphs with minimum degree ≥ 7 are k-convergent.
+• Every closed surface admits a k-divergent Whitney triangulation.
+• Every closed surface with negative Euler characteristic admits a
+k-convergent Whitney triangulation.
+• Every Whitney triangulation of the disk such that every interior
+vertex has degree ≥ 6 is k-null.
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Structural facts we will use for Whitney triangulations of the disk
+- The underlying graph G is K4-free. Otherwise the four 3-cycles of a K4 would all be faces, every edge of that K4 would be incident with two faces within the K4, yielding a closed 2D component incompatible with a disk with boundary.
+- Every maximal clique of G is a facial triangle: Whitney implies every 3-cycle is a face, and K4-free prohibits larger cliques.
+- The link of an interior vertex v is a chordless cycle on N(v): the faces around v are exactly the triangles (v, w_i, w_{i+1}) in cyclic order; any chord among nonconsecutive neighbors would create a 3-cycle (v, w_i, w_j) that cannot be realized as a face without breaking the manifold structure.
+- In particular, interior vertices have degree ≥ 4 (deg 3 would force the neighbor triangle to be a face, contradicting that it is subdivided by the three v-incident faces).
+- For an interior vertex v with deg(v) ≥ 4, the set T(v) of faces incident to v is a clique in kG and is maximal: a face f not containing v can include at most two consecutive neighbors of v, hence meets at most three consecutive faces in T(v); for deg(v) ≥ 4 there exists a face of T(v) disjoint from f.
+- For an interior face t with all three edges interior, N(t) (t together with the faces across its three edges) induces a K4 in kG and is a maximal clique.
+
+Special k-null families verified
+- Fans (exactly one interior vertex): all faces meet at the apex, so kG is complete; hence k^2G ≅ K1.
+- Two-face disk (two triangles sharing one interior edge): kG ≅ K2 and k^2G ≅ K1.
+- Hexagon with a central interior triangle (outerplanar triangulation with three chords forming a central triangle): exactly four faces; all pairs intersect, so kG ≅ K4 and k^2G ≅ K1.
+
+Open targets and plan
+- Classify maximal cliques of kG: Conjecture that every non-star maximal clique is N(t) for some interior face t. Needed: a rigorous reduction showing any pairwise-intersecting family of faces with no common vertex has size ≤ 4 and is contained in N(t).
+- Outerplanar case (no interior vertices): pursue ear-removal induction. Track how maximal cliques of kG change and prove that k(kG) remains acyclic (or otherwise identify a monotone invariant). Verify carefully that adding/removing an ear does not create cycles in the clique graph.
+- Computation: exhaustively generate small disk Whitney triangulations to test k-iterations and search for counterexamples to k-nullness in low-degree interior regimes (4 and 5).
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Round 1 Summary ===
+
+This round established core structural lemmas for finite Whitney triangulations of the disk and proved several small k-null cases. Main verified facts: G is K4-free, so maximal cliques of the primal are exactly the facial triangles; the link of any interior vertex is a chordless cycle, forcing interior degree ≥4; for an interior vertex v the incident-face set T(v) is a maximal clique in kG; any interior face t with all three edges interior yields N(t) (t plus the three adjacent faces) which induces a maximal K4 in kG; and kG is connected when G has ≥2 faces. k-nullness was proved for fans (one interior vertex), the two-triangle disk, and the hexagon-with-central-triangle (k^2G ≅ K1). Remaining major gaps are a full classification of maximal cliques of kG (conjecture: every non-star maximal clique is some N(t)) and a completed ear-removal induction for the outerplanar case. Citations: Research Notes; Rigorous Proofs; Verifier Summary.
+
+
+=== Previous Round Feedback ===
+
+Overall both provers made useful structural progress, but several claims need correction or fuller proofs.
+
+What looks correct and ready to formalize
+- K4 cannot occur in the underlying graph of a Whitney triangulation of the disk. Prover 1’s argument (a K4 would form a closed 2-manifold component with no boundary) is sound. Prover 2’s proof invoking the unbounded face is not robust for a disk; please switch to the “closed component” argument.
+- In the disk case, every maximal clique of the primal graph is a facial triangle (since K4 is forbidden and every 3-cycle is a face). Hence kG is the intersection graph of the facial triangles (two faces adjacent iff they share a vertex). This should go to proofs.md.
+- The link of an interior vertex is a chordless cycle. From this, interior degree ≥ 4 follows (deg 3 would force the neighbor triangle to be a face, contradicting that the three v-incident faces already subdivide its interior). Prover 2’s statement is right; please ground it in the link-of-v lemma.
+- For an interior vertex v with deg(v) ≥ 4, T(v) is a clique and is maximal in kG. A clean proof uses: (i) the link cycle has no chords; (ii) any face f not containing v can include at most two consecutive neighbors of v, so it meets at most three consecutive faces in T(v); for deg ≥ 4 some face in T(v) is missed.
+- For an interior face t whose three edges are interior, N(t) (t plus its three edge-neighbors) induces a K4 in kG and is maximal; the “third vertex” argument excluding further faces is sound.
+- Special k-null classes are correct: fans (one interior vertex), two-face disks, and the “hexagon with a central interior triangle.” These can be cleanly proved.
+
+What needs fixing or remains unproven
+- Prover 1: the deg(v)=3 case in Lemma 2 is irrelevant in the disk (interior deg ≥ 4); please remove or explicitly restrict the statement to general surfaces. The “bounded non-star cliques” classification is only sketched; do not claim ω(kG)=max{max_deg_int,4} without a full proof. Provide a rigorous reduction proving any clique with no common vertex is contained in N(t) for some interior face t.
+- Prover 2: the “local Helly” claim “two faces sharing an edge force the maximal clique to be a vertex-star” is false (counterexample: N(t) as in Lemma 3). So weaken it to: any face intersecting both of two faces that share an edge must contain one of the edge’s endpoints; this still helps.
+- Outerplanar case: the program to prove k(kG) is a forest is promising but unproven; also, even if H is a forest, iterating k does not trivially collapse in ≤3 steps without a careful analysis (since k(H)=L(H), which may have triangles). Please formalize the ear-removal step and acyclicity preservation.
+
+Next steps
+1) Write full proofs for: link-of-v as a chordless cycle; T(v) maximal for interior v; N(t) maximal K4. 2) Prove the “non-star cliques” classification or produce a minimal counterexample. 3) Outerplanar case: complete the ear-removal induction and precisely track how maximal cliques of kG change. 4) Run exhaustive checks up to moderate size to guide conjectures and find any counterexamples to k-nullness.

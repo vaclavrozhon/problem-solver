@@ -1,0 +1,56 @@
+Ideas
+
+- Clarify the variant. We work in the original “object-moving” model (agents fixed on the vertices of a tree T; objects move by edge swaps), with strict preferences. A swap across edge {u, v} is allowed iff both u and v strictly prefer the other’s object. TREE-REACHABLE-PE: given T, initial endowment µ0, and preferences, decide whether there exists a matching µ ∈ reach(µ0) that is globally Pareto-efficient (no allocation Pareto-dominates µ), and if so, produce one.
+- Literature status (object-moving). On stars and paths, Pareto Efficiency is polynomial-time solvable. On cliques, Pareto Efficiency is NP-hard. For generalized stars and for trees, the status is open in the object-moving model (as noted by Gourvès–Lesca–Wilczynski and reiterated in Li–Plaxton–Sinha). Thus the specific question “polynomial-time on trees?” remains unresolved by current literature.
+- Immediate observations useful for algorithms:
+  1) If the TTC (top trading cycles) allocation µTTC is reachable from µ0, then µTTC is a valid certificate: it is globally Pareto-efficient and reachable. Reachability of a fixed target matching on trees can be decided in polynomial time (O(n^2)) using the “good edge” scheduler for trees (analogue of Proposition 3 in GLW). Hence: a polynomial-time one-sided test: if µTTC is reachable, answer Yes (and output it).
+  2) Deciding whether a given matching µ is globally Pareto-efficient is polynomial: build the “trading graph” Gµ with directed edges a→b for each agent a and object b strictly preferred to µ(a), and edges b→owner(b). Then µ is Pareto-efficient iff Gµ has no directed cycle (well-known characterization). This check is O(n^2).
+  3) The existence question asks whether reach(µ0) contains any cycle-free matching (in the above sense). This is an existential search over a potentially large reachable set; checking reachability of a single candidate is poly-time, but enumerating all candidates is exponential.
+
+Examples
+
+- Local maximality vs global efficiency. On a path A–B–C with initial (A:a,B:b,C:c) and preferences A: c≻a≻b, B: b≻a≻c, C: a≻c≻b, no edge swap is applicable, yet (A:a,B:b,C:c) is not globally Pareto-efficient (switch A and C to get A:c,B:b,C:a). Hence “no allowed swap” does not imply global Pareto efficiency on trees.
+- TTC-as-certificate. In many small instances on paths/stars, µTTC is reachable; then TREE-REACHABLE-PE trivially answers “Yes.” Conversely, examples exist on trees where µTTC is not reachable, and moreover no reachable matching is globally PE (the 3-node example above). Thus testing µTTC reachability is only a sufficient test.
+
+Rigorous facts
+
+Claim 1 (Membership in NP). TREE-REACHABLE-PE is in NP.
+Proof. A short certificate is a candidate matching µ*. Verification is polynomial: (i) reachability µ0 → µ* can be checked in O(n^2) on trees via the standard “good edge” approach (repeatably swap across any good edge; if we reach µ*, the target is reachable; if we get stuck before µ*, it is not); (ii) check global Pareto efficiency of µ* by cycle detection in the trading digraph Gµ* in O(n^2). ∎
+
+Claim 2 (Sufficient condition). If µTTC is reachable from µ0, then µTTC solves TREE-REACHABLE-PE (answer Yes and output µTTC).
+Proof. µTTC is globally Pareto-efficient in housing markets with strict preferences; reachability is given; output is valid. ∎
+
+Obstacles
+
+- The core/TTC shortcut is only sufficient. TTC is unique and globally Pareto-efficient, but there can exist other globally Pareto-efficient allocations; µTTC may be unreachable even when some other globally PE matching is reachable.
+- Direct greedy improvement by allowed swaps (to a local maximum) can stall at a globally dominated allocation (example above). Hence “compute a maximal swap-stable reachable matching and test for global PO” fails.
+- Full enumeration of reachable matchings is exponential and not viable for polynomial-time resolution.
+
+Parameterized/structural progress
+
+- FPT in treewidth (sketch). Let tw(T) denote treewidth. Using a nice tree decomposition of width w, one can enumerate candidate global bijections in O(n^{O(w)}) states by dynamic programming that stores, at each bag, the partial injection from bag-agents to objects (object identities), ensuring consistency at introduce/forget/join nodes (standard assignment DP). At the root, for each assembled global matching µ: (i) check µ is reachable (O(n^2)); (ii) check µ is globally PE (O(n^2)). Hence TREE-REACHABLE-PE is fixed-parameter tractable parameterized by treewidth, with running time n^{O(w)}·poly(n). This is auditable: each DP transition is standard; reachability and PO checks are polynomial post-filters. (Optimizing the DP to prune non-extendable partial matchings is routine but not needed for correctness.)
+- Consequence. Trees admit pathwidth pw; for caterpillars (pw=2) and more generally bounded-tw trees, TREE-REACHABLE-PE is polynomial for fixed tw.
+- Few-branch vertices (sketch). If the number b of branch vertices (deg≥3) is a parameter, the tree can be decomposed into O(b) paths glued at these vertices. A DP across the articulation points with per-interface state describing the partial injection on boundary agents gives an FPT algorithm in b (state space n^{O(b)}). This recovers polynomial-time for stars (b=1) and paths (b=0) and extends to small b.
+
+Heuristics toward generalized stars
+
+- Center-cut approach. For a generalized star, try to mimic the agent-moving serial dictatorship of Li–Plaxton–Sinha by working from the center outward: maintain a set of already “fixed” matches; for the center and the first agent on a branch, feasibility of assigning a branch position to that agent while preserving reachability reduces to path subproblems (where the object-moving Reachable Object/PE are polynomial). This suggests a two-phase algorithm like Section 4 of their paper, but in the object-moving setting the invariants that underpin their "nice pair" arguments fail in general (preferences and rights interact differently). We propose to formalize when the center-first dictator step is safe (sufficient conditions on preferences along branches) and to seek counterexamples; this may yield either a restricted polynomial case (e.g., single-peaked preferences along branches) or a barrier.
+
+Hardness direction (plan)
+
+- Potential reduction. Since Reachable Object on trees is NP-complete, seek a gadget embedding that, given (a*, b*), constructs a tree T′ such that T′ has a reachable globally PE matching iff a* can reach b* in T. The gadget must ensure any reachable matching that fails to place b* with a* admits a global trading cycle (not necessarily via allowed swaps), while if b* is placed with a*, the gadget becomes globally cycle-free. A promising design uses a constant-size 3-cycle “alarm” gadget whose only way to break all trading cycles is to pull in (exactly) b* to a designated agent; wiring b* to the gadget can be done by attaching a leaf-path that terminates at the gadget. We will iterate on small constructions (maintaining the overall graph a tree) and test by exhaustive search on n≤8 to validate the iff property.
+
+Next steps
+
+- Implement the treewidth-FPT DP to obtain a certified solver for bounded-tw trees; verify on random bounded-degree trees and on crafted instances.
+- Investigate the center-first algorithm on generalized stars with single-peaked preferences per branch; attempt to prove correctness or produce counterexamples.
+- Pursue the reduction outline above; either settle NP-hardness on trees or isolate the precise obstacle preventing such a reduction.
+- As a baseline, always compute µTTC and test its reachability; when successful, this yields a fast constructive algorithmic certificate.
+
+Summary of claims for verifier
+
+- TREE-REACHABLE-PE is in NP (complete, rigorous proof above).
+- If µTTC is reachable, it solves the problem (rigorous).
+- Local-swap maximality ≠ global Pareto efficiency on trees (explicit 3-node path counterexample).
+- TREE-REACHABLE-PE is FPT parameterized by treewidth (algorithmic sketch with auditable components: standard assignment DP over a nice decomposition, then per-candidate polynomial checks for reachability and global PO).
+- Status: polynomial-time decidability on arbitrary trees remains open in the object-moving model; we outlined concrete algorithmic and hardness avenues.

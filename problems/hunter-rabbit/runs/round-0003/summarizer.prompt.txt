@@ -1,0 +1,360 @@
+=== SYSTEM ===
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
+  "highlights": [],
+  "next_questions": []
+}
+
+=== USER ===
+=== Task (txt) ===
+
+Definitions.
+• The hunters and rabbit problem is a pursuit-evasion game played
+on an undirected graph. A strategy for k hunters is a sequence
+s1, s2, · · · , sn of subsets of k vertices. A strategy is winning if, for
+every walk v1, v2, · · · , vn in the graph (not necessarily simple), there
+is i such that vi ∈ si. Intuitively, the evader is walking on the graph
+(it has to move at each turn by following exactly one edge) and must
+avoid the k vertices that the pursuers examine at each time step.
+
+• The evasion number of a graph G is the smallest k for which there
+is a winning strategy with k hunters.
+
+Question: Is it the case that, for any constant k , we can recognize
+the graphs of the evasion number k in polynomial time? (E.g. n^{O(k)})
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Working definitions and dynamics
+- We fix the open-neighborhood operator N(X)=⋃_{x∈X}N(x). For a schedule S_1, …, S_t (|S_i|≤k), define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. The schedule is winning up to horizon t iff R_t=∅. Equivalently, using P_1:=V and P_{i+1}:=N(P_i\S_i), the schedule wins iff P_{t+1}=∅. These are equivalent formulations under an index shift.
+
+Verified results we will use
+- Subgraph monotonicity: If H⊆G then h(H)≤h(G).
+- Upper bound: h(G)≤τ(G) by shooting a minimum vertex cover twice (capture by time 2).
+- Lower bounds: h(G)≥δ(G); therefore h(G)≥degeneracy(G). Also, if G contains K_{s,t} as a subgraph then h(G)≥min{s,t}.
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}. For cycles, h(C_3)=2 (clique), h(C_4)=2; for C_5 a concrete 4-round schedule with k=2 succeeds (see proofs.md). The claim that two fixed antipodal shots per round win on all cycles is false for odd n.
+
+Corrections to earlier claims
+- The statement h(K_n)=n is incorrect; n−1 hunters suffice (and are necessary by δ(K_n)=n−1).
+- The 1-hunter impossibility on P_n for n≥4 is false; e.g., P_4 has an explicit 1-hunter winning schedule. A general proof that h(P_n)=1 appears feasible but is not yet written.
+- The assertion that the decision problem is in NP lacks a bound on schedule length; a priori, a winning schedule may require exponentially many rounds.
+
+Concrete example (cycles)
+- C_5 with k=2: S_1={1,3}, S_2={4,5}, S_3={2,4}, S_4={1,4} yields R_1={2,4,5}, R_2={1,3}, R_3={5}, R_4=∅. Thus h(C_5)≤2. For odd cycles, fixed pairs per round do not suffice; schedules must change over time.
+
+Algorithmic consequences (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k.
+- Fast YES: if τ(G)≤k then h(G)≤k (via FPT vertex-cover).
+- These give n^{O(k)} filters but do not settle all instances.
+
+Open targets and next steps
+1) Prove h(C_n)=2 for all n≥3 (and record a general schedule). 2) Settle k=1: prove or refute “h(G)=1 iff G is a forest.” 3) Investigate structural upper bounds: does h(G)≤tw(G)? A positive answer implies polynomial recognition for fixed k. 4) Design a separator-based DP that simulates R-evolution with states depending only on boundary sets of size ≤k. 5) Empirically compute h on small graphs (n≤10) and all trees up to n≈12 to test the degeneracy-equality conjecture and discover obstructions.
+
+New validated tools and results
+- Permanent blockers. If U⊆V is shot every round, any avoiding walk stays in G−U, hence h(G) ≤ |U|+h(G−U). This enables reductions via feedback vertex sets and other separators.
+- Disjoint unions. For graphs on disjoint vertex sets, h(G ⊔ H)=max{h(G),h(H)}. A concatenation of winning schedules for components suffices.
+- Paths. A 1-hunter “forward/backward sweep” of length 2n−3 (shots 1,2,…,n−1,n−1,n−2,…,2) wins on P_n; a parity-invariant proof verifies R_{2n−3}=∅.
+- k=1 classification. h(G)=1 iff G is a forest. Proof: cycles force ≥2 by δ=2; for forests, an inductive schedule repeatedly shoots a neighbor u of a leaf ℓ twice, then recurses on T−ℓ. A key fact: for any X and leaf ℓ with neighbor u, ℓ∉N(N(X)\{u}). This ensures ℓ never reappears in R after the double-shot.
+- Cycles. Explicit 2-hunter captures verified on C_5 and C_6; odd cycles require time-varying shots. A uniform proof h(C_n)=2 for all n remains open.
+
+Corrections and cautions
+- The “Z-process” identity R_i=V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i} holds, but Z_i need not be monotone. Arguments relying on Z-monotonicity (e.g., h=degeneracy proof) are invalid.
+
+Algorithmic implications (current)
+- Exact k=1 recognition in linear time via acyclicity. For general k, fast filters: if degeneracy(G)>k (or ω(G)≥k+2), then NO; if τ(G)≤k, then YES (2-round capture using a vertex cover).
+- Permanent blockers yield: if fvs(G)≤k−1 and h(forest)=1 (proved), then h(G)≤k, giving an n^{O(k)} recognition on that subclass by enumerating U (|U|≤k−1).
+
+Next steps
+1) Settle cycles: prove h(C_n)=2 for all n (start with exhaustive R-set BFS on C_7). 2) Formalize a separator-based DP that simulates R_{i+1}=N(R_i)\S_{i+1} across small boundaries (treewidth/FVS). 3) Evaluate the degeneracy-equality conjecture empirically on n≤10 and either prove or refute it. 4) Pursue either h≤tw (positive algorithmic route) or hardness for k=2 (layered gadgets) as a decisive direction on the main question.
+
+Updates and clarifications
+
+- Conventions: A k-hunter schedule is a sequence (S_1, …, S_t) with |S_i| ≤ k. We use t for the horizon and n=|V|.
+- Dynamics: Define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. Equivalently, P_1:=V and P_{i+1}:=N(P_i\S_i). Then R_t=∅ iff P_{t+1}=∅; moreover, R_t = P_t\S_t and P_{t+1} = N(R_t) (easy induction).
+- Z-process identity: With Z_1:=∅ and Z_{i+1}:={v : N(v)⊆Z_i∪S_i}, one has R_i = V\(Z_i∪S_i) for all i. Caution: (Z_i) need not be monotone. Example: on P_4 with S_1={3}, S_2={2}, one checks 4∈Z_2 but 4∉Z_3.
+
+Validated tools
+- Subgraph monotonicity: If H⊆G, then h(H) ≤ h(G).
+- Lower bounds: h(G) ≥ δ(G); hence h(G) ≥ degeneracy(G) by subgraph monotonicity.
+- Upper bound: h(G) ≤ τ(G) (two rounds shooting a vertex cover).
+- Disjoint unions: h(G ⊔ H)=max{h(G), h(H)}.
+- Permanent blockers: If U⊆V is shot every round, any evading walk stays in G−U; thus h(G) ≤ |U| + h(G−U).
+- Separator composition: If G is obtained by gluing pieces along S, then h(G) ≤ |S| + max_i h(piece_i).
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}.
+- Periodic lifts: A period-p schedule (repeated) is winning iff the cyclic time-lift L_p, after removing per-layer shots, is acyclic (gives a finite capture horizon ≤ n·p).
+
+Corrections and open items
+- Minor-monotonicity is unproven; the edge-contraction proof attempt fails because an H-walk through the contracted vertex need not lift to a G-walk of the same length while avoiding the shots. Do not assume {h≤k} is minor-closed.
+- The claim h(G)=1 iff G is a forest is not yet rigorously established. The leaf double-shot invariant ensures exclusion after exactly two steps but does not imply the leaf never reappears later. A complete proof (or counterexample) is needed.
+- Cycles: We have explicit small schedules for C_5, C_6. A uniform proof h(C_n)=2 can follow from a complete proof that h(P_m)=1; alternatively, provide a direct 2-hunter schedule.
+- Unicyclic graphs: The statement h(G)=2 for fvs(G)=1 depends on the (currently unproven) forest case.
+
+Algorithmic implications (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k (the clique test is n^{O(k)} by brute force; degeneracy is linear-time).
+- Fast YES: if τ(G)≤k then h(G)≤k (two-round capture). For fvs(G)≤k−1, by permanent blockers one gets h(G)≤k whenever h(forests)=1 holds; this gives an n^{O(k)} recognition on that subclass once the forest case is settled.
+
+Next steps
+- Write and verify a complete proof that a 1-hunter schedule of length O(n) wins on P_n; then derive h(C_n)=2. Revisit unicyclic once forests are resolved.
+- Probe minor-monotonicity: search for a contraction counterexample (e.g., compare K_4 versus a single-edge subdivision) via exact R-evolution on n≤8.
+- Explore bounded-period schedules using the L_p acyclicity criterion; implement a checker for small p and k.
+- Develop a separator-based DP on bounded treewidth/feedback vertex set exploiting the separator composition bound.
+
+New settled results and tools this round
+- Cycles solved: For all n≥3, h(C_n)=2. Proof: Permanently shoot one vertex u (anchor); the evader is confined to C_n−u ≅ P_{n−1}, where a 1-hunter sweep wins. Explicit 2-hunter schedule length 2n−5 follows from the path sweep template.
+- Unicyclic graphs: If G is connected with exactly one cycle, then h(G)=2. Anchor any cycle vertex; G−{u} is a tree (h=1) and permanent blockers add +1.
+- Cut-vertex reduction: If a is a cut vertex of G and C_1,…,C_m are the components of G−a, then h(G) ≤ 1 + max_i h(C_i). Reason: block a, then use that h on a disjoint union is the max over components.
+- Disjoint unions: h(G ⊔ H)=max{h(G),h(H)} (components decouple under R-evolution).
+- FVS bound (constructive): h(G) ≤ fvs(G)+1 by blocking a feedback vertex set and sweeping each tree component. This yields an n^{O(k)} YES-recognizer on graphs with fvs ≤ k−1 by enumerating blockers and checking acyclicity.
+
+Cautions
+- Do not rely on monotonicity of the Z-process R_i = V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i}; Z_i need not be monotone.
+- Unproven length bounds for arbitrary trees: we use the proven 2|V(T)|−1 schedule-length bound; the stronger 2|V(T)|−3 holds for paths, not yet for all trees.
+
+Next steps
+- Implement the small-FVS recognizer and a block–cut DP using anchors at selected cut vertices. Resolve cactus graphs for k=2. Investigate Pre_k(T) fixpoint compression for k=2. Explore separator-based DP or hardness for general k.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Verifier Summary ===
+
+We confirmed and formalized: permanent blockers; h(G⊔H)=max; h(P_n)=1; k=1 classification (forests); h(C_n)=2 for all n via blocking + path sweep; unicyclic graphs have h=2; and a cut-vertex reduction h(G) ≤ 1 + max h(component). We cautioned that tree schedule-length bounds beyond 2|V|−1 are unproven. Algorithmically, we now have an n^{O(k)} YES recognizer for fvs ≤ k−1 and a clear DP path along block–cut trees. Open: cactus graphs for k=2, Pre_k compression, and a general n^{O(k)} algorithm or hardness for fixed k≥2.
+
+
+=== Current Notes ===
+
+# Research Notes
+
+
+
+Working definitions and dynamics
+- We fix the open-neighborhood operator N(X)=⋃_{x∈X}N(x). For a schedule S_1, …, S_t (|S_i|≤k), define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. The schedule is winning up to horizon t iff R_t=∅. Equivalently, using P_1:=V and P_{i+1}:=N(P_i\S_i), the schedule wins iff P_{t+1}=∅. These are equivalent formulations under an index shift.
+
+Verified results we will use
+- Subgraph monotonicity: If H⊆G then h(H)≤h(G).
+- Upper bound: h(G)≤τ(G) by shooting a minimum vertex cover twice (capture by time 2).
+- Lower bounds: h(G)≥δ(G); therefore h(G)≥degeneracy(G). Also, if G contains K_{s,t} as a subgraph then h(G)≥min{s,t}.
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}. For cycles, h(C_3)=2 (clique), h(C_4)=2; for C_5 a concrete 4-round schedule with k=2 succeeds (see proofs.md). The claim that two fixed antipodal shots per round win on all cycles is false for odd n.
+
+Corrections to earlier claims
+- The statement h(K_n)=n is incorrect; n−1 hunters suffice (and are necessary by δ(K_n)=n−1).
+- The 1-hunter impossibility on P_n for n≥4 is false; e.g., P_4 has an explicit 1-hunter winning schedule. A general proof that h(P_n)=1 appears feasible but is not yet written.
+- The assertion that the decision problem is in NP lacks a bound on schedule length; a priori, a winning schedule may require exponentially many rounds.
+
+Concrete example (cycles)
+- C_5 with k=2: S_1={1,3}, S_2={4,5}, S_3={2,4}, S_4={1,4} yields R_1={2,4,5}, R_2={1,3}, R_3={5}, R_4=∅. Thus h(C_5)≤2. For odd cycles, fixed pairs per round do not suffice; schedules must change over time.
+
+Algorithmic consequences (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k.
+- Fast YES: if τ(G)≤k then h(G)≤k (via FPT vertex-cover).
+- These give n^{O(k)} filters but do not settle all instances.
+
+Open targets and next steps
+1) Prove h(C_n)=2 for all n≥3 (and record a general schedule). 2) Settle k=1: prove or refute “h(G)=1 iff G is a forest.” 3) Investigate structural upper bounds: does h(G)≤tw(G)? A positive answer implies polynomial recognition for fixed k. 4) Design a separator-based DP that simulates R-evolution with states depending only on boundary sets of size ≤k. 5) Empirically compute h on small graphs (n≤10) and all trees up to n≈12 to test the degeneracy-equality conjecture and discover obstructions.
+
+New validated tools and results
+- Permanent blockers. If U⊆V is shot every round, any avoiding walk stays in G−U, hence h(G) ≤ |U|+h(G−U). This enables reductions via feedback vertex sets and other separators.
+- Disjoint unions. For graphs on disjoint vertex sets, h(G ⊔ H)=max{h(G),h(H)}. A concatenation of winning schedules for components suffices.
+- Paths. A 1-hunter “forward/backward sweep” of length 2n−3 (shots 1,2,…,n−1,n−1,n−2,…,2) wins on P_n; a parity-invariant proof verifies R_{2n−3}=∅.
+- k=1 classification. h(G)=1 iff G is a forest. Proof: cycles force ≥2 by δ=2; for forests, an inductive schedule repeatedly shoots a neighbor u of a leaf ℓ twice, then recurses on T−ℓ. A key fact: for any X and leaf ℓ with neighbor u, ℓ∉N(N(X)\{u}). This ensures ℓ never reappears in R after the double-shot.
+- Cycles. Explicit 2-hunter captures verified on C_5 and C_6; odd cycles require time-varying shots. A uniform proof h(C_n)=2 for all n remains open.
+
+Corrections and cautions
+- The “Z-process” identity R_i=V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i} holds, but Z_i need not be monotone. Arguments relying on Z-monotonicity (e.g., h=degeneracy proof) are invalid.
+
+Algorithmic implications (current)
+- Exact k=1 recognition in linear time via acyclicity. For general k, fast filters: if degeneracy(G)>k (or ω(G)≥k+2), then NO; if τ(G)≤k, then YES (2-round capture using a vertex cover).
+- Permanent blockers yield: if fvs(G)≤k−1 and h(forest)=1 (proved), then h(G)≤k, giving an n^{O(k)} recognition on that subclass by enumerating U (|U|≤k−1).
+
+Next steps
+1) Settle cycles: prove h(C_n)=2 for all n (start with exhaustive R-set BFS on C_7). 2) Formalize a separator-based DP that simulates R_{i+1}=N(R_i)\S_{i+1} across small boundaries (treewidth/FVS). 3) Evaluate the degeneracy-equality conjecture empirically on n≤10 and either prove or refute it. 4) Pursue either h≤tw (positive algorithmic route) or hardness for k=2 (layered gadgets) as a decisive direction on the main question.
+
+Updates and clarifications
+
+- Conventions: A k-hunter schedule is a sequence (S_1, …, S_t) with |S_i| ≤ k. We use t for the horizon and n=|V|.
+- Dynamics: Define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. Equivalently, P_1:=V and P_{i+1}:=N(P_i\S_i). Then R_t=∅ iff P_{t+1}=∅; moreover, R_t = P_t\S_t and P_{t+1} = N(R_t) (easy induction).
+- Z-process identity: With Z_1:=∅ and Z_{i+1}:={v : N(v)⊆Z_i∪S_i}, one has R_i = V\(Z_i∪S_i) for all i. Caution: (Z_i) need not be monotone. Example: on P_4 with S_1={3}, S_2={2}, one checks 4∈Z_2 but 4∉Z_3.
+
+Validated tools
+- Subgraph monotonicity: If H⊆G, then h(H) ≤ h(G).
+- Lower bounds: h(G) ≥ δ(G); hence h(G) ≥ degeneracy(G) by subgraph monotonicity.
+- Upper bound: h(G) ≤ τ(G) (two rounds shooting a vertex cover).
+- Disjoint unions: h(G ⊔ H)=max{h(G), h(H)}.
+- Permanent blockers: If U⊆V is shot every round, any evading walk stays in G−U; thus h(G) ≤ |U| + h(G−U).
+- Separator composition: If G is obtained by gluing pieces along S, then h(G) ≤ |S| + max_i h(piece_i).
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}.
+- Periodic lifts: A period-p schedule (repeated) is winning iff the cyclic time-lift L_p, after removing per-layer shots, is acyclic (gives a finite capture horizon ≤ n·p).
+
+Corrections and open items
+- Minor-monotonicity is unproven; the edge-contraction proof attempt fails because an H-walk through the contracted vertex need not lift to a G-walk of the same length while avoiding the shots. Do not assume {h≤k} is minor-closed.
+- The claim h(G)=1 iff G is a forest is not yet rigorously established. The leaf double-shot invariant ensures exclusion after exactly two steps but does not imply the leaf never reappears later. A complete proof (or counterexample) is needed.
+- Cycles: We have explicit small schedules for C_5, C_6. A uniform proof h(C_n)=2 can follow from a complete proof that h(P_m)=1; alternatively, provide a direct 2-hunter schedule.
+- Unicyclic graphs: The statement h(G)=2 for fvs(G)=1 depends on the (currently unproven) forest case.
+
+Algorithmic implications (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k (the clique test is n^{O(k)} by brute force; degeneracy is linear-time).
+- Fast YES: if τ(G)≤k then h(G)≤k (two-round capture). For fvs(G)≤k−1, by permanent blockers one gets h(G)≤k whenever h(forests)=1 holds; this gives an n^{O(k)} recognition on that subclass once the forest case is settled.
+
+Next steps
+- Write and verify a complete proof that a 1-hunter schedule of length O(n) wins on P_n; then derive h(C_n)=2. Revisit unicyclic once forests are resolved.
+- Probe minor-monotonicity: search for a contraction counterexample (e.g., compare K_4 versus a single-edge subdivision) via exact R-evolution on n≤8.
+- Explore bounded-period schedules using the L_p acyclicity criterion; implement a checker for small p and k.
+- Develop a separator-based DP on bounded treewidth/feedback vertex set exploiting the separator composition bound.
+
+New settled results and tools this round
+- Cycles solved: For all n≥3, h(C_n)=2. Proof: Permanently shoot one vertex u (anchor); the evader is confined to C_n−u ≅ P_{n−1}, where a 1-hunter sweep wins. Explicit 2-hunter schedule length 2n−5 follows from the path sweep template.
+- Unicyclic graphs: If G is connected with exactly one cycle, then h(G)=2. Anchor any cycle vertex; G−{u} is a tree (h=1) and permanent blockers add +1.
+- Cut-vertex reduction: If a is a cut vertex of G and C_1,…,C_m are the components of G−a, then h(G) ≤ 1 + max_i h(C_i). Reason: block a, then use that h on a disjoint union is the max over components.
+- Disjoint unions: h(G ⊔ H)=max{h(G),h(H)} (components decouple under R-evolution).
+- FVS bound (constructive): h(G) ≤ fvs(G)+1 by blocking a feedback vertex set and sweeping each tree component. This yields an n^{O(k)} YES-recognizer on graphs with fvs ≤ k−1 by enumerating blockers and checking acyclicity.
+
+Cautions
+- Do not rely on monotonicity of the Z-process R_i = V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i}; Z_i need not be monotone.
+- Unproven length bounds for arbitrary trees: we use the proven 2|V(T)|−1 schedule-length bound; the stronger 2|V(T)|−3 holds for paths, not yet for all trees.
+
+Next steps
+- Implement the small-FVS recognizer and a block–cut DP using anchors at selected cut vertices. Resolve cactus graphs for k=2. Investigate Pre_k(T) fixpoint compression for k=2. Explore separator-based DP or hardness for general k.
+
+
+=== Current Proofs ===
+
+# Rigorous Proofs
+
+
+
+Basic facts about the hunters–rabbit evasion number
+
+Notation. For a finite simple graph G=(V,E), write N(X):=⋃_{x∈X}N(x) for the open neighborhood of X⊆V.
+
+Definition (Schedule verification). Given a finite sequence S_1,…,S_t with S_i⊆V, define R_1:=V\S_1 and, for i≥1, R_{i+1}:=N(R_i)\S_{i+1}.
+
+Proposition 1 (Equivalence). The sequence S_1,…,S_t is winning up to horizon t (i.e., for every walk v_1,…,v_t in G there exists i with v_i∈S_i) if and only if R_t=∅.
+Proof. For each i, R_i is exactly the set of vertices w for which there exists a length-i walk v_1,…,v_i=w with v_j∉S_j for all j≤i. This holds by induction on i using the recurrence definition. Thus R_t=∅ iff no length-t walk avoids all S_i. ∎
+
+Lemma 2 (Subgraph monotonicity). If H is a subgraph of G, then h(H)≤h(G).
+Proof. Any walk in H is also a walk in G. A schedule that hits all walks in G hits all walks confined to H. ∎
+
+Proposition 3 (Vertex-cover upper bound). Let τ(G) be the size of a minimum vertex cover. Then h(G)≤τ(G).
+Proof. Fix a minimum vertex cover C. Take S_1=C and S_2=C. If the rabbit starts in C it is caught at time 1. Otherwise it starts in V\C (an independent set), so R_1=V\C and R_2=N(R_1)\C⊆C\C=∅. Hence capture by time 2. ∎
+
+Lemma 4 (Minimum-degree lower bound). If k<δ(G), then no schedule with k hunters is winning; in particular h(G)≥δ(G).
+Proof. Fix k<δ(G) and any schedule S. Pick v_1∈V\S_1. Inductively, given v_i∉S_i, since deg(v_i)≥δ(G)>k and |S_{i+1}|≤k, there exists v_{i+1}∈N(v_i)\S_{i+1}. This constructs an avoiding walk of any length. ∎
+
+Corollary 5 (Degeneracy lower bound). Let d(G) be the degeneracy (the maximum of δ(H) over all subgraphs H of G). Then h(G)≥d(G).
+Proof. Choose H⊆G with δ(H)=d(G). By Lemma 4 applied to H, h(H)≥d(G). By Lemma 2, h(G)≥h(H). ∎
+
+Corollary 6 (Complete graphs). For n≥1, h(K_n)=n−1.
+Proof. Lower bound: δ(K_n)=n−1 and Lemma 4. Upper bound: with k=n−1, take S_i=V\{x} for a fixed x. Then R_1={x} and R_2=N({x})\(V\{x})=∅. ∎
+
+Proposition 7 (Complete bipartite graphs). For K_{p,q} with p≤q, h(K_{p,q})=p.
+Proof. Lower bound: δ(K_{p,q})=p, so h≥p by Lemma 4. Upper bound: take S_i to be the p-vertex side A each round. If the walk starts in A, it is caught at i=1. Otherwise it starts in B and must move to A at i=2, where it is shot. ∎
+
+Proposition 8 (Graphs containing a cycle need at least two hunters). If G contains a cycle as a subgraph, then h(G)≥2.
+Proof. Every cycle C_m has δ(C_m)=2, hence h(C_m)≥2 by Lemma 4. By Lemma 2, h(G)≥h(C_m)≥2. ∎
+
+Example 9 (C_5 is 2-hunter-catchable). On the 5-cycle with vertices 1–2–3–4–5–1, let
+S_1={1,3}, S_2={4,5}, S_3={2,4}, S_4={1,4}.
+Then R_1=V\S_1={2,4,5}; R_2=N(R_1)\S_2={1,3,4,5}\{4,5}={1,3}; R_3=N(R_2)\S_3={2,4,5}\{2,4}={5}; R_4=N({5})\S_4={1,4}\{1,4}=∅. Hence h(C_5)≤2.
+
+Remarks. We have not yet proved h(C_m)=2 for all m≥3 (odd m require nontrivial schedules), nor the classification h(G)=1 iff G is a forest. These remain open targets.
+
+Further rigorous results on the evasion number
+
+Notation. For a graph G=(V,E), define N(X):=\bigcup_{x\in X} N(x). For a schedule (S_1,\dots,S_t), set R_1:=V\setminus S_1 and R_{i+1}:=N(R_i)\setminus S_{i+1}.
+
+Lemma 10 (Disjoint unions). If G and H have disjoint vertex sets, then h(G \sqcup H)=\max\{h(G),h(H)\}.
+Proof. Any walk lies within one component. If k\ge\max\{h(G),h(H)\}, take a winning schedule for G (using only vertices of G) followed by a winning schedule for H (using only vertices of H), and repeat. Each component’s R-set becomes empty during its respective block and remains empty thereafter (since N(\emptyset)=\emptyset). Conversely, if k<h(G) then restricting to walks in G shows h(G\sqcup H)\ge h(G); similarly h(G\sqcup H)\ge h(H). ∎
+
+Lemma 11 (Permanent blockers). For any U\subseteq V, if U\subseteq S_i for all i, then any avoiding walk stays in G-U. Consequently, h(G) \le |U| + h(G-U).
+Proof. If a walk visits u\in U at time t, then v_t\in S_t, a contradiction; hence all avoiding walks stay in V\setminus U. Using |U| blockers each round and an additional h(G-U) hunters to follow a winning schedule on G-U yields a winning schedule on G with per-round budget |U|+h(G-U). ∎
+
+Theorem 12 (Paths). For every n\ge 2, h(P_n)=1.
+Proof. Label P_n by 1,2,\dots,n along the path. Consider the 1-hunter schedule of length 2n−3:
+S_1=\{1\}, S_2=\{2\},\dots,S_{n-1}=\{n-1\}, then S_n=\{n-1\}, S_{n+1}=\{n-2\},\dots,S_{2n-3}=\{2\}.
+Phase I (forward). For 1\le j\le n−1,
+R_j = \{i: i>j\} \cup \{ i: 1\le i\le j and i\equiv j+1 \pmod 2\}.
+This holds by induction: R_1=\{2,\dots,n\}; if it holds for j, then N(\{i>j\})=[j,\dots,n] and N(\{i\le j,\ i\equiv j+1\})=\{i:1\le i\le j+1,\ i\equiv j\}, and removing S_{j+1}=\{j+1\} gives the claimed R_{j+1}. In particular, R_{n−1}=\{i: i\equiv n \pmod 2\}.
+Phase II (backward). Let r\in\{1,\dots,n−2\}. One checks by induction on r that after S_{n−1+r}=\{n−r\}, R_{n−1+r} is the arithmetic progression of the parity opposite to R_{n−1}, truncated to its largest element m:=n−r−2. Its neighborhood before removing S_{n+r}=\{m+1\} is the complementary parity up to m+1; removing S_{n+r} deletes the top element, leaving the opposite parity up to m−1. When r=n−2 this set is empty, so R_{2n−3}=\emptyset. Thus the schedule wins, and since \delta(P_n)=1, this is optimal: h(P_n)=1. ∎
+
+Theorem 13 (k=1 classification). A graph G satisfies h(G)=1 if and only if G is a forest.
+Proof. (⇒) If G contains a cycle C, then h(C)\ge \delta(C)=2; by subgraph monotonicity, h(G)\ge 2.
+(⇐) Suppose G is a forest T. We build a 1-hunter schedule of length at most 2|V(T)|−1 by iteratively removing leaves. Fix a leaf \ell with neighbor u. For any X\subseteq V(T), since \ell has only neighbor u, we have \ell\notin N\big(N(X)\setminus\{u\}\big). Consider the schedule formed by two shots at u followed by the inductively constructed schedule S′ on T′:=T−\ell. Let R^T_i (resp. R^{T′}_j) denote the R-sets under these schedules. We claim by induction on j\ge 1 that R^T_{j+2} \subseteq R^{T′}_j. For j=1, R^T_2=N(V(T)\setminus\{u\})\setminus\{u\} and \ell\notin N(R^T_2), so R^T_3\subseteq V(T′)\setminus S′_1=R^{T′}_1. If R^T_{j+2}\subseteq R^{T′}_j then R^T_{j+3}=N(R^T_{j+2})\setminus S′_{j+1}\subseteq N(R^{T′}_j)\setminus S′_{j+1}=R^{T′}_{j+1}. Since S′ empties T′ after 2|V(T′)|−1 steps, we have R^T_{2+(2|V(T′)|−1)}=\emptyset, i.e., after at most 2|V(T)|−1 steps. Hence h(T)=1. ∎
+
+Basic dynamics and equivalences
+
+Definitions. For a graph G=(V,E) and a schedule S=(S_1,…,S_t) with |S_i|≤k, define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. Equivalently, define P_1:=V and P_{i+1}:=N(P_i\S_i).
+
+Lemma 1 (R/P relation). For all i≥1, R_i = P_i\S_i and P_{i+1} = N(R_i). In particular, R_t=∅ iff P_{t+1}=∅.
+Proof. By induction on i. For i=1, R_1=V\S_1=P_1\S_1. If R_i=P_i\S_i, then P_{i+1}=N(P_i\S_i)=N(R_i), and R_{i+1}=N(R_i)\S_{i+1}=P_{i+1}\S_{i+1}. ∎
+
+Lower and upper bounds
+
+Lemma 2 (Subgraph monotonicity). If H is a subgraph of G, then h(H) ≤ h(G).
+Proof. Let S be a winning schedule on G. Restrict each S_i to V(H). Any H-walk avoiding the restricted schedule is also a G-walk avoiding S, contradiction. ∎
+
+Lemma 3 (Minimum-degree lower bound). For any G, h(G) ≥ δ(G).
+Proof. Suppose k<δ(G). Let S be any schedule with |S_i|≤k. An evader can constructively avoid S: pick v_1∉S_1; inductively, at time i at v_i∉S_i, choose any neighbor v_{i+1}∈N(v_i)\S_{i+1}, which exists since |S_{i+1}|≤k<deg(v_i). Thus no such S is winning. ∎
+
+Corollary 4 (Degeneracy lower bound). h(G) ≥ degeneracy(G).
+Proof. For any subgraph H⊆G, δ(H) ≤ h(H) ≤ h(G) by Lemmas 2 and 3. Taking the maximum over H gives the degeneracy bound. ∎
+
+Lemma 5 (Vertex-cover upper bound). h(G) ≤ τ(G).
+Proof. Let S⊆V be a vertex cover. Shoot S in round 1 and again in round 2 (splitting across rounds if |S|>k is not allowed; here we assume k≥τ(G) for the statement). Then R_1=V\S is independent, so N(R_1)⊆S and R_2=N(R_1)\S=∅. ∎
+
+Disjoint unions and composition
+
+Lemma 6 (Disjoint unions). For disjoint-vertex graphs G and H, h(G ⊔ H) = max{h(G), h(H)}.
+Proof. Lower bound is by subgraph monotonicity. For the upper bound, let SG (resp. SH) be winning on G (resp. H). Concatenate the schedules: play SH first (shoot only in H), then SG (shoot only in G). Any evader starting in H is caught during SH; any evader starting in G is unaffected by shots in H and will be caught during SG. Formally, R-monotonicity in the initial set implies that starting SG from any subset of V(G) is no harder than from V(G). ∎
+
+Lemma 7 (Permanent blockers). For any U⊆V, h(G) ≤ |U| + h(G−U).
+Proof. Let T_1,…,T_t be a winning schedule on G−U with |T_i|≤h(G−U). Define S_i := U ∪ T_i. Inductively, an evader avoiding S remains in V\U and its R-sets are contained in the R-sets of T on G−U, hence empty at time t. ∎
+
+Lemma 8 (Separator composition). Let S⊆V and suppose G−S is the disjoint union of induced subgraphs H_1,…,H_m. Then h(G) ≤ |S| + max_i h(H_i).
+Proof. By Lemma 7, h(G) ≤ |S| + h(G−S). By Lemma 6, h(G−S)=max_i h(H_i). ∎
+
+Exact values on basic families
+
+Proposition 9. For complete graphs, h(K_n)=n−1.
+Proof. By Lemma 3, h(K_n) ≥ δ(K_n)=n−1. By Lemma 5, h(K_n) ≤ τ(K_n)=n−1. ∎
+
+Proposition 10. For complete bipartite graphs, h(K_{p,q})=min{p,q}.
+Proof. δ(K_{p,q})=min{p,q} gives the lower bound. A minimum vertex cover in K_{p,q} has size min{p,q} (Kőnig’s theorem), yielding the upper bound via Lemma 5. ∎
+
+Periodic schedules via time-lifts
+
+Proposition 11 (Periodic-lift criterion). Fix p≥1 and a period-p schedule S=(S_1,…,S_p), repeated indefinitely. Construct the directed graph L_p(S) on V×{1,…,p} with arcs (u,i)→(v,i+1 mod p) for each uv∈E, and delete all vertices (w,i) with w∈S_i. Then S is winning iff L_p(S) is acyclic.
+Proof. If L_p(S) has a directed cycle, tracing it gives a bi-infinite avoiding walk modulo p, so no finite horizon capture occurs. Conversely, if L_p(S) is acyclic, the longest directed path has length at most |V|·p, hence after at most that many rounds all avoiding walks terminate and R becomes empty. ∎
+
+Theorem (Cycles). For every n≥3, h(C_n)=2.
+Proof. Lower bound: δ(C_n)=2, so h(C_n)≥2. For the upper bound, choose any u∈V(C_n) and shoot u every round. By the permanent blockers lemma (h(G) ≤ |U|+h(G−U)), any avoiding walk stays in C_n−{u}≅P_{n−1}. Since h(P_{n−1})=1, one additional hunter can execute a winning 1-hunter path schedule on C_{n}−{u}, giving a 2-hunter winning schedule on C_n. Hence h(C_n)=2. ∎
+
+Corollary (Unicyclic graphs). If G is connected and has exactly one cycle, then h(G)=2.
+Proof. Lower bound: G contains a cycle, so h(G)≥2 by subgraph monotonicity and the previous theorem. For the upper bound, pick a vertex u on the cycle and shoot u every round. Then G−{u} is a tree; since h(G−{u})=1 (k=1 classification), the permanent blockers lemma yields h(G)≤1+1=2. ∎
+
+Lemma (Cut-vertex reduction). Let a be a cut vertex of G, and let C_1,…,C_m be the vertex sets of the components of G−a. Then h(G) ≤ 1 + max_{i} h(G[C_i]).
+Proof. Permanently shoot a. Any avoiding walk remains in G−a and thus in some component G[C_i]. By the disjoint union law h(⊔_i G[C_i])=max_i h(G[C_i]), it follows that with q:=max_i h(G[C_i]) hunters we can win on G−a. Adding the permanent blocker a gives a schedule with 1+q hunters on G. ∎
+
+
+=== Current Output ===
+
+# Main Results
+

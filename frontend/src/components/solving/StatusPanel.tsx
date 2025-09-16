@@ -18,6 +18,7 @@ import {
   ProblemStatus, 
   RunParameters, 
   ProverConfig,
+  VerifierConfig,
   ModelPreset, 
   AppMessage,
   StatusDisplayProps,
@@ -32,7 +33,8 @@ import {
   calculateProgress,
   validateRunParameters,
   organizeTimings,
-  formatRelativeTime
+  formatRelativeTime,
+  getStatusDescription
 } from './utils'
 import { getStatus, runRound, stopProblem, listFiles } from '../../api'
 import ProverConfigComponent from './ProverConfig'
@@ -129,6 +131,9 @@ export default function StatusPanel({
    * Validates parameters and calls API
    */
   const handleStartRun = async () => {
+    // Prevent double-clicking by checking if already starting
+    if (!canStart) return
+    
     // Validate parameters first
     const validation = validateRunParameters(
       runConfig.rounds,
@@ -155,7 +160,8 @@ export default function StatusPanel({
         temperature, 
         runConfig.preset, 
         runConfig.proverConfigs,
-        runConfig.focusDescription
+        runConfig.focusDescription,
+        runConfig.verifierConfig
       )
       
       setMessage({
@@ -252,6 +258,43 @@ export default function StatusPanel({
     updateRunConfig({ proverConfigs: configs })
   }
 
+  /**
+   * Initialize or adjust verifier configuration based on available papers
+   */
+  const ensureVerifierConfig = (): VerifierConfig => {
+    const current = runConfig.verifierConfig
+    
+    // Create default paper access for all available papers
+    const defaultPaperAccess: Record<string, boolean> = {}
+    availableFiles.filter(file => file.type === 'paper').forEach(paper => {
+      defaultPaperAccess[paper.path] = true  // Default: access to all papers
+    })
+    
+    const defaultConfig = { 
+      calculator: true,  // Default: calculator enabled
+      focus: 'default',
+      paperAccess: defaultPaperAccess
+    }
+    
+    if (current) {
+      // Merge with existing config, but ensure paper access is updated with new papers
+      const mergedPaperAccess = { ...defaultPaperAccess, ...current.paperAccess }
+      return {
+        ...current,
+        paperAccess: mergedPaperAccess
+      }
+    } else {
+      return defaultConfig
+    }
+  }
+
+  /**
+   * Update verifier configuration
+   */
+  const updateVerifierConfig = (config: VerifierConfig) => {
+    updateRunConfig({ verifierConfig: config })
+  }
+
   // =============================================================================
   // EFFECTS
   // =============================================================================
@@ -288,6 +331,14 @@ export default function StatusPanel({
       updateRunConfig({ proverConfigs: configs })
     }
   }, [runConfig.provers])
+
+  // Ensure verifier config is initialized when available files change
+  useEffect(() => {
+    const config = ensureVerifierConfig()
+    if (JSON.stringify(config) !== JSON.stringify(runConfig.verifierConfig)) {
+      updateRunConfig({ verifierConfig: config })
+    }
+  }, [availableFiles])
 
   // =============================================================================
   // RENDER HELPERS
@@ -326,7 +377,7 @@ export default function StatusPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
           <span className={`status-dot ${problemInfo.status}`}></span>
           <strong>Status:</strong> 
-          <span>{getProblemStatusText()}</span>
+          <span>{getStatusDescription(problemInfo, status)}</span>
         </div>
 
         {/* Error display */}
@@ -364,32 +415,22 @@ export default function StatusPanel({
           </div>
         )}
 
-        {/* Progress information */}
-        {problemInfo.totalRounds > 0 && (
+        {/* Progress bar */}
+        {problemInfo.totalRounds > 0 && isRunning && (
           <div style={{ marginBottom: '12px' }}>
-            <div style={{ marginBottom: '4px' }}>
-              <strong>Progress:</strong> Round {problemInfo.currentRound} of {problemInfo.totalRounds}
-              {progress > 0 && (
-                <span style={{ marginLeft: '8px', color: '#666' }}>
-                  ({progress}%)
-                </span>
-              )}
-            </div>
-            {isRunning && (
+            <div style={{ 
+              height: '4px', 
+              background: '#e9ecef', 
+              borderRadius: '2px',
+              overflow: 'hidden'
+            }}>
               <div style={{ 
-                height: '4px', 
-                background: '#e9ecef', 
-                borderRadius: '2px',
-                overflow: 'hidden'
-              }}>
-                <div style={{ 
-                  width: `${progress}%`, 
-                  height: '100%', 
-                  background: '#007bff',
-                  transition: 'width 0.3s'
-                }}></div>
-              </div>
-            )}
+                width: `${progress}%`, 
+                height: '100%', 
+                background: '#007bff',
+                transition: 'width 0.3s'
+              }}></div>
+            </div>
           </div>
         )}
 
@@ -434,26 +475,6 @@ export default function StatusPanel({
   }
 
 
-  /**
-   * Gets human-readable status text
-   */
-  const getProblemStatusText = (): string => {
-    if (!status) return 'Unknown'
-    
-    if (status.overall.error) {
-      return 'Error occurred'
-    }
-    
-    if (isRunning) {
-      return `Running (Round ${status.overall.current_round})`
-    }
-    
-    if (status.overall.current_round > 0) {
-      return 'Complete'
-    }
-    
-    return 'Ready to start'
-  }
 
   /**
    * Renders the run configuration form
@@ -618,6 +639,106 @@ export default function StatusPanel({
             />
           </div>
         </div>
+
+      {/* Verifier Configuration */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>
+          Verifier Configuration
+        </label>
+        <div style={{ 
+          background: '#f8f9fa',
+          border: '1px solid #dee2e6',
+          borderRadius: '4px',
+          padding: '12px'
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', alignItems: 'center' }}>
+            {/* Verifier label */}
+            <div style={{ fontWeight: '500', fontSize: '14px' }}>
+              Verifier
+            </div>
+            
+            {/* Calculator checkbox */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+                <input
+                  type="checkbox"
+                  checked={ensureVerifierConfig().calculator}
+                  onChange={e => updateVerifierConfig({
+                    ...ensureVerifierConfig(),
+                    calculator: e.target.checked
+                  })}
+                  disabled={!canStart}
+                />
+                Calculator
+              </label>
+            </div>
+            
+            {/* Focus instructions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <select
+                value={ensureVerifierConfig().focus}
+                onChange={e => updateVerifierConfig({
+                  ...ensureVerifierConfig(),
+                  focus: e.target.value
+                })}
+                disabled={!canStart}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  background: 'white'
+                }}
+              >
+                {focusOptions.map(option => (
+                  <option key={option.key} value={option.key}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Paper access checkboxes */}
+          {availableFiles.filter(file => file.type === 'paper').length > 0 && (
+            <div style={{ marginTop: '12px', borderTop: '1px solid #dee2e6', paddingTop: '8px' }}>
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                Paper Access:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {availableFiles.filter(file => file.type === 'paper').map(paper => (
+                  <label key={paper.path} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px', 
+                    fontSize: '11px',
+                    background: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '3px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={ensureVerifierConfig().paperAccess?.[paper.path] || false}
+                      onChange={e => {
+                        const config = ensureVerifierConfig()
+                        const paperAccess = { ...config.paperAccess }
+                        paperAccess[paper.path] = e.target.checked
+                        updateVerifierConfig({
+                          ...config,
+                          paperAccess
+                        })
+                      }}
+                      disabled={!canStart}
+                    />
+                    📄 {paper.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Start Button */}
       <div style={{ marginTop: '16px' }}>

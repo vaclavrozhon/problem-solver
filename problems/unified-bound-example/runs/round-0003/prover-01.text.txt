@@ -1,0 +1,94 @@
+# Overview
+
+We correct and sharpen several key points, provide rigorous bounds where feasible, and isolate a flaw in the current UB lower-bound strategy for the 2413-inflation family. We also prove that random permutations have UB = Ω(n log n) in expectation, clarifying what structural feature is needed to achieve large UB. Finally, we give a precise Wilber-1 = Θ(n) bound for the tailored reference tree on the 2413-inflation family, which remains algorithmically promising but does not yet yield a UB = Θ(n log n) lower bound.
+
+# Part I: UB lower bound via “child-boundaries” only gives Θ(n), not Θ(n log n)
+
+Setup. Let n = 4^h. Consider the recursively defined 4-ary decomposition of [1..n] at each level into contiguous blocks A<B<C<D, with time order 2,4,1,3 at every node (2413-inflation). Impose the midpoint-first constraint inside each block: the first key in a child’s restricted subsequence is the midpoint of that child’s key interval.
+
+Definition (child-boundary times). At any internal 4-ary node v with interval size s_v, the restricted sequence on v’s keys is the concatenation (B,D,A,C), each a contiguous block. The three transitions 2→4, 4→1, 1→3 are the “child-boundary” times at v.
+
+Claim A (midpoint separation at boundaries). At a boundary time i at node v (first access into the new child), all previous accesses lie outside that child. Since the accessed key is the child midpoint, its rank distance to any previous key is at least s_v/8. Hence UB_i ≥ log(1 + s_v/8).
+
+This part is correct. The counting step, however, has a crucial quantitative issue.
+
+Fact B (disjointness and count). Each consecutive pair (x_{i−1}, x_i) has a unique lowest common ancestor (LCA) in the 4-ary decomposition; within that ancestor’s restricted sequence, the pair appears at exactly one child-boundary. Thus the boundary times over all nodes are disjoint and number exactly n−1 (three per internal node, and the number of internal nodes is (n−1)/3).
+
+Summation. Summing Claim A over all boundaries gives
+∑_i UB_i ≥ ∑_{v internal} 3·log(1 + s_v/8) = Θ(∑_{ℓ=0}^{h−1} 4^ℓ · (h−ℓ)) = Θ(n).
+Indeed, with s_v = 4^{h−ℓ} and 4^ℓ nodes at level ℓ,
+∑_{ℓ=0}^{h−1} 4^ℓ (h−ℓ) = 4^h ∑_{t=1}^{h} t/4^t = Θ(4^h) = Θ(n).
+
+Conclusion 1. The child-boundary charging yields UB(π) = Ω(n), not Ω(n log n). This matches the earlier warning that “one first-arrival per block per scale” only achieves O(n) total. Thus the UB = Θ(n log n) claim from boundary events alone is incorrect.
+
+# Part II: A precise Wilber-1 = Θ(n) bound for the tailored reference tree
+
+We formalize the Wilber-1 bound for the above 2413-inflation family using a reference BST T_ref that mirrors the 4-ary decomposition with three binary splits per 4-ary node.
+
+Construction of T_ref. For each 4-ary node v with children A<B<C<D:
+- Introduce a binary node u_v splitting L := A∪B vs R := C∪D.
+- In u_v’s left subtree, add a node splitting A vs B; in the right subtree, add a node splitting C vs D.
+- Recurse inside each of A,B,C,D identically.
+This yields a BST over [n] whose internal nodes are in bijection with the set of “adjacent-block” binary splits at every 4-ary node (three per 4-ary node).
+
+Wilber-1 definition. For a fixed BST T_ref and access sequence, W_1(T_ref) is the sum, over all internal nodes w of T_ref, of the number of alternations between the left and right sides of w along the access sequence restricted to keys in w’s subtree.
+
+Lemma 2. For the 2413-inflation sequence,
+- At node u_v (split L vs R), the alternation count is exactly 3, because the restricted sequence at v is L,R,L,R (B,D,A,C), with each block contiguous.
+- At the A-vs-B split (left child of u_v), the restricted sequence is B then A, giving exactly 1 alternation.
+- Similarly at the C-vs-D split, the restricted sequence is D then C, giving exactly 1 alternation.
+Recursive independence: Within each child, the alternation count at these nodes is determined solely by the top-level block order at that node; deeper recursion does not create additional alternations at these nodes because within each child block all keys belong to the same side with respect to these splits.
+
+Therefore each 4-ary node contributes 3+1+1 = 5 alternations, independently of block size. There are (n−1)/3 internal 4-ary nodes, hence
+W_1(T_ref) = 5 · (n−1)/3 = Θ(n).
+
+Corollary 3. Tango trees achieve total cost O(W_1(T_ref) · log log n) = O(n log log n) on this family. Consequently OPT_BST(π) ≤ O(n log log n). This yields a nontrivial but non-strong separation only if we can show UB(π) = Ω(n log n), which the boundary-only UB argument does not establish.
+
+# Part III: Random permutations have UB = Ω(n log n) in expectation
+
+We prove a clean, self-contained lower bound showing that for a uniform random permutation, the unified bound is Ω(n log n) in expectation. This clarifies the mechanism needed for large UB: recent windows often contain no keys close to the current key in rank.
+
+Lemma 4 (window emptiness around x_i with constant probability). Fix i ∈ {⌊n/2⌋,…,n}. Let t := ⌊√n⌋ and r := ⌊α·n/t⌋ for a sufficiently small constant α ∈ (0,1/4). Condition on x_i. The previous t accesses x_{i−1},…,x_{i−t} are t distinct, uniformly random elements of [n]\{x_i, other earlier positions}. Then
+Pr[ for all 1 ≤ j ≤ t, |x_{i−j} − x_i| ≥ r ] ≥ exp(−Θ(α)),
+by a standard occupancy/independence estimate: the window of size at most 2r around x_i contains at most 2r keys, and the probability that none of the t distinct uniformly random keys falls in this window is
+((n−1−2r) choose t)/((n−1) choose t) ≥ (1 − 2r/(n−1))^t ≥ exp(−4α + o(1)).
+
+Lemma 5 (UB_i lower bound from window emptiness). On the event in Lemma 4, for all j ≤ t we have Δ_i(j) ≥ r, hence j + Δ_i(j) ≥ r; for j > t we have j ≥ t. Therefore min_j (j + Δ_i(j)) ≥ min{ r, t }.
+With r = α·n/t and t = ⌊√n⌋, we get min{ r, t } ≥ c·√n for some constant c>0. Hence
+UB_i ≥ log(1 + c·√n) ≥ (1/2) log n − O(1).
+
+Theorem 6. For a uniform random permutation π on [n], E[UB(π)] ≥ c′ n log n for some c′>0.
+Proof. For i from ⌊n/2⌋ to n, Lemmas 4–5 give E[UB_i] ≥ p · ((1/2) log n − O(1)) with p a positive constant. Summing over Θ(n) such i yields E[UB(π)] ≥ c′ n log n.
+
+Remark. This also implies that the maximum UB over permutations is at least Ω(n log n). However, random permutations are hard for BSTs (Wilber lower bounds Θ(n log n)), so they do not give a separation.
+
+# Part IV: Why the 2413-inflation family likely has only UB = Θ(n)
+
+Intuition and obstruction. In the 2413-inflation family, each block at every level is visited contiguously in time. Consequently, for any i, the last t accesses for any t up to the number of prior accesses within the current block lie entirely within that block. Thus the “nearby in time” witnesses come from the same block. To force a UB_i ≈ Ω(log s) at scale s, we would need that every key among those last t (within the block) is far in key from x_i, uniformly over a window t ≈ Θ(s), for many i. But within the block, the order is highly structured (and, if preorder-like, it keeps producing closer and closer neighbors as recursion deepens). The boundary-only charging captures the earliest positions in each block (when no in-block predecessors exist) and yields only Θ(n) total as established in Part I.
+
+Conjecture 7 (to target). For any permutation π that is a hierarchical contiguous concatenation at all scales (e.g., defined by a fixed finite simple inflation pattern like 2413), we have UB(π) = O(n). This would explain the failure of boundary-only approaches and aligns with the DFS UB intuition. A proof strategy would be to bound UB_i by log(2 + |x_i − x_{i−1}|) and show that ∑ log(2 + |x_i − x_{i−1}|) = O(n) for such hierarchically concatenated orders by charging to block sizes across scales; we plan to formalize this next.
+
+# Part V: Next steps (precise, auditable)
+
+1) Formalize the Wilber-1 bound.
+   - Write the exact mapping from 4-ary nodes to the binary nodes in T_ref and prove Lemma 2 rigorously: alternations per node are exactly 3,1,1.
+   - Conclude W_1(T_ref) = 5·(n−1)/3.
+
+2) UB(π) = O(n) for hierarchical concatenations.
+   - Prove: If a permutation is obtained by recursively concatenating k constant-size blocks at each node, then ∑_i log(2 + |x_i − x_{i−1}|) = O(n). Provide an explicit charging scheme to block sizes across levels. This gives UB(π) ≤ O(n) and resolves the 2413-inflation family’s UB claim.
+
+3) Random UB lower bound write-up.
+   - Move the Lemma 4–5 proof into proofs.md with precise constants and handle boundary effects (e.g., near x_i close to 1 or n) by ignoring O(1) endpoints.
+
+4) Search for a new candidate family.
+   - The “low alternation at all scales” condition appears incompatible with UB = Θ(n log n). We should instead target a family where Wilber-1 is O(n) for some carefully chosen reference tree that may vary with the instance (still allowed for Tango with O(n log log n) overhead) but where within each time-contiguous block the order is “spread-out” enough to yield Ω(s log s) UB per block. The obstacle is that internal nodes of T_ref inside a block will then incur many alternations, driving W_1 up; we need a principled way (or a new algorithm) to avoid this.
+
+5) DFS UB = O(n) proof.
+   - Provide a clean, rigorous proof (or a citation) that for preorder/postorder traversals, ∑ log(2 + |x_i − x_{i−1}|) = O(n), by charging to subtree sizes. This will be carried out next round.
+
+# Summary
+
+- The child-boundary UB charging for the 2413-inflation family yields only UB = Θ(n), not Θ(n log n); we provided the exact summation demonstrating Θ(n).
+- We established a precise W_1(T_ref) = Θ(n) bound for a tailored static reference tree on the same family, implying a Tango cost O(n log log n).
+- We proved that random permutations satisfy E[UB] = Ω(n log n) via a simple window-of-last-√n argument. This clarifies what “large UB” structurally requires.
+- We conjecture that hierarchical contiguous concatenations (including 2413-inflation with midpoint-first) have UB = O(n), suggesting this path will not yield the desired strong separation. Next, we will (i) formalize W_1 and (ii) prove the DFS/hierarchical UB upper bounds rigorously, and (iii) pivot to constructing families that can simultaneously have large UB and small BST cost under a more sophisticated algorithmic analysis (or show incompatible constraints).

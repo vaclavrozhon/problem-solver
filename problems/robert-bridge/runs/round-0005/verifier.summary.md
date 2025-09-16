@@ -1,0 +1,1 @@
+We validated the ND part of the conjecture via the cylinder criterion (root-free). We added rigorous tools: a Δ=D completion lemma and a proof that, for D≥3, the set of rootings with a bridge within distance ≤k is nowhere dense; hence “has a 2‑way infinite bridge” is meagre (not ND) and root‑invariant. We flagged quotient‑openness errors and that Theorem 4 is false as stated.

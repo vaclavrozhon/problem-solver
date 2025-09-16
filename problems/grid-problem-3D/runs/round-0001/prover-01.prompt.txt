@@ -7,7 +7,7 @@ Inputs:
 - task statement 
 - notes.md (informal progress & exploratory work; optional) 
 - proofs.md (rigorously proven results & detailed proofs; optional) 
-- output.md (main results summary only; optional) 
+- output.md (main results, rigorously presented; optional) 
 - summary of past rounds (optional) 
 - possibly some reference papers.
 
@@ -16,7 +16,7 @@ What counts as progress:
 - Explore small examples & try to break your own claims with toy counterexamples.
 - Prove special cases or nontrivial bounds.
 - If an approach fails, explain crisply why.
-- Point out flaws in notes.md, proofs.md, or output.md (but do not rewrite these files yourself).
+- Point out flaws in notes.md, proofs.md, or output.md (but you are not rewriting these files yourself, that's verifier's job).
 
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
@@ -24,7 +24,6 @@ What counts as progress:
 - Do not output Markdown code fences, only raw JSON. 
 - Length: at least ~200 words. 
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
-- Remember: the verifier curates notes and outputs, you only suggest.
 
 **Output**: Write your analysis as Markdown that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
 
@@ -65,30 +64,7 @@ $$
 
 so there are $(3^3-1)/2=13$ types. Let $J(T)\subseteq\{x,y,z\}$ be the coordinates where $T$ is nonzero, and $E(T)=\{x,y,z\}\setminus J(T)$ the coordinates where it is zero.
 
-Define the **componentwise minimum** (the “lower corner”)
-
-$$
-\ell(u,v)=\bigl(\min\{x_1,x_2\},\,\min\{y_1,y_2\},\,\min\{z_1,z_2\}\bigr)\in[n]^3.
-$$
-
-Define the color map $c_3:E(G)\to\mathcal L$ by
-
-$$
-\boxed{\quad c_3(uv)\;=\;\bigl(T(e),\,\ell(u,v)\bigr). \quad}
-$$
-
-Equivalently (expanding $\ell$ along $J(T)$ and $E(T)$): for $i\in J(T)$ record $m_i:=\min\{u_i,v_i\}$, and for $i\in E(T)$ record $t_i:=u_i(=v_i)$; together these give the full vector $\ell(u,v)$.
-**This explicitly remembers the coordinates that are equal**, fixing the issue where colors could otherwise forget them.
-
-**Examples.**
-
-$$
-\begin{aligned}
-c_3(uv) &=\bigl([+,+,+],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ \min\{z_1,z_2\}\bigr),\\
-c_3(uv) &=\bigl([+,-,0],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ z_1\bigr)\quad\text{if }z_1=z_2,\\
-c_3(uv) &=\bigl([+,0,0],\ \min\{x_1,x_2\},\ y_1,\ z_1\bigr)\quad\text{if }y_1=y_2,\ z_1=z_2.
-\end{aligned}
-$$
+Define the color map $c_3:E(G)\to\mathcal L$ as follows. For $i\in J(T)$ (the two points $u,v$ disagree on the coordinate), record $m_i:=\min\{u_i,v_i\}$. For $i\in E(T)$, don't record anything. The list of length 3 that contains either the minimum coordinate, or "unspecified", together with the type of the point-pair, is the color of the edge. Check the $d=2$ solution to see how this works. 
 
 For $U\subseteq V(G)$, let $G[U]$ denote the induced subgraph. An edge $e\in E(G[U])$ has a **unique color in $U$** if no other edge of $G[U]$ has the same label $c_3(e)$.
 
@@ -97,7 +73,431 @@ For $U\subseteq V(G)$, let $G[U]$ denote the induced subgraph. An edge $e\in E(G
 Show that for every vertex set $U\subseteq [n]^3$ with $|U|\ge 2$, there exist $u_1,u_2\in U$ such that the edge $u_1u_2$ has a color that appears **exactly once** in $G[U]$ under the coloring $c_3$ above.
 
 
-You are given a file with a proof for $d=2$. 
+Next, you are given a file with a proof for the analogous question in $d=2$. 
+
+
+\documentclass[11pt]{article}
+\usepackage{amsmath,amsthm,amssymb,mathtools}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{claim}[theorem]{Claim}
+
+\newcommand{\NE}{\mathrm{NE}}
+\newcommand{\set}[1]{\left\{\,#1\,\right\}}
+
+\begin{document}
+
+\section*{Problem and main theorem}
+
+Fix $n\ge 1$ and write $[n]=\{1,2,\dots,n\}$. Consider the complete graph $G$ on
+$V(G)=[n]\times[n]$. For distinct vertices $v_1=(a_1,b_1)$ and $v_2=(a_2,b_2)$, the edge
+$e=v_1v_2$ is of type
+\begin{itemize}
+  \item \textbf{1:} $(a_1-a_2)(b_1-b_2)>0$,
+  \item \textbf{2:} $(a_1-a_2)(b_1-b_2)<0$,
+  \item \textbf{3:} $a_1=a_2$ (vertical),
+  \item \textbf{4:} $b_1=b_2$ (horizontal),
+\end{itemize}
+with color
+\[
+c(e)=
+\begin{cases}
+(1,\min\{a_1,a_2\},\min\{b_1,b_2\}) & \text{type 1},\\
+(2,\min\{a_1,a_2\},\min\{b_1,b_2\}) & \text{type 2},\\
+(3,\min\{b_1,b_2\}) & \text{type 3},\\
+(4,\min\{a_1,a_2\}) & \text{type 4}.
+\end{cases}
+\]
+For $U\subseteq V(G)$, write $G[U]$ for the induced subgraph. An edge $e\in E(G[U])$ has a
+\emph{unique color in $U$} if no other edge of $G[U]$ has the same label $c(e)$.
+
+\begin{theorem}\label{thm:unique}
+For every $U\subseteq [n]\times[n]$ with $|U|\ge 2$, the graph $G[U]$ contains an edge whose
+color under $c$ appears exactly once in $G[U]$.
+\end{theorem}
+
+From now on, fix $U$ and assume the following: 
+\[
+\textbf{(H)}\qquad \text{No color is unique in }G[U].
+\]
+
+\section*{Basic notation and counting}
+
+For $p=(x,y)\in U$, define its strict north--east set
+\[
+\NE(p):=\set{q=(x',y')\in U:\ x'>x\ \text{and}\ y'>y}.
+\]
+We write $p\prec q$ iff $q\in\NE(p)$ (both coordinates increase).
+
+\begin{fact}[Type~1 multiplicity]\label{fact:t1}
+For $(\alpha,\beta)\in[n]^2$,
+\[
+\#\{e\in E(G[U]): c(e)=(1,\alpha,\beta)\}
+= \mathbf 1_{(\alpha,\beta)\in U}\cdot |\NE(\alpha,\beta)|.
+\]
+In particular, $(1,\alpha,\beta)$ is unique in $U$ iff $(\alpha,\beta)\in U$ and $|\NE(\alpha,\beta)|=1$.
+\end{fact}
+
+\begin{fact}[Type~2 multiplicity]\label{fact:t2}
+For $(\alpha,\beta)\in[n]^2$ put
+\[
+r(\alpha,\beta)=\#\{(\alpha,y)\in U:\ y>\beta\},\qquad
+s(\alpha,\beta)=\#\{(x,\beta)\in U:\ x>\alpha\}.
+\]
+Then the number of edges colored $(2,\alpha,\beta)$ in $G[U]$ equals $r(\alpha,\beta)\,s(\alpha,\beta)$.
+Thus $(2,\alpha,\beta)$ is unique iff $r(\alpha,\beta)=s(\alpha,\beta)=1$.
+\end{fact}
+
+\section*{Lexicographic maximizer}
+
+\begin{definition}[Eligible and lexicographic maximizer]\label{def:lex}
+A point $p\in U$ is \emph{eligible} if $\NE(p)\neq\varnothing$.
+Order pairs by $(y,x)\le_{\mathrm{lex}}(y',x')$ iff $y<y'$ or $y=y'$ and $x\le x'$.
+A point $a\in U$ is a \emph{lexicographic maximizer among eligible points} if
+\[
+\NE(a)\neq\varnothing\quad\text{and}\quad (a_y,a_x)=\max\nolimits_{\le_{\mathrm{lex}}}
+ \set{(y,x): (x,y)\in U,\ \NE(x,y)\neq\varnothing}.
+\]
+\end{definition}
+
+\begin{lemma}[Lexicographic maximality $\Rightarrow$ no comparable pair]\label{lem:lexheight}
+If $a$ is as in Definition~\ref{def:lex}, then $\NE(q)=\varnothing$ for every $q\in \NE(a)$.
+Hence $\NE(a)$ is an antichain for $\prec$ (no strictly NE–comparable pair).
+\end{lemma}
+
+\begin{proof}
+If $q\in\NE(a)$ had $\NE(q)\neq\varnothing$, then $(q_y,q_x)>(a_y,a_x)$ lexicographically,
+contradicting maximality. If $r,s\in \NE(a)$ with $r\prec s$, then $\NE(r)\ni s\neq\varnothing$, again a contradiction.
+\end{proof}
+
+\section*{Levels in $\NE(a)$ and \emph{row/column–good}}
+
+For $S\subseteq\mathbb{Z}^2$ write $S[y]=\{(x,y)\in S\}$ and $S[x]=\{(x,y)\in S\}$.
+For a point $a$ with $\NE(a)\neq\varnothing$ define (when they exist)
+\[
+Y_{\min}(a):=\min\{\,y>a_y:\ \NE(a)[y]\neq\varnothing\,\},\qquad
+X_{\min}(a):=\min\{\,x>a_x:\ \NE(a)[x]\neq\varnothing\,\},
+\]
+(the \emph{bottommost row} and \emph{leftmost column} of $\NE(a)$).
+
+\begin{definition}[Row–good / Column–good]\label{def:row-good}
+Let $a$ be lex–maximal among eligible points.
+
+\smallskip\noindent
+\emph{Row–good:}
+There exists $\beta=Y_{\min}(a)$ such that $\#\,\NE(a)[\beta]\ge 2$, and if we list the $x$–coordinates of
+$\NE(a)[\beta]$ increasingly as $x_1<\cdots<x_t$ ($t\ge 2$) and set
+\[
+b_1=(x_{t-1},\beta)\quad\text{(second–rightmost)},\qquad
+b_2=(x_t,\beta)\quad\text{(rightmost)},
+\]
+then
+\[
+\text{(RG)}\qquad \forall q\in \NE(a)\setminus\{b_1,b_2\}:\quad x(q)<x(b_1)\ \ \text{and}\ \ y(q)\ge \beta.
+\]
+Equivalently: $b_1,b_2$ are the \emph{last two} points of $\NE(a)$—every other point lies strictly to the left of $b_1$ and on row $\beta$ or above.
+
+\smallskip\noindent
+\emph{Column–good:} the vertical analogue with $\alpha=X_{\min}(a)$, $d_1,d_2$ the \emph{second–topmost} and \emph{topmost} points in $\NE(a)[\alpha]$, and
+\[
+\text{(CG)}\qquad \forall q\in \NE(a)\setminus\{d_1,d_2\}:\quad y(q)<y(d_1)\ \ \text{and}\ \ x(q)\ge \alpha.
+\]
+\end{definition}
+
+\section*{Dichotomy}
+
+\begin{definition}[Corner in $\NE(a)$]\label{def:corner}
+Let $a$ be lex–maximal among eligible points. We say $\NE(a)$ contains a \emph{corner} if there exist
+\[
+(\alpha,\beta),\quad (\alpha',\beta),\quad (\alpha',\beta')\in \NE(a)
+\]
+with
+\[
+a_x<\alpha<\alpha',\qquad a_y<\beta'<\beta.
+\]
+\end{definition}
+
+\medskip
+
+\noindent\textbf{Additional notation.}
+For $q=(x(q),y(q))$ we continue to write $x(q),y(q)$ for its coordinates.
+
+\subsection*{Partially good pairs (formalizing the sketch)}
+
+\begin{definition}[Partially row–good / column–good]\label{def:partial}
+Let $a$ be lex–maximal among eligible points.
+
+\smallskip\noindent
+Two points $b_1,b_2\in\NE(a)$ on the same row $y=\beta$ with $x(b_1)<x(b_2)$ are \emph{partially row–good}
+if
+\begin{align*}
+\text{(PR1)}\ &\text{$b_1,b_2$ are the last two points of $\NE(a)$ on row $\beta$;}\\
+\text{(PR2)}\ &\forall q\in\NE(a)\setminus\{b_1,b_2\}:\ y(q)\ge\beta \ \Rightarrow\ x(q)<x(b_1).
+\end{align*}
+Equivalently, this is exactly (RG) with the sole relaxation that points with $y<\beta$ may exist anywhere.
+
+\smallskip\noindent
+Two points $d_1,d_2\in\NE(a)$ on the same column $x=\alpha$ with $y(d_1)<y(d_2)$ are \emph{partially column–good}
+if
+\begin{align*}
+\text{(PC1)}\ &\text{$d_1,d_2$ are the topmost two points of $\NE(a)$ on column $\alpha$;}\\
+\text{(PC2)}\ &\forall q\in\NE(a)\setminus\{d_1,d_2\}:\ x(q)\ge\alpha \ \Rightarrow\ y(q)<y(d_1).
+\end{align*}
+Equivalently, this is (CG) with the sole relaxation that points with $x<\alpha$ may exist anywhere.
+\end{definition}
+
+\begin{remark}[On the intended meaning in the sketch]\label{rem:meaning}
+The phrasing ``no points are above $b_1$ and above $b_2$'' in the sketch is formalized by (PR2):
+above the row $\beta$ there are no points of $\NE(a)$ at columns $\ge x(b_1)$. This was the property actually used
+to force $r(\alpha,\beta)=1$ in the type–2 counting (Fact~\ref{fact:t2}).
+\end{remark}
+
+\subsection*{Propagation sublemma (rigorous version of the sketch)}
+
+\begin{lemma}[Propagation for partially row–good pairs]\label{lem:prop-row}
+Assume \emph{(H)} and let $a$ be lex–maximal among eligible points.
+Let $b_1,b_2\in\NE(a)$ be partially row–good on row $\beta$ with $x(b_1)<x(b_2)$.
+Then either
+\begin{enumerate}
+\item[\emph{(i)}] $\NE(a)[y]=\varnothing$ for every $y<\beta$ (hence $a$ is row–good), or
+\item[\emph{(ii)}] there exist $b_1',b_2'\in\NE(a)$ on some row $\beta'<\beta$ that are partially row–good.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+If $\NE(a)[y]=\varnothing$ for all $y<\beta$ we are in case (i) and done.
+Otherwise, let
+\[
+\beta':=\max\{\,y<\beta:\ \NE(a)[y]\neq\varnothing\,\}
+\]
+be the highest row strictly below $\beta$, and within that row choose
+\[
+c_1\in \NE(a)[\beta']\quad\text{with}\quad x(c_1)=\min\{\,x:\ (x,\beta')\in \NE(a)\,\}.
+\]
+By Lemma~\ref{lem:lexheight}, every point of $\NE(a)$ has empty NE–set. In particular,
+$c_1$ cannot lie strictly to the left of $b_2$ since then $b_2\in\NE(c_1)$; hence
+\begin{equation}\label{eq:c1rightofb2}
+x(c_1)\ge x(b_2).
+\end{equation}
+
+We split according to whether $c_1$ is directly below $b_2$ (same column) or strictly to its right.
+
+\smallskip
+\noindent\emph{Case A: $x(c_1)=x(b_2)$.}
+Consider the type–2 edge $b_1c_1$. Its color is $(2,\alpha,\gamma)$ with
+$\alpha=x(b_1)$ and $\gamma=\beta'$. By the choice of $\beta'$ there is no point of $U$ in
+column $x(b_1)$ with $y\in(\beta',\beta)$ (such a point would belong to $\NE(a)$ since $x(b_1)>a_x$).
+Moreover, by (PR2) there is no $q\in \NE(a)\setminus\{b_1,b_2\}$ with $y(q)\ge\beta$ and $x(q)\ge x(b_1)$;
+hence in column $x(b_1)$ there is no point of $U$ with $y>\beta$ (the only point at height $\ge \beta$ is $b_1$ itself at $y=\beta$).
+Consequently
+\[
+r(\alpha,\gamma)=\#\{(x(b_1),y)\in U:\ y>\beta'\}=1
+\]
+(the unique witness is $b_1$ at height $\beta$). Since \emph{(H)} forbids uniqueness of $(2,\alpha,\gamma)$,
+Fact~\ref{fact:t2} implies $s(\alpha,\gamma)\ge 2$. One of these $s$ witnesses is $c_1$ itself, and because $c_1$
+was chosen leftmost on $\beta'$, the second one must have strictly larger $x$; call it $c_2$ (so $x(c_2)>x(c_1)$).
+
+Now consider $b_2c_2$. Its color is $(2,\alpha',\gamma)$ with $\alpha'=x(b_2)$ and the same $\gamma=\beta'$.
+By the definition of $\beta'$ there is no point of $U$ in column $x(b_2)$ with $y\in(\beta',\beta)$, and since $x(b_2)\ge x(b_1)$,
+(PR2) rules out any $q\in \NE(a)\setminus\{b_1,b_2\}$ with $y(q)\ge\beta$ and $x(q)\ge x(b_2)$; thus there is no point of $U$
+in that column with $y>\beta$. Therefore
+$r(\alpha',\gamma)=1$ (the only point above height $\beta'$ in that column is $b_2$), so $s(\alpha',\gamma)\ge 2$.
+Because $c_2$ is one $\beta'$–witness with $x>\alpha'$, there exists $c_3\in \NE(a)[\beta']$ with $x(c_3)>x(c_2)$.
+
+Let $b_2'$ be the rightmost point of $\NE(a)[\beta']$ and $b_1'$ the second–rightmost point of $\NE(a)[\beta']$.
+By construction $(\text{PR1})$ holds for $b_1',b_2'$.
+For $(\text{PR2})$: there are no points of $\NE(a)$ on rows $y\in(\beta',\beta)$ by the choice of $\beta'$;
+and for rows $y\ge\beta$ there are no points with $x\ge x(b_1)\le x(b_1')$ by (PR2) for the original
+pair $b_1,b_2$. Hence every $q\in\NE(a)\setminus\{b_1',b_2'\}$ with $y(q)\ge\beta'$ satisfies $x(q)<x(b_1')$.
+Thus $b_1',b_2'$ are partially row–good, verifying case (ii).
+
+\smallskip
+\noindent\emph{Case B: $x(c_1)>x(b_2)$.}
+Consider $b_2c_1$, which has color $(2,\alpha',\gamma)$ with $\alpha'=x(b_2)$ and $\gamma=\beta'$.
+Exactly the same reasoning as in Case~A gives $r(\alpha',\gamma)=1$, hence $s(\alpha',\gamma)\ge 2$.
+One witness is $c_1$; since $c_1$ is leftmost on $\beta'$, the second witness $c_2$ must satisfy $x(c_2)>x(c_1)$.
+Define $b_2'$ as the rightmost point and $b_1'$ as the second–rightmost point of $\NE(a)[\beta']$.
+Then (PR1) holds by definition, and (PR2) follows verbatim as in Case~A. Hence $b_1',b_2'$ are partially row–good.
+\end{proof}
+
+\begin{remark}[Minor tidy–up matching the sketch]\label{rem:tidy-up}
+In the sketch, after producing $c_2,c_3$ it is stated that one can set $b_1'b_2'=c_2,c_3$.
+To ensure (PR1) literally (``last two''), one should in general relabel
+$b_1',b_2'$ as the \emph{second–rightmost} and \emph{rightmost} points of $\NE(a)[\beta']$.
+This harmless relabeling is the only additional step we make for full rigor.
+\end{remark}
+
+\begin{lemma}[Propagation for partially column–good pairs]\label{lem:prop-col}
+Assume \emph{(H)} and $a$ lex–maximal among eligible points.
+Let $d_1,d_2\in\NE(a)$ be partially column–good on column $\alpha$ with $y(d_1)<y(d_2)$.
+Then either
+\begin{enumerate}
+\item[\emph{(i)}] $\NE(a)[x]=\varnothing$ for every $x<\alpha$ (hence $a$ is column–good), or
+\item[\emph{(ii)}] there exist $d_1',d_2'\in\NE(a)$ on some column $\alpha'<\alpha$ that are partially column–good.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By symmetry of $x\leftrightarrow y$ and $(\text{PR1}),(\text{PR2})\leftrightarrow(\text{PC1}),(\text{PC2})$,
+the proof is identical to Lemma~\ref{lem:prop-row}, with Fact~\ref{fact:t2} used in the transposed roles.
+\end{proof}
+
+\subsection*{Existence of a starting partially good pair and the dichotomy}
+
+\begin{lemma}[Dichotomy: each lex–maximal $a$ is row–good or column–good]\label{lem:dichotomy-strong}
+Assume \emph{(H)} and let $a$ be lexicographically maximal among eligible points.
+Then $a$ is row–good or column–good.
+\end{lemma}
+
+\begin{proof}
+We first note that $\#\NE(a)\ge 2$ under (H): if $\#\NE(a)=1$, then by Fact~\ref{fact:t1}
+the color $(1,a_x,a_y)$ appears exactly once (on the unique type–1 edge from $a$), contradicting (H).
+
+Let $p\in\NE(a)$ be a point of maximal $y$ (i.e.\ on the topmost row of $\NE(a)$).
+If $\NE(a)[y(p)]$ contains at least two points, let $b_2$ be the rightmost
+and $b_1$ the second–rightmost point of that row. Then $b_1,b_2$ are partially row–good:
+(PR1) holds by choice; for (PR2), there is no point of $\NE(a)$ with $y>\,y(p)$ and
+every other point on $y(p)$ lies to the left of $b_1$.
+Applying Lemma~\ref{lem:prop-row} iteratively, either we immediately conclude that no lower row exists
+and $a$ is row–good, or we propagate downward until we arrive at the bottommost row,
+at which point the pair is row–good by definition. This iteration terminates because the row index
+decreases strictly at each step and there are finitely many rows. This settles the case $\#\NE(a)[y(p)]\ge 2$.
+
+It remains to treat the case where $p$ is the unique point on its row.
+Let $\beta'$ be the next highest level below $y(p)$ with $\NE(a)[\beta']\neq\varnothing$.
+We claim that every point on row $\beta'$ lies on or to the right of $p$ (i.e.\ has $x\ge x(p)$):
+indeed, if $q\in\NE(a)[\beta']$ had $x(q)<x(p)$, then $p\in\NE(q)$, which contradicts
+Lemma~\ref{lem:lexheight}. There are two subcases.
+
+\smallskip
+\noindent\emph{Subcase 1: there is $q_1\in\NE(a)[\beta']$ with $x(q_1)=x(p)$ (``directly below'' $p$).}
+If $\NE(a)[\beta']=\{q_1\}$, then the pair $d_1=q_1$, $d_2=p$ is partially column–good:
+(PC1) holds because these are the topmost two points in column $x(p)$;
+(PC2) holds because there is no row strictly between $\beta'$ and $y(p)$,
+there is no point on row $\beta'$ with $x\ge x(p)$ other than $q_1$ itself,
+and $p$ is alone on row $y(p)$. Applying Lemma~\ref{lem:prop-col} iteratively,
+either we immediately conclude that no more left columns exist and $a$ is column–good,
+or we propagate left until reaching the leftmost column, at which point the pair is column–good.
+This iteration terminates because the column index decreases strictly at each step and there are finitely many columns.
+
+If instead $\NE(a)[\beta']$ contains another point $q_2$ to the right of $q_1$,
+then (H) plus Fact~\ref{fact:t2} applied to the type–2 edge $pq_2$ forces the existence of
+$q_3\in\NE(a)[\beta']$ with $x(q_3)>x(q_2)$ (formally, $r(x(p),\beta')=1$ and so $s(x(p),\beta')\ge 2$;
+choosing $q_2$ leftmost to the right of $x(p)$ guarantees $x(q_3)>x(q_2)$).
+Relabel the rightmost two points on row $\beta'$ as $b_1,b_2$; then $b_1,b_2$ are partially row–good
+and we conclude by Lemma~\ref{lem:prop-row} as in the first paragraph (again the iteration terminates as above).
+
+\smallskip
+\noindent\emph{Subcase 2: there is no point directly below $p$ on $\beta'$.}
+Pick any $q_1\in\NE(a)[\beta']$; we know $x(q_1)>x(p)$. Then the type–2 edge $pq_1$ has color $(2,x(p),\beta')$
+with $r(x(p),\beta')=1$ (the only point above height $\beta'$ in column $x(p)$ is $p$),
+so (H) and Fact~\ref{fact:t2} yield another $q_2\in\NE(a)[\beta']$ with $x(q_2)>x(q_1)$
+(again choose $q_1$ leftmost on $\beta'$ to force $x(q_2)>x(q_1)$).
+Relabel the rightmost two points on $\beta'$ as $b_1,b_2$, which are partially row–good,
+and finish via Lemma~\ref{lem:prop-row}$\,$— the iteration terminates for the same reason as above.
+
+\smallskip
+In all cases, we obtain that $a$ is row–good or column–good.
+\end{proof}
+
+\begin{remark}[Explicitly pointing out the sketch’s gaps]\label{rem:gaps}
+\leavevmode
+\begin{itemize}
+\item In the sublemma part of the sketch, after producing $c_2,c_3$ it is said to set $b_1'b_2'=c_2,c_3$.
+To certify the ``last two'' requirement, one must relabel $b_1',b_2'$ as the \emph{rightmost two} points
+on the row $\beta'$ (Remark~\ref{rem:tidy-up}). This does not change the argument’s structure.
+\item In the ``starting pair'' part, the phrase ``there is $q_1$ to the right of $p$'' should be
+understood as: $q_1$ lies on the \emph{next highest} row $\beta'$ below $y(p)$ and satisfies $x(q_1)>x(p)$.
+With this reading, the verification of the partial row–good property is immediate from the choice of $\beta'$.
+\end{itemize}
+\end{remark}
+
+\bigskip
+
+\section*{Final proof of Theorem~\ref{thm:unique} (as provided, with small auxiliary lemmas)}
+
+\paragraph{Convention.}
+In this section, when we say ``lex–maximal point'', we mean \emph{lex–maximal among eligible points} with respect to the order $(y,x)$.
+
+\begin{lemma}[Lex–max eligible exists inside a cone]\label{lem:cone-max-exists}
+Let $p\in U$, and let $\overline{\NE}(p)=\{\,q\in U:\ x(q)\ge x(p),\ y(q)\ge y(p)\,\}$.
+If $\overline{\NE}(p)$ contains an eligible point, then it contains a lex–maximal eligible point (with respect to $(y,x)$).
+\end{lemma}
+
+\begin{proof}
+$\overline{\NE}(p)$ is finite; the set of eligible points inside it is finite and nonempty. A lexicographic maximum exists.
+\end{proof}
+
+\begin{lemma}[Local antichain from cone–maximality]\label{lem:local-anti}
+Fix $p\in U$ and let $c$ be lex–maximal among eligible points in $\overline{\NE}(p)$.
+Then $\NE(q)=\varnothing$ for every $q\in \NE(c)$ (equivalently, $\NE(c)$ is an antichain).
+\end{lemma}
+
+\begin{proof}
+If $q\in \NE(c)$ had $\NE(q)\neq\varnothing$, then $q$ would be eligible and $(y(q),x(q))>(y(c),x(c))$.
+Also $q\in\overline{\NE}(p)$ since $q\ge c\ge p$ coordinatewise. This contradicts the lex–maximality of $c$ among eligible points in $\overline{\NE}(p)$.
+\end{proof}
+
+\begin{corollary}[Local dichotomy]\label{cor:local-dichotomy}
+Assume \emph{(H)}. If $c\in U$ satisfies $\NE(c)\neq\varnothing$ and $\NE(q)=\varnothing$ for all $q\in\NE(c)$, then $c$ is row–good or column–good (with $a$ replaced by $c$ in Definition~\ref{def:row-good}).
+\end{corollary}
+
+\begin{proof}
+The proof of Lemma~\ref{lem:dichotomy-strong} uses only (i) $\NE(c)\neq\varnothing$, (ii) $\NE(c)$ is an antichain, and (iii) \emph{(H)}. Under these assumptions the same argument applies verbatim.
+\end{proof}
+
+\begin{lemma}[No eligible point $\Rightarrow$ a unique color]\label{lem:no-eligible}
+If $\NE(p)=\varnothing$ for every $p\in U$, then $G[U]$ contains an edge whose color is unique.
+\end{lemma}
+
+\begin{proof}
+If some row contains at least two points, let $\beta$ be the minimum $y$ with $\#U[\beta]\ge 2$, and let $b_1,b_2\in U[\beta]$ be the second–rightmost and rightmost points. We claim $(4,x(b_1))$ is unique. Indeed, if there were another horizontal edge with color $(4,x(b_1))$ on some row $\beta'>\beta$, there would be points $(x(b_1),\beta')$ and $(x',\beta')$ with $x'>x(b_1)$, which makes $(x',\beta')\in \NE\big(x(b_1),\beta\big)$, contradicting that all $\NE(\cdot)$ are empty.
+
+Otherwise, every row contains at most one point. If some column contains at least two points, let $\alpha$ be the minimum $x$ with $\#U[\alpha]\ge 2$, and let $d_1,d_2\in U[\alpha]$ be the second–topmost and topmost points ($y(d_1)<y(d_2)$). We claim $(3,y(d_1))$ is unique. If another vertical edge of color $(3,y(d_1))$ existed on some column $\alpha'\ne \alpha$, then necessarily $\alpha'>\alpha$ (by minimality of $\alpha$) and there would be points $(\alpha',y(d_1))$ and $(\alpha',y')$ with $y'>y(d_1)$. Then $(\alpha',y')\in \NE\big(\alpha,y(d_1)\big)$, again a contradiction.
+
+Finally, if every row and every column contains at most one point, then pick any two distinct points $p=(x_1,y_1)$ and $q=(x_2,y_2)$. Since there are no eligible points, after relabeling we must have $x_1>x_2$ and $y_1<y_2$. The type–2 edge $pq$ has color $(2,\alpha,\beta)=(2,x_2,y_1)$. Because rows and columns are unique, $r(\alpha,\beta)=1$ (the unique point above $\beta$ in column $\alpha$ is $q$) and $s(\alpha,\beta)=1$ (the unique point to the right of $\alpha$ on row $\beta$ is $p$), so the color is unique by Fact~\ref{fact:t2}.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:unique}]
+Assume \emph{(H)} for a contradiction. If $U$ contains no eligible point, Lemma~\ref{lem:no-eligible} yields a unique color, contradicting \emph{(H)}. Hence there exists an eligible point.
+
+Pick a lexicographic maximizer $a$ among eligible points (Definition~\ref{def:lex}). By Lemma~\ref{lem:dichotomy-strong}, $a$ is row–good or column–good. By symmetry we may assume $a$ is row–good, with witnesses $(b_1,b_2)$ on the row $\beta=Y_{\min}(a)$, $x(b_1)<x(b_2)$, satisfying (RG).
+
+\smallskip
+\noindent\emph{Claim (auxiliary step).} There exists $a'\in U$, $a'\ne a$, that is row–good with $x(a')>x(a)$ and $y(a')\le y(a)$.
+
+\smallskip
+\noindent\emph{Proof of the claim.}
+Because the horizontal color $c(b_1b_2)=(4,x(b_1))$ is not unique by \emph{(H)}, there exist points $c_1=(x(b_1),\gamma)$ and $c_2=(x',\gamma)$ with $x'>x(b_1)$ on some row $\gamma$; among all such rows choose $\gamma$ maximal and fix $c_1$ on that row. Since $x(c_1)=x(b_1)>a_x$ and $a$ is row–good, we have $c_1\notin \NE(a)$; thus $y(c_1)\le y(a)$. Also $b_2\in \NE(c_1)$ (because $x(b_2)>x(c_1)$ and $y(b_2)=\beta>y(c_1)$).
+
+By Lemma~\ref{lem:cone-max-exists}, inside the weak cone $\overline{\NE}(c_1)=\{x\ge x(c_1),\,y\ge y(c_1)\}$ there exists a lex–maximal \emph{eligible} point~$c$. Note that $c\ne b_2$ because $\NE(b_2)=\varnothing$ (Lemma~\ref{lem:lexheight}). We also have $x(c)\ge x(c_1)=x(b_1)>x(a)$ and $y(c)\ge y(c_1)\le y(a)$, so $c$ lies strictly to the right of $a$ and not above it.
+
+By Lemma~\ref{lem:local-anti}, $\NE(q)=\varnothing$ for every $q\in \NE(c)$, hence by Corollary~\ref{cor:local-dichotomy} the point $c$ is row–good or column–good. If $c$ is row–good, set $a':=c$ and the claim is proved. Otherwise, $c$ is column–good. Let $\alpha=X_{\min}(c)$ and let $d_1,d_2\in \NE(c)[\alpha]$ with $y(d_1)<y(d_2)$. (It may happen that $d_2=b_2$; in any case $d_1\notin \NE(a)$ because $a$ is row–good.)
+
+Consider the type–2 edge $b_1d_1$, whose color is $(2,x(b_1),y(d_1))$. As in the argument in the main text (see the proof of Lemma~\ref{lem:prop-row}, Case~A), using the choice of $\gamma$, (RG), and Fact~\ref{fact:t2} we obtain $r\big(x(b_1),y(d_1)\big)=1$, hence $s\big(x(b_1),y(d_1)\big)\ge 2$. One witness is $d_1$; choosing it leftmost on its row forces another witness strictly to its right. Pushing this once more with $b_2$ in place of $b_1$ yields a third point on that row strictly further right, which contradicts the column–goodness (CG) of $c$ after relabeling the two rightmost points on that row. Therefore $c$ cannot be column–good, and $c$ must be row–good. Setting $a':=c$ proves the claim.
+
+\smallskip
+Starting from $a$, repeatedly apply the claim to obtain a strictly increasing sequence of $x$–coordinates for row–good points that are never above the previous one. Since $x\in[n]$, this process cannot continue indefinitely; thus we obtain a contradiction to \emph{(H)}. This completes the proof.
+\end{proof}
+
+\begin{remark}[Notes on earlier concerns]
+(1) Applying dichotomy to $c$ is justified by Lemmas~\ref{lem:local-anti} and Corollary~\ref{cor:local-dichotomy}: we only need antichain structure within $\NE(c)$, which holds for a cone–lex–max eligible $c$. 
+(2) The possibility $c=b_2$ is excluded since $b_2$ is not eligible. 
+(3) The case with no eligible points is handled by Lemma~\ref{lem:no-eligible}. 
+(4) The termination of the iteration is now stated explicitly.
+\end{remark}
+
+\end{document}
+
+
+
+
 
 
 

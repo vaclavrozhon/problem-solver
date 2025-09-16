@@ -1,0 +1,285 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+# Permutation UB-vs-OPT Separation Problem
+
+**Universe.** Keys are $[n]=\{1,2,\dots,n\}$ with the usual order.
+An **instance** is a permutation $\pi=(x_1,\dots,x_n)$ of $[n]$.
+
+## 1) Unified-bound cost on a permutation
+
+For each time $i\in\{1,\dots,n\}$:
+
+* Let $R_i(1),R_i(2),\dots,R_i(i-1)$ be the previously accessed keys ordered by **recency** (so $R_i(1)=x_{i-1}$, $R_i(2)=x_{i-2}$, …).
+* Define the **rank distance** $\Delta_i(j) := |\,x_i - R_i(j)\,|$.
+* The **per-access unified charge** is
+
+  $$
+  \mathrm{UB}_i(\pi)\;:=\;\log\!\Big(1+\min_{1\le j\le i-1}\big(j+\Delta_i(j)\big)\Big),
+  $$
+
+  with the convention $\mathrm{UB}_1(\pi):=\log(1+n)$.
+
+The **total unified-bound cost** is
+
+$$
+\mathrm{UB}(\pi):=\sum_{i=1}^n \mathrm{UB}_i(\pi).
+$$
+
+*(Remarks: logs are base 2; constants are irrelevant for asymptotics. Because $\pi$ is a permutation, “working-set number” equals the recency rank $j$, so this is the standard unified bound specialized to permutations.)*
+
+## 2) Optimal dynamic BST cost on a permutation
+
+We use the standard **dynamic BST model**:
+
+* The algorithm maintains a binary search tree $T$ over $[n]$.
+* To access $x_i$, it traverses parent/child pointers from the root to $x_i$; pointer moves and comparisons along the search path each cost 1.
+* After (or during) the access, it may perform any number of **rotations**, each costing 1.
+* The initial tree is a fixed balanced BST on $[n]$. (Allowing an arbitrary offline choice changes costs by at most an additive $O(n)$ and doesn’t affect asymptotics for this problem.)
+
+For a permutation $\pi$, the **cost of an algorithm $\mathcal A$** is the sum of search-path lengths plus rotations over the $n$ accesses. The **optimal BST cost** is
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi):=\min_{\mathcal A}\;\text{cost}_{\mathcal A}(\pi).
+$$
+
+## 3) The separation task
+
+Find an infinite family of permutations $\{\pi_n\}_{n=1}^\infty$, $\pi_n\in S_n$, such that
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi_n)\;=\;o\!\big(\mathrm{UB}(\pi_n)\big)
+\quad\text{as }n\to\infty.
+$$
+
+A **strong separation** would meet, for some constants $c,C>0$,
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi_n)\;\le\; C n
+\qquad\text{and}\qquad
+\mathrm{UB}(\pi_n)\;\ge\; c\,n\log n,
+$$
+
+i.e., $ \mathrm{OPT}_{\mathrm{BST}}(\pi_n) / \mathrm{UB}(\pi_n) = O(1/\log n)$.
+
+*(Equivalently, in per-access terms: find $\pi_n$ with average BST cost $o(1)\cdot$UB’s average, e.g. $O(1)$ vs $\Omega(\log n)$.)*
+
+
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+# Corrections and guidance
+
+- Bit-reversal UB lower bound (Prover 1): The argument via t = ν2(i−1) shows UB_i ≥ log(min{2^t, 2^{h−t−1}}) = min{t, h−t−1} − O(1). With Pr[t=k]=2^{−(k+1)}, we have E[min{t,h−t−1}] = ∑_{k=0}^{h−1} 2^{−(k+1)} min{k, h−k−1} = O(1). Therefore this line of reasoning yields only UB(π) = Ω(n), not Ω(n log n). The step claiming Θ(h) per step is incorrect.
+
+- DFS UB = Θ(n) (Prover 1): The sketch using UB_i ≤ log(2 + |x_i − x_{i−1}|) is plausible but needs a clean proof. Suggested route: charge log differences to subtree sizes along the DFS traversal and show ∑_v O(log size(v)) = O(n).
+
+- Round-robin block construction (Prover 2): The per-step lower bound min_j (j + |x_i − x_{i−j}|) ≥ ⌊b/2⌋ for all i beyond the first round is false. Counterexample pattern (general b): choose within-block σ_b with (c_2, c_3) = (1, b). For any block B_r at round t=3, let s be the adjacent block that comes after r in ρ_k. Then the last access to B_s was at round t=2 with key c_2=1, so Δ = b + c_2 − c_3 = 1. The corresponding j equals k + pos(r) − pos(s) − 1 ≤ k−1, hence j + Δ ≤ k. When k ≪ b, this is < b/2, contradicting the claimed bound. In fact, many t produce such small witnesses, so UB_i can be O(log k) frequently.
+
+- Fractal 2413 family (Prover 1): BST side is promising if we can cite or prove that Greedy runs in O(n) on permutations whose substitution decomposition uses only simple nodes of size ≤ 4. The UB lower bound must be scale-based: for many i, show that all candidates among the last L (for L ≈ the size of a relevant block scale) are far in key, so min_j (j+Δ) = Ω(L), giving UB_i = Ω(log L). The naive “first-arrival per block” charge yields only O(n) total and is insufficient.
+
+- Next steps:
+  1) Provide a rigorous DFS UB=O(n) proof or a citation.
+  2) Correct the bit-reversal UB claim; add numerical UB for n = 2^h up to h ≈ 14–16.
+  3) For F_h, (a) verify/cite Greedy’s O(n) bound for k-decomposable (k=4), (b) develop and prove a proper scale-based UB lower bound, and (c) compute UB empirically for h up to 8–10.
+  4) Abandon the round-robin block family for UB ≈ n log(n/k); its structure lets adjacent-block, previous-round witnesses keep UB_i = O(log k) too often.
+
+
+New candidate family and fix to UB lower bound
+
+- Adopt the recursively interleaved 2413-inflation family π_h on n=4^h keys with the midpoint-first constraint: at every interval J of size 4^t, the first key emitted by F_t(J) is the midpoint m(J); and at each node, the time order of children is 2,4,1,3.
+- UB lower bound strategy: charge only at child-boundary steps within each node’s restricted sequence (S2→S4, S4→S1, S1→S3). At the first key of a child, all previous accesses are outside that child; the midpoint ensures a rank-distance ≥ s_v/8 to any earlier key, where s_v is the parent interval size. Thus UB_i ≥ log(1 + s_v/8) at those steps.
+- Counting without double counting: each consecutive pair (x_{i−1}, x_i) has a unique lowest common ancestor v in the 4-ary decomposition tree; this pair coincides with exactly one such boundary at v. Hence the boundary times over all nodes are disjoint and total n−1.
+- Summing over nodes gives UB(π_h) ≥ Θ(n log n); the trivial UB ≤ n log n yields UB(π_h) = Θ(n log n).
+- BST side: choose a static reference BST that recursively splits {I1∪I2} vs {I3∪I4}. At each decomposition node, the restricted sequence is L,R,L,R, so exactly 3 alternations. Filling contiguous intervals into a full BST contributes O(1) alternations per filler node. Hence Wilber-1 = O(n). Tango yields an explicit algorithm with cost O(n log log n).
+- Correction: The earlier per-level event argument (choosing t in the first quarter of D and claiming t−j lies in B for j ≤ s) is false; those t−j remain in D. The boundary/LCA charging avoids this pitfall.
+- Next: formalize the LCA-based bijection and the filler-node alternation accounting; attempt to improve OPT to O(n) (Greedy or tailored BST).
+
+Update on the 2413-inflation family (n=4^h)
+
+- Wilber-1: Using a reference BST that, at each 4-ary node v with children A<B<C<D, splits (A∪B) vs (C∪D), then A vs B and C vs D, the alternations at v’s restricted sequence BDAC are: 3 at the top split (L,R,L,R) and 1 each at A-vs-B and C-vs-D. This is independent of sizes. A full 4-ary tree with n leaves has (n−1)/3 internal nodes, so W_1 = 5·(n−1)/3 = Θ(n). Tango yields cost O(n log log n).
+
+- Unified bound: The boundary-midpoint argument only yields UB_i ≥ log(1 + s_v/8) for three indices per node v (s_v = interval size). Summing gives ∑_ℓ 4^ℓ·Θ(1 + h−ℓ) = Θ(n), not Θ(n log n). The mistake in the earlier output was claiming ∑_ℓ 4^ℓ (h−ℓ) = Θ(n log n); it is Θ(n). Moreover, UB_i ≤ log(2 + |x_i − x_{i−1}|). For equal-size 4-way splits, a recurrence over the decomposition shows S(π):=∑ log(2+|diff|) ≤ ∑_v 3 log(2 + s_v) = Θ(n), hence UB(π_h) = O(n).
+
+- Conclusion: 2413-inflation does not realize large UB; it actually has UB = Θ(n). The small BST cost certificate (W_1 = Θ(n)) remains valid.
+
+- Next directions: (i) Seek a different family achieving UB = Ω(n log n) with W_1 = O(n). (ii) Alternatively, prove a limitation: in broad classes (e.g., constant-arity decomposable permutations with uniform shrink), W_1 = O(n) implies UB = O(n). (iii) For calibration, random permutations satisfy E[UB] = Ω(n log n) but also have W_1 = Θ(n log n) w.h.p., hence unsuitable for our goal.
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+Result: An explicit permutation family with UB = Θ(n log n) and OPT_BST ≤ O(n log log n)
+
+Setup
+- Let n = 4^h. Define a permutation π_h by recursively partitioning [1..n] into four equal contiguous key blocks I1<I2<I3<I4. The time order at each node is 2,4,1,3 (2413 inflation). Impose the midpoint-first constraint: for every interval J of size 4^t, the first key emitted by its subsequence is the midpoint m(J).
+
+Unified-bound lower bound
+- For an internal node v with interval size s_v, at the time i when the sequence first enters a child block within v (i.e., at boundaries S2→S4, S4→S1, S1→S3), the accessed key x_i is the midpoint of that child. No earlier access lies in that child, hence every earlier key y is outside it. The midpoint is at rank-distance ≥ s_v/8 from any such y. Therefore UB_i ≥ log(1 + s_v/8).
+- Each pair of consecutive accesses (x_{i−1}, x_i) has a unique lowest common ancestor v in the 4-ary decomposition tree; within v’s restricted sequence this pair occurs at one of the three child-boundaries. These boundary indices over all v are pairwise distinct and total n−1.
+- Summing UB_i over these n−1 indices yields ∑_v 3·log(1 + s_v/8). There are 4^ℓ nodes at level ℓ with s_v = 4^{h−ℓ}; thus the sum is Θ(∑_{ℓ=0}^{h−1} 4^ℓ (h−ℓ)) = Θ(n log n). Since trivially UB(π_h) ≤ n log(1+n), we conclude UB(π_h) = Θ(n log n).
+
+BST upper bound
+- Fix a static reference BST T_ref that, at each node of the decomposition, splits keys into L := I1∪I2 and R := I3∪I4 and recurses; fill contiguous subintervals arbitrarily to form a full BST. For any decomposition node, the restricted sequence visits L and R in the pattern L,R,L,R, so exactly 3 alternations occur at that partition. Filler nodes on contiguous intervals contribute at most one alternation each. Hence Wilber-1(T_ref, π_h) = O(n).
+- Tango trees achieve cost O(W_1 · log log n) against any fixed reference tree. Therefore there is an explicit BST algorithm with total cost O(n log log n) on π_h, implying OPT_BST(π_h) ≤ O(n log log n).
+
+Conclusion
+- The family {π_h} yields UB(π_h) = Θ(n log n) while OPT_BST(π_h) ≤ O(n log log n). Consequently OPT_BST(π_h) / UB(π_h) = O(log log n / log n) = o(1), providing the requested separation (not yet the strongest O(n) vs Ω(n log n)).
+
+
+=== Prover 1 Output ===
+
+# Ideas
+
+- Give a complete, verifiable account of the recursively interleaved 2413-inflation family π_h (n=4^h).
+- Prove rigorously that Wilber‑1 on a tailored static reference tree is Θ(n), so Tango achieves O(n log log n) total cost.
+- Correct the unified-bound analysis: the boundary/LCA charging yields only Θ(n) total; moreover, a general recurrence shows UB(π_h) = O(n). Thus the example does not realize large UB.
+- Provide a small concrete instance (n=16) to illustrate the alternation counts.
+- Suggest a general structural lemma: if a fixed decomposition has O(1) alternations per node, then UB = O(n).
+
+# Detailed definition of the 2413‑inflation family π_h (n = 4^h)
+
+- At the root, the key interval is [1..n]. Recursively, for any interval J of size 4^t, partition it into 4 equal contiguous subintervals A(J) < B(J) < C(J) < D(J), each of size 4^{t−1}.
+- Time order at each node is 2413: visit B(J), then D(J), then A(J), then C(J). Within each child interval recurse identically.
+- (Optional) Midpoint-first constraint: within any interval K, the first accessed key is the midpoint m(K). This is convenient for stating a clean boundary distance but not needed for the Wilber‑1 analysis nor for the UB upper bound proved below.
+
+Equivalently, the sequence is a hierarchical concatenation: at every 4‑ary node the restricted subsequence is the concatenation of its children’s subsequences in the fixed order B D A C.
+
+# Wilber‑1 analysis: W_1(T_ref, π_h) = Θ(n)
+
+Reference tree T_ref.
+For each 4‑ary node v with children A<B<C<D, insert the following three binary splits:
+- u_v: splits L := A∪B vs R := C∪D.
+- Left child of u_v: splits A vs B.
+- Right child of u_v: splits C vs D.
+Recurse inside A,B,C,D similarly. This produces a full BST on [n] with exactly 3 internal binary nodes per 4‑ary node. A full 4‑ary tree with n leaves has (n−1)/3 internal nodes, so T_ref has exactly n−1 internal nodes, as required.
+
+Wilber‑1 definition.
+For a node w in T_ref, alt(w) is the number of alternations between left and right sides when scanning the access sequence restricted to keys in w’s subtree. Then W_1(T_ref, π_h) = ∑_w alt(w).
+
+Lemma (constant alternations per 4‑ary node).
+Fix a 4‑ary node v; its restricted sequence is B | D | A | C, each a contiguous time block.
+- At u_v (L vs R), the sequence of sides is L, R, L, R; so alt(u_v) = 3.
+- At the A vs B split (left child of u_v), the restricted sequence is B then A; alt = 1.
+- At the C vs D split (right child), it is D then C; alt = 1.
+No further alternations arise at these nodes from deeper recursion, since each of B,D,A,C lies wholly on one side of each split.
+
+Therefore each 4‑ary node contributes 3+1+1 = 5 alternations. With (n−1)/3 4‑ary internal nodes,
+W_1(T_ref, π_h) = 5 · (n−1)/3 = Θ(n).
+
+Corollary (BST upper bound via Tango).
+Tango trees achieve O(W_1(T_ref) · log log n) = O(n log log n) total cost against a fixed reference tree. Thus OPT_BST(π_h) ≤ O(n log log n).
+
+# Unified-bound analysis: boundary charging yields Θ(n), and UB(π_h) = O(n)
+
+Per-boundary lower bound (correct but only Θ(n) total).
+At any 4‑ary node v with interval size s_v, consider the three child-boundary times in its restricted sequence (first time entering D after B, entering A after D, entering C after A). If midpoint-first is enforced, at each such boundary time i the accessed key is the midpoint of the new child. No earlier access is in that child, so any earlier key lies outside the child and is at rank distance ≥ s_v/8 from x_i. Hence
+UB_i(π_h) ≥ log(1 + s_v/8)
+for those three boundary indices per v.
+These indices across all 4‑ary nodes are disjoint and in bijection with the n−1 successive pairs (x_{i−1}, x_i), via the LCA in the 4‑ary decomposition. Summing over all v,
+∑_{i=1}^n UB_i(π_h) ≥ ∑_{v} 3 · log(1 + s_v/8).
+Let nodes at level ℓ have s_v = 4^{h−ℓ}, with 4^ℓ such nodes. Then
+∑_{v} log(1 + s_v/8) = ∑_{ℓ=0}^{h−1} 4^ℓ · Θ(1 + h−ℓ) = 4^h · ∑_{t=1}^{h} t/4^t = Θ(4^h) = Θ(n),
+using ∑_{t≥1} t x^t = x/(1−x)^2 with x=1/4, giving ∑_{t≥1} t/4^t = 4/9.
+Thus the boundary-only lower bound totals Θ(n).
+
+General O(n) upper bound on UB for hierarchical concatenations.
+Define S(π) := ∑_{i=2}^{n} log(2 + |x_i − x_{i−1}|). For any permutation, UB_i ≤ log(2 + |x_i − x_{i−1}|), hence UB(π) ≤ S(π).
+We prove S(π_h) = O(n) by a recurrence over the 4‑ary decomposition. For a node v with interval I_v (|I_v| = m) and children v_1,…,v_4 in time order B,D,A,C,
+S(π(v)) = ∑_{k=1}^{4} S(π(v_k)) + ∑_{p=1}^{3} log(2 + |last(v_p) − first(v_{p+1})|),
+where last(·), first(·) are the last and first keys of each child block in the time subsequence π(v). The two keys in each boundary term lie in adjacent child intervals of I_v, so their rank distance is at most m; thus each boundary contributes ≤ log(2 + m), and there are 3 of them. Therefore
+S(π(v)) ≤ ∑_{k=1}^{4} S(π(v_k)) + 3 · log(2 + m).
+At leaves (singletons), S = 0. Summing this inequality over all nodes and telescoping down to leaves yields
+S(π_h) ≤ ∑_{v internal} 3 · log(2 + |I_v|).
+To bound the last sum, bucket internal nodes by size classes 𝒞_k := { v : 2^k ≤ |I_v| < 2^{k+1} }. Intervals in each class are disjoint, so |𝒞_k| ≤ n/2^k. Hence
+∑_{v internal} log(2 + |I_v|) ≤ ∑_{k=0}^{⌊log_2 n⌋} |𝒞_k| · O(k+1) ≤ ∑_{k=0}^{⌊log_2 n⌋} (n/2^k) · O(k+1) = O(n).
+Thus S(π_h) = O(n), and therefore UB(π_h) ≤ S(π_h) = O(n).
+
+Conclusion (UB for π_h).
+UB(π_h) = Θ(n): the boundary charging gives a matching Ω(n) lower bound, and the general recurrence gives an O(n) upper bound.
+
+# Concrete small example (n = 16, h = 2)
+
+Top-level blocks of 4 keys: A=1..4, B=5..8, C=9..12, D=13..16. Time order BDAC. Within each block, apply BDAC on its four singletons. One valid π_2 is
+[6,8,5,7, 14,16,13,15, 2,4,1,3, 10,12,9,11].
+- At the top split (A∪B) vs (C∪D), the side pattern is L (B), R (D), L (A), R (C): 3 alternations.
+- At A vs B: the restricted sequence is B then A: 1 alternation. At C vs D: D then C: 1 alternation.
+- Deeper nodes behave identically inside each 4‑block. Summing gives W_1 = 5 · (n−1)/3 = 25 for n=16.
+- For UB, the three top-level boundaries contribute roughly log(1+16/8) ≈ log 3 each; boundaries inside the 4‑blocks contribute log(1+4/8) = O(1). Total UB is Θ(n) across all levels.
+
+# Structural takeaway and next steps
+
+- The Wilber‑1 analysis certifies small BST cost (up to log log n): W_1 = Θ(n), Tango cost O(n log log n).
+- The unified-bound for this family is only Θ(n), not Θ(n log n). The mistake in output.md was mis-summing ∑_{ℓ} 4^ℓ (h−ℓ); it equals Θ(n), not Θ(n log n).
+- Generalization: if a fixed decomposition tree has O(1) alternations per node (i.e., the sequence is a concatenation of O(1) runs of child-subsequences at each node), then the same recurrence shows UB = O(n). This suggests a tension: W_1 = O(n) via a fixed T_ref often entails UB = O(n), ruling out a strong separation within such hierarchical classes.
+
+Next steps.
+- Formalize the general “O(1) alternations per node ⇒ UB = O(n)” lemma for arbitrary fixed binary trees T_ref (not only 4‑ary expansions), to either (i) prove a limitation theorem, or (ii) guide the design of families that escape the hypothesis.
+- Explore families with UB = Ω(n log n) while maintaining W_1 = O(n), if possible, by allowing a bounded number of alternations per node that grows mildly with depth but sums to O(n) overall, and verifying whether the UB recurrence still forces O(n) or not.
+- Provide a clean UB = Θ(n) proof for DFS traversals as a baseline (same recurrence applies), and compute UB numerically for other candidates to calibrate constants.
+
+
+=== Prover 2 Output ===
+
+ERROR: prover-02 failed with: Connection error.
+
+This prover timed out or encountered an error. The verifier should note this failure and work with other available prover outputs.

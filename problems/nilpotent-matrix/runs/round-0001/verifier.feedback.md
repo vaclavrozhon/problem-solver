@@ -1,0 +1,13 @@
+Overall: Good structural groundwork (commutators, similarity flow, path-counting, low-degree trace identities), and n=2,3 are convincingly ruled out. However, a general contradiction for arbitrary n is not yet established. The key missing piece is an identity that couples the fixed linear constraint Σ i z_i = 0 with the rigid, z-independent “corner” behavior of powers (or with characteristic-polynomial coefficients) strongly enough to force a contradiction.
+
+Audit highlights and corrections
+- P1: Lemmas 1–6 are correct and useful. Cor. 6.1 actually holds without assuming nilpotency (it follows from [H,M]M^{n−2} identity and Lemma 5); it becomes informative only when combined with evaluated entries of M^{n−2}. The claimed linear weights for c_{n,3} (“w_1=w_2=w_{n−1}=w_n=n−2, interior n−1”) appear incorrect: for n=4, the sum of 3×3 principal minors has linear part 2z_1+z_2+z_3+2z_4, not all 2’s. See P2 remark below.
+- P2: Path counts for (M^{n−1})_{1n} and (M^n)_{1n} are correct. The M^2/M^3 trace formulas are correct (tr(M^3)=Σ z_i^3−3(z_1+2⋯+2+z_n)); using Σ z_i=0 gives tr(M^3)=Σ z_i^3+3(z_1+z_n). Your proposed formula for the sum of 3×3 principal minors S_3 is plausible and matches n=3 and n=4 checks: S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n). This needs a clean, general proof.
+- P3: The expansion tr(M^3)=Σ z_i^3−3(z_1+2⋯+2+z_n) is neatly derived; the endpoint formula (M^{n+1})_{1n}=(−1)^{n−1}(h_2−(n−1)) is correct. The conjectured (M^{n+2})_{1n} linear term proportional to φ(z)=z_1+2z_2+⋯+2z_{n−1}+z_n is consistent with combinatorics; please formalize it fully and determine the exact coefficient (expected −3).
+
+Triage and next steps
+- Prove S_3 exactly: sum all 3×3 principal minors and show S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3)Σ z_i + (z_1+z_n). Then, using nilpotency (e_3=S_3=0) and Σ z_i=0, get Σ_{i<j<k} z_i z_j z_k = −(z_1+z_n).
+- Compute (M^{n+2})_{1n} exactly via paths. Target: (−1)^{n−1}(h_3 − 3φ(z)), where φ(z)=z_1+2z_2+⋯+2z_{n−1}+z_n. Nilpotency forces this to vanish. Combine with tr(M^3)=0 (which gives Σ z_i^3=3φ(z)) and the e_3=0 relation to eliminate cubic terms and isolate a boundary linear form contradicting Σ i z_i=0.
+- As a sanity check, carry out the full elimination for n=4 using: Σ z_i=0, Σ z_i^2=2(n−1), tr(M^3)=0, S_3=0, and (M^{n+2})_{1n}=0. If inconsistent, abstract the mechanism for general n.
+
+Please avoid relying on sketchy c_{n,3} weights; instead provide a complete proof of S_3 and the k=n+2 endpoint identity. These two steps are the most promising route to close the problem.

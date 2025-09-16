@@ -1,0 +1,144 @@
+=== SYSTEM ===
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
+  "highlights": [],
+  "next_questions": []
+}
+
+=== USER ===
+=== Task (txt) ===
+
+
+Let M be a tridiagonal matrix with complex numbers z_1, z_2, ..., z_n on diagonal, all entries right below the main diagonal are 1 and all entries right above are -1, e.g.
+
+z_1 -1   0
+1    z_2 -1
+0   1       z_3
+
+Furthermore, the numbers on diagonal satisfy linear condition
+z_1 + 2 z_2 + 3z_3 + ... n z_n =0.
+
+Prove that there is no nilpotent matrix of this form.
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Setup. Let M be n×n tridiagonal with diagonal z_1,…,z_n, subdiagonal entries 1 and superdiagonal entries −1. Let D=diag(z_1,…,z_n), E be the subdiagonal shift, F the superdiagonal shift. Then M=D+E−F. Let H=diag(1,2,…,n). The condition is Σ_{i=1}^n i z_i = tr(HM) = 0. We work for n≥2 (n=1 yields the zero 1×1 matrix, which is nilpotent).
+
+Verified identities.
+- Commutators: [H,E]=E, [H,F]=−F, [H,D]=0, hence [H,M]=E+F. The similarity flow M(t)=e^{tH}Me^{−tH}=D+e^t E−e^{−t}F will be useful.
+- Diagonal of M^2: (M^2)_{ii}=z_i^2−2 for 2≤i≤n−1, and z_i^2−1 for i=1,n, so tr(M^2)=Σ z_i^2 − 2(n−1).
+- tr(M^3)=Σ z_i^3 − 3(z_1+2z_2+⋯+2 z_{n−1}+z_n). Using Σ z_i=0, this is Σ z_i^3 + 3(z_1+z_n).
+- Endpoint path counts: (M^{n−1})_{1n}=(−1)^{n−1} (unique all-up path). (M^{n})_{1n}=(−1)^{n−1} Σ z_i (exactly one stay). (M^{n+1})_{1n}=(−1)^{n−1}(h_2(z) − (n−1)) where h_2=Σ_{i≤j} z_i z_j (two stays or one down step).
+- Consequence for nilpotent M: tr(M^k)=0 for all k≥1, hence Σ z_i=0 and Σ z_i^2=2(n−1), and Σ z_i^3=3(z_1+2⋯+2+z_n). Also (M^{n+1})_{1n}=0 gives h_2 = n−1, consistent with Σ z_i^2=2(n−1) since h_2 = (Σ z_i^2 + (Σ z_i)^2)/2.
+
+Small n resolved. For n=2 and n=3, imposing Σ i z_i=0 together with nilpotency constraints leads to contradictions; hence no nilpotent matrix of the prescribed form exists for n≤3.
+
+3×3 principal minors (status). For n=4, a direct computation shows the sum of all 3×3 principal minors equals Σ_{i<j<k} z_i z_j z_k + (2 z_1 + z_2 + z_3 + 2 z_4). This matches the general ansatz S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n) (which reduces for n=4 to 2z_1+z_2+z_3+2z_4). We need a uniform proof for all n.
+
+Planned route to contradiction.
+1) Prove the general formula for S_3: S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n). Under nilpotency, e_3=S_3=0, thus with Σ z_i=0 we get Σ_{i<j<k} z_i z_j z_k = −(z_1+z_n).
+2) Compute (M^{n+2})_{1n} exactly by path counting. Expect: (−1)^{n−1}(h_3(z) − 3φ(z)), where φ(z)=z_1+2z_2+⋯+2 z_{n−1}+z_n. Nilpotency forces (M^{n+2})_{1n}=0, hence h_3=3φ.
+3) Eliminate the cubic quantities using identities relating h_3 and Σ_{i<j<k} z_i z_j z_k, together with Σ z_i=0 and Σ z_i^2=2(n−1), to isolate a nonzero linear boundary form that contradicts Σ i z_i=0.
+
+Action items for next round.
+- Prover 2: Supply a complete proof of the S_3 formula for all n.
+- Prover 3: Prove the exact formula for (M^{n+2})_{1n}, including the −3 coefficient on φ(z).
+- Prover 1: Cross-verify both identities, correct the earlier weight sketch for c_{n,3}, and attempt the elimination for n=4 to confirm inconsistency before generalizing.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Verifier Summary ===
+
+We verified key structural identities: [H,M]=E+F; explicit tr(M^2)=Σ z_i^2−2(n−1); tr(M^3)=Σ z_i^3−3(z_1+2⋯+2+z_n); and endpoint path counts (M^{n−1})_{1n}=(−1)^{n−1}, (M^n)_{1n}=(−1)^{n−1}Σ z_i, (M^{n+1})_{1n}=(−1)^{n−1}(h_2−(n−1)). These resolve n=2,3. The general case likely hinges on two pending pieces: (i) an exact formula for the sum of 3×3 principal minors S_3, plausibly Σ_{i<j<k} z_i z_j z_k+(n−3)Σ z_i+(z_1+z_n); and (ii) a full path formula for (M^{n+2})_{1n}, expected (−1)^{n−1}(h_3−3φ(z)) with φ(z)=z_1+2⋯+2+z_n. Proving these and combining with nilpotency constraints should produce a boundary linear contradiction with Σ i z_i=0.
+
+
+=== Current Notes ===
+
+# Research Notes
+
+
+
+Setup. Let M be n×n tridiagonal with diagonal z_1,…,z_n, subdiagonal entries 1 and superdiagonal entries −1. Let D=diag(z_1,…,z_n), E be the subdiagonal shift, F the superdiagonal shift. Then M=D+E−F. Let H=diag(1,2,…,n). The condition is Σ_{i=1}^n i z_i = tr(HM) = 0. We work for n≥2 (n=1 yields the zero 1×1 matrix, which is nilpotent).
+
+Verified identities.
+- Commutators: [H,E]=E, [H,F]=−F, [H,D]=0, hence [H,M]=E+F. The similarity flow M(t)=e^{tH}Me^{−tH}=D+e^t E−e^{−t}F will be useful.
+- Diagonal of M^2: (M^2)_{ii}=z_i^2−2 for 2≤i≤n−1, and z_i^2−1 for i=1,n, so tr(M^2)=Σ z_i^2 − 2(n−1).
+- tr(M^3)=Σ z_i^3 − 3(z_1+2z_2+⋯+2 z_{n−1}+z_n). Using Σ z_i=0, this is Σ z_i^3 + 3(z_1+z_n).
+- Endpoint path counts: (M^{n−1})_{1n}=(−1)^{n−1} (unique all-up path). (M^{n})_{1n}=(−1)^{n−1} Σ z_i (exactly one stay). (M^{n+1})_{1n}=(−1)^{n−1}(h_2(z) − (n−1)) where h_2=Σ_{i≤j} z_i z_j (two stays or one down step).
+- Consequence for nilpotent M: tr(M^k)=0 for all k≥1, hence Σ z_i=0 and Σ z_i^2=2(n−1), and Σ z_i^3=3(z_1+2⋯+2+z_n). Also (M^{n+1})_{1n}=0 gives h_2 = n−1, consistent with Σ z_i^2=2(n−1) since h_2 = (Σ z_i^2 + (Σ z_i)^2)/2.
+
+Small n resolved. For n=2 and n=3, imposing Σ i z_i=0 together with nilpotency constraints leads to contradictions; hence no nilpotent matrix of the prescribed form exists for n≤3.
+
+3×3 principal minors (status). For n=4, a direct computation shows the sum of all 3×3 principal minors equals Σ_{i<j<k} z_i z_j z_k + (2 z_1 + z_2 + z_3 + 2 z_4). This matches the general ansatz S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n) (which reduces for n=4 to 2z_1+z_2+z_3+2z_4). We need a uniform proof for all n.
+
+Planned route to contradiction.
+1) Prove the general formula for S_3: S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n). Under nilpotency, e_3=S_3=0, thus with Σ z_i=0 we get Σ_{i<j<k} z_i z_j z_k = −(z_1+z_n).
+2) Compute (M^{n+2})_{1n} exactly by path counting. Expect: (−1)^{n−1}(h_3(z) − 3φ(z)), where φ(z)=z_1+2z_2+⋯+2 z_{n−1}+z_n. Nilpotency forces (M^{n+2})_{1n}=0, hence h_3=3φ.
+3) Eliminate the cubic quantities using identities relating h_3 and Σ_{i<j<k} z_i z_j z_k, together with Σ z_i=0 and Σ z_i^2=2(n−1), to isolate a nonzero linear boundary form that contradicts Σ i z_i=0.
+
+Action items for next round.
+- Prover 2: Supply a complete proof of the S_3 formula for all n.
+- Prover 3: Prove the exact formula for (M^{n+2})_{1n}, including the −3 coefficient on φ(z).
+- Prover 1: Cross-verify both identities, correct the earlier weight sketch for c_{n,3}, and attempt the elimination for n=4 to confirm inconsistency before generalizing.
+
+
+=== Current Proofs ===
+
+# Rigorous Proofs
+
+
+
+Setup. Let n≥2. Let M be the n×n tridiagonal matrix with diagonal entries z_1,…,z_n∈ℂ, subdiagonal entries 1, and superdiagonal entries −1. Write M=D+E−F with D=diag(z_1,…,z_n), E the subdiagonal shift, and F the superdiagonal shift.
+
+Lemma 1 (trace of M^2). For 2≤i≤n−1, (M^2)_{ii}=z_i^2−2, and for i=1,n, (M^2)_{ii}=z_i^2−1. Consequently tr(M^2)=Σ_{i=1}^n z_i^2 − 2(n−1).
+Proof. (M^2)_{ii} = Σ_k M_{ik} M_{ki}. Only k∈{i−1,i,i+1} contribute. The k=i term gives z_i^2. The off-diagonal contributions are M_{i,i+1}M_{i+1,i}=(−1)·1=−1 and M_{i,i−1}M_{i−1,i}=1·(−1)=−1, with only one such term at the endpoints. Summing over i yields tr(M^2)=Σ z_i^2 −[2(n−2)+2]=Σ z_i^2 − 2(n−1).
+
+Lemma 2 (trace of M^3). We have tr(M^3)=Σ_{i=1}^n z_i^3 − 3(z_1+2z_2+⋯+2 z_{n−1}+z_n).
+Proof. Expand (D+E−F)^3=(D+K)^3 with K:=E−F, noting K has zero diagonal and K^T=−K. In the trace, terms with a single K factor vanish since DK and KD have zero diagonal; tr(K^3)=0 as K is skew-symmetric (tr(A^T)=tr(A) and K^T=−K imply tr(K^3)=−tr(K^3)). The surviving terms are tr(D^3)+3 tr(D K^2). The diagonal of K^2 equals (−1, −2,…, −2, −1), hence tr(D K^2)=−[z_1+2(z_2+⋯+z_{n−1})+z_n], giving the claim.
+
+Lemma 3 (endpoint entries). For all n≥2,
+(a) (M^{n−1})_{1n}=(−1)^{n−1} and (M^{n−1})_{n1}=1.
+(b) (M^{n})_{1n}=(−1)^{n−1} Σ_{i=1}^n z_i.
+(c) (M^{n+1})_{1n}=(−1)^{n−1}(h_2(z) − (n−1)), where h_2(z):=Σ_{1≤i≤j≤n} z_i z_j.
+Proof. Interpret (M^k)_{ij} as a weighted sum over length-k paths on {1,…,n} from i to j where a stay at r contributes z_r, an up-step (r→r+1) contributes −1, and a down-step (r→r−1) contributes +1. To go from 1 to n, the net up minus down equals n−1.
+(a) For k=n−1, there is a unique path: n−1 up-steps, weight (−1)^{n−1}. Reversing direction gives (M^{n−1})_{n1}=1.
+(b) For k=n, we must have exactly one stay and no down-steps; the stay can be at any vertex i, producing z_i with the same (−1)^{n−1} from the up-steps. Summing i gives the formula.
+(c) For k=n+1, either (i) two stays and no down-step, which yields the weight (−1)^{n−1}h_2(z), or (ii) one down-step and no stays, which can be inserted at any of the n−1 edges of the monotone path, contributing (n−1)(−1)^n. Summing gives (−1)^{n−1}(h_2−(n−1)).
+
+Corollary 4 (necessary conditions for nilpotency). If M is nilpotent, then tr(M)=0, tr(M^2)=0, tr(M^3)=0, and (M^{n+1})_{1n}=0. Equivalently,
+- Σ z_i=0,
+- Σ z_i^2=2(n−1),
+- Σ z_i^3=3(z_1+2z_2+⋯+2 z_{n−1}+z_n),
+- h_2(z)=n−1 (the last is redundant given Σ z_i=0 and Σ z_i^2=2(n−1), since h_2=(Σ z_i^2+(Σ z_i)^2)/2).
+
+Proposition 5 (no nilpotent for n=2,3 under Σ i z_i=0).
+(a) n=2. Nilpotency forces z_1+z_2=0 and z_1 z_2+1=0, so z_1=−z_2 and z_2^2=−1. The linear constraint z_1+2z_2=0 implies z_2=0, a contradiction.
+(b) n=3. Nilpotency forces Σ z_i=0, Σ z_i^2=4, and Σ z_i^3=3(z_1+2z_2+z_3). Together with z_1+2z_2+3z_3=0 (and Σ z_i=0 ⇒ 2z_1+z_2=0) one finds by elimination that these relations are inconsistent (e.g., solving 2z_1+z_2=0 and Σ z_i=0 gives z_3=z_1; substituting into the cubic and quadratic constraints yields incompatible values). Hence no nilpotent M of the prescribed form exists for n=3.
+
+These lemmas will be used as fixed constraints for the general case.
+
+
+=== Current Output ===
+
+# Main Results
+

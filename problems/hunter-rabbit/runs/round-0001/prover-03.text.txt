@@ -1,0 +1,53 @@
+Ideas
+- Recast the game as a deterministic “possible positions” evolution. For a fixed sequence of shots S1,…,Sn (Si⊆V, |Si|≤k), define P1:=V\S1 and, for i≥1,
+  Pi+1 := N(Pi) \ Si+1, where N(X):=⋃_{x∈X} N(x). A schedule is winning iff Pn=∅. Thus deciding h(G)≤k is equivalent to the existence of some length-n sequence of size-k shots driving this recurrence to ∅.
+- This yields a state graph on 2^V with transitions X → Y iff Y⊆N(X) and |N(X)\Y|≤k. We want ∃ path from V to ∅. Two immediate properties:
+  (i) Monotonicity: If X⊆X′ then Pi(X)⊆Pi(X′) for any fixed schedule S. In particular, the family Good_k of sets X from which the hunters can force ∅ is downward-closed.
+  (ii) End condition: If |N(X)|≤k then one more step can make the next state empty by taking S=N(X).
+
+Basic bounds (easy, rigorous)
+- Lower bound: h(G) ≥ ω(G) (clique number). Indeed, if k<ω(G), the rabbit can restrict to a K_{ω(G)} and move inside it (complete adjacency), always finding an unshot neighbor.
+- Upper bound: h(G) ≤ τ(G) (vertex cover number). Strategy: Fix a minimum vertex cover D, |D|=τ. Shoot S_i:=D for all i. Any walk enters D in at most one step (since V\D is independent), hence capture occurs by time 2.
+- Consequences: For K_n, h(K_n)=n−1 (both bounds give n−1). For C_m with m≥4, 2≤h(C_m)≤τ(C_m)=⌊m/2⌋, and in fact h(C_m)=2 (explicit schedules exist; see examples below). For paths P_n, h(P_n)=1.
+
+Exact classification for k=1
+Theorem. h(G)=1 iff G is a forest.
+
+Proof.
+(⇒) If G contains a cycle C, then no 1-hunter schedule wins. Let S1,…,Sn be any sequence of single vertices. Define P1=V\{S1}. We claim inductively that for each i, Pi∩V(C)=V(C)\{Si∩V(C)}. Indeed, if Pi contains all cycle vertices except possibly one, then every vertex of C has a neighbor in Pi (a cycle is 2-regular), hence V(C)⊆N(Pi) and so Pi+1∩V(C)=V(C)\{Si+1∩V(C)}. Thus Pi never empties. So h(G)>1.
+(⇐) Suppose G is a forest. We use the “double-hit support” rule: For any current state P (induced forest), and any vertex u adjacent to at least one leaf of the induced forest G[P], two consecutive shots at u transform P to P′:=P \ ( {u} ∪ Leaves_{G[P]}(u) ). This follows from the identity P′ = N( N(P)\{u} )\{u} and the fact that a vertex x∈P is removed iff all its neighbors in G[P] lie in {u}. Starting from P0=V, repeatedly pick any vertex u adjacent to a leaf of the current induced forest and shoot u twice; each such pair strictly decreases |P|. The forest becomes empty after finitely many iterations. Therefore h(G)=1. ∎
+
+Worked examples (small families)
+- P_n: h(P_n)=1 by the forest theorem. E.g., on P_5, shots 2,2,4,4 suffice (two pairs pruning neighbors of 2 then 4).
+- C_m (m≥4): h(C_m)=2. One explicit pattern for C_5: shoot {1,3},{1,3},{1,4},{1,4},{3,5} to drive P to ∅ (short variants exist). For C_4: {1,3},{1,3} already wins.
+- K_n: h(K_n)=n−1. With k=n−1, shoot the (n−1)-set D every round; the unique unshot vertex u cannot be used twice consecutively, so the rabbit enters D at step 2 and is captured. For k≤n−2, the rabbit alternates within the ≥2 unshot vertices.
+
+Algorithmic corollaries (provable now)
+- Recognizing h(G)=1 is linear-time: G is a forest iff acyclic; by the theorem.
+- Quick filters for general k:
+  • If ω(G)>k then h(G)>k (reject).
+  • If τ(G)≤k then h(G)≤k (accept). Both ω and τ are poly-time computable (τ via bipartite reduction is only for bipartite graphs; in general τ is NP-hard to compute exactly but has good approximations; nevertheless τ≤k is a sufficient, not necessary, certificate for h≤k).
+
+State-graph formulation (for experimentation and small n)
+- Exact decision h(G)≤k is equivalent to reachability from V to ∅ in the state graph whose vertices are subsets X⊆V and with edges X→Y whenever Y⊆N(X) and |N(X)\Y|≤k. Out-degree per state is Σ_{i=0}^k C(|N(X)|,i)=n^{O(k)}. This is immediately implementable and yields an exact solver for graphs up to moderate size, suitable for generating data and conjectures (e.g., all minimal obstructions for k=2 up to, say, 10 vertices).
+
+Why the general recognition is nontrivial
+- The state space is 2^n in the worst case; although the per-state branching is n^{O(k)}, a priori the number of reachable states may still be exponential. A generic n^{O(k)} bound thus requires a structural argument bounding (for winning instances) the length of any successful chain and/or the number of distinct reachable states by n^{O(k)}. We currently lack such a bound.
+- The view “layered temporal cut with per-layer budget k” (choose at most k vertices per time layer to hit all layer-respecting walks) suggests hardness: cut problems with partition matroid constraints are typically NP-hard. Our game is a very special such cut (the layer graph is repeatedly the same base graph), so a careful reduction might show NP-hardness already for k=2. This remains to be established.
+
+Obstacles
+- Bounding the number of relevant states for general graphs (beyond forests) under the transition Y⊆N(X), |N(X)\Y|≤k is the main barrier to a general n^{O(k)} algorithm.
+- Simple parameters (treewidth/pathwidth) do not immediately characterize h: e.g., pw(C_5)=2 but h(C_5)=2<τ(C_5)=3; K_3 has pw 2 but h=2; paths have pw 1 but h=1. We do have ω(G)≤h(G)≤τ(G), but τ can be much larger than h.
+
+Next steps (concrete, testable)
+1) k=2 classification for sparse families.
+   - Compute h on all graphs up to 10 vertices via the state-graph DP to enumerate minimal obstructions for h≤2. Expect K_3 as one obstruction; look for others (e.g., K_{2,3}? ladders? small grids?).
+2) Prove that 1-hunter fails on any graph containing a cycle (done) and extend to: if G contains an induced subgraph H with δ(H)≥2, then h(G)≥2 (trivial from the 1-hunter impossibility). Seek analogous necessary conditions for h≥3.
+3) FPT on bounded treewidth: Formulate a DP over a tree decomposition that carries as state the set of “possible positions” restricted to the bag and k-shot history to propagate the P-recursion. This should yield an algorithm deciding h(G)≤k in time f(k,tw)·n, and is a good intermediate milestone.
+4) Hardness for constant k≥2: Attempt a reduction from SAT/Vertex Separation/Temporal Cut to our reachability with per-layer budget on a fixed base graph, by encoding time layers via gadgets that reuse vertices. If successful, this would imply that, for some constant k, recognizing h(G)≤k is NP-hard, answering the original question in the negative.
+
+Summary of main rigorously proven contributions here
+- Exact characterization for k=1: h(G)=1 iff G is a forest, with a constructive schedule (double-shot supports) and a simple impossibility proof for cycles.
+- General bounds: ω(G) ≤ h(G) ≤ τ(G).
+- State-graph equivalence suitable for exact computation on small instances and for generating data for k=2.
+- Concrete plan to attack k=2 (both empirically and structurally) and to pursue either an n^{O(k)} algorithm (via structural bounds/DP over decompositions) or hardness (via tailored reductions).

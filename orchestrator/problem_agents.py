@@ -57,7 +57,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     
     # Add round-specific focus description if provided
     if focus_description:
-        system_prompt += "\n\n### Round Focus\n" + focus_description.strip() + "\n"
+        system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
     
     # Append all papers (description first, then text) at end of prompt
     papers_block = get_paper_text_with_descriptions(problem_dir)
@@ -173,7 +173,7 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
     
     # Add round-specific focus description if provided
     if focus_description:
-        system_prompt += "\n\n### Round Focus\n" + focus_description.strip() + "\n"
+        system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
     
     problem_context = read_problem_context(problem_dir, include_pdfs=False)
     

@@ -1,0 +1,52 @@
+Ideas
+- Formalize and prove a multi-core cohesive existence theorem (generalizing the single-core result) with the corrected marginal inequality and an explicit comment on non-uniqueness (ties).
+- Provide a linear-time structural-balance checker for directed SCCs (cycle-parity/label propagation) with correctness justification under our directed convention i→j iff W_ij≠0.
+- Give a constructive BR-path length bound when SCCs are gauged to unsigned (supermodular blocks), integrating with SCC composition.
+- Package these into an explicit polynomial-time pipeline that either constructs a PNE and a BR-path or returns an obstruction (dominant negative cycle).
+
+Multi-core cohesive existence (precise statement and proof)
+Theorem (Multi-core cohesive existence). Let V=R^1⊔⋯⊔R^m⊔S be a partition. For each block R^t, suppose there exists τ^(t)∈{±1}^{R^t} such that W^{[τ^(t)]}_{R^t,R^t}≥0 (i.e., G_{R^t}^{[τ^(t)]} is unsigned) and, for every i∈R^t,
+(1)  w_i^{R^t} + τ_i^(t) h_i ≥ w_i^{V\R^t}.
+Let τ_R be the concatenation of the τ^(t) on R. Assume that the S-restricted subgame with R frozen at τ_R admits a PNE (e.g., G_S is undirected or structurally balanced). Then the full game admits a PNE x* with x*_{R^t}=τ^(t) for all t.
+Proof. Define σ∈{±1}^V by σ_i=τ_i^(t) for i∈R^t, and σ_i=1 for i∈S. Consider the [σ]-transformed game (same best responses up to σ-mapping). For i∈R^t, the transformed marginal at action +1 versus −1 is
+Δ_i(x)=2(h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij} x_j + ∑_{j∉R^t} W^{[σ]}_{ij} x_j).
+Since W^{[σ]}_{R^t,R^t}≥0 and we target x_{R^t}=1, we bound adversarial influence from outside R^t by absolute sum:
+Δ_i(x) ≥ 2(h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij}·1 − |∑_{j∉R^t} W^{[σ]}_{ij} x_j|) ≥ 2(τ_i^(t) h_i + w_i^{R^t} − w_i^{V\R^t}).
+By (1), Δ_i(x)≥0 for all x, hence +1 is a (weak) best response for every i∈R^t whenever x_{R^t}=1. Let z* be a PNE of the S-restricted game with R frozen to τ_R (existence by hypothesis). Then in the transformed game, (1_R, z*) is a PNE: S-players are best-responding by construction; R-players have (weak) best responses at +1 by Δ_i≥0. Mapping back yields x*=[σ](1_R, z*) with x*_{R^t}=τ^(t), which is a PNE of the original game. Note ties may occur at equality in (1); uniqueness of +1 is not claimed nor needed. ∎
+
+Directed structural balance: linear-time test (for SCCs)
+Lemma (Cycle-parity ⇔ gauge to unsigned; O(|U|+|E_U|) test). For an SCC U, the following are equivalent: (i) ∃σ∈{±1}^U with [σ]W_{UU}[σ]≥0; (ii) every directed cycle in U has positive sign product. Proof: (i)⇒(ii) immediate by multiplying σ along cycles; (ii)⇒(i) define σ by σ_r=1 at a root r and propagate σ_j:=σ_i·sgn(W_{ij}) along any path; well-definedness follows from (ii). An O(|U|+|E_U|) BFS/DFS detects contradictions (negative directed cycles) as label conflicts and otherwise recovers σ.
+
+Monotone BR paths and length bounds in unsigned blocks
+Lemma (Unsigned block BR bound). In an unsigned game on U, starting from −1_U, sequentially flip any i with positive marginal δ_i(x)=u_i(+1,x_{−i})−u_i(−1,x_{−i}). Each flip strictly increases ∑_i u_i(x) (or the standard potential), hence within at most |U| flips we reach a PNE on U. Under SCC composition, after gauging each U_k to unsigned (when structurally balanced), concatenating per-SCC monotone paths (from sinks upward) yields a global BR-path of length ≤∑_k |U_k|.
+
+Forest with sign-symmetric digons (polished corollary)
+Corollary. If the undirected support is a forest and for every undirected edge {i,j} either: (a) exactly one arc exists; or (b) both arcs exist with sgn(W_{ij})=sgn(W_{ji}), then for any h, a PNE exists and a BR-path to it can be constructed. Proof: SCCs are singletons or 2-node digons; by the 2-node UPA lemma (W_{12}W_{21}≥0), each SCC is UPA; compose by SCC-DAG.
+
+Robust obstruction (for diagnostics)
+Lemma (Dominant negative cycle ⇒ no PNE). If C is a directed simple cycle with sign product −1 and for each i on C, |W_{i,s(i)}| > |h_i| + ∑_{j≠s(i)}|W_{ij}|, then the game has no PNE (cycle forces contradictory BR constraints).
+
+Algorithmic pipeline (checker/constructor; polynomial time)
+- Step 0: Decompose G into SCCs (Tarjan/Kosaraju; O(|V|+|E|)).
+- Step 1 (per SCC U):
+  (1a) If W_{UU} is symmetric ⇒ exact potential ⇒ mark U as UPA and store potential ascent BR path (≤|U| flips).
+  (1b) Else run the structural-balance test (Lemma) ⇒ if positive, record σ_U and mark U as UPA; store monotone BR path length ≤|U| in the gauged block.
+  (1c) Else if |U|=2 and W_{12}W_{21}≥0 ⇒ UPA (2-node lemma).
+  (1d) Else if U is functional (outdegree≤1 internally) and every directed cycle has positive sign ⇒ UPA (functional-cycle theorem).
+  (1e) Else, attempt multi-core cohesive construction on detected unsigned subblocks R^t (Theorem) with S=U\⋃R^t; if S-subgame is undirected or structurally balanced, mark solvable; else continue.
+  (1f) Else, run dominant negative cycle search; if found with sufficient margins ⇒ report obstruction (no PNE for this instance).
+- Step 2: If all SCCs marked UPA/solvable, contract SCC-DAG and solve from sinks upward: in each U, treat downstream choices as external field; invoke stored solver to produce a PNE x^*_U; concatenate BR paths; global length bound ≤∑_U |U|.
+- Complexity: O(|V|+|E|) for SCC/label tests; per-SCC solver is linear-time path for unsigned/structurally balanced via monotone flips; overall polynomial.
+
+Examples (for verification)
+- Multi-core cohesive: Let R^1={1,2}, W_{12}=W_{21}=1, h|_{R^1}=(0,0); R^2={3,4}, W_{34}=2,W_{43}=1, h|_{R^2}=(1,0); S={5}, no internal edges. Cross-block weights satisfy w_i^{R^t} + τ_i^(t) h_i ≥ w_i^{V\R^t} with τ^(1)=(1,1), τ^(2)=(1,1). S-subgame (singleton) trivially has a PNE. The theorem yields a PNE with x_{R^1}=(1,1), x_{R^2}=(1,1).
+- Structural-balance test: U is a 4-cycle with signs (+,−,−,+); labeling recovers σ making all edges nonnegative; solver flips at most 4 nodes to reach a PNE.
+
+Obstacles
+- UPA characterization of general (nonfunctional, chorded) SCCs remains open beyond undirected/structurally balanced cases; negative directed cycles alone do not preclude PNE unless augmented with margin/structure (dominance).
+- Multi-core approach requires an S-subgame PNE under the frozen core; our sufficient conditions (undirected/structurally balanced S) are not necessary; refining these would enlarge applicability.
+
+Next steps
+- Broaden UPA families: explore exact/ordinal potential polymatrix blocks beyond symmetry; identify minimal forbidden signed substructures for UPA.
+- Tighten cohesive criteria (only boundary nodes of each core need the inequality); quantify tolerance to small violations.
+- Implement the pipeline; empirically test on random signed graphs; measure success/failure rates and BR-path lengths.

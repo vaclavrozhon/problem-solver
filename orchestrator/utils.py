@@ -387,3 +387,14 @@ def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int,
         status_file.write_text(json.dumps(status, indent=2), encoding="utf-8")
     except Exception as e:
         print(f"Warning: Failed to write status: {e}")
+
+
+def check_stop_signal(problem_dir: Path) -> bool:
+    """Check if a stop signal file exists for this problem."""
+    stop_file = problem_dir / "runs" / "stop_signal"
+    return stop_file.exists()
+
+
+class StopSignalException(Exception):
+    """Exception raised when a stop signal is detected."""
+    pass

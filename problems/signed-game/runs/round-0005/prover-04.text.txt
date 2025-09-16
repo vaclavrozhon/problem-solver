@@ -1,0 +1,52 @@
+Ideas
+- Formalize and prove a multi-core cohesive existence theorem (correcting the inequality and non-uniqueness points flagged by the verifier). This strictly generalizes the single-core cohesive result and is composable with the SCC pipeline.
+- Provide a monotone best-response (BR) path construction and a length bound for unsigned components, and show how it composes after SCC gauging.
+- Add a general “signed row-sum” PNE certificate (a gauge-invariant extension of the consensus certificate) that is easy to check per instance.
+- Record a small-SCC UPA classification for 3-node SCCs (as a corollary of directed structural balance) for completeness and testing.
+
+Multi-core cohesive existence (formal statement and proof)
+Notation. For B⊆V define w_i^B:=∑_{j∈B}|W_{ij}|. For σ∈{±1}^V let [σ] denote the diagonal gauge, W^{[σ]}=[σ]W[σ], h^{[σ]}=[σ]h. Gauges preserve absolute row sums: |W^{[σ]}|=|W| and hence w_i^B is gauge-invariant.
+
+Theorem (multi-core cohesive existence). Let V be partitioned as V=R^1⊔⋯⊔R^m⊔S. For each block R^t, suppose there exists τ^(t)∈{±1}^{R^t} such that (i) [τ^(t)]W_{R^t R^t}[τ^(t)] has nonnegative entries (i.e., G[R^t] is unsigned after τ^(t)); and (ii) cohesiveness inequalities hold:
+for all i∈R^t: w_i^{R^t} + τ_i^{(t)} h_i ≥ w_i^{V\R^t}.
+Let τ_R be the concatenation of τ^(t) on R:=R^1⊔⋯⊔R^m. Consider the S-restricted game with R frozen to τ_R; assume it admits a PNE z*∈{±1}^S. Then the full game admits a PNE x* with x*_{R^t}=τ^(t) for all t, and x*_S=z*.
+Proof. Define σ∈{±1}^V by σ_{R^t}=τ^(t) for each t and σ_S≡+1, and consider the [σ]-transformed game on (W^{[σ]},h^{[σ]}). By construction, for any t, W^{[σ]}_{R^t R^t} is nonnegative. Fix any i∈R^t. The one-step payoff gain at i for choosing +1 instead of −1 in the transformed game is
+Δ_i(x)=2(h_i^{[σ]}+∑_{j∈V} W^{[σ]}_{ij} x_j).
+We want +1 to be a best reply at i when x_{R^t}≡+1 and x_{V\R^t} arbitrary. Using W^{[σ]}_{R^t R^t}≥0 we have
+∑_{j∈R^t} W^{[σ]}_{ij} x_j ≥ ∑_{j∈R^t} W^{[σ]}_{ij}·(+1) = ∑_{j∈R^t} W^{[σ]}_{ij} ≥ 0.
+For the external part, for any x_{V\R^t},
+∑_{j∈V\R^t} W^{[σ]}_{ij} x_j ≥ − ∑_{j∈V\R^t} |W^{[σ]}_{ij}| = − w_i^{V\R^t}.
+Hence for all x_{V\R^t},
+Δ_i(x) ≥ 2(h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij} − w_i^{V\R^t}).
+Since ∑_{j∈R^t} W^{[σ]}_{ij} ≥ 0 and h_i^{[σ]}=σ_i h_i = τ_i^{(t)} h_i, the assumed inequality w_i^{R^t} + τ_i^{(t)} h_i ≥ w_i^{V\R^t} implies
+h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij} − w_i^{V\R^t} ≥ h_i^{[σ]} + 0 − w_i^{V\R^t} ≥ − w_i^{R^t} + w_i^{R^t} = 0,
+so Δ_i(x)≥0. Therefore +1 is a best reply at every i∈R^t whenever x_{R^t}≡+1, independently of x_{V\R^t}. In particular, the profile ((+1) on R, z on S) is a best reply for all players in R for every z.
+Now consider the S-restricted game with R frozen at τ_R; in the transformed game this is equivalently R frozen at +1_R with external field h_S^{[σ]}+W_{S R}^{[σ]}·1_R. By hypothesis choose z* a PNE in S for that subgame. Then x* defined by x*_{R}=+1 and x*_S=z* is a PNE of the transformed game. Mapping back via x=[σ]y preserves best responses (Lemma NashGauge), so x*_{R^t}=τ^(t) and x*_S=z* is a PNE in the original game. Non-uniqueness: if the inequality is tight for some i, Δ_i can be zero, so ties may occur; nonetheless existence is guaranteed. ∎
+
+Monotone BR paths and length bounds in unsigned components
+Lemma (monotone BR in unsigned games). Let U⊆V and W_{U U} be nonnegative. Consider the U-restricted game with external field f:=h_U+W_{U, V\U} x_{V\U} fixed. Starting from y^{(0)}≡−1_U, iterate as follows: at each step pick any i with y^{(k)}_i=−1 and marginal m_i(y^{(k)}):=h_i+∑_{j∈U}W_{ij} y^{(k)}_j + ∑_{j∉U}W_{ij} x_j > 0, and set y^{(k+1)}_i=+1 (leave others unchanged). Then (i) the sequence (y^{(k)}) is coordinatewise nondecreasing; (ii) each coordinate flips at most once; (iii) the process halts in at most |U| steps at a PNE of the U-restricted game.
+Proof. If W_{U U}≥0 then for any j, increasing y_i from −1 to +1 weakly increases m_j due to nonnegativity of W_{j i}, so once m_i>0 it remains >0 thereafter; thus no coordinate flips back. Hence at most |U| flips occur. At termination, no i with y_i=−1 has m_i>0; and if some y_i=+1 had m_i<0 it would be profitable to flip to −1; but under the policy we never induce such contradictions because each flip happens only when m_i>0. A standard supermodular-game argument shows the terminal profile is a PNE. ∎
+Corollary (length bound under SCC composition after gauging). Suppose each SCC U_k can be gauged to unsigned (e.g., structurally balanced, functional-positive, or undirected). Process SCCs in reverse topological order; within each U_k, apply the monotone procedure starting from −1_{U_k}. Then there exists a BR path to a global PNE of total length ≤∑_k |U_k|.
+
+Signed row-sum PNE certificate
+Lemma (signed row-sum certificate). If there exists σ∈{±1}^V such that
+∀i: h_i σ_i + ∑_{j} W_{ij} σ_i σ_j ≥ 0,
+then x=σ is a PNE. If the inequalities are strict, x is a strict PNE.
+Proof. The gain from flipping i at x=σ equals 2(h_i σ_i + ∑_j W_{ij} σ_i σ_j). Nonnegativity implies no profitable deviation. ∎
+Remark. This generalizes the consensus row-sum test (take σ≡±1) and is useful for fast per-instance checks after trying a few signatures (e.g., signatures suggested by structural-balance labeling).
+
+Three-node SCCs: UPA classification
+Proposition. Let U be a strongly connected set with |U|=3. Then U is UPA (admits a PNE for all external fields restricted to U) if and only if U is directed-structurally balanced (equivalently, every directed cycle in U has positive sign product).
+Proof. (⇒) Necessity: if some directed cycle has negative sign product, with h_U=0 each node is strictly responsive and the BR constraints around the cycle contradict, so no PNE. (⇐) Sufficiency: structural balance yields a signature σ with [σ]W_{U U}[σ]≥0; the signed game on U is unsigned and supermodular for any external field, hence admits a PNE; mapping back preserves PNE. ∎
+
+Example (multi-core cohesive)
+Let V={1,2,3,4,5}. Let R^1={1,2}, R^2={3,4}, S={5}. Weights:
+- On R^1: W_{12}=W_{21}=2; on R^2: W_{34}=W_{43}=1 (unsigned already). Cross-blocks: W_{15}=W_{25}=−0.5, W_{35}=W_{45}=−0.5; all other cross-weights 0. h≡0. Then for i∈R^1: w_i^{R^1}=2, w_i^{V\R^1}=0.5; for i∈R^2: w_i^{R^2}=1, w_i^{V\R^2}=0.5. Choose τ^(1)=+1_{R^1}, τ^(2)=+1_{R^2}; cohesiveness holds: 2≥0.5 and 1≥0.5. The S-subgame with R frozen at τ_R has u_5(z)=z(∑_{j∈R}W_{5j}τ_j)=z·0 (no in-weights), so any z is a best reply; pick z*=+1. By the theorem, x*=(+,+,+,+ ; +) is a PNE.
+
+Obstacles
+- UPA SCCs beyond undirected/structurally balanced/functional-positive remain to be characterized. Structural balance is necessary for universal-in-h guarantees in strongly connected components (negative directed cycles obstruct at h=0), but there may be further weight-structural classes admitting UPA; identifying them requires new potential/monotonicity structures.
+- Exact counting of PNE in functional cycles under ties (|h_i|=|w_i|) depends on tie-breaking; our counting is exact only when all nodes are strictly responsive.
+
+Next steps
+- Formalize an end-to-end polynomial-time checker: (i) Tarjan SCCs; (ii) per-SCC tests: symmetric (exact potential), directed structural balance (parity labeling), functional-positive (outdegree ≤1 and positive cycle signs); (iii) if all SCCs UPA, construct a PNE by reverse topological order using the monotone procedure (length ≤∑|U_k|); (iv) if not, attempt cohesive-core construction (single-core or multi-core) after suitable signatures; (v) report dominant negative cycle obstructions when found.
+- Explore additional UPA SCC families (e.g., ordinal-potential polymatrix blocks) and negative certificates (cycle dominance with margins) with algorithmic detection.

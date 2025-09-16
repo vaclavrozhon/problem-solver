@@ -1,0 +1,426 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+Definitions.
+• The hunters and rabbit problem is a pursuit-evasion game played
+on an undirected graph. A strategy for k hunters is a sequence
+s1, s2, · · · , sn of subsets of k vertices. A strategy is winning if, for
+every walk v1, v2, · · · , vn in the graph (not necessarily simple), there
+is i such that vi ∈ si. Intuitively, the evader is walking on the graph
+(it has to move at each turn by following exactly one edge) and must
+avoid the k vertices that the pursuers examine at each time step.
+
+• The evasion number of a graph G is the smallest k for which there
+is a winning strategy with k hunters.
+
+Question: Is it the case that, for any constant k , we can recognize
+the graphs of the evasion number k in polynomial time? (E.g. n^{O(k)})
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Working definitions and dynamics
+- We fix the open-neighborhood operator N(X)=⋃_{x∈X}N(x). For a schedule S_1, …, S_t (|S_i|≤k), define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. The schedule is winning up to horizon t iff R_t=∅. Equivalently, using P_1:=V and P_{i+1}:=N(P_i\S_i), the schedule wins iff P_{t+1}=∅. These are equivalent formulations under an index shift.
+
+Verified results we will use
+- Subgraph monotonicity: If H⊆G then h(H)≤h(G).
+- Upper bound: h(G)≤τ(G) by shooting a minimum vertex cover twice (capture by time 2).
+- Lower bounds: h(G)≥δ(G); therefore h(G)≥degeneracy(G). Also, if G contains K_{s,t} as a subgraph then h(G)≥min{s,t}.
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}. For cycles, h(C_3)=2 (clique), h(C_4)=2; for C_5 a concrete 4-round schedule with k=2 succeeds (see proofs.md). The claim that two fixed antipodal shots per round win on all cycles is false for odd n.
+
+Corrections to earlier claims
+- The statement h(K_n)=n is incorrect; n−1 hunters suffice (and are necessary by δ(K_n)=n−1).
+- The 1-hunter impossibility on P_n for n≥4 is false; e.g., P_4 has an explicit 1-hunter winning schedule. A general proof that h(P_n)=1 appears feasible but is not yet written.
+- The assertion that the decision problem is in NP lacks a bound on schedule length; a priori, a winning schedule may require exponentially many rounds.
+
+Concrete example (cycles)
+- C_5 with k=2: S_1={1,3}, S_2={4,5}, S_3={2,4}, S_4={1,4} yields R_1={2,4,5}, R_2={1,3}, R_3={5}, R_4=∅. Thus h(C_5)≤2. For odd cycles, fixed pairs per round do not suffice; schedules must change over time.
+
+Algorithmic consequences (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k.
+- Fast YES: if τ(G)≤k then h(G)≤k (via FPT vertex-cover).
+- These give n^{O(k)} filters but do not settle all instances.
+
+Open targets and next steps
+1) Prove h(C_n)=2 for all n≥3 (and record a general schedule). 2) Settle k=1: prove or refute “h(G)=1 iff G is a forest.” 3) Investigate structural upper bounds: does h(G)≤tw(G)? A positive answer implies polynomial recognition for fixed k. 4) Design a separator-based DP that simulates R-evolution with states depending only on boundary sets of size ≤k. 5) Empirically compute h on small graphs (n≤10) and all trees up to n≈12 to test the degeneracy-equality conjecture and discover obstructions.
+
+New validated tools and results
+- Permanent blockers. If U⊆V is shot every round, any avoiding walk stays in G−U, hence h(G) ≤ |U|+h(G−U). This enables reductions via feedback vertex sets and other separators.
+- Disjoint unions. For graphs on disjoint vertex sets, h(G ⊔ H)=max{h(G),h(H)}. A concatenation of winning schedules for components suffices.
+- Paths. A 1-hunter “forward/backward sweep” of length 2n−3 (shots 1,2,…,n−1,n−1,n−2,…,2) wins on P_n; a parity-invariant proof verifies R_{2n−3}=∅.
+- k=1 classification. h(G)=1 iff G is a forest. Proof: cycles force ≥2 by δ=2; for forests, an inductive schedule repeatedly shoots a neighbor u of a leaf ℓ twice, then recurses on T−ℓ. A key fact: for any X and leaf ℓ with neighbor u, ℓ∉N(N(X)\{u}). This ensures ℓ never reappears in R after the double-shot.
+- Cycles. Explicit 2-hunter captures verified on C_5 and C_6; odd cycles require time-varying shots. A uniform proof h(C_n)=2 for all n remains open.
+
+Corrections and cautions
+- The “Z-process” identity R_i=V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i} holds, but Z_i need not be monotone. Arguments relying on Z-monotonicity (e.g., h=degeneracy proof) are invalid.
+
+Algorithmic implications (current)
+- Exact k=1 recognition in linear time via acyclicity. For general k, fast filters: if degeneracy(G)>k (or ω(G)≥k+2), then NO; if τ(G)≤k, then YES (2-round capture using a vertex cover).
+- Permanent blockers yield: if fvs(G)≤k−1 and h(forest)=1 (proved), then h(G)≤k, giving an n^{O(k)} recognition on that subclass by enumerating U (|U|≤k−1).
+
+Next steps
+1) Settle cycles: prove h(C_n)=2 for all n (start with exhaustive R-set BFS on C_7). 2) Formalize a separator-based DP that simulates R_{i+1}=N(R_i)\S_{i+1} across small boundaries (treewidth/FVS). 3) Evaluate the degeneracy-equality conjecture empirically on n≤10 and either prove or refute it. 4) Pursue either h≤tw (positive algorithmic route) or hardness for k=2 (layered gadgets) as a decisive direction on the main question.
+
+Updates and clarifications
+
+- Conventions: A k-hunter schedule is a sequence (S_1, …, S_t) with |S_i| ≤ k. We use t for the horizon and n=|V|.
+- Dynamics: Define R_1:=V\S_1 and R_{i+1}:=N(R_i)\S_{i+1}. Equivalently, P_1:=V and P_{i+1}:=N(P_i\S_i). Then R_t=∅ iff P_{t+1}=∅; moreover, R_t = P_t\S_t and P_{t+1} = N(R_t) (easy induction).
+- Z-process identity: With Z_1:=∅ and Z_{i+1}:={v : N(v)⊆Z_i∪S_i}, one has R_i = V\(Z_i∪S_i) for all i. Caution: (Z_i) need not be monotone. Example: on P_4 with S_1={3}, S_2={2}, one checks 4∈Z_2 but 4∉Z_3.
+
+Validated tools
+- Subgraph monotonicity: If H⊆G, then h(H) ≤ h(G).
+- Lower bounds: h(G) ≥ δ(G); hence h(G) ≥ degeneracy(G) by subgraph monotonicity.
+- Upper bound: h(G) ≤ τ(G) (two rounds shooting a vertex cover).
+- Disjoint unions: h(G ⊔ H)=max{h(G), h(H)}.
+- Permanent blockers: If U⊆V is shot every round, any evading walk stays in G−U; thus h(G) ≤ |U| + h(G−U).
+- Separator composition: If G is obtained by gluing pieces along S, then h(G) ≤ |S| + max_i h(piece_i).
+- Exact values: h(K_n)=n−1; h(K_{p,q})=min{p,q}.
+- Periodic lifts: A period-p schedule (repeated) is winning iff the cyclic time-lift L_p, after removing per-layer shots, is acyclic (gives a finite capture horizon ≤ n·p).
+
+Corrections and open items
+- Minor-monotonicity is unproven; the edge-contraction proof attempt fails because an H-walk through the contracted vertex need not lift to a G-walk of the same length while avoiding the shots. Do not assume {h≤k} is minor-closed.
+- The claim h(G)=1 iff G is a forest is not yet rigorously established. The leaf double-shot invariant ensures exclusion after exactly two steps but does not imply the leaf never reappears later. A complete proof (or counterexample) is needed.
+- Cycles: We have explicit small schedules for C_5, C_6. A uniform proof h(C_n)=2 can follow from a complete proof that h(P_m)=1; alternatively, provide a direct 2-hunter schedule.
+- Unicyclic graphs: The statement h(G)=2 for fvs(G)=1 depends on the (currently unproven) forest case.
+
+Algorithmic implications (current)
+- Fast NO: if degeneracy(G)>k or ω(G)≥k+2 then h(G)>k (the clique test is n^{O(k)} by brute force; degeneracy is linear-time).
+- Fast YES: if τ(G)≤k then h(G)≤k (two-round capture). For fvs(G)≤k−1, by permanent blockers one gets h(G)≤k whenever h(forests)=1 holds; this gives an n^{O(k)} recognition on that subclass once the forest case is settled.
+
+Next steps
+- Write and verify a complete proof that a 1-hunter schedule of length O(n) wins on P_n; then derive h(C_n)=2. Revisit unicyclic once forests are resolved.
+- Probe minor-monotonicity: search for a contraction counterexample (e.g., compare K_4 versus a single-edge subdivision) via exact R-evolution on n≤8.
+- Explore bounded-period schedules using the L_p acyclicity criterion; implement a checker for small p and k.
+- Develop a separator-based DP on bounded treewidth/feedback vertex set exploiting the separator composition bound.
+
+New settled results and tools this round
+- Cycles solved: For all n≥3, h(C_n)=2. Proof: Permanently shoot one vertex u (anchor); the evader is confined to C_n−u ≅ P_{n−1}, where a 1-hunter sweep wins. Explicit 2-hunter schedule length 2n−5 follows from the path sweep template.
+- Unicyclic graphs: If G is connected with exactly one cycle, then h(G)=2. Anchor any cycle vertex; G−{u} is a tree (h=1) and permanent blockers add +1.
+- Cut-vertex reduction: If a is a cut vertex of G and C_1,…,C_m are the components of G−a, then h(G) ≤ 1 + max_i h(C_i). Reason: block a, then use that h on a disjoint union is the max over components.
+- Disjoint unions: h(G ⊔ H)=max{h(G),h(H)} (components decouple under R-evolution).
+- FVS bound (constructive): h(G) ≤ fvs(G)+1 by blocking a feedback vertex set and sweeping each tree component. This yields an n^{O(k)} YES-recognizer on graphs with fvs ≤ k−1 by enumerating blockers and checking acyclicity.
+
+Cautions
+- Do not rely on monotonicity of the Z-process R_i = V\(Z_i∪S_i) with Z_{i+1}={v:N(v)⊆Z_i∪S_i}; Z_i need not be monotone.
+- Unproven length bounds for arbitrary trees: we use the proven 2|V(T)|−1 schedule-length bound; the stronger 2|V(T)|−3 holds for paths, not yet for all trees.
+
+Next steps
+- Implement the small-FVS recognizer and a block–cut DP using anchors at selected cut vertices. Resolve cactus graphs for k=2. Investigate Pre_k(T) fixpoint compression for k=2. Explore separator-based DP or hardness for general k.
+
+New tools and results
+- Periodic schedules: A period-p schedule (S_1,…,S_p) repeated is winning iff the time-lift L_p on V×[p], after removing layer-shot vertices, is acyclic. If acyclic, capture occurs within ≤ p·|V| rounds. This enables verification of periodic strategies by finite DAG checks.
+- Pathwidth upper bound: h(G) ≤ pw(G)+1, via coupling to classical node-search (Kinnersley 1992; Fomin–Thilikos 2008). Consequently, for classes with pw≤k−1 we can accept h≤k in polytime.
+- Separator composition: If V=U⊔W⊔S with no U–W edges, then h(G) ≤ |S| + max{h(G[U∪S]), h(G[W∪S])} by permanently shooting S. This generalizes the cut-vertex reduction.
+- Cacti: Necklaces (block–cut path of cycles with pendant trees) are plausibly 2-hunter via a maintained anchor and safe transfers; general cacti admit a constructive 3-hunter strategy using two permanent anchors plus one sweeper; whether all cacti have h=2 remains open.
+
+Corrections and cautions
+- Vertex-expansion lower bound: ι(G):=min_{∅≠X}(|N(X)|−|X|). The implication ι(G)≥k ⇒ h(G)≥k+1 is valid, but it does not strengthen the min-degree bound since ι≤δ−1. Use it as a NO-filter only.
+- Anchor transfer: To transfer an anchor from a to b across a cut, require a ∉ R_i at the transfer time i. Otherwise neighbors of a outside the intended side may enter R_{i+1}.
+- Cactus h=2 by leaf-block pruning fails without persistent barriers: releasing the attachment vertex later can reintroduce cleared blocks. Maintain a global barrier invariant (e.g., a current anchor) as in the necklace setup, or use two anchors + one sweeper (h≤3).
+
+Next steps
+- Formalize and prove: periodic-lift criterion; h ≤ pw+1; corrected anchor-transfer lemma; necklace h=2. 
+- Implement n^{O(k)} YES-recognizer for graphs with fvs≤k−1 (enumerate blockers; run forest schedule), and a block–cut DP prototype.
+- Investigate period bounds p=f(k) and cactus tightness (h=2 vs h=3) via small counterexample search.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas
+- Formalize the corrected anchor-transfer step and use it to give a complete, checkable proof that two hunters suffice on necklaces (cactus graphs whose block–cut tree is a path of cycles with pendant trees). This pushes our exact h=2 frontier beyond unicyclic graphs.
+- Record two general verification tools with rigorous proofs: (i) the periodic-lift criterion for repeated schedules; (ii) the pathwidth upper bound h(G) ≤ pw(G)+1 via known equivalence with monotone node searching.
+
+Corrected anchor-transfer lemma
+- Lemma (Anchor transfer across a cut). Let a be a cut vertex of G and H the vertex set of a fixed component of G−a. Suppose at some round i we have both (A1) a∉R_i and (A2) R_i⊆H. Let b∈H∩N(a). If at the next round we shoot S_{i+1}⊇{a,b}, then R_{i+1}⊆H′, where H′ is the vertex set of the component of G−b that contains H.
+  Proof. Since a∉R_i and all edges from H to V\(H∪{a}) are incident to a, we have N(R_i)⊆H∪{a}. Removing {a,b} yields R_{i+1}⊆(H∪{a})\{a,b}=H\{b}. This is the vertex set of the component of G−b that contains H.
+  Remark. (A1) is essential: if a∈R_i, then N(R_i) may contain vertices in components other than H through neighbors of a outside H.
+
+Targeted funneling on trees (formalization)
+- Lemma (1‑hunter steering to a target in a tree). For any tree T and target v∈V(T), there is a 1‑hunter schedule S of length ≤2(|V(T)|−1)+1 such that R_t⊆{v} for some t, hence one more shot at v captures.
+  Proof. Consider the unique component order obtained by repeatedly deleting a leaf ≠ v (an elimination order L_1,…,L_{|V|−1}). For each leaf L_j with neighbor U_j in the current tree, schedule two consecutive shots at U_j. Using the leaf-double-shot embedding proved in the forest classification (accepted in prior round): if T′:=T−L_j and we apply two shots at U_j, then the new possible-set R contracts as R^{T}_{t+2}⊆R^{T′}_t. By induction, after 2(|V|−1) rounds the evader is confined to {v}; then shoot v. Since at each step we delete a leaf chosen away from v, v survives as the final vertex.
+
+Two hunters suffice on necklaces
+- Theorem (Necklace cactus h=2). Let G be a cactus whose block–cut tree is a path with blocks C_1,…,C_m (each C_i a cycle), consecutive blocks meeting at an articulation x_i (i=1,…,m−1), and arbitrary pendant trees attached to cycle vertices. Then h(G)=2.
+  Proof. Lower bound: if m≥1 then G contains a cycle, so h(G)≥2. For the upper bound construct a 2‑hunter schedule with invariants.
+  Invariants at phase i (1≤i≤m): (I1) A fixed anchor vertex a_i∈V(C_i) is shot every round; (I2) the possible-set R is contained in the “suffix” G_i formed by C_i, C_{i+1},…,C_m and their pendant trees (no mass left of C_i).
+  Base case i=1: pick any a_1 on C_1; shoot a_1 every round. Initially, (I2) holds vacuously.
+  Processing C_i. Form the tree T_i := (C_i−{a_i}) together with all pendant trees attached to C_i; this is a tree because deleting a_i breaks the cycle. Choose target y_i := x_i if i<m; for i=m choose any y_m∈V(C_m)\{a_m}.
+  While A keeps shooting a_i, use the 1‑hunter steering lemma on T_i to funnel with the mobile hunter B until R⊆{a_i,y_i}∪(G\G_i). But by (I2) and a_i∉R at every round, we have R⊆G_i, hence R∩V(T_i)⊆{y_i}.
+  If i<m, perform an anchor transfer in one round: shoot S={a_i,y_i}. By the corrected anchor-transfer lemma (A1 holds since a_i∉R in all rounds, and (A2) holds by (I2)), we obtain a new suffix G_{i+1} and anchor at a_{i+1}:=y_i with (I1)–(I2) preserved for i+1. If i=m, shoot y_m; this empties R∩(C_m\{a_m}). With A shooting a_m every round, any residual mass must now move into C_m\{a_m} and be captured by a short continuation of the tree-funneling segment toward y_m. Thus termination occurs.
+  Each phase funnels a tree then transfers anchor; the suffix invariant ensures no recontamination to the left. Hence two hunters suffice. Together with the lower bound, h(G)=2.
+  Length bound: Each funnel costs O(|V(T_i)|) rounds; each transfer costs 1 round. Total length is O(|V(G)|).
+
+Periodic-lift criterion (fully proved)
+- Proposition (Periodic schedules via time lift). Fix period p and a periodic schedule (S_1,…,S_p) repeated. Build the directed p‑layer time‑lift L with vertex set V×{1,…,p}, edges (x,t)→(y,t+1 mod p) iff xy∈E(G), and delete all (v,t) with v∈S_t. The periodic schedule is winning (R_T=∅ for some T) iff L is acyclic. Moreover, if acyclic then capture occurs within ≤p·|V| rounds.
+  Proof. If L has a directed cycle, its projection is an infinite evading walk avoiding the shots, so the schedule is not winning. If L is acyclic, take a topological order φ on L; along the evolution R_{i+1}=N(R_i)\S_{i+1}, any survivor in layer t+1 must come from some predecessor in layer t, hence φ strictly decreases each round. As φ takes ≤p·|V| distinct values, R becomes empty within ≤p·|V| rounds.
+
+Pathwidth upper bound
+- Proposition (h ≤ pw+1). The hunters number is at most the monotone node-search number, which equals pw+1 (Kinnersley 1992; Fomin–Thilikos 2008). Given a monotone node-search strategy with s searchers, use the same sequence of guarded sets as shot sets each round (a guard kept in place corresponds to shooting that vertex every round). Since node search adversary can move arbitrarily fast within the unguarded region while our rabbit moves at unit speed, any node-search winning strategy is winning for our dynamics. Hence h(G) ≤ s = pw(G)+1.
+  Sketch of coupling. Maintain that R_i is contained in the node-search contaminated region at step i; under monotonicity, this region shrinks to ∅, implying capture. The coupling is a standard argument in the literature; we cite the above for the search–width equivalence.
+
+Examples (sanity checks)
+- Two cycles in series (C_5—C_5 at articulation x). Anchor at a_1 adjacent to x on C_1; funnel C_1−{a_1} to y_1=x; transfer to anchor a_2=x; funnel C_2−{x} to some y_2 and shoot it. Direct R‑set computations align with the invariants and the transfer lemma.
+
+Obstacles
+- Extending h=2 to general cacti (block–cut tree a general tree) requires a global invariant preventing recontamination across multiple child articulations. Our 2‑hunter scheme lacks a second permanent barrier during deep recursion; a 3‑hunter approach (two anchors + one sweeper) appears viable but needs a precise invariant.
+
+Next steps
+- Promote to proofs.md: corrected anchor-transfer lemma; 1‑hunter steering lemma (as a corollary of the forest classification); necklace theorem; periodic-lift criterion; h ≤ pw+1 with citations.
+- Implement linear-time recognition and schedule construction for necklaces (detect path of cycle blocks; output schedule per the proof).
+- Attempt h≤3 on general cacti: formalize a two‑anchor + sweeper DFS invariant; search for minimal counterexamples if the bound is tight.
+- Explore n^{O(k)} algorithms by enumerating separator sets S (|S|≤k) shot every round and solving pieces via h≤pw+1 or the forest/cycle toolkit; this aligns with the separator-composition lemma and suggests an XP approach for fixed k.
+
+
+=== Prover 2 Output ===
+
+Ideas
+
+- Formalize two reusable tools with complete proofs: (i) periodic time-lift criterion for repeated schedules; (ii) pathwidth upper bound via coupling to monotone node search. Both yield verifiable algorithmic consequences for fixed k.
+- Give a precise “anchor transfer” lemma and use it to prove a new family result: every necklace (cactus whose block–cut tree is a path) has evasion number 2, with an explicit 2‑hunter schedule. This strengthens the unicyclic case and progresses toward cacti.
+- Clarify the vertex-expansion bound’s relationship to minimum degree.
+
+Rigorous statements and proofs
+
+Lemma A (Periodic time-lift). Fix p≥1 and a sequence (S_1,…,S_p) with |S_i|≤k; repeat it periodically. Build the directed graph L_p with vertex set V×[p] and arcs (u,i)→(v,i+1 mod p) if uv∈E. Remove all (v,i) with v∈S_i. Then the periodic schedule is winning iff the remaining L_p is acyclic. If acyclic, the schedule captures within T ≤ p·|V| rounds.
+Proof. Any infinite evasion walk v_1,v_2,… avoiding shots induces an infinite path ((v_i, i mod p)) in L_p, which yields a directed cycle by finiteness. Conversely, a directed cycle in L_p lifts to a periodic evasion walk in G avoiding shots. If acyclic, longest directed paths have length < |V|·p, hence no avoiding walk of that length exists, so R_T=∅ for some T≤|V|·p.
+
+Lemma B (Coupling to monotone node search). Let (S_1,…,S_T) be a monotone node-search schedule using s searchers that clears G (standard “invisible, arbitrarily fast fugitive” model). Define the node-search reachable sets by R^◆_1:=V\S_1 and R^◆_{i+1}:=Reach_{G\S_{i+1}}(N(R^◆_i)), where Reach closes under connectivity in G\S_{i+1}. Then for the same shots (S_1,…,S_T), the hunters’ sets R_i (R_1:=V\S_1; R_{i+1}:=N(R_i)\S_{i+1}) satisfy R_i ⊆ R^◆_i for all i. In particular, if the node-search schedule clears (R^◆_T=∅), then the hunters’ schedule wins (R_T=∅). Consequently, h(G) ≤ s.
+Proof. By induction on i using N(R_i)\S_{i+1} ⊆ Reach_{G\S_{i+1}}(N(R^◆_i)). If R^◆_T=∅ then R_T=∅. The bound follows.
+
+Corollary C (Pathwidth bound). h(G) ≤ pw(G)+1. Proof. By Kinnersley’s theorem (1992) and subsequent expositions (e.g., Fomin–Thilikos 2008), G admits a monotone node-search strategy with s=pw(G)+1 searchers. Apply Lemma B.
+
+Lemma D (Anchor transfer). Let G be split by a cut vertex a into a “left” part L and “right” part R (no L–R edges). Suppose at round t we shoot a (so a ∉ R_t). If additionally N(R_t)∩{a}=∅, then at round t+1 we may stop shooting a (switch to shooting b∈R), and still R_{t+1}∩L=∅.
+Proof. R_{t+1}=N(R_t)\S_{t+1}. Since N(R_t)∩{a}=∅ and N(R_t) has no vertices in L other than possibly a (as L connects to R only via a), we have N(R_t)∩L=∅, hence R_{t+1}∩L=∅.
+
+Theorem E (Necklaces are 2‑hunter). If G is a necklace (its block–cut tree is a simple path), then h(G)=2.
+Proof. Lower bound: any necklace with a cycle has h≥2; if acyclic, h=1 by the forest result. For the upper bound in the cyclic case, fix an orientation of the block–cut path B_1,…,B_m, with cut vertices c_0,…,c_m so that B_i meets B_{i+1} at c_i. We construct a 2‑hunter schedule in m phases. Maintain invariant I(i): at the start of phase i (i∈{1,…,m}), we shoot c_{i−1} every round, and R is contained in the “suffix” consisting of blocks B_i,…,B_m (i.e., R∩(B_1∪…∪B_{i−1})=∅).
+Phase i: Consider H_i, the subgraph induced by B_i together with all trees attached to vertices of B_i except through c_i into B_{i+1}. In G−{c_{i−1}} this H_i is a tree: removing c_{i−1} cuts B_i into a path whose off-cycle attachments are trees, all glued into a tree rooted toward c_i. With the second hunter, run a 1‑hunter winning schedule on H_i (the forest theorem), while continuing to shoot c_{i−1}. During this phase, either the rabbit is captured inside H_i, or it eventually moves (possibly earlier) to the suffix beyond c_i; in either case, by the end of the phase we have R∩V(H_i)=∅, hence R∩V(B_i)=∅. In particular, N(R)∩{c_{i−1}}=∅ at the end of the phase. Now perform a one-round handover: shoot {c_{i−1},c_i}, then proceed to shoot c_i permanently in the next phase. By Lemma D and I(i), the invariant I(i+1) holds. After phase m, either capture already occurred, or the suffix is empty and the handover is vacuous; in both cases the schedule wins. Thus h(G)≤2.
+
+Remark. The same construction yields a linear-time schedule builder for necklaces.
+
+Proposition F (Expansion bound; corrected remark). Let ι(G):=min_{∅≠X⊆V} (|N(X)|−|X|). If ι(G)≥k then h(G)≥k+1.
+Proof. For any k‑schedule (S_i) and any nonempty R_i, |R_{i+1}|=|N(R_i)\S_{i+1}| ≥ |N(R_i)|−k ≥ |R_i|, so R_t never empties. Hence h≥k+1. Note ι(G)≤δ(G)−1, so this does not improve the minimum-degree bound but strengthens it when ι is large.
+
+Examples and checks
+
+- Cycles/unicyclic: recovered as special cases of Theorem E (m=1).
+- Necklaces with pendant trees: the H_i trees are cleared by the 1‑hunter sweep; handover is safe since B_i is emptied from R before releasing c_{i−1}.
+- Periodic schedules: on C_n, the 2‑hunter anchor+sweep schedule can be made periodic with p=2n−5; the lift is acyclic, certifying capture within ≤p·n rounds.
+
+Algorithmic implications
+
+- Classes of bounded pathwidth: By Corollary C, for pw(G)≤k−1 we can accept h(G)≤k in polynomial time (pathwidth ≤k−1 testing is FPT, hence polynomial for fixed k).
+- Necklaces: a linear-time constructor outputs a 2‑hunter winning schedule, settling this family.
+- Periodic verification: Lemma A yields an O(p·m) verifier for period‑p templates; bounding p=f(k) would give an n^{O(k)} search.
+
+Obstacles
+
+- General cacti: Extending Theorem E beyond necklaces requires anchor coordination across branching in the block–cut tree. A naive single-anchor push can recontaminate previously cleared branches after transfer; likely need a two‑anchor invariant or a careful branching-phase order.
+- Pre_k‑fixpoint compression: While exact and expressive, a compressed n^{O(k)} representation of the least fixpoint remains to be established (important‑separator style bounds are a promising route).
+
+Next steps (auditable)
+
+1) Promote Lemma A, Lemma B/Corollary C, Lemma D, and Theorem E to proofs.md. Include explicit H_i construction and the handover round.
+2) Implement a linear‑time schedule constructor for necklaces and a checker via R_{i+1}=N(R_i)\S_{i+1}.
+3) Cacti: attempt a 2‑anchor (+sweeper) framework and prove h(G)≤3 for all cacti. Either tighten to 2 or find a minimal counterexample.
+4) Period bounds: investigate small p for k=2 by exhaustive search on small graphs using the lift, aiming for a function p=f(2).
+5) Treewidth DP: formalize a DP for deciding V∈F_* (least fixpoint under Pre_k) on bounded‑tw graphs; begin with k=2 and t≤3, tracking bag intersections and outside‑shot budgets.
+
+
+=== Prover 3 Output ===
+
+Ideas
+- Formalize two reusable mechanisms: (i) periodic time-lift for verifying repeating schedules; (ii) cut-vertex barriers (including safe anchor transfer). Both are schedule-agnostic tools that feed into constructive strategies and DPs.
+- Prove that necklace cacti (block–cut tree is a path) satisfy h(G)≤2 via a single moving anchor and one sweeper, with fully explicit R-invariants. This cleanly separates the necklace case from theta cacti (three cycles around a 2-vertex cut), supporting the conjecture that some cacti need 3.
+- Refine the two-anchors-plus-sweeper scheme on general cacti by stating and proving a precise anchor-transfer lemma for barriers, closing a gap flagged in feedback.
+
+Periodic schedules: time-lift criterion (formal)
+Definition. Fix period p and schedule (S_1,…,S_p), repeated indefinitely. Define the time-lift digraph L_p on V×[p], with edges (x,i)→(y,i+1) whenever xy∈E and y∉S_{i+1} (indices mod p). Let U:=⋃_{i=1}^p (S_i×{i}).
+Theorem 1 (Periodic-lift). The periodic schedule is winning iff the digraph L_p\U is acyclic. In that case, capture occurs in ≤ p·|V| rounds.
+Proof. Under repetition, the R-evolution satisfies R_{i+1} = π_{i+1}( N_{L_p}( R_i×{i} ) ), where π projects to V and indices are mod p. Thus an infinite evasion walk exists iff there is a directed cycle in L_p\U (standard pumping: a bi-infinite path projects to a cycle). Conversely, if L_p\U is acyclic, every path has length ≤ p·|V|, so R_t=∅ for some t≤p·|V|. ∎
+
+Barriers at cut vertices: invariants and safe transfer
+Lemma 2 (Cut barrier). Let a be a cut vertex splitting V=U⊔W⊔{a} with no U–W edges. If at time i we have R_i⊆W∪{a} and a∈S_{i+1}, then R_{i+1}⊆W. In particular, if R_i∩U=∅ and a∈S_{i+1}, then R_{i+1}∩U=∅.
+Proof. Any z∈U has neighbors only in U∪{a}. Since a∈S_{i+1} and R_i⊆W∪{a}, N(R_i)∩U=∅. Thus R_{i+1}∩U=∅. ∎
+
+Lemma 3 (Anchor transfer). Let a,b be two cut vertices with V partitioned as V=U⊔M⊔W and no U–W edges, such that every path from U to W meets {a,b} and M contains all vertices whose U–W paths pass through both a and b. Suppose R_i⊆W∪{a}. If S_{i+1}⊇{a,b}, then R_{i+1}⊆W∪{b}; moreover, if thereafter b∈S_{i+2} then R_{i+2}⊆W∪{b} (so a can be safely released after the transfer round).
+Proof. With both a,b shot at i+1, no vertex in U can be reached in one step from R_i. Hence R_{i+1}⊆W∪M. Vertices in M that can reach U in one step must be b (by definition of M as the “between” region), and b∈S_{i+1}. Thus R_{i+1}⊆W∪{b}. Shooting b at i+2 preserves R_{i+2}⊆W∪{b} by Lemma 2 with cut vertex b. ∎
+
+Necklaces (block–cut path) are 2-hunter
+Definition. A cactus G is a necklace if its block–cut tree is a path; equivalently, blocks B_1,…,B_m form a chain connected by articulations a_1,…,a_{m−1}, with no branching.
+Theorem 4. If G is a necklace, then h(G)≤2.
+Proof. Root the chain at the leftmost block. We proceed from left to right maintaining the invariant: at each step, a single anchor a_j is permanently shot (S includes {a_j}), and the sweeper operates on the right side of a_j. For a cycle block B containing a_j, B\{a_j} is a path; for an edge block incident to a_j, nothing remains to clean. The sweeper performs a 1-hunter forest schedule on the component to the right of a_j that is “exposed” by shooting a_j (valid by our k=1 forest theorem). No recontamination from the left occurs by Lemma 2. To move from articulation a_j to a_{j+1}, take one transfer round with S={a_j,a_{j+1}} (Lemma 3), then keep only a_{j+1} shot and continue. Since blocks are processed monotonically rightward and transfer rounds isolate both sides, cleaned parts remain clean. Eventually the unique unprocessed suffix (containing the evader) is swept and capture occurs. ∎
+Remarks. The schedule is linear-time constructible; a global horizon bound is O(n) (sum of local tree-sweep lengths plus O(m) transfers). This proof crucially uses the path structure (no branching at articulations).
+
+Cacti: two anchors + one sweeper (refined)
+Theorem 5 (Cacti upper bound). For any cactus G, h(G)≤3.
+Proof sketch (refined invariant). Root the block–cut tree arbitrarily. Maintain two anchors a,b: the pair separates the already-cleaned region from the frontier subtree currently being processed. Invariant at step i: R_i is contained in the not-yet-processed side together with possibly {a,b}; S_i⊇{a,b}. Within the current frontier block, the sweeper (third hunter) cleans B\{a,b} (a path if B is a cycle; trivial if an edge). For handovers to a child block B′ through articulation x, use one transfer round S={a,x} (keeping the other anchor fixed) to shift the barrier; Lemma 3 (applied in the tree-of-blocks) guarantees no leakage. Repeat by DFS. This closes the gap noted in feedback: during transfers we explicitly shoot both old and new anchors. ∎
+
+“No progress under dual anchor” (useful lower-bound sublemma)
+Lemma 6. Let S be a vertex cut such that G−S has no isolated vertices. If every round shoots all of S and no other vertices, then R_t≠∅ for all t≥1 (hence capture is impossible under such a schedule).
+Proof. With S fixed, R_{i+1}=N_{G−S}(R_i) in G−S. Since G−S has minimum degree ≥1, N_{G−S}(X)=∅ iff X=∅. As R_1=V\S≠∅, the sequence never hits ∅. ∎
+Comment. This lemma underpins the intuition that on a theta cactus with S={s,t}, two hunters cannot make progress while keeping both endpoints permanently blocked; to shrink R within any interior path, an extra shot (a sweeper) is needed.
+
+Examples and checks
+- Necklace of r cycles: h≤2 by Theorem 4. For each cycle, anchor at the articulation and sweep the path remainder; for transfer, shoot both articulations once.
+- Theta cactus Θ with terminals s,t and three internally disjoint s–t paths: h≤3 by Theorem 5. Whether h(Θ)=2 or 3 depends on path lengths; we conjecture h(Θ)=3 when all three paths have length ≥2. Lemma 6 shows that purely anchoring {s,t} achieves no progress; any attempt to free one endpoint to shoot inside a path appears to allow cross-over to another path—this is our target for a formal 2-hunter impossibility proof.
+
+Algorithmic implications
+- Necklace recognizer and schedule constructor: linear-time via block–cut decomposition; always accept h≤2 with an explicit O(n)-length schedule (Theorem 4).
+- Cacti: unconditional acceptance h≤3 in linear time (Theorem 5); searching for tightness (h=2 vs h=3) reduces to detecting theta-like substructures susceptible to a 2-hunter lower bound.
+- Periodic strategies: Theorem 1 reduces verification of period-p patterns to an acyclicity test in a digraph of size p·n. This enables XP-time searches over (S_1,…,S_p) when p is small (e.g., p bounded as a function of k) and under structural constraints.
+
+Obstacles
+- Formal 2-hunter lower bound on theta cacti: we need a clean adversarial argument using the fixed schedule to ensure placement at a soon-to-be-released endpoint at transfer times; Lemma 6 handles the “both endpoints always shot” branch, but the mixed branch needs a robust R-invariant.
+- General DP over tree decompositions: while Good_k is downward-closed, naive antichain states over a bag are too many. We need a k-sensitive compression (e.g., only boundary subsets with distinct k-neighborhood deficits |N(X)\Y|) to bound state counts by f(k,tw).
+
+Next steps
+1) Promote Theorem 1 (periodic-lift), Lemma 2 (barrier), Lemma 3 (anchor transfer), Theorem 4 (necklace h≤2), and Theorem 5 (cacti h≤3) to proofs.md with the precise R-evolution inequalities used above.
+2) Theta lower bound for k=2: attempt a formal proof for three s–t paths of length ≥2 using a dichotomy over rounds with A_i=S_i∩{s,t} equal to {s,t} or not, stitching an evader walk aligned to the known schedule. A small-state BFS over 2^V can validate minimal counterexamples.
+3) Implement a necklace constructor and a cactus 3-hunter constructor (two anchors + sweeper) and verify on random instances up to n≈200 via the R-recursion.
+4) Explore k-sensitive bag-state compression for DP on treewidth: define, for a partial graph with boundary B, the family F_B of “good” boundary subsets closed under one-step Pre_k with at most k deletions outside B; prove |F_B|≤g(k,|B|).
+5) Use Theorem 1 to search for small-period schedules on candidate hard graphs (theta cacti) to gather evidence for h=3 vs h=2 and refine lower-bound conjectures.
+
+
+=== Prover 4 Output ===
+
+# Goals this round
+- Make the “anchor-transfer” mechanism precise and correct the earlier flaw (recontamination when releasing an attachment vertex).
+- Prove h=2 on “necklaces” (cacti whose block–cut tree is a path) with an explicit invariant.
+- Prove h≤3 on all connected cacti via a two-anchors-plus-sweeper barrier.
+- State the periodic-lift criterion rigorously (with proof) as a reusable verification tool.
+
+# Preliminaries and notation
+- R-dynamics: R_1=V\S_1 and R_{t+1}=N(R_t)\S_{t+1}. A schedule wins by time T iff R_T=∅.
+- Permanent blockers (proved earlier): if U⊆S_t for all t, the evolution equals that on G−U with shots S_t\U.
+- A cactus graph is one where each edge belongs to at most one simple cycle. The block–cut tree BCT(G) is a tree whose “B-nodes” are blocks (2-connected components; here cycles or K_2 edges) and “C-nodes” are cut vertices.
+- For a cycle block B, let attach(B) be the union of B and all tree components attached to vertices of B; for an edge block E=K_2, define attach(E)=E (plus its pendant trees if any).
+
+# Anchor-transfer and barrier maintenance
+
+Lemma 1 (Transfer with local vacuum). Let G be a cactus. Let X and Y be consecutive cycle blocks in BCT(G) sharing the cut vertex a (i.e., …—X—a—Y—…). Fix indices so that “left” is the direction of X and “right” that of Y. Suppose at some time t we have:
+- a ∈ S_s for all s ≤ t (a anchored up to t),
+- R_t ∩ (attach(X) \ {a}) = ∅ and R_t ∩ (attach(Y) \ {a}) = ∅,
+- R_t has no vertex strictly to the left of a (i.e., in blocks whose unique connection to a lies through X).
+Then if we shoot S_{t+1} ⊇ {a,b}, where b is the next cut vertex to the right of a (i.e., b∈V(Y) is the articulation to the next block), and for all s ≥ t+1 we keep b ∈ S_s (anchor moves to b), we get for all s ≥ t+1,
+R_s ∩ (attach(X) ∪ attach(Y) \ {b}) = ∅.
+
+Proof. At time t, by assumptions, R_t contains nothing in attach(X)\{a} and attach(Y)\{a}, and nothing to the left of a. At step t+1 we shoot a and b, so R_{t+1} contains no a,b. Any vertex v in attach(X)∪attach(Y)\{b} can enter R_{t+2} only if some neighbor u∈R_{t+1} lies in attach(X)∪attach(Y) (since in a cactus the only neighbors outside enter through cut vertices a or b). But u cannot be a or b (shot at t+1) and, by hypothesis, no other vertex in attach(X)∪attach(Y) belongs to R_{t+1}. Hence R_{t+2}∩(attach(X)∪attach(Y)\{b})=∅. Inductively, for s≥t+1, the only possible re-entry into attach(X)∪attach(Y) from outside is via b, but b is shot in all rounds ≥t+1. Thus the intersection stays empty. ∎
+
+Remark. The “no vertex strictly to the left of a” clause is the global invariant that prevents recontamination from the left through the cut vertex preceding a.
+
+# Necklaces have h=2
+A necklace is a connected cactus whose BCT is a path and whose blocks are cycles (pendant trees allowed on cycle vertices).
+
+Theorem 2 (Necklace capture with 2 hunters). If G is a necklace with m≥1 cycle blocks arranged along a path B_1 — v_1 — B_2 — v_2 — … — v_{m−1} — B_m, then h(G)=2.
+
+Proof. Lower bound: m≥1 implies a cycle subgraph, so h≥2.
+Upper bound: We present a 2-hunter schedule in m phases, maintaining this invariant after completing phase i and transferring the anchor: for the current articulation v_i (with v_0 undefined), we have
+I(i): R ∩ (attach(B_1) ∪ … ∪ attach(B_i) \ {v_i}) = ∅ and v_i ∈ S at all subsequent rounds until the next transfer.
+Base (i=1): Anchor v_1. In phase 1, permanently shoot v_1 and, with the second hunter, execute a 1-hunter sweep on the forest F_1 := (attach(B_1) ∪ attach(B_2)) \ {v_1}. By permanent blockers, the evolution on G−{v_1} restricted to F_1 matches the tree sweep, yielding R ∩ F_1 = ∅ at the end of the phase. Now transfer the anchor to v_2 by one round shooting {v_1, v_2}. By Lemma 1 (with X=B_1, Y=B_2, a=v_1, b=v_2) and noting there is no left-of-v_1 region, we obtain I(2).
+Inductive step: Suppose I(i) holds for some 1<i<m. In phase i, keep v_i anchored and use the second hunter to sweep the forest F_i := (attach(B_i) ∪ attach(B_{i+1})) \ {v_i}. This empties R ∩ F_i. Then transfer the anchor to v_{i+1} by one round shooting {v_i, v_{i+1}}. The “no left-of-a” condition of Lemma 1 is exactly I(i); applying Lemma 1 with a=v_i, b=v_{i+1}, X=B_i, Y=B_{i+1} yields I(i+1).
+After phase m−1 we have I(m). Finally, keep v_{m} undefined and just observe that I(m) says R ∩ (attach(B_1) ∪ … ∪ attach(B_m))=∅ since there is no v_m; the graph is covered by these attaches, hence R=∅. Thus 2 hunters suffice. ∎
+
+# General cacti have h≤3
+
+Theorem 3 (Three hunters suffice on connected cacti). If G is a connected cactus with at least one cycle, then h(G) ≤ 3; if G is a tree, h(G)=1.
+
+Proof. Trees: h=1 as proved earlier. Assume at least one cycle. Root BCT(G) at an arbitrary block. Maintain two permanent anchors at two neighboring cut vertices along a currently chosen BCT edge e=(c,left)–(c,right) on the unique path from the root to the current frontier; more precisely, we keep both cut vertices u,v incident to the current frontier block anchored at all times. The third hunter acts as a sweeper.
+Invariant J(T): Let H_left be the union of blocks and attachments strictly on the root side of the anchored edge {u,v} (including the block between u and v). Then R ∩ (H_left \ {u,v})=∅.
+Initialization: start with any cycle block incident to the root and choose its two cut vertices u,v; anchor {u,v}. Within that block and its attachments, G−{u,v} is a forest; sweep it with the third hunter to establish J.
+Progress: If there remains some block on the non-root side incident to v, advance the frontier one step: in one round, keep u anchored and shoot the next cut vertex w beyond v using the sweeper (so the two anchors become {v,w} at the next step); in the following round, drop u and keep {v,w} anchored. During the transfer round, both v and w are shot; a verbatim adaptation of Lemma 1 (with a two-vertex barrier in place) yields preservation of J with the new anchored edge {v,w}. With J holding, sweep the block between v and w (and its attachments) using the third hunter (again a forest after removing {v,w}). Repeat until all blocks have been passed; then the residual R is empty.
+Because at all times two anchors form a barrier cutting the explored (left) side from the unexplored (right) side in the tree BCT, recontamination of H_left is impossible. The sweeper only targets forests obtained by removing the two anchors from a single cycle block plus attachments. Hence 3 hunters suffice. ∎
+
+Remark. Whether h(G)=2 holds for all cacti remains open here. The construction above shows h(G)≤3 and is tight with respect to the general bound h≤pw+1 since cacti may have pathwidth 2 or larger.
+
+# Periodic-lift criterion (rigorous)
+
+Lemma 4 (Periodic schedule correctness via time-lift). Fix p≥1 and a p-periodic schedule S_1,…,S_p repeated indefinitely. Build the directed graph H on vertex set V×{1,…,p} with arcs (x,i)→(y,i+1 mod p) whenever xy∈E(G) and y∉S_{i+1}. Then the schedule is winning iff H is acyclic. Moreover, if acyclic, capture occurs within ≤ p·|V| rounds.
+
+Proof. Let f be the round-to-round transition R↦N(R)\S_{next}. Over one period, define F:=f_p∘…∘f_1; then R_{t+p}=F(R_t). The set of infinite avoiding walks corresponds exactly to directed cycles in H: a cycle (v_1,i_1)→…→(v_q,i_q)→(v_1,i_1) gives a p-periodic walk avoiding shots; conversely any infinite avoiding walk induces a directed cycle in the finite graph H by pigeonhole (same layer and vertex repeat). Thus the schedule wins iff H has no directed cycle. If acyclic, the longest path in H has length < p·|V|, bounding the capture horizon. ∎
+
+# Algorithmic consequences
+- Necklaces: linear-time recognition and h computation: h=1 if acyclic; else h=2 by Theorem 2. A schedule can be constructed by emitting, for each i, the anchored tree-sweep on F_i then one transfer round.
+- Cacti: h≤3 always; constructing a 3-hunter schedule follows Theorem 3. Determining whether h=2 on a given cactus remains open; Theorem 3 offers a constructive YES with k=3 and a NO lower bound h≥2 if a cycle exists.
+- Periodic verification: for any fixed k and proposed period p, checking the p-periodic schedule reduces to an acyclicity test on |V|·p nodes.
+
+# Examples and sanity checks
+- Necklace of three cycles: B_1—v_1—B_2—v_2—B_3. Phase 1 anchor v_1: sweep attach(B_1)∪attach(B_2) minus v_1; transfer to v_2; phase 2 anchor v_2: sweep attach(B_2)∪attach(B_3) minus v_2; done.
+- Cactus “Y” of cycles: A central cycle with three leaf cycles attached via distinct cut vertices. Anchors start on two adjacent cut vertices around the central cycle; sweep the central block; then pivot anchors along each branch in turn, preserving J, sweeping each leaf cycle; completes with 3 hunters.
+
+# Obstacles
+- Extending h=2 to all cacti needs a barrier that prevents recontamination through multiple previously released cut vertices without exceeding two shots per round. The two-anchor invariant solves this but needs three hunters (two anchors + one sweeper). It is unclear whether a subtler 2-hunter schedule can maintain a moving barrier across branches.
+- Proving lower bounds >2 on cacti (to show tightness of h≤3) requires new obstructions beyond minimum degree or bipartite minors; searching for small counterexamples computationally is advised.
+
+# Next steps
+- Implement a generator for cacti up to n≈14 and exhaustively determine h via R-BFS and the periodic-lift checker for k=2. Either find a cactus with h=3 or strengthen the 2-hunter strategy across branches.
+- Formalize h ≤ pw(G)+1 with precise coupling to monotone mixed search (Kinnersley; Fomin–Thilikos) for inclusion in proofs.md.
+- Design an XP algorithm for fixed k on graphs with small FVS: enumerate U of size ≤k−1; for each, simulate anchored multi-phase sweeps using at most k−|U| extra hunters on the forest components glued to U via the separator composition lemma.
+- Seek bounded-period guarantees p=f(k) for optimal schedules; even for k=2, a polynomial bound on p would yield an n^{O(k)} verification-by-search procedure via Lemma 4.
+
+# Summary of new rigorous content
+- Lemma 1: Corrected anchor-transfer under a local vacuum and a one-round overlap, preventing recontamination.
+- Theorem 2: h=2 for necklaces (block–cut path of cycle blocks with pendant trees), with a clean phase invariant and explicit construction.
+- Theorem 3: h≤3 for all connected cacti via a two-anchors-plus-sweeper barrier.
+- Lemma 4: Periodic-lift criterion with proof and capture-time bound ≤p·|V|.

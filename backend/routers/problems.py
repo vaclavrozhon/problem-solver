@@ -119,19 +119,37 @@ def get_problem_status_public(problem: str):
             ts = float(ts)
         except (ValueError, TypeError):
             ts = 0
-    is_running = phase != "idle" and time.time() - ts < 600
+    is_running = phase != "idle" and time.time() - ts < 1800  # 30 minutes for very long model calls
     
-    # Calculate remaining rounds from run metadata
-    total_planned_rounds = 5  # Default fallback
-    metadata_file = runs_dir / "run_metadata.json"
-    if metadata_file.exists():
+    # Read batch status from dedicated batch_status.json file
+    # This file is created by the orchestrator when starting a new batch of rounds
+    batch_size = None
+    current_batch_round = None
+    batch_start_round = None
+
+    batch_status_file = runs_dir / "batch_status.json"
+    if batch_status_file.exists():
         try:
-            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
-            total_planned_rounds = metadata.get("requested_rounds", 5)
+            batch_status = json.loads(batch_status_file.read_text(encoding="utf-8"))
+            batch_size = batch_status.get("batch_total_rounds")
+            current_batch_round = batch_status.get("batch_current_round")
+            batch_start_round = batch_status.get("batch_start_round")
         except Exception as e:
-            print(f"Error reading run metadata: {e}")
+            print(f"Error reading batch status: {e}")
+            # Set to None if there's an error reading the file
+            batch_size = None
+            current_batch_round = None
+            batch_start_round = None
     
-    remaining_rounds = max(0, total_planned_rounds - current_round) if is_running else 0
+    # Calculate remaining rounds only if batch info is available
+    remaining_rounds = 0
+    if batch_size is not None and current_batch_round is not None:
+        if is_running and current_round == 0:
+            # Just started, no actual round running yet
+            remaining_rounds = batch_size
+        else:
+            # Remaining rounds includes the current round (which is still running)
+            remaining_rounds = max(0, batch_size - current_batch_round + 1) if is_running else 0
     
     # Check if last round is completed
     last_round_completed = True
@@ -145,7 +163,10 @@ def get_problem_status_public(problem: str):
         "is_running": is_running,
         "last_round_completed": last_round_completed,
         "remaining_rounds": remaining_rounds,
-        "timestamp": ts
+        "timestamp": ts,
+        "current_batch_round": current_batch_round,
+        "batch_size": batch_size,
+        "batch_start_round": batch_start_round
     }
     
     # Add error information if present

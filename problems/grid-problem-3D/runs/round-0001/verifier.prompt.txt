@@ -15,8 +15,8 @@ Inputs:
 
 **Three-tier file system guidelines**:
 - **notes.md**: Readable running log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. Should be self-contained.
-- **proofs.md**: Complete rigorous mathematical proofs with full details. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
-- **output.md**: ONLY the main problem results. Think twice before adding anything. Should contain a concise summary of the most important theorems that directly advance the main problem. Extremely selective.
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read. It has to be self-contained. It should contain ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
 
 Tasks:
 1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
@@ -78,30 +78,7 @@ $$
 
 so there are $(3^3-1)/2=13$ types. Let $J(T)\subseteq\{x,y,z\}$ be the coordinates where $T$ is nonzero, and $E(T)=\{x,y,z\}\setminus J(T)$ the coordinates where it is zero.
 
-Define the **componentwise minimum** (the “lower corner”)
-
-$$
-\ell(u,v)=\bigl(\min\{x_1,x_2\},\,\min\{y_1,y_2\},\,\min\{z_1,z_2\}\bigr)\in[n]^3.
-$$
-
-Define the color map $c_3:E(G)\to\mathcal L$ by
-
-$$
-\boxed{\quad c_3(uv)\;=\;\bigl(T(e),\,\ell(u,v)\bigr). \quad}
-$$
-
-Equivalently (expanding $\ell$ along $J(T)$ and $E(T)$): for $i\in J(T)$ record $m_i:=\min\{u_i,v_i\}$, and for $i\in E(T)$ record $t_i:=u_i(=v_i)$; together these give the full vector $\ell(u,v)$.
-**This explicitly remembers the coordinates that are equal**, fixing the issue where colors could otherwise forget them.
-
-**Examples.**
-
-$$
-\begin{aligned}
-c_3(uv) &=\bigl([+,+,+],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ \min\{z_1,z_2\}\bigr),\\
-c_3(uv) &=\bigl([+,-,0],\ \min\{x_1,x_2\},\ \min\{y_1,y_2\},\ z_1\bigr)\quad\text{if }z_1=z_2,\\
-c_3(uv) &=\bigl([+,0,0],\ \min\{x_1,x_2\},\ y_1,\ z_1\bigr)\quad\text{if }y_1=y_2,\ z_1=z_2.
-\end{aligned}
-$$
+Define the color map $c_3:E(G)\to\mathcal L$ as follows. For $i\in J(T)$ (the two points $u,v$ disagree on the coordinate), record $m_i:=\min\{u_i,v_i\}$. For $i\in E(T)$, don't record anything. The list of length 3 that contains either the minimum coordinate, or "unspecified", together with the type of the point-pair, is the color of the edge. Check the $d=2$ solution to see how this works. 
 
 For $U\subseteq V(G)$, let $G[U]$ denote the induced subgraph. An edge $e\in E(G[U])$ has a **unique color in $U$** if no other edge of $G[U]$ has the same label $c_3(e)$.
 
@@ -110,7 +87,7 @@ For $U\subseteq V(G)$, let $G[U]$ denote the induced subgraph. An edge $e\in E(G
 Show that for every vertex set $U\subseteq [n]^3$ with $|U|\ge 2$, there exist $u_1,u_2\in U$ such that the edge $u_1u_2$ has a color that appears **exactly once** in $G[U]$ under the coloring $c_3$ above.
 
 
-Next, you are given a file with a proof for $d=2$. 
+Next, you are given a file with a proof for the analogous question in $d=2$. 
 
 
 \documentclass[11pt]{article}
@@ -554,198 +531,385 @@ Starting from $a$, repeatedly apply the claim to obtain a strictly increasing se
 
 === Prover 1 Output ===
 
-# Ideas
+# 3D setup and notation
 
-- Slice by a fixed coordinate. If a fiber (say a z-level) contains at least two points, the d=2 theorem on that slice yields an edge whose 3D color is unique globally because the 3D color has z in E(T) with the exact level value recorded.
-- If no fiber in any coordinate contains two points, then every pair of vertices differs in all three coordinates (E(T)=\emptyset for every edge). Sort by z; take the top z-vertex and pair it with a suitable predecessor chosen by a Pareto-maximal criterion in (x,y). That edge’s lower corner cannot be replicated, hence its color is unique.
+- Vertices: V=[n]^3, write p=(x(p),y(p),z(p)).
+- For distinct u,v, the sign pattern σ(u,v)∈{−1,0,+1}^3\{0} is taken up to global ±, yielding 13 types. For a type T fix a representative s(T)=(s_x,s_y,s_z) with J(T)={i: s_i≠0} and E(T)={x,y,z}\J(T). Write P(T)={i∈J: s_i=+1}, N(T)={i∈J: s_i=−1}.
+- Edge color c_3(uv) consists of T together with the minima m_i:=min{u_i,v_i} for i∈J(T); coordinates in E(T) are unspecified.
+- Define the strict 3D NE-set of p by NE(p):={q∈U: q_x>x(p), q_y>y(p), q_z>z(p)}. A point is 3D-eligible if NE(p)≠∅.
 
-Why useful: This directly reduces the 3D statement to the given d=2 result plus a clean combinatorial lemma for the “general position” case.
+# A master counting lemma for c_3
 
-# Lemma 1 (Layer reduction)
+Fix a type T (choose a representative s(T)=(s_x,s_y,s_z) as above) and a minima vector m=(m_i)_{i∈J(T)}∈[n]^{J(T)}.
+For t=(t_i)_{i∈E(T)}∈[n]^{E(T)} define
+- A_t(T,m):={ u∈U: u_i=m_i for i∈P(T); u_i>m_i for i∈N(T); and u_i=t_i for i∈E(T) },
+- B_t(T,m):={ v∈U: v_i>m_i for i∈P(T); v_i=m_i for i∈N(T); and v_i=t_i for i∈E(T) }.
 
-Statement. Let U\subseteq[n]^3. If there exist c\in\{x,y,z\} and t\in[n] with |U\cap\{c=t\}|\ge 2, then G[U] contains an edge whose c_3-color appears exactly once in G[U].
+Lemma (Master multiplicity). The number M_U(T,m) of edges in G[U] colored (T,m) equals
+Σ_{t∈[n]^{E(T)}} |A_t(T,m)|·|B_t(T,m)|.
 
-Proof. WLOG c=z. Consider the 2D set U_t:=\{(x,y):(x,y,t)\in U\}. By the d=2 theorem (for the coloring that records type and the 2D lower corner with equalities), G[U_t] has an edge e within the plane z=t whose 2D color is unique in that plane. Viewed in 3D, e has type with z\in E(T) and its color c_3(e) records t in the z-slot of \ell. Any edge not lying in the plane z=t either has z\in J(T) (so cannot match type) or, if it lies in another plane z=t', then its color records t'\ne t in the z-slot. Hence no edge outside z=t can share c_3(e). Uniqueness within z=t was ensured by the d=2 theorem, so c_3(e) is unique in G[U]. ∎
+Proof. For any edge {u,v} of color (T,m), orient it so that s(T) matches the chosen representative: for i∈P(T), u_i<v_i and m_i=u_i; for i∈N(T), u_i>v_i and m_i=v_i; for i∈E(T), u_i=v_i=t_i. Then u∈A_t and v∈B_t for the unique t, so the pair contributes 1 to |A_t||B_t|. Conversely any such (u,v) produces color (T,m). Because we fixed a representative s(T), no unordered pair is double-counted. ∎
 
-# Lemma 2 (General position: no equal coordinate anywhere)
+Remarks.
+- The formula is orientation-invariant: changing s(T) to −s(T) swaps A_t and B_t.
+- This cleanly generalizes the 2D product counts (Facts for types 1 and 2).
 
-Statement. Let U\subseteq[n]^3 be such that for any distinct u,v\in U, u and v differ in all three coordinates (so every edge has J(T)=\{x,y,z\}). Then G[U] contains an edge whose c_3-color appears exactly once.
+# Useful explicit corollaries
 
-Proof. If |U|=2 the claim is trivial. Assume |U|=m\ge 3. Order vertices by increasing z: v_1,\dots,v_m with z_1<\cdots<z_m.
+Below, we state three instances we will repeatedly use (notations α,β,γ are integers in [n]).
 
-Let v_m be the top-z vertex, and among v_1,\dots,v_{m-1} choose v_i with maximal x-coordinate (no ties exist since all x’s are distinct).
+1) J={x,y,z}, s=(+,+,+) (all three increase):
+M_U(T,m) = 1_{(m_x,m_y,m_z)∈U} · |NE(m_x,m_y,m_z)|.
+In particular, the color ((+,+,+),m) is unique iff (m∈U) and |NE(m)|=1.
 
-Consider the edge e=\{v_i,v_m\}. Since all coordinates differ on every pair, c_3(e) is determined by its lower corner \ell(e)=\bigl(\min(x_i,x_m),\min(y_i,y_m),z_i\bigr) and the fixed type class with all three coordinates nonzero.
+2) J={x,z}, E={y}, s=(+ ,0 ,−) (x increases, z decreases, y equal):
+For each fixed row y=β define
+r_{β}(α,γ):= #{(α,β,z)∈U: z>γ},
+ s_{β}(α,γ):= #{(x,β,γ)∈U: x>α}.
+Then
+M_U(T,(α,γ)) = Σ_{β=1}^n r_{β}(α,γ) · s_{β}(α,γ).
+Consequently, this color is unique iff there is a unique β with r_β(α,γ)=s_β(α,γ)=1 and r_{β'}(α,γ)s_{β'}(α,γ)=0 for all β'≠β.
 
-We claim c_3(e) is unique. First, among edges incident to v_m, the z-coordinate in \ell uniquely identifies the lower endpoint: \ell_z(e)=z_i, and distinct i give distinct z_i; hence no other \{v_k,v_m\} has the same color as e.
+(The same formulas hold for s=(−,0,+) by symmetry, and for the “monotone” J={x,z}, s=(+ ,0 ,+) one gets Σ_β 1_{(α,β,γ)∈U}· #{(x,β,z)∈U: x>α, z>γ}.)
 
-Next, consider edges \{v_a,v_b\} with b<m. For such a pair to share c_3(e), we must have \min(z_a,z_b)=z_i, i.e., a=i and b>i. Thus any potential duplicate must be \{v_i,v_j\} with i<j<m and satisfy simultaneously
+3) J={x}, E={y,z} (only x changes):
+For each (β,γ) put d_{β,γ}(α):=1_{(α,β,γ)∈U}· #{(x,β,γ)∈U: x>α}.
+Then M_U(T,α) = Σ_{β,γ} d_{β,γ}(α).
+In particular, if there is a unique line (β,γ) with a point at x=α and exactly one further point to its right, and no other line contributes, then the x-only color with minima α is unique.
 
-- \min(x_i,x_j)=\min(x_i,x_m), and
-- \min(y_i,y_j)=\min(y_i,y_m).
+# Lexicographic maximizers and antichains
 
-There are two cases.
+Order triples by (z,y,x) lex: (z,y,x) <_lex (z',y',x') iff z<z' or [z=z' and (y<y' or (y=y' and x<x'))].
 
-1) If x_m<x_i (or analogously y_m<y_i), then \min(x_i,x_m)=x_m. Any j<m has x_j\ne x_m; since x_j\in\{1,\dots,n\}\setminus\{x_m\}, \min(x_i,x_j)=x_m cannot hold. Hence no \{v_i,v_j\}, j<m, matches e.
+Lemma (Lex–max antichain). If a∈U is lexicographically maximal among 3D-eligible points (NE(a)≠∅), then NE(q)=∅ for every q∈NE(a). In particular NE(a) is an antichain under the product order (strict in all three coordinates).
 
-2) If x_m>x_i and y_m>y_i, then \min(x_i,x_m)=x_i and \min(y_i,y_m)=y_i, so \ell(e)=(x_i,y_i,z_i). For a duplicate \{v_i,v_j\} one needs x_j>x_i and y_j>y_i. But v_i was chosen with maximal x among j<m, so there is no j<m with x_j>x_i. Therefore no duplicate exists.
+Proof. If q∈NE(a) had NE(q)≠∅, then some r∈NE(q) satisfies (z(r),y(r),x(r))>_lex (z(q),y(q),x(q))>_lex (z(a),y(a),x(a)), so r is 3D-eligible and lex-bigger than a, contradicting maximality. ∎
 
-Thus in all cases c_3(e) is unique. ∎
+Usefulness: This is the 3D analogue of Lemma 2.1 in the 2D file; it is the structural input behind all “propagation” steps.
 
-# Theorem (d=3 uniqueness of a color)
+# A nontrivial special case: coordinatewise injective sets
 
-Statement. For every U\subseteq[n]^3 with |U|\ge 2, there exist u_1,u_2\in U such that the edge u_1u_2 has a color that appears exactly once in G[U] under c_3.
+We prove the theorem for the class of sets U with no repeated x, no repeated y, and no repeated z.
 
-Proof. If some coordinate fiber of U contains at least two points, apply Lemma 1. Otherwise, no two vertices of U share any coordinate, so Lemma 2 applies. ∎
+Theorem (Injective projections ⇒ unique color). If U⊆[n]^3 satisfies that the three coordinate projections are injective (no two points share x, likewise for y, z), and |U|≥2, then G[U] contains an edge whose c_3–color is unique in G[U].
 
-# Examples / sanity checks
+Proof.
+Arrange the points as u_1,…,u_m by increasing x. Consider the sequences y_i:=y(u_i) and z_i:=z(u_i).
 
-- Two points differing in all coordinates: unique edge/color trivially.
-- Three-point chain (in all coordinates): the top two form the unique color (only one pair has lower corner equal to the penultimate point).
-- A nontrivial slice: If U contains two points with z=t, the unique edge from the d=2 result in that plane remains unique globally since z is recorded in the color and cross-plane edges have z\in J(T).
+Case 1: both (y_i) and (z_i) are strictly increasing. Then the product order is a chain. Take a:=u_{m−1}. Its strict NE–set is NE(a)={u_m}, hence by corollary 1 above, the (+++) color with minima m=(x(a),y(a),z(a)) has multiplicity 1. Thus it is unique.
 
-# Obstacles noted
+Case 2: otherwise, there exist i<j with either (y_i>y_j and z_i>z_j) or exactly one of these inequalities holds.
+- Subcase 2a: y_i>y_j and z_i>z_j. Then the edge e=u_i u_j is of J={x,y,z}–type with representative s=(+ ,− ,−) and minima m=(x_i,y_j,z_j). By injectivity in y and z, A_t(T,m)={u_i} and B_t(T,m)={u_j} for the unique t (there is no freedom in E(T), which is empty here), so by the master lemma M_U(T,m)=1. Hence c_3(e) is unique.
+- Subcase 2b: say y_i>y_j but z_i<z_j (the other symmetric). Then e has J={x,y,z} with representative s=(+ ,− ,+), minima m=(x_i,y_j,z_i). Again, injectivity forces A={u_i} (x=m_x and z=m_z pin u_i), and B={u_j} (y=m_y pins u_j; also x_j>x_i and z_j>z_i), so multiplicity is 1 and c_3(e) is unique.
+In all possibilities outside Case 1 we obtain a unique color. ∎
 
-- Attempting to use a globally minimal lower corner \ell among all edges fails: many color duplicates can share that \ell via multiple pairs. This is why the layered reduction and the general-position Pareto argument are used.
+Why useful: This eliminates a large “generic” regime and shows that collisions in colors fundamentally require some coordinate repetitions; any complete 3D proof can focus on handling repetitions (fibers).
 
-# Next steps / extensions
+# Small examples and sanity checks
 
-- The same scheme generalizes to dimension d by induction on d: if some fiber has size \ge 2, reduce to d-1; otherwise all coordinates are distinct, sort by the d-th coordinate, choose the top element and pair with a point that is Pareto-maximal in the remaining d-1 coordinates. The same uniqueness argument applies because the color records all coordinates of the lower corner and the type fixes J(T).
+- If U is any 3-term chain in product order, the middle–top edge (between the top two) has a unique (+++) color via corollary 1.
+- If U consists of two points with the same y,z but distinct x, the x-only type appears. If there is no other (y',z')–line with a point at the same minimal x and a right neighbor, then that color is unique by corollary 3.
+
+# Obstacles in directly lifting the 2D propagation
+
+A naive lift of the 2D proof would: fix a lex–max 3D-eligible a, let γ=Z_min(a) be the lowest z-level of NE(a), pick a pair b_1,b_2 on that plane satisfying a “row–good” condition in x–y, and then propagate to a lower plane γ'<γ using J={x,z} cross–types (corollary 2). The 2D argument crucially used that when dropping from row β to β'<β, every point on β' lies strictly below b_2 in the second coordinate, guaranteeing comparability and allowing r(α,β')=1. In 3D, if we drop in z but not necessarily in y, we do not automatically get y(c_1)<y(b_2); hence we lose comparability and the key inequality r_β(α,γ')=1 may fail across all rows β.
+
+This is the main technical gap to bridge in a full 3D proof: one must organize NE(a) simultaneously in the y and z directions to recover a “propagation” condition ensuring that, for a carefully chosen β, one has r_β(α,γ')=1, forcing s_β(α,γ')≥2 under (H), and hence producing two rightward points on z=γ' at the same row β (as in 2D). The master counting lemma (corollary 2) is exactly the tool needed once such an organizational lemma is in place.
+
+# Proposed 3D plane–based dichotomy and propagation (to be formalized next)
+
+Definitions (plane–row/column–good relative to a): Fix a lex–max 3D-eligible a. Let γ:=min{z>a_z: NE(a)[z]≠∅}. On the plane z=γ, for rows β>y(a) define S_{γ,β}:=NE(a)∩{z=γ,y=β} and for columns α>x(a) define C_{γ,α}:=NE(a)∩{z=γ,x=α}.
+- a is z–row–good if there exists a row β with |S_{γ,β}|≥2 and, listing its x–coordinates x_1<⋯<x_t, the second–rightmost/rightmost pair b_1=(x_{t−1},β,γ), b_2=(x_t,β,γ) has the property that every q∈NE(a) with z≥γ and y≥β other than {b_1,b_2} satisfies x(q)<x(b_1).
+- z–column–good is the analogous statement interchanging x and y on z=γ.
+
+Propagation claim (sketch). Assume (H) “no unique color in G[U]” and a lex–max a as above. If a is z–partially–row–good (same as z–row–good but allowing arbitrary points with z<γ), then either (i) NE(a)[z']=∅ for all z'<γ (hence a is fully z–row–good), or (ii) there exists γ'<γ and a row β' with a partially z–row–good pair b_1',b_2'⊂NE(a) on z=γ', y=β'. The intended proof mirrors Lemma 3.5 in 2D but uses corollary 2 with J={x,z}: after fixing γ' maximal below γ with NE(a)[γ']≠∅, one shows, for an appropriately chosen row β, that r_β(x(b_1),γ')=1, whence (H) forces s_β(x(b_1),γ')≥2, producing two distinct x’s on z=γ' at the fixed β. A second push with x(b_2) rules out configurations contradictory to the partially–good definition.
+
+Why this would work: Once a plane–based dichotomy (z–row–good vs z–column–good) is established for a, one can emulate the terminal step in the 2D proof: non-uniqueness of a certain x-only or y-only color on z=γ creates a new point a' to the right (or upwards) but not above (in z,y), and iterating yields a finite strictly monotone sequence in x (or y), a contradiction.
+
+What remains: The key missing ingredient is a clean selection of β on z=γ' ensuring r_β(α,γ')=1. This likely follows from a refined choice of the starting row on z=γ (topmost within NE(a)[γ] as in 2D) and a careful use of the antichain property of NE(a) to force y–comparability across the drop in z. Formalizing this selection is the next target.
+
+# Summary of progress
+
+- Introduced and proved a master multiplicity lemma for the 3D color c_3, with three concrete corollaries (J=3 monotone, J={x,z} cross, J={x} only). These generalize and subsume the 2D counting Facts and will be the engine for 3D propagation.
+- Proved that a lex–max 3D-eligible point has an antichain NE–set (exact 3D analogue of the 2D antichain lemma).
+- Proved the main theorem for a large special class: sets U with injective projections on all three coordinates.
+- Identified the core obstacle in lifting the 2D propagation: controlling y when stepping down in z. Proposed a precise plane–based “row/column–good” dichotomy and a propagation claim using the new counting fact for J={x,z}.
+
+# Next steps (actionable)
+
+1) Formalize the selection of the initial partially z–row–good pair on z=γ (e.g., choose the topmost row β with |S_{γ,β}|≥2) and show how this forces, on the next lower plane γ', the existence of a row β with r_β(α,γ')=1 via the antichain structure.
+2) Prove the z–column–good analogue using J={y,z} counting.
+3) Establish the plane–based dichotomy for every lex–max 3D-eligible a (as in Lemma 3.7 for 2D), finishing the 3D step that replaces Lemma 3.6.
+4) Adapt the final “forward iteration” argument to 3D once the dichotomy is in place, using x-only or y-only colors on z=γ and the cone–maximizer trick from the 2D proof’s last section.
+
+Once (1)–(3) are settled, the remainder follows the 2D blueprint with the master counting lemma replacing Fact 2, completing the full 3D proof.
 
 
 === Prover 2 Output ===
 
-Ideas
-- Reduce the 3D problem to the solved 2D case on coordinate slices. If some coordinate-hyperplane contains at least two points of U, apply the 2D theorem on that slice and note the 3D color coincides with the 2D color plus the fixed equal coordinate, hence remains unique in G[U].
-- Handle the complementary case where every coordinate-hyperplane contains at most one point of U ("full injectivity"). Then any edge whose sign pattern has exactly one “minus” (or exactly one “plus”) already has uniquely determined endpoints for the color parameters, making the color unique. If no such mixed pattern exists, U is a chain under the product order; the top two points yield a type [+++] edge with multiplicity 1.
+# Ideas
 
-Counting facts in 3D (used later)
-For p=(x,y,z) and U⊂[n]^3, write
-NE_3(p)= { q∈U : q_x>x, q_y>y, q_z>z }.
+- Lift the d=2 machinery to d=3 by working with the strict orthant order “all three coordinates increase.” Generalize the counting “multiplicity = product” for types that mix increasing/decreasing coordinates, and obtain a clean formula that will be a workhorse for forcing the existence of multiple witnesses on a lower z–level.
+- Decouple the in–plane (fixed z) combinatorics from the cross–plane (varying z) propagation. Inside a fixed z–plane we can choose a 2D partially row–good pair without appealing to (H); then use a 3D type with one negative (on z) to push to the next lower z–plane by the product multiplicity.
+- Record precisely the 3D multiplicity identities (generalizing Facts 2.1–2.2) so the verifier can use them as black boxes in later steps.
+- Identify a concrete obstacle: vertical duplicates (same (x,y) occurring at multiple z’s) can break naive iteration, so a selection rule (or an axis–switch) will be needed later.
 
-Fact A (type [+++]). For (α,β,γ)∈[n]^3,
-# { e∈E(G[U]) : c_3(e)=([+++], (α,β,γ)) } = 1_{(α,β,γ)∈U} · |NE_3(α,β,γ)|.
-Proof. If c_3(e)=([+++],ℓ) then ℓ is the componentwise minimum and all three coordinates strictly increase; thus ℓ must be one endpoint, and the other endpoint is any q∈NE_3(ℓ). Conversely, each q∈NE_3(ℓ) with ℓ∈U yields such an edge.
+# Notation and basic 3D facts
 
-Fact B (type with exactly one minus). Fix the representative (+,+,−) (minus in z) and let ℓ=(α,β,γ). Define
-r_z(α,β,γ)= #{ v∈U : v_x=α, v_y=β, v_z>γ },
-s_{xy}(α,β,γ)= #{ u∈U : u_z=γ, u_x>α, u_y>β }.
-Then
-# { e∈E(G[U]) : c_3(e)=([++−], (α,β,γ)) } = r_z(α,β,γ) · s_{xy}(α,β,γ).
-Proof. Orient each such edge so its sign vector is (+,+,−). Then the lower corner is (v_x,v_y,u_z)=(α,β,γ), forcing v_x=α, v_y=β and u_z=γ, with u_x>α,u_y>β and v_z>γ. This gives a bijection between such edges and pairs (v,u) with v counted by r_z and u by s_{xy}.
+- For p=(x,y,z)∈U, define the strict octant
+  NE₃(p):={q=(x′,y′,z′)∈U: x′>x, y′>y, z′>z}.
+  Write p≺₃q iff q∈NE₃(p).
+- A point is eligible if NE₃(p)≠∅.
+- Types in d=3: For an edge e=uv, the sign pattern σ(uv)∈{−1,0,+1}³\{(0,0,0)} is taken up to global sign, yielding a type T. Let E(T) be the zero coordinates and J(T)={x,y,z}\E(T) the nonzero coordinates. For i∈J(T), the color records m_i:=min{u_i,v_i}; i∈E(T) is unspecified. Thus c₃(e)=(T,(m_i)_{i∈J(T)}).
 
-Slice–reduction lemma (3D→2D)
-Lemma 1. If U contains two points in a coordinate plane (say z=t), then G[U] has an edge of unique color under c_3.
-Proof. Consider U_t={ (x,y) : (x,y,t)∈U }⊂[n]^2. Apply the 2D theorem to U_t: there exists an edge with a 2D color unique in G[U_t]. The corresponding 3D edge lies in the plane z=t and has type with z–coordinate 0; its 3D color is exactly the 2D color together with the remembered equal coordinate t. No edge outside the plane has z–type 0, so the color is unique in G[U].
+- For S⊆{x,y,z} and a tuple t∈[n]^S, denote the fibre
+  U[S=t]:= {u∈U: u_i=t_i for all i∈S}.
+  For inequalities, e.g. u_P=m_P and u_M>m_M, interpret componentwise on the specified index set.
 
-Injective–planes case
-Definition. U satisfies (I) if for every α, each plane x=α contains ≤1 point of U, each plane y=α contains ≤1 point, and each plane z=α contains ≤1 point. Equivalently, the projections x,y,z are injective on U.
+## Multiplicity formulas (general form)
 
-Lemma 2 (uniqueness under (I)). If U satisfies (I) and |U|≥2, then G[U] contains a uniquely colored edge under c_3.
-Proof.
-- Case A: There exists a pair u,v with exactly one minus sign in its sign pattern (equivalently, exactly two pluses). WLOG take pattern (+,+,−). Let ℓ=(α,β,γ)=(min{x(u),x(v)}, min{y(u),y(v)}, min{z(u),z(v)}). Then r_z(α,β,γ)≤1 (since plane x=α has ≤1 point) and s_{xy}(α,β,γ)≤1 (since plane z=γ has ≤1 point). Because u,v realize this color, r_z=s_{xy}=1, so Fact B gives multiplicity 1.
-- Case B: There exists a pair with exactly one plus (two minuses). By symmetry (apply Fact B with coordinates permuted), the edge color is unique.
-- Case C: No pair has exactly one minus or exactly one plus. Then every pair has either (+++) or (---), so U is totally ordered by the product order. Let w be the second–largest element. Then NE_3(w)={top element}, hence by Fact A the [+++] color with lower corner w has multiplicity 1.
-In every case a unique color exists.
+Let a type T be specified by a partition of indices into P(T)= indices with +, M(T)= indices with −, and E(T)= indices with 0 (up to global sign; we fix the orientation where P(T) are the “increasing” coordinates). For each color parameter m∈[n]^{J(T)}, define for w∈[n]^{E(T)} the sliced sets
+- U⁺(w):= {u∈U: u_P=m_P, u_E=w, and u_M>m_M},
+- U⁻(w):= {v∈U: v_M=m_M, v_E=w, and v_P>m_P}.
 
-Main theorem in 3D
-Theorem. For every U⊂[n]^3 with |U|≥2, there exist u_1,u_2∈U such that the edge u_1u_2 has a color that appears exactly once in G[U] under c_3.
-Proof. If some coordinate plane x=α or y=β or z=γ contains ≥2 points of U, apply Lemma 1 to that plane to obtain a unique color. Otherwise every such plane contains ≤1 point, so (I) holds; Lemma 2 yields a unique color.
+Proposition (Multiplicity for any T). The number of edges in G[U] with color (T,m) equals
+  N_T(m)=∑_{w∈[n]^{E(T)}} |U⁺(w)|·|U⁻(w)|.
+In particular, when E(T)=∅ (all three coordinates change), this reduces to
+  N_T(m) = |{u∈U: u_P=m_P, u_M>m_M}| · |{v∈U: v_M=m_M, v_P>m_P}|.
 
-Examples (sanity checks)
-- Chain: U={(1,1,1),(2,2,2),(3,3,3)}. The edge between (2,2,2) and (3,3,3) has color ([+++],(2,2,2)) with multiplicity |NE_3(2,2,2)|=1.
-- Mixed signs under (I): U={(1,1,3),(2,2,2),(3,3,1)}. The pair (3,3,1)–(1,1,3) has pattern (+,+,−) with ℓ=(1,1,1); by (I), r_z=s_{xy}=1, hence multiplicity 1.
-- Slice case: U contains (1,1,5),(3,2,5),(4,4,5). Apply the 2D theorem on z=5 to find a unique color; it remains unique in 3D.
+Proof. Each edge of type T and minima m decomposes uniquely (given our fixed orientation of P/M) as an ordered pair (u,v) with u attains the minima on P and v attains the minima on M, the E–coordinates equal between the endpoints; conversely every such ordered pair produces one undirected edge of that color. Summing over the common E–coordinates yields the claim.
 
-Obstacles and next steps
-- The argument extends to dimension d≥3: either a coordinate hyperplane contains ≥2 points (reduce to d−1), or every such hyperplane contains ≤1 point (full injectivity), in which case any edge with exactly one coordinate reversing direction yields a unique color; if none exist, U is a chain and the top two points give a unique [+,…,+] color. Formalizing the general counting analogue of Fact B in d dimensions and writing the induction carefully would complete the d–dimensional result.
+Two useful specializations:
+- All–plus (+++): P={x,y,z}, M=∅, E=∅. Then for m=(α,β,γ),
+  N_{+++}(α,β,γ) = 1_{(α,β,γ)∈U} · |NE₃(α,β,γ)|.
+  Hence (α,β,γ) is unique iff (α,β,γ)∈U and |NE₃(α,β,γ)|=1.
+- One minus (++−): P={x,y}, M={z}, E=∅. For m=(α,β,γ),
+  N_{++−}(α,β,γ) = r_z(α,β;γ) · s_{xy}(α,β;γ),
+  where r_z(α,β;γ):= |{(α,β,z)∈U: z>γ}| and s_{xy}(α,β;γ):= |{(x,y,γ)∈U: x>α, y>β}|.
+  Uniqueness iff r_z=s_{xy}=1.
 
+Remark. The six types with |J(T)|=2 (one zero) admit the summed form
+  N_T(m)=∑_{w∈[n]^{E(T)}} |U⁺(w)|·|U⁻(w)|,
+which will be used later when needed.
+
+## Lexicographic maximizer and antichain property
+
+Order triples by (z,y,x) lex: (z,y,x)≤_lex(z′,y′,x′) iff z<z′, or z=z′ and y<y′, or z=z′, y=y′ and x≤x′.
+
+Lemma (3D lex–max antichain). Let a∈U be lexicographically maximal among eligible points (i.e., NE₃(a)≠∅ and (z(a),y(a),x(a)) is lex–max subject to eligibility). Then NE₃(q)=∅ for every q∈NE₃(a). Equivalently, NE₃(a) is an antichain for ≺₃.
+
+Proof. If q∈NE₃(a) had NE₃(q)≠∅ then there exists r with r≻₃q, hence (z(r),y(r),x(r))>(z(q),y(q),x(q))≥(z(a),y(a),x(a)), contradicting the lex maximality of a.
+
+Consequences: (i) Under (H), |NE₃(a)|≥2 (else the (+++) color at (x(a),y(a),z(a)) would be unique). (ii) No element of NE₃(a) can be ≺₃–comparable to another.
+
+# In–plane structure and a cross–plane propagation lemma
+
+For a fixed level δ, write NE₃(a)[z=δ]:= {q∈NE₃(a): z(q)=δ}. Inside this plane treat x,y as in d=2.
+
+Definition (In–plane partially row–good at level δ). A pair b₁,b₂∈NE₃(a)[z=δ] on the same row y=β with x(b₁)<x(b₂) is partially row–good in the plane if:
+- (PR1₂D) within z=δ, b₁,b₂ are the last two points on row β (second–rightmost/rightmost in x);
+- (PR2₂D) within z=δ, every other point q with y(q)≥β satisfies x(q)<x(b₁).
+This is exactly Definition 2.6 applied to the 2D set NE₃(a)[z=δ], ignoring z.
+
+Observation (existence of a starting in–plane pair). If NE₃(a)[z=δ] contains at least two points, then there exists an in–plane partially row–good pair: take the topmost row β in that plane that has at least two points, and pick the two rightmost on that row; (PR1₂D),(PR2₂D) hold by construction inside the plane.
+
+Lemma (Cross–plane propagation via (++−)). Assume (H), let a be lex–max eligible, and let δ be a z–level with NE₃(a)[z=δ]≠∅. If there is a lower z–level
+  γ:= max{z′<δ: NE₃(a)[z=z′]≠∅},
+then for any in–plane partially row–good pair b₁,b₂∈NE₃(a)[z=δ] on row β with x(b₁)<x(b₂), there exist two points c₁,c₂∈NE₃(a)[z=γ] with
+  x(c_i)>x(b₁) and y(c_i)>y(b₁), i=1,2.
+
+Proof. Consider the (++−) color with parameters (α,β,γ)=(x(b₁),y(b₁),γ). By the multiplicity formula,
+  N_{++−}(α,β,γ)= r_z(α,β;γ)· s_{xy}(α,β;γ).
+Because γ is the immediate lower level below δ supporting NE₃(a), there are no points with z∈(γ,δ) in NE₃(a); on level z=δ, the fibre {(x,y)=(α,β)} contains exactly b₁; there is no level above δ in NE₃(a). Hence r_z(α,β;γ)=1. Under (H) the color cannot be unique, so s_{xy}(α,β;γ)≥2, i.e., there are at least two points on z=γ with x>α and y>β. These are c₁,c₂.
+
+Remark (why no extra in–plane hypothesis is needed). The argument uses only: (i) δ is a top level above γ within NE₃(a), and (ii) the (++−) identity. No further in–plane exclusions are needed to certify r_z=1.
+
+# Example illustrating an obstacle for naive iteration
+
+Even with the propagation lemma, an attempt to iterate plane–by–plane may fail if vertical duplicates occur (same (x,y) at multiple z). For instance, take U consisting of the three points
+  p₁=(2,2,4), p₂=(3,3,3), p₃=(2,2,2).
+For a=(1,1,1), NE₃(a)={p₁,p₂,p₃}. The top plane is z=4 with a single point p₁, so we would start instead at z=3 with only p₂. Moving down to z=2 gives p₃ but note that (x,y)=(2,2) occurs at two z–levels (4 and 2). If at some step we select b₁′ with (α′,β′)=(2,2) on z=2 and attempt to push to γ=… there can be r_z(α′,β′;γ)≥2 (witnessed by p₁ and b₁′), allowing s_{xy} to drop to 1 without violating (H). This shows that a blind “always take the rightmost two” can stall. A refined selection (avoid columns that recur above) or an axis–switch is likely needed.
+
+# Next steps toward a full 3D proof
+
+- Axis–choice and dichotomy. In d=2 we proved a dichotomy (row–good or column–good) for a lex–max eligible point. In d=3 a plausible analogue is: for lex–max eligible a, at least one of the three coordinates admits a “plane–good” structure from which one can propagate strictly in that coordinate (using a one–minus type) until the lowest such plane. Formalize a 3–way dichotomy with in–plane partially good pairs on the top supporting plane for that coordinate.
+- Selection rule to defeat vertical duplicates. Augment the in–plane selection to avoid picking b₁ whose (x(b₁),y(b₁)) appears at a higher plane. Under a mild combinatorial lemma (to be proved), either there are at least two “vertically unique” choices on the plane, or one can force a (+++) unique color earlier.
+- Local cone–maximality. The 2D “cone–maximal implies local antichain” (used to apply dichotomy locally) has a verbatim 3D analogue. This should let us apply the dichotomy not only at the global lex–max a, but also at intermediate points produced by a horizontal/vertical/z–propagation, enabling the final “rightward–and–downward” termination as in d=2.
+- No–eligible case in 3D. Generalize Lemma 6.5 (no eligible ⇒ unique color) by considering minimal supporting planes in each coordinate and applying the summed multiplicity for |J|=1,2 types. The 2D logic (“a duplicate at a higher level creates an NE–witness”) extends with the third coordinate checked.
+
+# Rigorous statements ready to be integrated
+
+1) Proposition (Multiplicity for any type T). With P(T),M(T),E(T) and m as above,
+   N_T(m)=∑_{w∈[n]^{E(T)}} |{u∈U: u_P=m_P, u_E=w, u_M>m_M}| · |{v∈U: v_M=m_M, v_E=w, v_P>m_P}|.
+   In particular for (+++) and (++−) we get the simplified formulas (all–plus; one–minus product).
+
+2) Lemma (3D lex–max antichain). For a lex–max eligible a (w.r.t. (z,y,x) lex), NE₃(q)=∅ for all q∈NE₃(a).
+
+3) In–plane starting pair. If a z–plane δ supports at least two points of NE₃(a), there exists an in–plane partially row–good pair b₁,b₂∈NE₃(a)[z=δ] (2D Definition (PR1),(PR2) applied inside the plane).
+
+4) Lemma (Cross–plane propagation via (++−)). Under (H), if δ is a z–level with NE₃(a)[δ]≠∅ and γ<δ is the highest lower z–level supporting NE₃(a), then for any in–plane partially row–good pair b₁,b₂ on δ there exist c₁,c₂ on γ with x(c_i)>x(b₁), y(c_i)>y(b₁).
+
+These items are independent, checkable steps. Items (1) and (4) give the key “product forcing” across z–levels; item (2) is the standard cone–maximality tool; item (3) furnishes a canonical starting pair inside a plane.
+
+# Why useful here
+
+- (1) supplies the exact multiplicity identities to invoke (H) quantitatively.
+- (2) is the 3D analogue of Lemma 3.2 used throughout the 2D proof.
+- (3)+(4) replicate the “partially good ⇒ propagation to the next level” engine, now across z–levels via the (++−) type, which carries the z–minimum in the color (so no cross–plane color collision occurs).
+
+# Obstacles
+
+- Vertical duplicates can make r_z>1 at subsequent steps, blocking the inference s_{xy}≥2 from (H). We either need a selection scheme to avoid such columns, or we must switch to another coordinate and propagate there.
+- Slices with |J|=2 (one zero) generate colors that ignore one coordinate; uniqueness must then be certified globally via a cross–slice argument (as in 2D Lemma 6.5), which remains to be written in 3D.
+
+# Proposed immediate next tasks for the verifier
+
+- Incorporate Proposition “Multiplicity for any T” (with its proof) into proofs.md; this will be referenced repeatedly.
+- Verify the cross–plane propagation lemma in full detail using the (++−) identity.
+- Attempt to prove a small “vertical uniqueness or force (+++)” claim: on a top z–plane with at least two points, either there are two points whose (x,y) pairs do not occur on any higher plane (trivial here since topmost) and at least one of which does not occur on any lower plane, or else the all–plus color from some base triggers uniqueness.
+- Explore toy counterexamples to refine the selection rule; the example above shows why a naive iteration may stall.
+
+# End
 
 
 === Prover 3 Output ===
 
-Ideas
-- Reduce d=3 to d=2 by slicing on a fixed z-level. If a z-slice contains ≥2 points, apply the known d=2 result on that slice; the resulting unique color is unique in the whole 3D graph because any edge with z-type 0 must lie in the same slice (isolation).
-- If every z-slice contains ≤1 point, the edge joining the two largest z-level vertices has a z-minimum (the lower corner’s z-coordinate) that no other edge can realize, so its color is unique.
+# Goal and plan
+We seek an analogue of the 2D theorem for the 3D coloring c3 on V=[n]^3: every nontrivial U⊂[n]^3 spans an edge whose color appears exactly once in G[U]. I lay down a counting “dictionary” for all 13 types in 3D (anchored vs balanced cases), extract immediate corollaries that give uniqueness under simple witness conditions, and isolate a slicing lemma that lifts a 2D–unique color in a single z–plane to a 3D–unique color provided a mild “base isolation” holds. Then I outline a strategy to combine these ingredients toward the full 3D result.
 
-Key lemmas (with “why useful”)
-- Lemma 1 (Slice isolation). If c3(u,v) has Tz=0 and ℓz=t, then both u and v lie in the z=t slice. Why useful: Ensures any color with z-type 0 is confined to a single slice; uniqueness on the slice implies global uniqueness.
-- Lemma 2 (Lifting 2D uniqueness). Let U_t={ (x,y,t)∈U }. If an edge e in G[U_t] has a unique color under the 2D version of the coloring (type on (x,y) modulo ± and the (x,y)-minimum), then it is unique in G[U] under c3. Why useful: Directly transfers the given d=2 theorem to 3D.
-- Lemma 3 (Top-two z-levels). If every z-slice contains ≤1 vertex of U, let a be the vertex with maximum z and b the vertex with second maximum z. Then the edge ab has a color that appears exactly once in G[U]. Why useful: Covers the complementary case where no slice has ≥2 points.
-
-Proofs
-Lemma 1 (Slice isolation). Suppose c3(u,v)=(T,ℓ) with Tz=0 and ℓz=t. Tz=0 means zu=zv, and ℓz=min{zu,zv}=zu=zv=t. Hence both endpoints have z-coordinate t, i.e., u,v lie in the z=t slice.
-
-Lemma 2 (Lifting 2D uniqueness). Let e be an edge in the z=t slice with unique 2D color (Tx,y, ℓx,y). Its 3D color is (Tx,y,0; ℓx,ℓy,t). By Lemma 1, any other edge with this 3D color must also lie in the z=t slice and have the same 2D color, contradicting uniqueness there.
-
-Lemma 3 (Top-two z-levels). Assume each z-slice contains ≤1 vertex. Let a be the unique vertex with maximum z and b the unique vertex with second maximum z. For any other edge u′v′, the z-coordinate of ℓ(u′,v′) is min{zu′,zv′}. The only edge whose minimum z equals zb is ab: any other pair with minimum zb would need one endpoint with z=zb and the other with z>zb; the only such partner above zb is the z-maximum vertex a. Thus ℓz(ab)=zb is unique among all edges. Since c3 records ℓ, no other edge can share c3(ab). Therefore c3(ab) appears exactly once.
-
-Main theorem (d=3). For every U⊆[n]3 with |U|≥2 there exist u1,u2∈U such that u1u2 has a color appearing exactly once in G[U] under c3.
-Proof. If some z-slice U_t has |U_t|≥2, apply the d=2 result on U_t to obtain an edge of unique 2D color; by Lemma 2 it is unique in G[U]. Otherwise, every z-slice has ≤1 vertex; by Lemma 3 the edge between the two largest z-level vertices has a unique color. In both cases, the required edge exists.
-
-Examples
-- Slice case: U0={(1,1,0),(2,3,0),(4,2,0)}. The 2D theorem in the z=0 slice yields a unique edge; its 3D color (with Tz=0, ℓz=0) cannot occur outside the slice by Lemma 1.
-- Sparse slices: U={(1,5,1),(3,2,4),(2,4,7)}. All z distinct. The edge between z=7 and z=4 has ℓz=4, unique among all edges, so its color is unique.
-
-Obstacles
-- None beyond relying on the d=2 statement (provided). All reductions are explicit and local.
-
-Next steps
-- Formalize the above lemmas and the 3D theorem in proofs.md, citing the provided d=2 proof for the in-slice step. This argument extends verbatim to all dimensions d by induction on the last coordinate (base d=1 is trivial).
+Throughout, for a vertex p=(x,y,z) write
+NE3(p):={q∈U: q_x>x, q_y>y, q_z>z}.
+For a fixed z, let U_z={ (x,y): (x,y,z)∈U } and inside the slice define
+NE2^{(z)}(x,y):= { (x',y')∈U_z: x'>x, y'>y }.
+Similarly, for a fixed pair (y,z) let the x–fiber U_{y,z}={x: (x,y,z)∈U}, and analogously for other pairs.
 
 
-=== Prover 4 Output ===
+Ideas: anchored vs balanced types and multiplicity formulas
 
-# Ideas
-- Reduce 3D to 2D on a coordinate plane when that plane contains at least two points: uniqueness in the slice (by the provided d=2 theorem) lifts to uniqueness in 3D because the color c_3 records the fixed coordinate value t_i.
-- If every coordinate plane contains at most one point (coordinatewise injective set), then any incomparable pair immediately yields a unique color of an “odd–coordinate” type via a product multiplicity formula r·s that is forced to equal 1. If all pairs are comparable (a chain), the (+++)–type multiplicity formula gives uniqueness at the second–largest point.
+Fix a type T, whose support J(T)⊆{x,y,z} is the set of coordinates where the endpoints differ, and whose sign pattern is taken up to global negation. I call T anchored if, on J(T), all nonzero signs are equal (so one endpoint is simultaneously the minimizer on all of J(T)); otherwise balanced.
 
-# Setup and notation (3D)
-- For p=(x,y,z)∈U, define its strict 3D north–east set
-  NE_3D(p):={q∈U: x(q)>x(p), y(q)>y(p), z(q)>z(p)}.
-- For t∈[n] and i∈{x,y,z}, write the i–plane at level t as Π_i(t):={v∈[n]^3: v_i=t}. The slice of U in this plane is U_i[t]:=U∩Π_i(t).
-- The color c_3(e)=(T,ℓ(u,v)) as in the task: T remembers which coordinates are nonzero (J(T)) and their sign pattern modulo a global sign; ℓ is the componentwise minimum, recording equal coordinates explicitly.
+I. |J|=3 (all three coordinates differ)
 
-# Slice lifting (2D→3D)
-Lemma 1 (slice lifting). Fix i∈{x,y,z} and t∈[n]. Consider the induced subgraph on U_i[t]. Identify a point (in that plane) with its pair of remaining coordinates. Then for edges within U_i[t], the map e↦c_3(e) restricted to types with i∈E(T) is exactly the 2D coloring c_2 on the remaining two coordinates, with the extra fixed coordinate t_i=t appended to the label.
+• Anchored (+++ up to ±). Color is (T; α,β,γ) with (α,β,γ) the minima. Multiplicity:
+Fact A3. For p=(α,β,γ), the number of edges of color (T;α,β,γ) equals 1_{p∈U}·|NE3(p)|.
+In particular, uniqueness holds iff p∈U and |NE3(p)|=1.
+Why useful: directly generalizes 2D Fact t1.
 
-Proof. Inside Π_i(t) edges have i–coordinate equal, so their 3D type has i∈E(T). The remaining two coordinates’ sign class (modulo flip) and minima are exactly those of c_2; c_3 additionally stores i’s fixed value t. Thus two edges have the same 3D color iff they have the same 2D color in the slice. Hence uniqueness in the slice implies uniqueness in G[U].
+• Balanced with one minus, say (+,+,−) up to ±. Then the minima are α on x, β on y, and γ on z, but these minima belong to two different endpoints. Define
+a_{xy|z}(α,β,γ):= #{ u∈U: x(u)=α, y(u)=β, z(u)>γ },
+b_{z|xy}(α,β,γ):= #{ v∈U: z(v)=γ, x(v)>α, y(v)>β }.
+Fact B3(+,+,−). The multiplicity equals a_{xy|z}(α,β,γ)·b_{z|xy}(α,β,γ).
+Proof sketch: Each unordered pair is uniquely oriented (x,y increase, z decreases). Then min x,y are realized at u with (α,β,·) and min z at v with (·,·,γ); this gives a bijection between edges of that color and pairs u,v as above. The other two one-minus patterns are analogous with the obvious relabeling.
+Why useful: reduces multiplicity to a product of two independent counts across perpendicular fibers, mirroring 2D Fact t2.
 
-Corollary 2. If |U_i[t]|≥2 for some i,t, then G[U] has an edge whose c_3–color is unique.
+II. |J|=2 (one coordinate equal, say z equal)
 
-# Multiplicity facts in 3D (for use in the injective case)
-Fact A (all–plus type). For T with J(T)={x,y,z} and all three signs equal (mod flip, the “(+++)–class”), and for α∈[n]^3,
-  #{e∈E(G[U]): c_3(e)=(T,α)} = 1_{α∈U} · |NE_3D(α)|.
-In particular, (T,α) is unique iff α∈U and |NE_3D(α)|=1.
+Within each z–slice we are back in 2D. Let T_xy^= denote a type supported on {x,y} with z equal.
 
-Proof. If u≤v coordinatewise (strict), ℓ(u,v)=u and the type is (+++). Conversely any w∈NE_3D(α) forms such an edge with α. Distinct w give distinct edges and distinct colors are separated by α.
+• Anchored (same sign on x,y). Color is (T_xy^=; α,β). Multiplicity:
+Fact A2(z–slices). The total number of edges of this color equals
+∑_{z=1}^n 1_{(α,β,z)∈U} · | NE2^{(z)}(α,β) |.
+Why useful: decomposes across z–slices; anchored forces a base vertex (α,β,z) inside the slice.
 
-Fact B (one odd coordinate). Fix T with J(T)={x,y,z} whose (mod–flip) sign pattern has exactly one coordinate “odd,” say the odd coordinate is i (the other two share the same sign). For α∈[n]^3, define
-- r_i(α):= |{ p∈U: p_j=α_j for j≠i and p_i>α_i }| (points on the α–anchored line increasing in i),
-- s_{≠i}(α):= |{ q∈U: q_i=α_i and q_j>α_j for all j≠i }| (points in the α_i–plane strictly NE in the other two coordinates).
-Then
-  #{e∈E(G[U]): c_3(e)=(T,α)} = r_i(α)·s_{≠i}(α).
-In particular, (T,α) is unique iff r_i(α)=s_{≠i}(α)=1.
+• Balanced (opposite sign on x,y). Color is (T_xy^=; α,β). Put, for each z,
+r^{(z)}(α,β):= #{ (α,y,z)∈U: y>β },  s^{(z)}(α,β):= #{ (x,β,z)∈U: x>α }.
+Fact B2(z–slices). The multiplicity equals ∑_{z=1}^n r^{(z)}(α,β)·s^{(z)}(α,β).
+Why useful: again a product structure per slice, then summed over slices.
 
-Proof. For c_3(e)=(T,α) with odd coordinate i, the two endpoints must be exactly of the form p on the α–anchored i–line with p_i>α_i and q in the α_i–plane with the other two coordinates strictly larger than α (this is the 3D analogue of the 2D “opposite–sign” rectangle factorization). This correspondence is bijective, giving the product count.
+The two other choices of the equal coordinate are symmetric.
 
-# Coordinatewise–injective case
-Assume that every coordinate plane contains at most one point of U (i.e., for each fixed value of x, at most one point of U has that x, and similarly for y and z). Then:
-- For any α and any i, r_i(α)≤1 and s_{≠i}(α)≤1 (because fixing two coordinates determines at most one point of U by injectivity).
-- If there exists an incomparable pair u,v (in product order), let i be the odd coordinate of their type and set α=ℓ(u,v). Then u contributes to r_i(α) and v to s_{≠i}(α), so r_i(α)=s_{≠i}(α)=1 and by Fact B the color is unique.
-- If all pairs are comparable (U is a chain), let a be the second–largest element in the chain. Then NE_3D(a)={max} has size 1, so by Fact A the (+++)–color (T,ℓ) with ℓ=a is unique.
+III. |J|=1 (only one coordinate differs)
 
-Conclusion 3 (injective case). If every coordinate plane contains ≤1 point, G[U] has a uniquely colored edge.
+Say J={x}, y and z are equal. Color is (T_x; α) with α=min x. Define for each pair (y,z)
+t_{y,z}(α):= #{ x>α: (x,y,z)∈U }.
+Fact A1. The multiplicity equals ∑_{(y,z)} 1_{(α,y,z)∈U} · t_{y,z}(α).
+Symmetric statements hold for J={y} and J={z}.
+Why useful: reduces to 1D counts on lines (fibers).
 
-# Main theorem (d=3)
-Theorem. For every U⊆[n]^3 with |U|≥2, there exist u_1,u_2∈U such that the edge u_1u_2 has a color that appears exactly once in G[U] under c_3.
 
-Proof. If some coordinate plane Π_i(t) contains at least two points, apply Corollary 2 to get a unique color via the 2D theorem on that slice. Otherwise every coordinate plane contains at most one point, so Conclusion 3 applies, yielding a unique color. ∎
+Examples (sanity checks)
 
-# Examples (sanity checks)
-- Slice case: U={ (1,1,1),(2,2,1),(3,1,2) }. In the z=1 plane, the 2D theorem returns a unique color; in 3D this is of type [±,±,0] with t_z=1, hence unique globally.
-- Injective incomparable: U={(1,3,1),(3,1,3)}. Their type has odd coordinate y, α=(1,1,1). Here r_y(α)=s_{xz}(α)=1, so the color is unique by Fact B.
-- Injective chain: U={(1,1,1),(2,2,2),(3,3,3)}. The (+++) color from a=(2,2,2) is unique by Fact A.
+1) Two points u=(1,1,2), v=(2,2,1). Type is (+,+,−) up to ± with minima (α,β,γ)=(1,1,1). Here a_{xy|z}=#{(1,1,2)}=1 and b_{z|xy}=#{(2,2,1)}=1, hence multiplicity is 1.
 
-# Obstacles and next steps
-- The above gives a clean, checkable 3D proof leveraging the provided d=2 theorem plus two elementary multiplicity facts. A natural next step is to formalize the d–dimensional induction: if some coordinate hyperplane has ≥2 points, reduce to (d−1); else in the injective case, either pick an incomparable pair to get an “odd–subset” type with multiplicity 1, or use the all–plus type on a point with exactly one NE–neighbor in the poset chain. Formalizing the general r·s–type multiplicity for a given odd subset of coordinates is routine by the same rectangle (orthant) factorization.
+2) Anchored |J|=2 within a fixed z. Let U_{z0} contain p=(α,β,z0) and exactly one q=(x',y',z0) with x'>α,y'>β; assume no (α,β,z) exists for z≠z0. Then Fact A2 gives multiplicity 1 (one from z0, zero from other slices).
+
+
+Rigorous lemmas extracted (immediate consequences)
+
+Lemma 1 (anchored 3D win). If there exists p∈U with |NE3(p)|=1, then G[U] has a unique color, namely the anchored |J|=3 color (T=+++ up to ±) with minima at p.
+Proof: Fact A3.
+
+Lemma 2 (anchored 2D-in-slice lift). Fix z0 and suppose there exist α,β with (α,β,z0)∈U and |NE2^{(z0)}(α,β)|=1, and furthermore (α,β,z)=∉U for all z≠z0. Then the |J|=2 anchored color (x,y change, z equal) with minima (α,β) appears exactly once in G[U].
+Proof: Fact A2 gives multiplicity 1 at z0 and 0 at z≠z0.
+
+Lemma 3 (balanced 3D product). For (+,+,−) up to ±, if a_{xy|z}(α,β,γ)=s=b_{z|xy}(α,β,γ)=1, then the corresponding color is unique in G[U].
+Proof: Fact B3.
+
+Remark (what each lemma buys): Lemma 1 is a direct 3D analogue of the 2D type–1 uniqueness trigger. Lemma 2 is a robust slicing tool: it turns a 2D anchored uniqueness inside one plane into a global uniqueness once the base pair (α,β) does not occur in other slices. Lemma 3 supplies a new 3D–only uniqueness mechanism (balanced |J|=3), unavailable in 2D.
+
+
+Lex-maximal eligible points in 3D and a local antichain
+
+Define a point a∈U to be 3D–eligible if NE3(a)≠∅. Order triples lex in (z,y,x). A lex–max among 3D–eligible points is any a maximizing (z(a),y(a),x(a)) among {p∈U: NE3(p)≠∅}.
+
+Lemma 4 (3D lex antichain). If a is lex–max among 3D–eligible points, then NE3(q)=∅ for every q∈NE3(a).
+Proof: If q∈NE3(a) had some r∈NE3(q), then r has (z(r),y(r),x(r))>(z(q),y(q),x(q))>(z(a),y(a),x(a)), so r would be 3D–eligible and lex–larger than a, a contradiction.
+
+Corollary 4.1. If |NE3(a)|=1, Lemma 1 applies and we are done.
+
+Obstacle: In 2D, Lemma 4 implied that NE(a) was an antichain for the 2D NE order and powered the row/column “propagation.” In 3D, Lemma 4 controls only the 3D–NE order (strict in all three coordinates). It no longer prohibits 2D–NE relations inside a fixed z–slice (z equal), so the exact 2D propagation cannot be transplanted verbatim.
+
+
+A safe slicing lemma for anchored |J|=2 types
+
+Definition (base–isolation in a slice). Call (α,β) isolated at z0 if (α,β,z0)∈U and (α,β,z)=∉U for all z≠z0.
+
+Lemma 5 (slice-to-global uniqueness). Let z0 be any slice with |U_{z0}|≥2. If, inside the 2D graph on U_{z0} under the 2D coloring (types 1–4 as in the given 2D proof), there exists an anchored type–1 edge from a base (α,β) with |NE2^{(z0)}(α,β)|=1 and (α,β) isolated at z0, then G[U] has a unique color (the |J|=2 anchored xy–type with minima (α,β)).
+Proof: Precisely Lemma 2.
+
+Remark. The 2D theorem guarantees some unique color in U_{z0}, but it may be of type 2 (opposite signs) or a horizontal/vertical type, which is not directly safe to lift. Lemma 5 requires specifically a type–1 (anchored) uniqueness in the slice plus isolation of its base pair across slices.
+
+
+Why these are useful here
+
+• The counting dictionary provides exact multiplicities for every color, turning the global uniqueness goal into concrete witness conditions, particularly the “=1” triggers in Facts A3, B3, A2, B2, A1.
+
+• Lemmas 1–3 enumerate three disjoint mechanisms that force a unique color: a 3D anchored NE–singleton, a 3D balanced one–minus product singleton, and an anchored 2D singleton safely lifted from a slice. Each can be checked locally (around one vertex, two perpendicular fibers, or one slice) and is independent of the rest of the graph.
+
+• Lemma 4 gives a disciplined way to pick a distinguished point a at which either Lemma 1 applies immediately (|NE3(a)|=1) or one tries to organize “propagation” or a slice attack.
+
+
+Obstacles identified
+
+1) Direct 2D propagation does not lift: Lemma 4 does not prevent 2D–NE comparabilities in a fixed z–slice, so the geometric exclusions used in the 2D propagation (e.g., “c1 cannot be left of b2 else b2∈NE(c1)”) need genuine 3D replacements.
+
+2) Lifting a 2D unique color from a slice is not automatic: horizontal/vertical (|J|=1 in 3D) and balanced slice–types (|J|=2 opposite signs) can easily be replicated in other slices since the 3D color omits the equal coordinate’s value. Hence isolation is needed (Lemma 5) or a different mechanism (Lemma 3).
+
+
+Concrete next steps
+
+Step A (balanced 3D trigger). Prove a 3D analogue of the 2D “propagation” but aimed at balanced |J|=3 colors via Fact B3: starting from a lex–max 3D–eligible a, either we find q with |NE3(q)|=1 (Lemma 1), or we locate (α,β,γ) with a_{xy|z}=b_{z|xy}=1 (or a symmetric variant), producing a unique balanced |J|=3 color (Lemma 3). The product structure is promising for a forcing argument because “no uniqueness” compels at least a second witness on one factor, which can be pushed to create a third on the other factor, leading to a contradiction with a suitable extremal choice (to be formalized).
+
+Step B (slice anchoring). Inside any slice U_{z0} with ≥2 points, the 2D proof actually constructs an anchored unique color (type 1 or a horizontal/vertical), not necessarily type 2. Isolate the case when the slice’s unique color is type 1, and combine it with base–isolation across slices (Lemma 5). If no slice admits such an isolated base (α,β), set up a descending chain of z–levels forced by “non-uniqueness elsewhere” and show it cannot continue indefinitely.
+
+Step C (fiber sparsity for |J|=1). Use Fact A1 to show: if some line fiber U_{y,z} has exactly two x–points α<α' and no other line fiber contains α, then the color (T_x; α) is unique. Search for such sparse fibers via a simple extremal argument (e.g., fix α minimal appearing in any fiber; if it appears in exactly one fiber, we are done; otherwise try to leverage the repetitions to produce a balanced |J|=3 singleton using Step A).
+
+
+Small verifiable claims to extract now
+
+Claim 6 (complete multiplicity dictionary). The analogues of Facts A3/B3/A2/B2/A1 hold for every permutation of coordinates and for every sign class in |J|=3 balanced (exactly one minus), |J|=2 anchored/balanced, and |J|=1 anchored. The proofs are routine variants of the two model proofs above (anchored counts by anchoring at a base vertex/fiber; balanced counts factorize into a product along two perpendicular fibers), and the verifier can fill in the symmetric cases.
+
+Claim 7 (two quick-win criteria). If (i) there exists p with |NE3(p)|=1, or (ii) there exist α,β,γ with a_{xy|z}(α,β,γ)=b_{z|xy}(α,β,γ)=1, then G[U] contains a uniquely colored edge under c3.
+
+Claim 8 (safe slice lifting). If some slice z0 contains a 2D–type–1 unique edge with base (α,β) that is isolated across slices, then G[U] has a unique color under c3 (anchored |J|=2 on x,y with z equal).
+
+
+Summary
+
+• I established explicit and general multiplicity formulas in 3D for all relevant type classes. These reduce uniqueness to checking simple local counts (NE–sizes for anchored, and products of independent counts for balanced types).
+
+• Immediate uniqueness mechanisms (anchored 3D, balanced 3D, and slice-anchored 2D) are isolated as lemmas, with short proofs. These are testable on instances and will be useful subroutines in the full argument.
+
+• The main obstacle to porting the 2D proof is that the 3D lex–antichain blocks only strict 3D increases, not 2D increases inside a slice. I outlined two viable routes: a new “balanced–type propagation” using the product counts (Step A), and a “slice anchoring” strategy combining 2D anchored uniqueness with cross-slice isolation (Step B), plus a fiber–sparsity fallback for |J|=1 (Step C).
+
+The next round will formalize Step A: a propagation lemma for the balanced (+,+,−) class modelled on Fact B3, and a dichotomy showing that a lex–max 3D–eligible a either triggers Lemma 1 or forces a product–singleton as in Lemma 3. This would settle the 3D statement or at least prove a substantial special case.

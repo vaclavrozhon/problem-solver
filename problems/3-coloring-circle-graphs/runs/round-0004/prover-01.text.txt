@@ -1,0 +1,62 @@
+Status
+I consolidate several structural and algorithmic facts that are directly checkable from a chord (interval-overlap) representation, including new rigorous proofs and explicit encodings useful for algorithms and hardness attempts.
+
+Helly-type property for cliques in overlap (circle) graphs
+Lemma 5 (Cliques have a common intersection). Let S be a clique in the overlap graph of open intervals on a line (obtained by cutting the circle). Then ⋂_{x∈S} (s(x), t(x)) ≠ ∅.
+Proof. Order S so that s(x1)<…<s(xk). Since S is a clique, for the pair x1,xk we must have s(x1)<s(xk)<t(x1)<t(xk). In particular, s(xk)<t(x1). For any i with 1<i<k, from x1∼xi we get s(x1)<s(xi)<t(x1)<t(xi); from xi∼xk we get s(xi)<s(xk)<t(xi)<t(xk). Hence s(xk)<t(xi) and s(xi)<t(x1). Choose p with s(xk)<p<t(x1). Then for all i we have s(xi)≤s(xk)<p and p<t(x1)≤t(xi), so p∈(s(xi), t(xi)). ∎
+
+Corollary 5.1. For a circle graph G with circular ply w: (i) ω(G) ≤ w; (ii) For any elementary segment σ between consecutive endpoints, any clique S has S⊆B(σ) for any σ contained in ⋂_{x∈S} (s(x), t(x)); hence ω(G)=max_σ ω(G[B(σ)]).
+
+Algorithmic corollary (computing ω). Since G[B(σ)] is a permutation graph (Lemma 3 from prior round), ω(G[B(σ)]) is the length of a longest decreasing subsequence between the two orders and is computable in O(|B(σ)| log |B(σ)|). Scanning all σ yields ω(G) in time O(∑_σ |B(σ)| log |B(σ)|) = O(n·w·log w).
+
+Degeneracy bound from ply
+Lemma 6 (Degeneracy ≤ 2w−2). In any induced subgraph H of G with representation inherited from G and ply ≤ w, there is a vertex of degree ≤ 2w−2.
+Proof. Take v with minimum start s(v) among vertices of H. Partition N_H(v) into E (earlier-start) and L (later-start) neighbors. If u∈E then s(u)<s(v)<t(u)<t(v) (overlap without containment). All such u are active immediately to the right of s(v), where at most w−1 vertices other than v are active; hence |E| ≤ w−1. If u∈L then s(v)<s(u)<t(v)<t(u). All such u are active immediately to the left of t(v), where again at most w−1 vertices other than v are active; hence |L| ≤ w−1. Therefore deg_H(v)=|E|+|L| ≤ 2w−2, as claimed. Since H was arbitrary, G is (2w−2)-degenerate. ∎
+
+Corollary 6.1. If w≤2 then Δ(G)≤2 and G is a forest (prior proposition). Combining yields that for w≤2, G is a disjoint union of paths.
+
+Balanced separator via sweep (proof finalized)
+Lemma 7 (Balanced separator of size ≤ w). There exists a segment σ such that removing S=B(σ) separates G into A (left) and C (right) with |A|,|C| ≤ 2n/3.
+Proof. Enumerate elementary segments σ1,…,σm. Let a(i)=|{x: t(x)≤σi}|, c(i)=|{x: s(x)≥σi}|, and b(i)=|B(σi)|. Note a(1)=0, a(m)=n, c(1)=n−b(1) ≤ n−1, c(m)=0; both a and c change by at most 1 between consecutive segments; for each i, a(i)+b(i)+c(i)=n. By discrete intermediate value, choose i with a(i)∈[n/3,2n/3]. Then c(i)=n−b(i)−a(i) ≤ n−1−n/3 < 2n/3 because b(i)≥1 between the first start and the last end. Removing B(σi) separates already-ended vertices from not-yet-started ones by the path-decomposition property, yielding the bound. ∎
+
+Bags are permutation graphs (recall)
+Lemma 3 (from prior round). For any σ, G[B(σ)] is a permutation graph defined by the left/right endpoint orders around σ.
+
+List-coloring and counting DP (recall, with explicit transitions)
+Theorem 2 (from prior round, with explicit introduce/forget). On the path decomposition {B(σ)}, maintain per bag all proper list-respecting colorings c: B→{1,…,k}; introduce u adds c(u)∈L(u) avoiding {c(a): t(a)<t(u)}; forget u projects. Complexity O(n·w·k^w) time, O(k^w) space. Aggregating counts per projected state yields # of colorings.
+
+Pivot side-extension encoded as 2-SAT (fully explicit)
+Setup. Fix a pivot chord x and a color c_x∈{1,2,3} for x. Assume G[N(x)] is bipartite (necessary in any 3-coloring) and fix a proper 2-coloring of each component with colors {α,β}={1,2,3}\{c_x}. Let L and R be the side subgraphs (vertices with both endpoints on the left/right arc), and suppose a side component C is bipartite with bipartition (U_C,V_C).
+
+Variables. For each side component C, a Boolean o_C (orientation): o_C=0 assigns color α to U_C and β to V_C; o_C=1 swaps. For each vertex y on the side, a Boolean z_y indicating y takes color c_x (z_y=1) vs a side color (z_y=0).
+
+Forbidden-color sets f_y. Define f_y⊆{α,β} as the set of side colors that appear on neighbors of y in N(x) under the fixed 2-coloring. Then any valid extension must avoid giving y a side color in f_y.
+
+Clause construction.
+- If f_y contains α, add (y∈U_C ? (¬o_C ∨ z_y) : (o_C ∨ z_y)); if f_y contains β, add (y∈U_C ? (o_C ∨ z_y) : (¬o_C ∨ z_y)). If f_y={α,β}, also add unit clause (z_y).
+- For every edge yz within the side, add (¬z_y ∨ ¬z_z) to forbid adjacent c_x assignments.
+Call Φ the conjunction of all such clauses across all side components; the two sides L and R are independent given N(x) and x, so build Φ_L and Φ_R separately.
+
+Lemma 8 (Correctness of 2-SAT packaging). For a fixed pivot x, chosen c_x, and fixed 2-coloring of G[N(x)], Φ_side is satisfiable iff there exists a proper 3-coloring of the side consistent with these choices.
+Proof. (⇒) From a satisfying assignment, define colors: if z_y=1, set col(y)=c_x; else set col(y)=α or β according to o_C and y’s side of the bipartition. Clauses ensure: (i) y’s side color is not in f_y (implication forces z_y=1 whenever the oriented side color would be forbidden), so all edges to N(x) are proper; (ii) (¬z_y∨¬z_z) forbids adjacent vertices both taking c_x; hence side edges are proper. (⇐) Given a proper extension, set z_y=1 iff col(y)=c_x; set o_C to match the side colors on U_C/V_C. Then every implication clause is satisfied (otherwise y would have a forbidden side color), and no edge has both z’s true. ∎
+
+Computing f_y on a side in linear time
+Lemma 9. For a fixed 2-coloring of N(x), the sets f_y for all side vertices y on L (resp. R) can be computed in O(|L|+|N(x)|) time.
+Proof. Along the left arc, sweep from one endpoint to the other, processing events: (i) the left/right endpoints of side chords y; (ii) the unique left endpoint of each neighbor n∈N(x) (neighbors have exactly one endpoint on the left arc). Maintain counters A,B = number of processed N(x)-endpoints colored α,β respectively. At the left endpoint of y record (A_left,B_left); at the right endpoint record (A_right,B_right). Then y sees α (resp. β) in N(x) between its endpoints iff A_right>A_left (resp. B_right>B_left). Thus f_y is determined. ∎
+
+Putting the pivot algorithm together
+Proposition 9.1. If there exists a pivot x such that both side-subgraphs L and R are bipartite, then for each choice of c_x and for each 2-coloring of each component of N(x) (there are 2^{cc(N(x))} such), the existence of an extension to a 3-coloring can be decided in polynomial time by solving Φ_L and Φ_R (each a 2-SAT instance). Overall runtime O(3·2^{cc(N(x))}·poly(n)).
+
+Remarks and limitations
+- The branching factor 2^{cc(N(x)))} cannot, in general, be merged into a single global 2-SAT without additional assumptions (“single-touch” case is a special tractable subclass). The above packaging is correct and implementable.
+- Combined with Theorem 2, we have: decision, list-coloring, and counting are FPT in ply w with O(n·w·3^w) time; ω(G)≤w and computable in O(n·w·log w); balanced separators of size ≤ w exist; degeneracy ≤ 2w−2 (hence m ≤ (w−1)n by charging edges to later-start endpoints), giving simple sparsity bounds.
+
+Examples/sanity
+- For w=2: Δ≤2 and no cycles (Lemma 6 and prior acyclicity) ⇒ disjoint union of paths; trivially 3-colorable.
+- For C5: w≥3 (by acyclicity), pathwidth ≤2, DP decides 3-colorability correctly.
+
+Next steps
+- Move Lemmas 5–9 and Proposition 9.1 into proofs.md with full details. Implement: (i) list/count DP; (ii) pivot+2-SAT with f_y by Lemma 9; measure w and cc(N(x)) on random/benchmark datasets.
+- Explore whether ω or cc(N(x)) are typically small in practice, making pivot method efficient; test balanced separator recursion vs. DP.
+- Structural: investigate w=3 class; is there a polynomial-time 3-coloring algorithm specialized to pathwidth 2 beyond brute-force DP? Potential for improved constants via bag-permutation pruning.
+- Hardness: develop realizable palette and wire gadgets respecting circle representation; start from the palette triangle and the simple “forbid color i” and “force color i” connectors (both realizable by chord crossings), then build equality/NAE gadgets incrementally.

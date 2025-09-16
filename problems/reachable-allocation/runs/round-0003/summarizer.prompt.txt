@@ -1,0 +1,4362 @@
+=== SYSTEM ===
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
+  "highlights": [],
+  "next_questions": []
+}
+
+=== USER ===
+=== Task (txt) ===
+
+Definitions.
+• Model. Tree T = (V, E). Each agent v ∈ V initially holds object
+h_v and has a strict preference ≻_v over all objects.
+• Allowed move. A pairwise swap on edge {u, w} is allowed only
+if both agents strictly prefer the object they would receive.
+• Reachable / Pareto-efficient. Allocation π is reachable if obtained by a finite sequence of allowed swaps from the initial allocation.
+π is Pareto-efficient (PE) if no allocation (global) Pareto-dominates
+it.
+
+Example:
+- Graph with vertices A B C D, edges BA, BC, BD
+- following table lists preferences:
+Agent Object Preference
+A a d ≻ c ≻ b ≻ a
+B b a ≻ d ≻ c ≻ b
+C c b ≻ a ≻ d ≻ c
+D d c ≻ b ≻ a ≻ d
+
+Example solution: sequence of swaps (B, C),(B, D),(B, A).
+
+Question: Given T, initial allocation and preferences. Either produce a reachable Pareto-efficient allocation or report that none exists (TREE-REACHABLE-PE). Is this decidable in polynomial time on trees?
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Research log (round X)
+
+- Problem recap: Tree T with agents at vertices, initial endowments h_v, strict preferences. Allowed swaps occur on edges when both endpoints strictly prefer the swap. TREE-REACHABLE-PE asks if there exists a reachable allocation that is globally Pareto-efficient (PO), and to produce one if it exists.
+
+- Settled facts:
+  - Any allocation reachable via allowed swaps is individually rational (IR) w.r.t. the initial endowment.
+  - For a fixed target matching on a tree, reachability by allowed swaps can be decided in O(n^2) time (good-edge scheduling).
+  - Global PO of a given allocation can be checked in O(n^2) via the standard improvement-digraph (agent→objects strictly preferred to current; object→current owner); PO ⇔ no directed cycle.
+  - TTC is globally PO and is the unique core allocation under strict preferences. Thus: TTC reachability is a valid one-sided poly-time test (if reachable, answer YES and output TTC with a swap sequence).
+
+- Open pivot: Is the TTC allocation the unique allocation that is both IR and globally PO? If yes, then TREE-REACHABLE-PE reduces to checking reachability of TTC (O(n^2)). If not, the TTC test is incomplete and the general problem remains open.
+
+- Action items:
+  1) Attempt a formal proof that any IR+PO allocation must coincide with TTC, by inductively showing that the first-round TTC cycle agents must receive their top objects in any IR+PO allocation (and recursing). If this fails, search small instances (n ≤ 6) for an IR+PO allocation ≠ TTC.
+  2) Regardless, maintain TTC-as-certificate: compute TTC, then run the tree reachability routine; if reachable, we get a constructive solution.
+  3) Parameterized approach: implement a nice tree-decomposition DP (width w) that enumerates partial injections; at the root, filter by (a) reachability from µ0, (b) global PO. This yields an FPT algorithm in treewidth.
+
+- Examples recorded:
+  - Path A–B–C with A: c≻a≻b, B: b≻a≻c, C: a≻c≻b: no swap applies, and the initial allocation is not globally PO (the 3-cycle allocation dominates). Serves as a caution that “no allowed swap” ≠ global PO even on paths.
+
+
+Counterexample: Pareto-optimal ≠ core in Shapley–Scarf
+
+- Endowments: agents 1,2,3 own a,b,c. Preferences: 1: b ≻ c ≻ a; 2: a ≻ b ≻ c; 3: a ≻ b ≻ c. Allocation µ = (1→c, 2→b, 3→a) has no directed improvement cycle (globally PO). Coalition {1,2} can reassign their endowments {a,b} to (1→b,2→a), strictly improving both, so µ is not in the core. Thus PO does not imply core; TTC is not the unique globally PO outcome.
+
+Safe building blocks (kept):
+- Reachable ⇒ IR. Any allowed swap strictly improves its endpoints; others unchanged.
+- PO test: the improvement-digraph acyclicity criterion (agent→more-preferred objects; object→owner) in O(n^2).
+- Tree target-reachability in O(n^2) via good-edges; yields witness sequences when reachable.
+- TTC as a one-sided poly-time certificate: if reachable, output it; else inconclusive.
+- Sink special case: if µ0 has no allowed swap, reach(µ0)={µ0}; decide by a single PO test.
+
+Open directions:
+- FPT by treewidth: DP over a nice decomposition storing partial injections; root filters: reachability + PO.
+- Stars: prove or refute unique sink (order-independence) rigorously.
+- Small-instance search (n≤6) to find instances with TTC unreachable but some other reachable globally PO, and to probe structural patterns.
+
+
+Addendum: parameterization and stars status
+
+- Parameterized by number of movers k: Enumerating subsets S of size ≤k and permutations of their endowments yields time O(n^k·k!·poly(n)). This is XP (slice-wise polynomial), not FPT. A true FPT algorithm would require f(k)·poly(n) time; further techniques (e.g., kernelization, bounded-branch parameters) are needed.
+
+- Stars (object-moving): The center’s object increases monotonically in the center’s preference along any allowed swap sequence. A proposed acceptance-digraph approach suggests a unique final center object, but uniqueness of the entire terminal allocation (order-independence across leaves) still lacks a fully rigorous proof. We keep stars in the “special-case under investigation” category until a complete proof or counterexample is produced.
+
+- Working plan: (i) Prove or refute unique terminal allocation on stars; (ii) Explore combined parameters (e.g., number of branch vertices plus k movers) for potential FPT; (iii) Formalize boundary summaries for a decomposition-based DP on trees; (iv) Build a small-instance benchmark set (n≤6) with TTC unreachable yet some other reachable globally PO allocation present.
+
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Verifier Summary ===
+
+We corrected a pivotal error: global PO ≠ core, so TTC is not the unique globally PO outcome and the O(n^2) reduction to TTC reachability fails. Solid components established: reachable ⇒ IR; global PO test via improvement-digraph; fixed-target reachability on trees; NP membership. TTC reachability and sink-tests provide one-sided polynomial certificates. A proposed “FPT in k movers” is actually XP (O(n^k·k!·poly(n))). The star unique-terminal-state claim needs a full proof before promotion. Next: rigorous star proof or counterexample; refine parameterizations; formalize a DP boundary signature or pursue hardness; assemble small-instance benchmarks.
+
+
+=== Current Notes ===
+
+# Research Notes
+
+
+
+Research log (round X)
+
+- Problem recap: Tree T with agents at vertices, initial endowments h_v, strict preferences. Allowed swaps occur on edges when both endpoints strictly prefer the swap. TREE-REACHABLE-PE asks if there exists a reachable allocation that is globally Pareto-efficient (PO), and to produce one if it exists.
+
+- Settled facts:
+  - Any allocation reachable via allowed swaps is individually rational (IR) w.r.t. the initial endowment.
+  - For a fixed target matching on a tree, reachability by allowed swaps can be decided in O(n^2) time (good-edge scheduling).
+  - Global PO of a given allocation can be checked in O(n^2) via the standard improvement-digraph (agent→objects strictly preferred to current; object→current owner); PO ⇔ no directed cycle.
+  - TTC is globally PO and is the unique core allocation under strict preferences. Thus: TTC reachability is a valid one-sided poly-time test (if reachable, answer YES and output TTC with a swap sequence).
+
+- Open pivot: Is the TTC allocation the unique allocation that is both IR and globally PO? If yes, then TREE-REACHABLE-PE reduces to checking reachability of TTC (O(n^2)). If not, the TTC test is incomplete and the general problem remains open.
+
+- Action items:
+  1) Attempt a formal proof that any IR+PO allocation must coincide with TTC, by inductively showing that the first-round TTC cycle agents must receive their top objects in any IR+PO allocation (and recursing). If this fails, search small instances (n ≤ 6) for an IR+PO allocation ≠ TTC.
+  2) Regardless, maintain TTC-as-certificate: compute TTC, then run the tree reachability routine; if reachable, we get a constructive solution.
+  3) Parameterized approach: implement a nice tree-decomposition DP (width w) that enumerates partial injections; at the root, filter by (a) reachability from µ0, (b) global PO. This yields an FPT algorithm in treewidth.
+
+- Examples recorded:
+  - Path A–B–C with A: c≻a≻b, B: b≻a≻c, C: a≻c≻b: no swap applies, and the initial allocation is not globally PO (the 3-cycle allocation dominates). Serves as a caution that “no allowed swap” ≠ global PO even on paths.
+
+
+Counterexample: Pareto-optimal ≠ core in Shapley–Scarf
+
+- Endowments: agents 1,2,3 own a,b,c. Preferences: 1: b ≻ c ≻ a; 2: a ≻ b ≻ c; 3: a ≻ b ≻ c. Allocation µ = (1→c, 2→b, 3→a) has no directed improvement cycle (globally PO). Coalition {1,2} can reassign their endowments {a,b} to (1→b,2→a), strictly improving both, so µ is not in the core. Thus PO does not imply core; TTC is not the unique globally PO outcome.
+
+Safe building blocks (kept):
+- Reachable ⇒ IR. Any allowed swap strictly improves its endpoints; others unchanged.
+- PO test: the improvement-digraph acyclicity criterion (agent→more-preferred objects; object→owner) in O(n^2).
+- Tree target-reachability in O(n^2) via good-edges; yields witness sequences when reachable.
+- TTC as a one-sided poly-time certificate: if reachable, output it; else inconclusive.
+- Sink special case: if µ0 has no allowed swap, reach(µ0)={µ0}; decide by a single PO test.
+
+Open directions:
+- FPT by treewidth: DP over a nice decomposition storing partial injections; root filters: reachability + PO.
+- Stars: prove or refute unique sink (order-independence) rigorously.
+- Small-instance search (n≤6) to find instances with TTC unreachable but some other reachable globally PO, and to probe structural patterns.
+
+
+Addendum: parameterization and stars status
+
+- Parameterized by number of movers k: Enumerating subsets S of size ≤k and permutations of their endowments yields time O(n^k·k!·poly(n)). This is XP (slice-wise polynomial), not FPT. A true FPT algorithm would require f(k)·poly(n) time; further techniques (e.g., kernelization, bounded-branch parameters) are needed.
+
+- Stars (object-moving): The center’s object increases monotonically in the center’s preference along any allowed swap sequence. A proposed acceptance-digraph approach suggests a unique final center object, but uniqueness of the entire terminal allocation (order-independence across leaves) still lacks a fully rigorous proof. We keep stars in the “special-case under investigation” category until a complete proof or counterexample is produced.
+
+- Working plan: (i) Prove or refute unique terminal allocation on stars; (ii) Explore combined parameters (e.g., number of branch vertices plus k movers) for potential FPT; (iii) Formalize boundary summaries for a decomposition-based DP on trees; (iv) Build a small-instance benchmark set (n≤6) with TTC unreachable yet some other reachable globally PO allocation present.
+
+
+
+=== Current Proofs ===
+
+# Rigorous Proofs
+
+
+
+Basic lemmas and verification procedures
+
+Lemma 1 (Reachable ⇒ IR). Let µ0 be the initial endowment and let µk be obtained from µ0 by a finite sequence of allowed swaps along edges of a tree (each swap strictly improves both participating agents and leaves others unchanged). Then for each agent v, µk(v) is weakly preferred to µ0(v). In particular, every reachable allocation is individually rational w.r.t. the initial endowment.
+Proof. At each swap, only the two participants strictly improve; all others keep their object. Thus each agent’s object along the sequence is monotonically nondecreasing in their preference order. If they never swap, they keep their endowment; if they swap, they strictly improve at that step. Hence the final object is weakly preferred to the endowment.
+
+Lemma 2 (Global PO via improvement digraph). Fix an allocation µ. Construct a directed graph Dµ on the set of agents and objects with arcs (a → b) for every agent a and object b such that b ≻_a µ(a), and arcs (b → owner_µ(b)) from each object to its owner under µ. Then µ is globally Pareto-efficient if and only if Dµ has no directed cycle.
+Proof sketch. If Dµ contains a directed cycle, it alternates agents/objects; traversing the cycle gives each agent on the cycle an object they strictly prefer to µ, producing a Pareto improvement (others unchanged). Conversely, if µ is not PO, there exists an allocation ν that weakly improves all agents and strictly improves at least one. Tracing the predecessor–successor relation of object ownership from µ to ν yields a directed cycle in Dµ along which all agents strictly improve. (This is the standard “trading cycle” characterization; see, e.g., standard texts on house allocation with strict preferences.)
+
+Theorem 3 (TREE-REACHABLE-PE is in NP). The decision version—given a tree T, initial allocation µ0, and strict preferences, decide whether there exists a reachable allocation that is globally Pareto-efficient—belongs to NP.
+Proof. A certificate consists of a target allocation µ*. Verification is polynomial-time: (i) Decide reachability µ0 → µ* by allowed swaps on the tree using the “good-edge” scheduler (O(n^2)). (ii) Verify global PO of µ* using Lemma 2 in O(n^2) time by cycle detection. If both pass, accept; otherwise reject.
+
+Proposition 4 (TTC as a sufficient certificate). Compute the TTC outcome µ_TTC of the housing market (agents with initial endowments µ0 and strict preferences). If µ_TTC is reachable from µ0 by allowed swaps on the given tree, then µ_TTC is a correct YES-witness: it is globally Pareto-efficient and reachable. If not reachable, this test is inconclusive.
+Proof. TTC is globally PO in Shapley–Scarf markets with strict preferences. Reachability is decided as above; if reachable, return the witnessed swap sequence and µ_TTC.
+
+Remark 5 (Reachability to a fixed target on trees). Given a tree T, an initial allocation µ, and a target allocation µ*, reachability by allowed swaps can be decided in O(n^2) time via the standard good-edge approach: maintain edges whose endpoints need to cross next along their unique dipaths toward µ*; a good edge always exists unless the current allocation equals µ*. Swapping on any good edge monotonically advances agents; maintaining the set of good edges yields the decision and a witness sequence when reachable. (Adapted from known results for the object-moving model.)
+
+
+Lemma (Reachable ⇒ IR). From the initial endowment µ0, any allocation µ obtained via a finite sequence of allowed edge-swaps is individually rational: for every agent v, µ(v) ≽_v µ0(v).
+Proof. Each swap strictly improves its two participants and leaves others unchanged, so each agent’s assignment is monotonically nondecreasing w.r.t. their preference along the sequence.
+
+Proposition (Global PO test). For a given allocation µ, build a directed graph D on agents∪objects with arcs a→b for each object b with b ≻_a µ(a), and arcs b→owner_µ(b). Then µ is globally Pareto-efficient iff D has no directed cycle.
+Proof sketch. A directed cycle alternates agents/objects and yields a cycle of strictly improving trades, giving a global Pareto improvement. Conversely, any global Pareto improvement induces such a cycle in D.
+
+Proposition (Tree reachability to a fixed target). Given a tree T, initial allocation µ0, and a target allocation µ*, we can decide in O(n^2) whether µ* is reachable by allowed swaps, and produce a swap sequence when it is. 
+Sketch. Let each agent move along the unique dipath from its current object to its target in µ*. An edge is good if both incident agents need to cross it next. If the target is reachable and not yet achieved, a good edge exists. Swapping across any good edge advances both agents; maintaining the set of good edges yields an O(n^2) algorithm.
+
+Theorem (TREE-REACHABLE-PE ∈ NP). A certificate is a target allocation µ*. Verification is polynomial: (i) decide µ0→µ* reachability on the tree in O(n^2) (previous proposition); (ii) test global PO of µ* via the acyclicity criterion in O(n^2).
+
+Corollary (Sink special case). If the initial allocation µ0 admits no allowed swap, then reach(µ0)={µ0}. Hence the instance is YES iff µ0 is globally PO (decidable in O(n^2)).
+
+Lemma 1 (Reachable ⇒ IR). From the initial endowment µ0, any allocation µ obtained via a finite sequence of allowed edge-swaps is individually rational: for every agent v, µ(v) ≽_v µ0(v).
+Proof. Each swap strictly improves its two participants and leaves others unchanged. Hence each agent’s assignment is monotonically nondecreasing in her preference relative to µ0.
+
+Lemma 2 (PO implies no allowed swap). If a matching µ admits an allowed swap on some edge {u,w}, then the post-swap matching strictly improves u and w and leaves others unchanged, contradicting global PO. Thus any globally PO matching is a sink (no allowed swap).
+
+Proposition 3 (Global PO test). For a given allocation µ, build a directed graph D on agents∪objects with arcs a→b for each object b such that b ≻_a µ(a), and arcs b→owner_µ(b). Then µ is globally Pareto-efficient iff D has no directed cycle.
+Proof sketch. A directed cycle yields a cyclic reallocation strictly improving all involved agents. Conversely, any strict Pareto improvement induces such a cycle in D. (Standard Shapley–Scarf characterization.)
+
+Proposition 4 (Tree reachability to a fixed target). Given a tree T, initial allocation µ0, and a target allocation µ*, we can decide in O(n^2) whether µ* is reachable by allowed swaps and produce a witness sequence if so.
+Sketch. Let each agent follow the unique dipath from its current object to its target. An edge is good if both incident agents need to cross it next. If the target is reachable and not yet attained, some good edge exists. Swapping on any good edge advances both agents; maintaining the set of good edges yields an O(n^2) decision and sequence.
+
+Theorem 5 (TREE-REACHABLE-PE ∈ NP). A certificate is a target allocation µ*. Verification is polynomial: (i) check reachability µ0→µ* via Proposition 4 (O(n^2)); (ii) check global PO via Proposition 3 (O(n^2)).
+
+Corollary 6 (Sink special case). If the initial allocation µ0 admits no allowed swap, then reach(µ0)={µ0}. Hence the instance is YES iff µ0 is globally PO (decidable in O(n^2)).
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Papers (text) ===
+
+=== Paper (papers/paper1.txt) ===
+arXiv:2103.01394v2 [cs.GT] 7 Oct 2021
+Object Allocation Over a Network of Objects:
+Mobile Agents with Strict Preferences∗
+Fu Li C. Gregory Plaxton Vaibhav B. Sinha
+March 2021
+Abstract
+In recent work, Gourv`es, Lesca, and Wilczynski propose a variant of the classic housing markets model where the matching between agents and objects evolves
+through Pareto-improving swaps between pairs of adjacent agents in a social network.
+To explore the swap dynamics of their model, they pose several basic questions concerning the set of reachable matchings. In their work and other follow-up works, these
+questions have been studied for various classes of graphs: stars, paths, generalized stars
+(i.e., trees where at most one vertex has degree greater than two), trees, and cliques.
+For generalized stars and trees, it remains open whether a Pareto-efficient reachable
+matching can be found in polynomial time.
+In this paper, we pursue the same set of questions under a natural variant of their
+model. In our model, the social network is replaced by a network of objects, and a
+swap is allowed to take place between two agents if it is Pareto-improving and the
+associated objects are adjacent in the network. In those cases where the question of
+polynomial-time solvability versus NP-hardness has been resolved for the social network
+model, we are able to show that the same result holds for the network-of-objects model.
+In addition, for our model, we present a polynomial-time algorithm for computing a
+Pareto-efficient reachable matching in generalized star networks. Moreover, the object
+reachability algorithm that we present for path networks is significantly faster than the
+known polynomial-time algorithms for the same question in the social network model.
+∗Department of Computer Science, University of Texas at Austin. A preliminary version of this paper
+will appear as an extended abstract in the Proceedings of the 20th International Conference on Autonomous
+Agents and Multiagent Systems. Email: {fuli, plaxton, vaibhavsinha}@utexas.edu.
+1 Introduction
+Problems related to resource allocation under preferences are widely studied in both computer science and economics. Research in this area seeks to gain mathematical insight into
+the structure of resource allocation problems, and to exploit this structure to design fast
+algorithms. In one important class of resource allocation problems, sometimes referred to as
+one-sided matching problems [13], we seek to allocate indivisible objects to a set of agents,
+where each agent has preferences over the objects and wants to receive at most one object
+(unit demand). The allocation should enjoy one or more strong game-theoretic properties,
+such as Pareto-efficiency.
+In a seminal work, Shapley and Scarf [18] introduced the notion of a housing market,
+which corresponds to the special case of one-sided matching in which there are an equal
+number of agents and objects, each agent is initially endowed with a distinct object, and
+each agent is required to be matched to exactly one object. They present an elegant algorithm (attributed to David Gale) for housing markets called the top trading cycles (TTC)
+algorithm. The TTC algorithm enjoys a number of strong game-theoretic properties. For
+example, when agents have strict preferences, the output of the TTC algorithm is the unique
+matching in the core. The TTC algorithm has subsequently been generalized to handle more
+complex variants of the original housing market problem (e.g., [3, 8, 9, 15, 17]).
+Like many one-sided matching algorithms, the TTC algorithm is centralized: it takes
+all of the agent preference information as input and computes the output matching. In
+some resource allocation scenarios of practical interest, it may be difficult or impossible
+to coordinate such a global recomputation of the matching. Accordingly, researchers have
+studied decentralized (or distributed) variants of one-sided matching problems in which the
+initial allocation gradually evolves as “local” trading opportunities arise. In this setting,
+restrictions are imposed on the sets of agents that are allowed to participate in a single
+trade. For example, we might only allow (certain) pairs of agents to trade. In addition, all
+trades are required to be Pareto-improving. Locality-based restrictions on trade are generally
+enforced through graph-theoretic constraints.
+Of particular relevance to the present paper is the line of research initiated by Gourv`es et
+al. [10] on decentralized allocation in housing markets. They propose a model in which agents
+have strict preferences and are embedded in an underlying social network. A pair of agents
+are allowed to swap objects with each other only if (1) they will be better off after the swap,
+and (2) they are directly connected (socially tied) via the network. The underlying social
+network is modeled as an undirected graph, and five different graph classes are considered:
+paths, stars, generalized stars, trees, and general graphs. The swap dynamics of the model
+are investigated by considering three computational questions. The first question, Reachable
+Object, asks whether there is a sequence of swaps that results in a given agent being matched
+to a given target object. The second question, Reachable Matching, asks whether there is
+a sequence of swaps that results in a given target matching. The third question, Pareto
+Efficiency, asks how to find a sequence of swaps that results in a Pareto-efficient matching
+with respect to the set of reachable matchings.
+Gourv`es et al. [10] studied each of the three questions in the context of the aforementioned
+graph classes, with the goal of either exhibiting a polynomial-time algorithm or establishing
+NP-hardness. For some of these problems, it is a relatively straightforward exercise to
+1
+design a polynomial-time algorithm (even for the search version). In particular, this is the
+case for all three reachability questions on stars, for Pareto Efficiency on paths, and for
+Reachable Matching on trees (which subsumes Reachable Matching on generalized stars, and
+hence also on paths). Gourv`es et al. present an elegant reduction from 2P1N-SAT [19] to
+establish the NP-completeness of Reachable Object on generalized stars (and hence also on
+trees and general graphs). They establish the NP-completeness of Reachable Matching on
+general graphs via a reduction from Reachable Object on trees. The latter reduction has the
+property that for any given instance of Reachable Object on trees, the target matching in the
+instance of Reachable Matching on general graphs produced by the transformation matches
+each agent to its most preferred object. Consequently, the same reduction establishes the
+NP-hardness of Pareto Efficiency on general graphs. The work of Gourv`es et al. left three
+of these problems open: Reachable Object on paths and Pareto Efficiency on generalized
+stars and trees. Subsequently, two sets of authors independently presented polynomialtime algorithms for Reachable Object on paths [4, 11]. Both groups obtained an O(n
+4
+)-time
+algorithm by carefully studying the structure of swap dynamics on paths and then reducing
+the problem to 2-SAT. The complexity of Pareto Efficiency remains open for generalized stars
+and for trees. Gourv`es et al. noted, “It appears interesting to see if Pareto (Efficiency) is
+polynomial time solvable in a generalized star by a combination of the techniques used to
+solve the cases of paths and stars.”
+Bentert et al. [4] established that Reachable Object on cliques is NP-complete, and M¨uller
+and Bentert [14] established that Reachable Matching on cliques is NP-complete. It is easy
+to extend the latter result to show that Pareto Efficiency on cliques is NP-hard. These three
+hardness results for cliques subsume the corresponding results obtained previously for general
+graphs by Gourv`es et al.
+We study a natural variant of the decentralized housing markets model of Gourv`es et
+al. [10]. Instead of enforcing locality constraints on trade via a network where the locations
+of the agents are fixed (since they correspond to the vertices of the network) and the objects
+move around (due to swaps), we consider a network where the locations of the objects are
+fixed and the agents move around. We refer to these two models as the object-moving
+model and the agent-moving model. Table 1 summarizes the current state of the art for the
+object-moving model.
+To motivate the study of the agent-moving model, consider a cloud computing environment with a large number of servers (objects) connected by a network that are available
+to rent. A set of customers (agents) are each interested in renting one server. The servers
+vary in CPU capacity, storage capacity, physical security, and rental cost. Varying customer
+workloads and requirements result in varying customer preferences over the servers. Rather
+than attempting to globally optimize the entire matching of customers to servers, it might be
+preferable to allow local swaps between adjacent servers to gradually optimize the matching.
+Given that customer workloads are likely to vary significantly over time, an optimization
+strategy based on frequent local updates might outperform a strategy based on less frequent
+global updates. Alternatively, one can envision a system that performs occasional global
+updates to optimize the matching, and that relies on local updates to maintain a reasonable
+matching between successive global updates.
+Our Results. We initiate the study of the agent-moving model by revisiting each
+of the questions associated with Table 1 in the context of the agent-moving model. We
+2
+Reachable Object Reachable Matching Pareto Efficiency
+Star poly-time (poly-time) poly-time
+Path poly-time (poly-time) poly-time
+Generalized Star NP-complete (poly-time) open
+Tree (NP-complete) poly-time open
+Clique NP-complete NP-complete NP-hard
+Table 1: This table presents known complexity results for various questions related to the
+object-moving model of Gourv`es et al. [10]. The results in parentheses follow directly from
+other table entries. For the agent-moving model, we obtain the same results, except that we
+also give a polynomial-time algorithm for Pareto Efficiency on generalized stars.
+emphasize that the sole difference between the agent-moving model and the object-moving
+model is that the locality constraint prevents an agent a currently matched to an object
+b from trading with an agent a
+′
+currently matched to an object b
+′ unless objects b and b
+′
+(two vertices in a given network of objects) are adjacent, rather than requiring agents a
+and a
+′
+(two vertices in a given network of agents) to be adjacent. Both models also require
+swaps to be Pareto-improving. The two models have strong similarities. In fact, for all of
+the questions in Table 1 for which a polynomial-time algorithm or hardness result has been
+established in the object-moving model, we establish a corresponding result in the agentmoving model. Moreover, for Pareto Efficiency on generalized stars, which is open in the
+object-moving model, we provide a polynomial-time algorithm in the agent-moving model.
+In some cases, it is relatively straightforward to adapt known results for the object-moving
+model to the agent-moving model. Below we highlight our four main technical contributions,
+which address more challenging cases.
+Our first main technical result is an O(n
+2
+) time algorithm for Reachable Object on paths
+in the agent-moving model, which is much faster than the known O(n
+4
+)-time algorithms
+for Reachable Object on paths in the object-moving model. (Here n denotes the number
+of agents/objects; the size of the input is quadratic in n since the preference list of each
+agent is of length n.) The speedup is due to a simpler local characterization of the reachable
+matchings on a path in the agent-moving model.
+In our second main technical result, we obtain the same O(n
+2
+) time bound for Pareto
+Efficiency on paths. Our algorithms for Reachable Object and Pareto Efficiency are based
+on an efficient subroutine for solving a certain constrained reachability problem. Roughly
+speaking, this subroutine determines all of the possible matches for a given agent when
+certain agent-object pairs are required to be matched to one another. Our implementation
+involves a trivial O(n
+2
+)-time preprocessing phase followed by an O(n)-time greedy phase.
+The preferences of the agents are only examined during the preprocessing phase. The proof of
+correctness of the greedy phase is somewhat nontrivial. We solve Reachable Object on paths
+using a single application of the subroutine, yielding an O(n
+2
+) bound. Our polynomial-time
+algorithm for Pareto Efficiency on paths uses n applications of our algorithm for Reachable
+Object on paths. Since the preprocessing phase only needs to be performed once, the overall
+running time remains O(n
+2
+).
+In our third main technical result, we present a polynomial-time algorithm for Pareto
+Efficiency on generalized stars, which remains open in the object-moving model. To tackle
+3
+this problem, we use the serial dictatorship algorithm with the novel idea of dynamically
+choosing the dictator sequence. We also leverage our techniques for solving Pareto Efficiency
+on paths.
+The faster time bounds discussed above for the case of paths suggest that the agentmoving model is simpler than the object-moving model, at least from an upper bound
+perspective. Accordingly, we can expect it to be a bit more challenging to establish the
+NP-completeness results stated in Table 1 for the agent-moving model than for the objectmoving model. In our fourth main technical result, we adapt an NP-completeness proof
+developed by Bentert et al. [4] in the context of the object-moving model to the more challenging setting of the agent-moving model. Specifically, we modify their reduction from
+2P1N-SAT to establish that Reachable Object on cliques remains NP-complete in the agentmoving model.
+Related work. For the object-moving model, Huang and Xiao [11] study Reachable
+Object with weak preferences, i.e., where an agent can be indifferent between different objects.
+Bentert et al. [4] establish NP-hardness for Reachable Object on cliques, and consider the
+case where the preference lists have bounded length. Saffidine and Wilczynski [16] propose
+a variant of Reachable Object where we ask whether a given agent is guaranteed to achieve
+a specified level of satisfaction after any maximal sequence of rational exchanges. M¨uller
+and Bentert [14] study Reachable Matching on cliques and cycles. Aspects related to social
+connectivity are also addressed in recent work on envy-free allocations [5, 7] and on trade-offs
+between efficiency and fairness [12].
+Our agent-moving model can be viewed as a game in which each agent seeks to be
+matched to an object that is as high as possible on its preference list. If the game reaches a
+state in which no further swaps can be performed, we say that an equilibrium matching has
+been reached. Agarwal et al. [2] study a similar game motivated by Schelling’s well-known
+residential segregation model. As in our game, there are an equal number of agents and
+objects, the objects correspond to the nodes of a graph, a matching is maintained between
+the agents and the objects, and the matching evolves via Pareto-improving, agent-moving
+swaps. There are also some significant differences. In our model, each agent has static
+preferences over the set of objects, and swaps can only occur between adjacent agents (i.e,
+agents matched to adjacent objects). In the Agarwal et al. game, each agent has a type,
+the desirability of an object b to an agent a depends on the current fraction of agents in the
+“neighborhood” of b (i.e., the set of agents matched to an object adjacent to b) with the
+same type as a, and swaps can occur between any pair of agents. Agarwal et al. study the
+existence, computational complexity, and quality of equilibrium matchings in such games.
+Bil`o et. al [6] further investigated the influence of the graph structure on the resulting
+strategic multi-agent system.
+Organization of the paper. The remainder of the paper is organized as follows.
+Section 2 provides formal definitions. Section 3 presents our polynomial-time algorithms
+for Reachable Object and Pareto Efficiency on paths. Section 4 presents our polynomial-time
+algorithm for Pareto Efficiency on generalized stars. Section 5 presents our NP-completeness
+result for Reachable Object on cliques. Section 6 presents our other NP-completeness and
+NP-hardness results. Section 7 briefly discusses simple algorithms for justifying the other
+polynomial-time entries in Table 1. Section 8 offers concluding remarks.
+4
+2 Preliminaries
+We define an object allocation framework (OAF) as a 4-tuple F = (A, B, ≻, E) where A is
+a set of agents, B is a set of objects such that |A| = |B|, ≻ is a collection of strict linear
+orderings {≻a}a∈A over B such that ≻a specifies the preferences of agent a over B, and E is
+the edge set of some undirected graph (B, E).
+We define a matching µ of given OAF F = (A, B, ≻, E) as a subset of A × B such that
+no agent or object belongs to more than one pair in µ. (Put differently, µ is a matching in
+the complete bipartite graph of agents and objects.) We say that such a matching is perfect
+if |µ| = |A|. For any matching µ, we define agents(µ) (resp., objects(µ)) as the set of all
+matched agents (resp., objects) with respect to µ. For any matching µ and any agent a that
+is matched in µ, we use the shorthand notation µ(a) to refer to the object matched to agent
+a. For any matching µ and any object b that is matched in µ, we use the notation µ
+−1
+(b) to
+refer to the agent matched to object b.
+For any OAF F = (A, B, ≻, E), any perfect matching µ of F, and any edge e = (b, b′
+)
+in E such that b
+′ ≻a b and b ≻a
+′ b
+′ where a = µ
+−1
+(b) and a
+′ = µ
+−1
+(b
+′
+), we say that a swap
+operation is applicable to µ across edge e, and we write µ →F,e µ
+′ where
+µ
+′ = (µ \ {(a, b),(a
+′
+, b′
+)}) ∪ {(a, b′
+),(a
+′
+, b)},
+is the matching of F that results from applying this operation. We write µ →F µ
+′
+to
+denote that µ →F,e µ
+′
+for some edge e. We write µ F µ
+′
+if there exists a sequence
+µ = µ0, . . . , µk = µ
+′ of matchings of F such that µi−1 →F µi
+for 1 ≤ i ≤ k.
+We define a configuration as a pair χ = (F, µ) where F is an OAF and µ is a perfect
+matching of F.
+For any configuration χ = (F, µ) where F = (A, B, ≻, E), any agent a in A, and any
+object b in B, we define χ(a) as a shorthand for the object µ(a), and we define χ
+−1
+(b) as a
+shorthand for the agent µ
+−1
+(b).
+For any configuration χ = (F, µ) where F = (A, B, ≻, E), and any matching µ
+′ of F such
+that µ →F,e µ
+′
+for some edge e in E, we say that a swap is applicable to χ across edge e,
+and the result of applying this operation is the configuration (F, µ′
+).
+For any configuration χ = (F, µ), we define reach(χ) as the set of all perfect matchings
+µ
+′
+of F such that µ F µ
+′
+. For any configuration χ = (F, µ) and any matching µ
+′
+of F, we
+define reach(χ, µ′
+) as the set of all matchings µ
+′′ in reach(χ) such that µ
+′′ contains µ
+′
+.
+We now state the three reachability problems studied in this paper.
+• The reachable matching problem: Given a configuration χ = (F, µ) and a perfect
+matching µ
+′ of F, determine whether µ
+′ belongs to reach(χ).
+• The reachable object problem: Given a configuration χ = (F, µ) where F = (A, B, ≻
+, E), an agent a in A, and an object b in B, determine whether there is a matching µ
+′
+in reach(χ) such that µ
+′
+(a) = b.
+• The Pareto-efficient matching problem: Given a configuration χ, find a matching in
+reach(χ) that is not Pareto-dominated by any other matching in reach(χ).
+5
+3 Reachability Over a Path Network
+We begin by introducing some notation.
+For any nonnegative integer n, we define [n] as {1, . . . , n}. Without loss of generality, in
+this section we restrict attention to OAFs of the form ([n], [n], ≻, {(b, b + 1) | 1 ≤ b < n})
+for some positive integer n. We use the notation (n, ≻) to refer to such an OAF.
+For any nonnegative integer n, we define Φ(n) as the set of all matchings µ such that
+agents(µ) = [|µ|] and objects(µ) ⊆ [n].
+For any matching µ in Φ(n), we define max(µ) as the maximum matched object in
+objects(µ), or as 0 if µ = ∅.
+For any matching µ in Φ(n), we define hole(µ) as the minimum positive integer that does
+not belong to objects(µ).
+For any matching µ in Φ(n) and any agent a in agents(µ), define span(µ, a) as {b ∈ [n] |
+µ(a) ≤ b ≤ a} ∪ {b ∈ [n] | a ≤ b ≤ µ(a)}.
+For any OAF F = (n, ≻), we define µF as the matching {(i, i) | i ∈ [n]}, and we define
+χF as the configuration (F, µF ).
+For any OAF F = (n, ≻) and any agent a in [n], we define left(≻, a) as the minimum
+object b in [n] such that b ≻a b + 1 ≻a · · · ≻a µF (a) = a, and we define right(≻, a) as the
+maximum object b in [n] such that b ≻a b − 1 ≻a · · · ≻a a. Thus if a matching µ belongs
+to reach(χF ), then the match µ(a) of agent a is at least left(≻, a) and at most right(≻, a),
+regardless of the preferences of the remaining agents.
+For any OAF F = (n, ≻), any matching µ in Φ(n), and any agent a in agents(µ), we
+say that the predicate IR(≻, µ, a) holds (where “IR” stands for “individually rational”) if
+left(≻, a) ≤ µ(a) ≤ right(≻, a). We say that the predicate IR(≻, µ) holds if IR(≻, µ, a) holds
+for all agents a in agents(µ).
+3.1 A Useful Subroutine
+This section presents Algorithm 1, a greedy subroutine that we use in Sections 3.3 and 3.4
+to solve reachability problems over a path network.
+Recall that the reachable object problem with path configuration χF is to check whether
+an object b is reachable for an agent a. Algorithm 1 addresses a variant of this problem in
+which the agents less than a are all required to be matched to specific objects. The input
+matching µ0 specifies the required match for each of these agents.
+3.2 Proof of Correctness of Algorithm 1
+In this section, we establish the correctness of Algorithm 1.
+We begin by defining a specific subset Φ∗
+(n) of Φ(n). For any matching µ in Φ(n) and
+any integer i in [|µ|], let µi be the matching such that µi ⊆ µ and agents(µ) = [i]. Then
+Φ
+∗
+(n) is the set of all matchings µ such that µ belongs to Φ(n) and for each i in [|µ| − 1],
+either µ(i + 1) = hole(µi) or max(µi) < µ(i + 1) ≤ n.
+We now present a number of useful structural properties of matchings in Φ∗
+(n).
+6
+Algorithm 1: A greedy path reachability subroutine.
+Input: An OAF F = (n, ≻), a matching µ0 in Φ(n) such that |µ0| < n and
+reach(χF , µ0) 6= ∅, and a matching µ1 = µ0 + (|µ1|, b0) where
+max(µ0) < b0 ≤ right(≻, |µ1|)
+Output: A matching µ in reach(χF , µ1), or ∅ if this set is empty
+µ = µ1;
+while 0 < |µ| < n do
+if left(≻, |µ| + 1) ≤ hole(µ) then
+µ = µ + (|µ| + 1, hole(µ));
+else if max(µ) < right(≻, |µ| + 1) then
+µ = µ + (|µ| + 1, max(µ) + 1);
+else
+µ = ∅;
+end
+end
+return µ
+3.2.1 Representing a Matching as a Pair of Binary Strings
+For any binary string α, we let |α| denote the length of α, and we let w(α) denote the
+Hamming weight of α. For any binary string α and any integer i in [|α|], we let αi denote
+bit i of α. For any binary string α, and any integers i and j in [|α|], we let αi,j denote the
+substring αi
+· · ·αj of α.
+For any integers m and n such that 0 ≤ m ≤ n, we let Ψ(m, n) denote the set of all pairs
+of binary strings (α, β) such that |α| = m, |β| = n, w(α1,i) ≥ w(β1,i) holds for all i in [m],
+w(α) = w(β), and m < n implies βn = 1.
+For any (α, β) in Ψ(m, n), we define [α, β] as the cardinality-m matching µ in Φ(n)
+constructed as follows: for any agent a in [m] such that αa is the ith 0 (resp., 1) in α, we
+define µ(a) as the index of the ith 0 (resp., 1) in β.
+Observation 3.1. Let (α, β) belong to Ψ(m, n), let µ denote [α, β], and let b belong to [n]. If
+b is unmatched in µ, then βb = 0. Otherwise, the following conditions hold, where a denotes
+µ
+−1
+(b): a > b implies αa = βb = 0, a < b implies αa = βb = 1, and a = b implies αa = βa.
+Observation 3.2. Let (α, β) belong to Ψ(m, n) and let µ denote [α, β]. If m < n then (α0, β)
+belongs to Ψ(m + 1, n) and [α0, β] = µ + (m + 1, hole(µ)). Furthermore, for any nonnegative
+integer k, (α1, β0
+k
+1) belongs to Ψ(m + 1, n + k + 1) and [α1, β0
+k
+1] = µ + (m + 1, n + k + 1).
+For any (α, β) in Ψ(m, n), and any agent a in [m] such that αa = βa and w(α1,a) =
+w(β1,a), we say that a complement operation is applicable to (α, β) at agent a. The result of
+applying this operation is the pair of binary strings (α
+′
+, β′
+) that is the same as (α, β) except
+α
+′
+a = β
+′
+a = 1 − αa. It is easy to see that (α
+′
+, β′
+) belongs to Ψ(m, n).
+For any (α, β) and (α
+′
+, β′
+) in Ψ(m, n), we write (α, β) ≃ (α
+′
+, β′
+) to denote that (α, β) can
+be transformed into (α
+′
+, β′
+) via a sequence of complement operations.
+7
+Observation 3.3. Let (α, β) and (α
+′
+, β′
+) belong to Ψ(m, n). Then [α, β] = [α
+′
+, β′
+] if and
+only if (α, β) ≃ (α
+′
+, β′
+).
+Observation 3.4. Let (α, β) belong to Ψ(m, n), and let (α
+′
+, β′
+) belong to Ψ(m′
+, n′
+) where
+m ≤ m′ and n ≤ n
+′
+. Then [α, β] ⊆ [α
+′
+, β′
+] if and only if (α, β) ≃ (α
+′
+1,|α|
+, β′
+1,|β|
+).
+For any (α, β) in Ψ(m, n), and any object b in [n − 1] such that βb = 1 and βb+1 = 0,
+we say that a sort operation is applicable to (α, β) across objects b and b + 1. The result of
+applying this operation is the pair of binary strings (α, β′
+) that is the same as (α, β) except
+β
+′
+b = 0 and β
+′
+b+1 = 1.
+Observation 3.5. Let (α, β) belong to Ψ(m, n) and let (α, β′
+) be the result of applying a sort
+operation to (α, β) across objects b and b+ 1. Then (α, β′
+) belongs to Ψ(m, n). Furthermore,
+if m = n then
+[α, β′
+] = (µ \ {(a, b),(a
+′
+, b + 1)}) ∪ {(a
+′
+, b),(a, b + 1)}
+where µ denotes [α, β], a denotes µ
+−1
+(b), and a
+′ denotes µ
+−1
+(b + 1).
+For any (α, β) and (α
+′
+, β′
+) in Ψ(m, n), we write (α, β) (α
+′
+, β′
+) to denote that (α, β)
+can be transformed into (α
+′
+, β′
+) via a sequence of complement and sort operations.
+Observation 3.6. Let α be a binary string of length m, and let β be a binary string of length
+n such that m ≤ n. Then (α, β) belongs to Ψ(m, n) if and only if (0m, 0
+n
+) (α, β).
+For any nonnegative integer n, we define Φ′
+(n) as the set of all matchings µ in Φ(n) such
+that µ = [α, β] for some (α, β) in Ψ(|µ|, max(µ)).
+For any (α, β) in Ψ(n, n), and any agent a in [n − 1] such that w(α1,a) > w(β1,a) and
+αa = 1, we say that a pivot operation is applicable to (α, β) at agent a. The result of applying
+this operation is the pair of binary strings (α
+′
+, β) that is the same as (α, β) except α
+′
+a = 0 and
+α
+′
+a
+′ = 1, where a
+′ denotes the minimum agent greater than a for which w(α1,a′) = w(β1,a′).
+(The agent a
+′
+is well-defined since w(α) = w(β).)
+Observation 3.7. Let (α, β) belong to Ψ(n, n), and let (α
+′
+, β) be the result of applying a
+pivot operation to (α, β) at agent a. Then (α
+′
+, β) belongs to Ψ(n, n) and span([α
+′
+, β], a′
+) is
+contained in span([α, β], a′
+) for all agents a
+′
+in [n] − a.
+For any (α, β) in Ψ(n, n), and any object b in [n − 1] such that w(α1,b) > w(β1,b), βb = 0,
+and βb+1 = 1, we say that an unsort operation is applicable to (α, β) across objects b and
+b + 1. The result of applying this operation is the pair of binary strings (α, β′
+) that is the
+same as (α, β) except β
+′
+b = 1 and β
+′
+b+1 = 0.
+Observation 3.8. Let (α, β) belong to Ψ(n, n), and let (α, β′
+) be the result of applying an
+unsort operation to (α, β) across objects b and b + 1. Then (α, β′
+) belongs to Ψ(n, n) and
+span([α, β′
+], a) is contained in span([α, β], a) for all agents a in [n].
+8
+3.2.2 Structural Properties of Matchings in Φ
+∗
+(n)
+Claim 3.9 below gives a a simple characterization of matchings in Φ′
+(n), and hence implies
+that Φ′
+(n) = Φ∗
+(n).
+Claim 3.9. Let µ be a matching in Φ
+′
+(n) such that |µ| < n, let a denote |µ|, let a
+′ denote
+a + 1, let b denote max(µ), and let µ
+′ denote µ + (a
+′
+, b∗
+). Then µ
+′
+belongs to Φ
+′
+(n) if and
+only if b
+∗ = hole(µ) or b < b∗ ≤ n.
+Proof. Since µ belongs to Φ′
+(n), there exists (α, β) in Ψ(a, b) such that µ = [α, β]. Let b
+′
+denote max(µ
+′
+).
+For the “if” direction, we need to prove that there exists (α
+′
+, β′
+) in Ψ(a
+′
+, b′
+) such that
+µ
+′ = [α
+′
+, β′
+]. We consider two cases.
+Case 1: b
+∗ = hole(µ) ≤ b. Observation 3.2 implies that (α0, β) belongs to Ψ(a
+′
+, b′
+) and
+µ
+′ = [α0, β].
+Case 2: b < b∗ ≤ n. Let k denote b
+∗ − b − 1. Observation 3.2 implies that (α1, β0
+k
+1)
+belongs to Ψ(a
+′
+, b′
+) and µ
+′ = [α1, β0
+k1].
+We now address the “only if” direction. Assume that µ
+′ belongs to Φ′
+(n). Since µ
+′ =
+µ+(a
+′
+, b∗
+), we deduce that b
+∗ belongs to [n]\objects(µ). It remains to prove that b
+∗ = hole(µ)
+or b < b∗
+. Let B denote the set of objects [b] \ objects(µ). We consider two cases.
+Case 1: a = b. Thus B = ∅ and since b
+∗
+is unmatched in µ, we have b < b∗
+.
+Case 2: a < b. Since µ
+′ belongs to Φ′
+(n), there exists (α
+′
+, β′
+) in Ψ(a
+′
+, b′
+) such that µ
+′ =
+[α
+′
+, β′
+]. Observation 3.4 implies that (α
+′
+1,a, β′
+1,b) belongs to Ψ(a, b) and (α
+′
+1,a, β′
+1,b) ≃ (α, β).
+Since
+(α
+′
+1,a, β′
+1,b) ≃ (α, β), Observation 3.3 implies that [α
+′
+1,a, β′
+1,b] = [α, β] = µ. Let B0 denote the
+set of all objects i in B such that β
+′
+i = 0. Observation 3.1 implies that B0 = B. We consider
+two cases.
+Case 2.1: α
+′
+a
+′ = 1. Since µ
+′
+(a
+′
+) = b
+∗
+, Observation 3.1 implies that β
+′
+b
+∗ = 1. Thus b
+∗ does
+not belong to B = B0. Since b
+∗
+is unmatched in µ, we conclude that b < b∗
+.
+Case 2.2: α
+′
+a
+′ = 0. Since a < b and (α
+′
+1,a, β′
+1,b) belongs to Ψ(a, b), we have β
+′
+b = 1 and
+w(α
+′
+1,a) = w(β
+′
+1,b) > w(β
+′
+1,a). Let k denote the number of 0’s in α
+′
+1,a, and let ℓ denote the
+number of 0’s in β
+′
+1,a. Since w(α
+′
+1,a) > w(β
+′
+1,a), we have ℓ > k. Let B′ denote the indices of
+the first k 0’s in β
+′
+1,a, and let B′′ denote the indices of the remaining ℓ − k 0’s in β
+′
+1,a. Since
+µ = [α
+′
+1,a, β′
+1,b], we deduce that the objects in B′ are all matched in µ and the objects in B′′
+are all unmatched in µ. Thus B ∩ [a] = B0 ∩ [a] = B′′ 6= ∅, It follows that hole(µ) is the
+minimum object in B′′. Since µ
+′ = [α
+′
+, β′
+], α
+′
+a
+′ = 0, and there are k + 1 0’s in α
+′
+, we deduce
+that b
+∗
+is the minimum object in B′′. Thus b
+∗ = hole(µ).
+Lemma 3.10 below establishes a one-to-one correspondence between matchings that are
+reachable from χF and matchings in Φ∗
+(n).
+Lemma 3.10. Let F = (n, ≻) be an OAF. Then µ belongs to reach(χF ) if and only if µ
+belongs to Φ
+∗
+(n), |µ| = n, and IR(≻, µ) holds.
+Proof. First we prove the “only if” direction. Suppose that µ belongs to reach(χF ). Then
+there is a sequence µF = µ0, . . . , µk = µ of perfect matchings of F such that µi−1 →F µi
+for
+all i in [k].
+9
+For any i such that 0 ≤ i ≤ k, let P(i) denote the predicate asserting that the following
+conditions hold: µi belongs to Φ∗
+(n); |µi
+| = n; IR(≻, µi) holds. We prove by induction on i
+that P(i) holds for all i in {0, . . . , k}. Using the definition of µF , it is easy to see that P(0)
+holds. Now consider the induction step. Fix i in [k] and assume that P(i − 1) holds. We
+need to prove that P(i) holds. Since P(i − 1) holds, we know that µi−1 belongs to Φ∗
+(n),
+|µi−1| = n, and IR(≻, µi−1). Since µi−1 belongs to Φ∗
+(n) and |µi−1| = n, there exists (α, β) in
+Ψ(n, n) such that µi−1 = [α, β]. Let b denote the object in [n−1] such that µi−1 →F,(b,b+1) µi
+.
+Let (α
+′
+, β′
+) and (α
+′′, β′′) be defined as follows. First, if a complement operation is applicable to (α, β) at agent b and βb = 0, then (α
+′
+, β′
+) is the result of applying this operation
+to (α, β), and otherwise (α
+′
+, β′
+) is equal to (α, β). Second, if a complement operation is
+applicable to (α, β) at agent b + 1 and βb+1 = 1, then (α
+′′, β′′) is the result of applying this
+operation to (α
+′
+, β′
+), and otherwise (α
+′′, β′′) is equal to (α
+′
+, β′
+). Observation 3.3 implies that
+(α
+′′, β′′) belongs to Ψ(n, n) and µi−1 = [α
+′′, β′′].
+Using Observation 3.1, it is straightforward to prove that β
+′′
+b = 1 and β
+′′
+b+1 = 0. Thus
+a sort operation is applicable to (α
+′′, β′′) across objects b and b + 1; let (α
+′′, β′′′) denote
+the result of applying this sort operation. Observation 3.5 implies that (α
+′′, β′′′) belongs to
+Ψ(n, n) and µi = [α
+′′, β′′′]. Thus µi belongs to Φ∗
+(n) and |µi
+| = n. Since IR(≻, µi−1) holds
+and µi−1 →F µi
+, we deduce that IR(≻, µi) holds. We conclude that P(i) holds, completing
+the proof by induction.
+We now prove the “if” direction. Assume that µ belongs to Φ∗
+(n), |µ| = n, and IR(≻, µ)
+holds. Observation 3.6 implies there exists (α, β) in Ψ(n, n) such that (0n
+, 0
+n
+) (α, β).
+It follows that there is a sequence (0n
+, 0
+n
+) = (α
+(0), β(0)), . . . ,(α
+(k)
+, β(k)
+) = (α, β) of pairs in
+Ψ(n, n) such that an applicable complement or sort operation transforms (α
+(i−1), β(i−1)) into
+(α
+(i)
+, β(i)
+) for all i in [k]. Let µi denote [α
+(i)
+, β(i)
+] for all i such that 0 ≤ i ≤ k. Thus µ0 = µF
+and µk = µ.
+Observations 3.3 and 3.5 imply that for all i in [k], either µi = µi−1 or µi
+is obtained
+from µi−1 via an exchange across two adjacent objects. It remains to prove that any such
+exchanges are swaps, i.e., do not violate individual rationality. Below we accomplish this by
+proving that IR(≻, µi) holds for 0 ≤ i ≤ k.
+For any i in [k], let P(i) denote the predicate span(µi−1, a) ⊆ span(µi
+, a) for all agents a
+in [n]. We claim that P(i) holds for all i in [k]. To prove the claim, fix an integer i in [k].
+We consider two cases.
+Case 1: A complement operation transforms (α
+(i−1), β(i−1)) into (α
+(i)
+, β(i)
+). In this case,
+Observation 3.3 implies that µi = µi−1. Thus span(µi−1, a) = span(µi
+, a) for all agents a in
+[n].
+Case 2: A sort operation transforms (α
+(i−1), β(i−1)) into (α
+(i)
+, β(i)
+). Assume that the
+sort operation is applied to (α
+(i−1), β(i−1)) across objects b and b + 1. Then β
+(i−1)
+b = 1 and
+β
+(i)
+b+1 = 0, and Observation 3.1 implies that µ
+−1
+i−1
+(b) ≤ b and µ
+−1
+i−1
+(b + 1) ≥ b + 1. Thus
+Observation 3.5 implies span(µi−1, a) ⊆ span(µi
+, a) for all agents a in [n].
+Since P(i) holds for all i in [k] and IR(≻, µk) holds, we deduce that IR(≻, µi) holds for
+all i such that 0 ≤ i ≤ k, as required.
+The next three lemmas are concerned with enlarging a given matching µ in Φ∗
+(n) such
+that |µ| < n by introducing a suitable match for agent |µ| + 1. Lemma 3.11 (resp.,
+Lemma 3.12) addresses the case where agent |µ| + 1 is matched to an object that is at most
+10
+(resp., at least) |µ|+1. By combining these two lemmas, we obtain Lemma 3.13, which shows
+that it is sufficient to consider matching agent |µ|+1 with an object in {hole(µ), max(µ)+1}.
+Lemma 3.11. Let F = (n, ≻) be an OAF, let µ be a matching in Φ
+∗
+(n) such that |µ| < n,
+let a denote |µ|, let a
+′ denote a + 1, let b denote max(µ), and let µ
+′ denote µ + (a
+′
+, hole(µ)).
+Assume that a < b, reach(χF , µ) 6= ∅, and left(≻, a′
+) ≤ hole(µ). Then reach(χF , µ′
+) 6= ∅.
+Proof. Let µ
+∗ be a matching in reach(χF , µ). Lemma 3.10 implies that IR(≻, µ∗
+) holds and
+there exists (α
+∗
+, β∗
+) in Ψ(n, n) such that µ
+∗ = [α
+∗
+, β∗
+]. Using Observations 3.3 and 3.4, we
+deduce that [α
+∗
+1,a, β∗
+1,b] is equal to µ. We consider two cases.
+Case 1: α
+∗
+a′ = 0. Using Observation 3.2, we deduce that [α
+∗
+1,a′, β∗
+1,b] is equal to µ
+′
+. Hence
+Observation 3.4 implies that µ
+∗
+contains µ
+′
+. Thus reach(χF , µ′
+) 6= ∅, as required.
+Case 2: α
+∗
+a
+′ = 1. In this case, it is straightforward to prove that a pivot operation is applicable to (α
+∗
+, β∗
+) at agent a
+′
+; let (α
+∗∗, β∗
+) denote the result of this operation. Observation 3.7
+implies that (α
+∗∗, β∗
+) belongs to Ψ(n, n). Let µ
+∗∗ denote [α
+∗∗, β∗
+]. Thus µ
+∗∗ belongs to Φ∗
+(n).
+Observation 3.7 implies that IR(≻, µ∗∗, a′′) holds for all agents a
+′′ in [n] − a
+′
+. Since the inequality left(≻, a′
+) ≤ hole(µ) implies that IR(≻, µ∗∗, a′
+) holds, we deduce that IR(≻, µ∗∗)
+holds. Thus Lemma 3.10 implies that µ
+∗∗ belongs to reach(χF ). Since α
+∗∗
+1,a = α
+∗
+1,a, Observation 3.4 implies that µ
+∗∗ contains µ. Using Observation 3.2, we deduce that [α
+∗∗
+1,a′, β∗
+1,b]
+is equal to µ
+′
+. Hence Observation 3.4 implies that µ
+∗∗ contains µ
+′
+. Since µ
+∗∗ belongs to
+reach(χF ) and µ
+∗∗ contains µ
+′
+, we conclude that µ
+∗∗ is contained in reach(χF , µ′
+).
+Lemma 3.12. Let F = (n, ≻) be an OAF, let µ be a matching in Φ
+∗
+(n) such that |µ| < n,
+let a denote |µ|, let a
+′ denote a + 1, let b denote max(µ), let µ
+′ denote µ + (a
+′
+, b′
+) where
+b
+′
+belongs to [n] \ [b + 1] and reach(χF , µ′
+) 6= ∅, and let µ
+′′ denote µ + (a
+′
+, b + 1). Then
+reach(χF , µ′′) 6= ∅.
+Proof. Let µ
+∗ be a matching in reach(χF , µ′
+). Lemma 3.10 implies that IR(≻, µ∗
+) holds and
+there exists (α
+∗
+, β∗
+) in Ψ(n, n) such that µ
+∗ = [α
+∗
+, β∗
+]. Using Observations 3.1 and 3.4, we
+find that α
+∗
+a
+′ = β
+∗
+b
+′ = 1 and β
+∗
+b+k = 0 for all k in [b
+′ − b − 1]. Using Observation 3.8, we
+deduce that a sequence of b
+′ − b − 1 unsort operations can be used to transform (α
+∗
+, β∗
+)
+into a pair of binary strings (α
+∗
+, β∗∗) in Ψ(n, n) such that β
+∗∗
+1,b = β
+∗
+1,b and IR(≻, [α
+∗
+, β∗∗])
+holds. Let µ
+∗∗ denote [α
+∗
+, β∗∗]; thus µ
+∗∗ belongs to Φ∗
+(n). Lemma 3.10 implies that µ
+∗∗
+belongs to reach(χF ). Since β
+∗∗
+1,b = β
+∗
+1,b, Observation 3.4 implies that µ
+∗∗ contains µ. Using
+Observation 3.2, we deduce that [α
+∗
+1,a′, β∗∗
+1,b+1] is equal to µ
+′′. Hence Observation 3.4 implies
+that µ
+∗∗ contains µ
+′′. Since µ
+∗∗ belongs to reach(χF ) and µ
+∗∗ contains µ
+′′, we conclude that
+µ
+∗∗ belongs to reach(χF , µ′′).
+Lemma 3.13. Let F = (n, ≻) be an OAF, let µ be a matching in Φ
+∗
+(n) such that |µ| < n, let
+a denote |µ|, let a
+′ denote a+1, let b denote max(µ), and assume that reach(χF , µ) 6= ∅. Then
+there exists a matching in reach(χF , µ) that matches agent a
+′
+to an object in {hole(µ), b+ 1}.
+Proof. Let µ
+∗ belong to reach(χF , µ) and let b
+∗ denote µ
+∗
+(a
+′
+). Lemma 3.10 implies that µ
+∗
+belongs to Φ∗
+(n) and IR(≻, µ∗
+) holds.
+Since µ
+∗ belongs to Φ∗
+(n), the definition of Φ∗
+(n) implies that b
+∗ = hole(µ) or b < b∗
+.
+We consider two cases.
+11
+Case 1: b
+∗ = hole(µ). Since IR(≻, µ∗
+) holds, we deduce that left(≻, a′
+) ≤ b
+∗
+. Hence the
+claim of the lemma follows from Lemma 3.11.
+Case 2: b < b∗
+. Since IR(≻, µ∗
+) holds, we deduce that b
+∗ ≤ right(≻, a′
+). If b
+∗ = b + 1,
+the claim of the lemma is immediate. Otherwise, it follows from Lemma 3.12.
+We are now ready to prove the main technical lemma of this section, Lemma 3.14 below.
+Lemma 3.14. Consider an execution of Algorithm 1 with inputs F = (n, ≻), µ0, and µ1. If
+the guard of the while loop is evaluated in a state where µ 6= ∅, then the following conditions
+hold in that state: (1) µ belongs to Φ
+∗
+(n); (2) IR(≻, µ) holds; (3) reach(χF , µ1) 6= ∅ implies
+reach(χF , µ) 6= ∅. Furthermore, if the guard of the while loop is evaluated in a state where
+µ = ∅, then reach(χF , µ1) = ∅.
+Proof. We prove the claim by induction on the number of iterations of the loop. For the
+base case, we verify that the stated conditions hold the first time the loop is reached. The
+initialization of µ ensures that µ 6= ∅, so we need to verify conditions (1) through (3).
+Since reach(χF , µ0) 6= ∅, Lemma 3.10 implies that IR(≻, µ0) holds, and Lemma 3.10 and the
+definition of Φ∗
+(n)together imply that µ0 belongs to Φ∗
+(n). Since b0 ≤ right(≻, |µ1|) ≤ n,
+the definition of Φ∗
+(n) implies that µ1 belongs to Φ∗
+(n). Since IR(≻, µ0) holds and the
+preconditions associated with Algorithm 1 ensure that IR(≻, µ1, |µ1|) holds, we deduce that
+IR(≻, µ1) holds. Since µ is initialized to µ1, we conclude that conditions (1) through (3)
+hold the first time the loop is reached.
+For the induction step, consider an arbitrary iteration of the loop. Such an iteration
+begins in a state where the guard of the while loop evaluates to true, so we can assume that
+0 < |µ| < n and that conditions (1) through (3) hold in this state. Let a denote |µ|, let a
+′
+denote a + 1, let b denote max(µ), and let µ
+′ denote the value of the program variable µ
+immediately after this iteration of the loop body. We consider two cases.
+Case 1: µ
+′ = ∅. In this case, we need to prove that reach(χF , µ1) = ∅. Assume for the sake
+of contradiction that reach(χF , µ1) 6= ∅. Condition (3) implies that reach(χF , µ) 6= ∅. Thus
+Lemma 3.13 implies there exists a matching µ
+∗
+in reach(χF , µ) such that left(≻, a′
+) ≤ hole(µ)
+or b + 1 ≤ right(≻, a′
+). It follows by inspection of the code that µ
+′ 6= ∅, a contradiction.
+Case 2: µ
+′ 6= ∅. In this case, we need to prove that conditions (1) through (3) hold
+with µ replaced by µ
+′
+; we refer to these conditions as postconditions (1) through (3). Since
+µ
+′
+(a
+′
+) ≤ right(≻, a′
+) ≤ n and condition (1) implies that µ belongs to Φ∗
+(n), the definition
+of Φ∗
+(n)implies that µ
+′ belongs to Φ∗
+(n). Thus postcondition (1) holds. Since condition (2)
+implies that IR(≻, µ) holds, and IR(≻, µ′
+, a′
+) holds by inspection of the code, we deduce that
+postcondition (2) holds. It remains to establish postcondition (3). In order to do so, we may
+assume that reach(χF , µ1) 6= ∅. Condition (3) implies that reach(χF , µ) 6= ∅. To establish
+postcondition (3), we need to prove that reach(χF , µ′
+) 6= ∅. We consider two cases.
+Case 2.1: a < b and left(≻, a′
+) ≤ hole(µ). In this case, µ
+′ = µ + (a
+′
+, hole(µ)), and
+Lemma 3.11 implies that reach(χF , µ′
+) 6= ∅.
+Case 2.2: a = b or hole(µ) < left(≻, a′
+). In this case, µ
+′ = µ+ (a
+′
+, b+ 1), and Lemma 3.13
+implies there exists a matching µ
+∗
+in reach(χF , µ) such that µ
+∗
+(a
+′
+) is either hole(µ) or b + 1.
+Since IR(≻, µ∗
+) holds, the Case 2.2 condition implies that if µ
+∗
+(a
+′
+) = hole(µ), then a = b, in
+which case objects(µ) = [b] and hence hole(µ) = b + 1. It follows that µ
+∗
+(a
+′
+) = b + 1, and
+hence that reach(χF , µ′
+) 6= ∅.
+12
+Using Lemma 3.14, it is straightforward to establish the correctness of Algorithm 1.
+Lemma 3.15. Consider an execution of Algorithm 1 with inputs F = (n, ≻), µ0, and µ1.
+The execution terminates correctly within n − |µ1| iterations.
+Proof. Lemma 3.14 implies that each iteration of Algorithm 1 either increments the cardinality of matching µ or reduces it to zero. In the latter case, the algorithm terminates
+immediately. It follows that the algorithm terminates within n − |µ1| iterations. Next, we
+argue that the algorithm terminates correctly. In what follows, let µ
+∗ denote the final value
+of the program variable µ. We consider two cases.
+Case 1: Algorithm 1 terminates with µ
+∗ = ∅. In this case, Lemma 3.14 implies that
+reach(χF , µ1) = ∅, as required.
+Case 2: Algorithm 1 terminates with µ
+∗ 6= ∅. Lemma 3.14 implies that conditions (1)
+through (3) in the statement of Lemma 3.14 hold with µ replaced by µ
+∗
+; we refer to these
+conditions as postconditions (1) through (3). Since µ
+∗ 6= ∅, no agent-object pairs are removed
+from µ during the execution of Algorithm 1. Since Algorithm 1 initializes µ to µ1, we deduce
+that µ1 is contained in µ
+∗
+. Since the guard of the loop evaluates to false when µ is equal
+to µ
+∗
+and postcondition (1) holds, we deduce that µ
+∗ belongs to Φ∗
+(n) and |µ
+∗
+| = n. Since
+postconditions (1) and (2) hold, Lemma 3.10 implies that µ
+∗ belongs to reach(χF ). Since µ1
+is contained in µ
+∗
+, we deduce that µ
+∗ belongs to reach(χF , µ1), as required.
+3.3 Object Reachability
+We now describe how to use Algorithm 1 to solve the reachable object problem on paths in
+O(n
+2
+) time. Let F = (n, ≻) be a given OAF, let a
+∗ be an agent in [n], and let b
+∗ be an object
+in [n]. Assume without loss of generality that a
+∗ < b∗
+. We wish to determine whether there
+is a matching in reach(χF ) that matches a
+∗
+to b
+∗
+, and if so, to compute such a matching.
+We begin by using a preprocessing phase to compute left(≻, a) and right(≻, a) for all agents
+a in [n]. We start with agent a
+∗
+, and check whether left(≻, a∗
+) ≤ b
+∗ ≤ right(≻, a∗
+). If
+this check fails, we halt and report failure. Otherwise, we proceed to the remaining agents.
+Barring failure, the overall cost of the preprocessing phase is O(n
+2
+). We now describe how
+to proceed in the special case where a
+∗
+is the leftmost agent on the path, i.e., where a
+∗ = 1.
+Later we will see how to efficiently reduce the general case to this special case. In the special
+case a
+∗ = 1, we call Algorithm 1 with µ0 = ∅ and µ1 = {(1, b∗
+)}. If there is a matching
+in reach(χF ) that matches agent 1 to object b, then Algorithm 1 returns such a matching.
+If not, Algorithm 1 returns the empty matching. Excluding the cost of the preprocessing
+phase, the time complexity of Algorithm 1 is O(n). So the overall running time is O(n
+2
+),
+as it is dominated by the preprocessing phase. We now discuss how to reduce the case of
+general a
+∗
+to the special case a
+∗ = 1. The key is Lemma 3.16 below. Informally, Lemma 3.16
+tells us that we can ignore all of the agents and objects in [a
+∗ − 1]. Doing this, a
+∗
+is once
+again leftmost, and we can proceed as in the special case a
+∗ = 1. Alternatively, we can run
+Algorithm 1 with µ0 = {(i, i) | i ∈ [a
+∗ − 1]} and µ1 = µ0 + {(a
+∗
+, b∗
+)}. We now proceed to
+prove Lemma 3.16.
+Lemma 3.16. Let F = (n, ≻) be an OAF, let µ be a matching in reach(χF ), let a belong
+to agents(µ), let b denote µ(a), and assume that a < b. Then there is a matching µ
+′
+in
+reach(χF ) such that µ
+′
+(a) = b and µ
+′
+(a
+′
+) = a
+′
+for all agents a
+′
+in [a − 1].
+13
+For any (α, β) in Ψ(n, n), we say that a cancel operation is applicable to (α, β) if w(α) > 0.
+The result of applying this operation is the pair of binary strings (α
+′
+, β′
+) that is the same as
+(α, β) except that the first appearing 1 in α (resp., β) is changed to a 0 in α
+′
+(resp., β
+′
+). It
+is easy to see that (α
+′
+, β′
+) belongs to Ψ(n, n).
+Observation 3.17. Let (α, β) belong to Ψ(n, n), let a and a
+′
+be agents in [n] such that
+αa = αa
+′ = 1 and a > a′
+, let (α
+′
+, β′
+) be the result of applying a cancel operation to (α, β), let
+µ denote [α, β], and let µ
+′ denote [α
+′
+, β′
+], Then µ
+′
+(a) = µ(a) and span(µ
+′
+, a′′) is contained in
+span(µ, a′′) for all agents a
+′′ in [n].
+Proof. Lemma 3.10 implies that IR(≻, µ) holds and there exists (α, β) in Ψ(n, n) such that
+µ = [α, β]. Since a < b, Observation 3.1 implies that αa = βb = 1. Let the number of 1 bits
+to the left of position a in α be equal to k. Thus the number of 1 bits to the left of position b
+in β is also k. Let (α
+′
+, β′
+) be the pair of binary strings in Ψ(n, n) that results from applying
+k cancel operations to (α, β). Using Observation 3.17, it is straightforward to check that the
+matching µ
+′ = [α
+′
+, β′
+] satisfies the requirements of the lemma.
+Theorem 3.18 below summarizes the main result of this section.
+Theorem 3.18. Reachable object on paths can be solved in O(n
+2
+) time.
+3.4 Pareto-Efficient Reachability
+Let F = (n, ≻) be an OAF, and let χ = (F, µ0) be a configuration for which we wish to
+compute a Pareto-efficient matching. Below we describe a simple way to use Algorithm 1 to
+solve Pareto-efficient matching on paths in O(n
+3
+) time. We then explain how to improve the
+time bound to O(n
+2
+log n), and then to O(n
+2
+). In all cases we employ the same high-level
+strategy based on serial dictatorship. We begin by performing the O(n
+2
+)-time preprocessing
+phase discussed in Section 3.3; we only need to perform this computation once. After the
+preprocessing phase, the output matching is computed in n stages numbered from 1 to n.
+In stage k, we determine the best possible match that we can provide to agent k while
+continuing to maintain the previously-determined matches for agents 1 through k − 1. We
+now describe how to use Algorithm 1 to implement any given stage k in O(n
+2
+) time. In
+stage k, we call Algorithm 1 O(n) times. In each of these calls, the input matching µ0
+contains the k − 1 previously-determined agent-object pairs involving the agents in [k − 1].
+The calls to Algorithm 1 differ only in terms of the value assigned to the input object b0
+which, together with µ0, determines µ1. We vary b0 over all values meeting the precondition
+max(µ0) < b0 ≤ right(≻, |µ1|) associated with Algorithm 1; the number of such values is
+O(n).
+This allows us to determine, in O(n
+2
+) time, the rightmost feasible match, if any, for agent
+k. By Lemma 3.13, the leftmost potential match for agent k is hole(µ0), and this option
+is only feasible if left(≻, k) ≤ hole(µ0). Since reach(χF , µ0) 6= ∅, we are guaranteed to find
+at least one candidate match for agent k in this process. If there is exactly one candidate,
+then we select it as the match of agent k. Otherwise, there are two candidates (leftmost and
+rightmost), and we select the candidate that agent k prefers.
+The simple algorithm described above has a running time of O(n
+2
+) per stage, and hence
+O(n
+3
+) overall. To understand how to implement a stage more efficiently, it is useful to assign
+14
+a color to the program state each time the condition of the while loop is evaluated. We
+color such a state red if µ = ∅. If the state is red, then the execution is guaranteed to fail
+(i.e., return ∅) immediately. We color such a state green if |µ| = max(µ) > 0. If the state
+is green, it is straightforward to prove that the program will proceed to assign every agent
+a in {|µ| + 1, . . . , n} to object a, and then will succeed (i.e., return a nonempty matching).
+This observation also implies that if the state is green after a given number of iterations, it
+remains green after each subsequent iteration. If a state is neither red nor green, we color it
+yellow.
+We are now ready to see how to improve the running time of stage k to O(n log n).
+As a thought experiment, consider running the O(n) executions of Algorithm 1 associated
+with the simple algorithm, but now in parallel. Within each of these executions, we color
+each successive agent in the set {k, . . . , n} white or black as follows: agent k is colored
+black; agent |µ| + 1 is colored white if left(≻, |µ| + 1) ≤ hole(µ), and black otherwise. The
+key observation is that as long as none of the parallel executions have terminated, they
+all agree on the coloring of the processed agents. It follows that if we compare two of the
+parallel executions, say executions A and B where execution A has a lower value for b0
+than execution B, then execution A can only transition to a green state at a strictly earlier
+iteration than execution B, and execution A cannot transition to a red state earlier than
+execution B. This implies that there is a threshold b1 such that all executions with b0 ≤ b1
+succeed, and all of the remaining executions fail. This in turn means that we do not need
+to run all O(n) of the parallel executions of Algorithm 1. Instead, we can use binary search
+to determine the threshold b1 in O(log n) executions. This observation reduces the running
+time of a stage from O(n
+2
+) to O(n log n).
+We now sketch how to further improve the running time of stage k to O(n). To do so,
+we will use a single execution of a modified version of Algorithm 1 to compute the threshold
+b1 discussed above. The high-level idea is to treat b0 as a variable instead of a fixed value.
+Initially, we set b0 to max(µ0) + 1, the minimum value satisfying the associated precondition
+of Algorithm 1. We also maintain a lower bound b
+′
+1
+on the threshold b1. We initialize b
+′
+1
+to
+a low dummy value, such as 0. Each time the condition of the while loop is evaluated, we
+check whether the color of the current state is red, green, or yellow. If the color is yellow, we
+continue the execution without altering b0 or b
+′
+1
+. If the color is red, then we halt and output
+the threshold b1 = b
+′
+1
+. If the color is green, then we assign b
+′
+1
+to the current value of b0, and
+we increment b0.
+Unfortunately, we cannot simply increment b0 and continue the execution. While incrementing b0 has no impact on the white-black categorization of the agents processed so
+far, and on the matches of the white agents, it causes the match of each black agent to be
+incremented. This leads to two difficulties that we now discuss.
+The first difficulty is that there can be a lot of black agents, making it expensive to
+maintain an explicit match for each black agent. Accordingly, when we color an agent black,
+we do not explicitly match that agent to a particular object. Instead, we maintain an ordered
+list of the black agents. At any given point in the execution, the black agents are implicitly
+matched (in the order specified by the list) to the contiguous block of objects that starts
+with the current value of b0. Thus, when b0 is incremented, the matches of the black agents
+are implicitly updated in constant time.
+The second difficulty associated with incrementing b0 is that if a black agent a is matched
+15
+to object right(≻, a) just before the increment, then it is infeasible to shift the match of agent
+a to the right. If this happens, we need to recognize that executing Algorithm 1 from the
+beginning with the new higher value of b0 results in a red state, and so we should terminate.
+To recognize such events, we introduce an integer variable called slack. We maintain the
+invariant that slack is equal to the maximum number of positions we can shift the list of
+black agents to the right without violating a constraint. We initialize slack to right(≻, |µ1|)
+minus the initial value max(µ0) + 1 of b0. When we color an agent a black, we update slack
+to the minimum of its current value and right(≻, a) − b0 − ℓ, where ℓ denotes the number
+of previously-identified black agents. When we increment b0, we decrement slack in order to
+maintain the invariant. If slack becomes negative, we recognize that the program should be
+in a red state, and we terminate.
+Upon termination, it is straightforward to argue that the output threshold b1 is correct.
+If b1 is equal to the initial dummy value, then the sole candidate match for agent k is
+object hole(µ0). If not, object b1 is a candidate, and if hole(µ0) is not equal to b1 and
+left(≻, k) ≤ hole(µ0) then hole(µ0) is a second candidate. If there are two candidates, we
+use the preferences of agent k to select between them.
+Theorem 3.19 below summarizes the main result of this section.
+Theorem 3.19. Pareto-efficient matching on paths can be solved in O(n
+2
+) time.
+4 Pareto-Efficient Reachability on Generalized Stars
+Throughout this section, let F denote an OAF associated with a generalized star G, let o
+denote the center object of G, let m denote the number of branches of G, and assume that
+the branches are indexed from 1 to m. For any i in [m], let ℓi > 0 denote the number of
+vertices on branch i. We refer to the objects on branch i as hi, 1i, . . . ,hi, ℓii, where object
+hi, ji is at distance j from the center. Let χ0 = (F, µ0) denote the initial configuration, and
+let n = 1 + P
+1≤i≤m ℓi denote the total number of vertices in G.
+Our algorithm uses serial dictatorship to compute a Pareto-efficient matching for configuration χ0. For any sequence of agents σ = a1, . . . , as we define serial(σ) as the cardinality-s
+matching of F in which agent a1 (the first dictator) is matched to its best match b1 in
+reach(χ0, τ0) where τ0 = ∅, agent a2 (the second dictator) is matched to its best match b2
+in reach(χ0, τ1) where τ1 = τ0 + (a1, b1), . . . , and agent as (the sth dictator) is matched to
+its best match bs in reach(χ0, τs−1) where τs−1 = τs−2 + (as−1, bs−1). Observe that for any
+permutation σ of the entire set of agents in F, serial(σ) is a Pareto-efficient matching of χ0.
+We iteratively grow a dictator sequence σ. We find it convenient to partition the iterations
+into two phases. The first phase ends when the current dictator is matched to the center
+object. The second phase reduces to solving a collection of disjoint path problems, one for
+each branch.
+We begin by discussing the design and analysis of the first phase. We find it useful to
+introduce the concept of a “nice pair” for OAF F. For any configuration χ of the form (F, µ)
+and any matching τ of F, we say that the pair (χ, τ ) is nice for F if the following conditions
+hold:
+• The set reach(χ, τ ) is nonempty.
+16
+• For any branch i in [m], there is a (possibly empty) sequence of integers 1 ≤ j1 < · · · <
+js ≤ ℓi such that τ (χ(hi, ti)) = hi, jti for 1 ≤ t ≤ s and χ(hi, ti) is unmatched in τ for
+s < t ≤ ℓi
+. We refer to this (unique) sequence as indices(χ, τ, i).
+The first phase iteratively updates a dictator sequence σ, a configuration χ, and a matching τ . We initialize the configuration χ to χ0, the initial configuration of F. We initialize σ
+to the singleton sequence containing agent χ(o), the first dictator. We use Subroutine 1 of
+Section 4.1 to determine the best match of agent χ(o) in reach(χ), call it b, and we initialize
+τ to {(χ(o), b)}.
+We then execute the while loop described below, which we claim satisfies the following
+loop invariant I: (χ, τ ) is a nice pair for F, agent χ(o) is matched in τ , reach(χ, τ ) =
+reach(χ0, τ ), and τ = serial(σ). It is straightforward to verify that invariant I holds after
+initialization of σ, χ, and τ . In Section 4.2, we prove that if I holds at the start of an
+iteration of the while loop, then I holds at the end of the iteration.
+While τ (χ(o)) 6= o, we use the following steps to update σ, χ, and τ .
+1. Since τ (χ(o)) 6= o, object τ (χ(o)) is of the form hi, j0i for some i in [m] and j0 in [ℓi
+].
+Let j1 < · · · < js denote indices(χ, τ, i), and let a denote the agent χ(hi, s + 1i).
+2. Append agent a to the dictator sequence σ.
+3. Use Subroutine 2 of Section 4.1 to set k to the maximum j such that object hi, ji is a
+possible match of agent a in reach(χ, τ ), or to 0 if no such j exists.
+4. If hi, s + 1i <a · · · <a hi, 1i <a o, then perform the following steps.
+(a) Let µ denote the matching of F such that χ = (F, µ), let µ
+∗ denote the matching
+obtained from µ by applying s + 1 swaps to move agent a from object hi, s + 1i
+to the center object o, and let χ
+∗ denote the configuration (F, µ∗
+).
+(b) Use Subroutine 1 of Section 4.1 to set b to the best match of agent a in reach(χ
+∗
+, τ ).
+(c) If k = 0 or b >a hi, ki, then set χ to χ
+∗
+, τ to τ + (a, b), and k to −1.
+5. If k > 0, then set τ to τ + (a,hi, ki).
+Upon termination of the first phase, invariant I holds and τ (χ(o)) = o. Thus, letting χ1
+denote the value of program variable χ at the end of the first phase, we know that (χ1, τ ) is
+a nice pair for F, τ (χ1(o)) = o, reach(χ1, τ ) = reach(χ0, τ ), and τ = serial(σ).
+In the second phase, we perform the following computation for each branch i (in arbitrary
+order). First, we let j1 < · · · < js denote indices(χ1, τ, i). Second, we perform the following
+steps for j ranging from s + 1 to ℓi
+.
+1. Let a denote agent χ1(hi, ji), and append a to σ.
+2. Use Subroutine 3 of Section 4.1 to set b to the best match of agent a in reach(χ1, τ ).
+3. Set τ to τ + (a, b).
+17
+At the end of the second phase, we output the matching τ .
+Let I
+′ denote the invariant “reach(χ1, τ ) = reach(χ0, τ ) and τ = serial(σ)”. Thus invariant I
+′ holds at the end of the first phase. Moreover, it is easy to see that invariant I
+′
+continues to hold immediately after each execution of step 3 in the second phase.
+Since invariant I holds in the first phase and invariant I
+′ holds in the second phase, the
+overall algorithm faithfully implements the serial dictatorship framework discussed at the
+beginning of this section. Thus the algorithm correctly computes a Pareto-efficient matching
+for configuration χ0. In Section 4.1, we explain how to implement Subroutines 1, 2, and 3
+so that the overall running time of the algorithm is O(n
+2
+log n).
+4.1 Polynomial-Time Implementation
+In this section we describe an efficient implementation of the two-phase algorithm presented
+in Section 4. Our description of the first phase make use of Subroutines 1 and 2, while
+our description of the second phase makes use of Subroutine 3. Below we discuss how to
+implement Subroutines 1, 2, and 3 efficiently. Our analysis of the time complexity of these
+subroutines assumes that a certain preprocessing phase has been performed. Specifically, for
+each agent a in F, we precompute the set of all objects b such that the sequence of objects
+χ0(a) = b1, . . . , bk = b on the unique simple path from χ0(a) (the initial object of agent a)
+to b in G satisfies b1 <a · · · <a bk. It is straightforward to compute each such set in O(n)
+time, and hence the overall time complexity of the preprocessing phase is O(n
+2
+).
+We now describe Subroutine 1. The input to Subroutine 1 is a nice pair (χ, τ ) for F such
+that agent a = χ(o) is unmatched in τ . The output of Subroutine 1 is the best match of a
+in reach(χ, τ ). Subroutine 1 works by considering each branch i in turn to compute the best
+branch-i match of a in reach(χ, τ ). For a fixed i in [m], the latter problem can be solved as
+follows. Consider the path P of objects consisting of the center object o plus branch i. By
+restricting the generalized star configuration χ to path P, we obtain a path configuration
+χP . Similarly, by restricting the matching τ to the agents associated with path P, we obtain
+a matching τP defined on path P. For any given j in [ℓi
+], it is easy to argue that object
+hi, ji is a possible match of a in reach(χ, τ ) if and only if object hi, ji is a possible match
+of a in reach(χP , τP ). Moreover, we can determine whether hi, ji is a possible match of a in
+reach(χP , τP ) by performing at most one call to Algorithm 1 on path P. Given the results of
+the preprocessing phase, the additional time complexity required to determine whether hi, ji
+is a possible match of a in reach(χP , τP ) is O(ℓi). Using binary search, we can determine the
+maximum j (if any) such that hi, ji is a possible match of a in reach(χP , τP ) in O(ℓi
+log ℓi)
+time. (Remark: Letting j1 < · · · < js denote indices(χ, τ, i), we can restrict the binary
+search to the interval {1, . . . , j1 − 1} if s > 0.) Thus we can determine the best branch-i
+match of a (if any) in reach(χ, τ ) in O(ℓi
+log ℓi) time, and hence we can determine the best
+match of a in reach(χ, τ ) in O(n log n) time.
+We now describe Subroutine 2. The input to Subroutine 2 is a nice pair (χ, τ ) for F and
+an integer i in [m] such that s < ℓi where j1 < · · · < js denotes indices(χ, τ, i). The output k
+of Subroutine 2 is the maximum j such that hi, ji is a possible match of agent a = hi, s + 1i
+in reach(χ, τ ), or 0 if no such j exists. As in Subroutine 1, we can reduce this task to a path
+problem. In the present case, we can restrict χ and τ to branch i, that is, we do not need
+to consider the extended path that includes the center object. Moreover, if s > 0 we can
+18
+restrict the binary search for j to the interval {js + 1, . . . , ℓi}. Each iteration of the binary
+search involves a single call to Algorithm 1. Given the results of the preprocessing phase,
+the additional time complexity required for each such call is O(ℓi). Taking into account the
+binary search, this approach yields a time complexity of O(ℓi
+log ℓi).
+Having discussed Subroutines 1 and 2, we can now establish an upper bound on the time
+complexity of the first phase. The first phase performs at most n iterations. The worst-case
+running time of each iteration is dominated by the cost of a possible call to Subroutine 1,
+and hence is O(n log n). Thus the overall running time of the first phase is O(n
+2
+log n).
+We now discuss Subroutine 3 and the time complexity of the second phase. Since
+τ (χ(o)) = o throughout the second phase, the sequence of calls to Subroutine 3 that we
+make for a given value of i can be resolved by restricting attention to the branch-i objects
+and their matched agents under configuration χ1. Because (χ1, τ ) is a nice pair for F at the
+end of the first phase, and because we iterate over increasing values of j from s + 1 to ℓi
+,
+the approach of Section 3.4 can be used to implement each successive call to Subroutine 3
+in O(ℓi) time. Thus the time required to process branch i is O(ℓ
+2
+i
+), and the overall time
+complexity of the second phase is P
+i∈[m] O(ℓ
+2
+i
+) = O(n
+2
+).
+Since the time complexity of the preprocessing phase is O(n
+2
+), the time complexity of the
+first phase is O(n
+2
+log n), and the time complexity of the second phase is O(n
+2
+), we conclude
+that the overall time complexity of the algorithm is O(n
+2
+log n).
+4.2 The First Phase Invariant
+The following sequence of lemmas pertain to an arbitrary iteration in the first phase. We
+assume that invariant I holds before the iteration, and we seek to prove that invariant I
+holds after the iteration. We use the symbols σ, χ, and τ (resp., σ
+′
+, χ
+′
+, τ
+′
+) to refer to the
+values of the corresponding program variables at the start (resp., end) of the iteration. We
+use the symbols i, j0, s, j1, . . . , js, a, µ, µ
+∗
+, and χ
+∗
+to refer to the corresponding program
+variables; these variables do not change in value during the iteration. We use the symbol k
+to refer to the initial value of the corresponding program variable. The value of the program
+variable k can change at most once (see step 4(c)). We use the symbol k
+′
+to refer to the
+value of program variable k at the end of the iteration.
+Lemma 4.1. We have jt > t for all t in [s].
+Proof. Since (χ, τ ) is nice, we have reach(χ, τ ) 6= ∅. Let µ
+′ denote a matching in reach(χ, τ ).
+Since τ (χ(hi, 1i)) = hi, j1i and agent χ(o) cannot overtake agent χ(hi, 1i) as we transform
+the matching associated with χ to µ
+′
+, we have 1 ≤ j0 < j1. Since j1 < · · · < js, we deduce
+that j2 > 2, . . . , js > s.
+It follows from Lemma 4.1 that s < ℓi and hence that agent a is well-defined. Agent a
+serves as the dictator in this iteration.
+Throughout the remainder of this section, let R denote the set of all matchings in
+reach(χ, τ ) that match a to an object in branch i, and let J denote the set of all integers j in [ℓi
+] such that object hi, ji is a possible match of agent a in R. Thus k is the
+maximum integer in J, or 0 if J is empty.
+19
+Lemma 4.2. The following statements hold: (1) if hi, s + 1i <a · · · <a hi, 1i <a o does not
+hold, then reach(χ, τ ) = R; (2) if j belongs to J and s = 0, then j > 1; (3) if j belongs to J
+and s > 0 then j > js; (4) if k > 0 then hi, ki is the best match of agent a in R; (5) if k = 0
+then hi, s + 1i <a · · · <a hi, 1i <a o holds.
+Proof. We begin by proving part (1). Assume that hi, s + 1i <a · · · <a hi, 1i <a o does not
+hold. It follows agent a cannot be matched to an object outside of branch i in reach(χ, τ ).
+Hence reach(χ, τ ) = R, as required.
+To establish parts (2) through (5), we consider two cases.
+Case 1: J = ∅. In this case, k = 0 and hence parts (2), (3), and (4) hold vacuously. It
+remains to prove part (5). Assume for the sake of contradiction that hi, s + 1i <a · · · <a
+hi, 1i <a o does not hold. It follows from part (1) that reach(χ, τ ) = R = ∅, contradicting
+invariant I.
+Case 2: J 6= ∅. Thus k > 0 and hence part (5) holds vacuously. In the proofs of parts (2),
+(3), and (4) below, let j belong to J, and let µ
+′ be a matching in R such that µ
+′
+(a) = hi, ji.
+We first argue that part (2) holds. Assume for the sake of contradiction that s = 0 and
+j = 1. Thus µ
+′
+(a) = χ(a) = hi, 1i, and hence j0 > 1. It follows that agent χ(o) overtakes the
+stationary agent a as we transform the matching associated with χ to µ
+′
+, a contradiction.
+Now we argue that part (3) holds. Assume that s > 0. We begin by proving that j ≥ s+1.
+Assume for the sake of contradiction that j < s + 1. Since (χ, τ ) is nice, a is the closest
+branch-i agent to the center that is “inward-moving” in the sense that µ
+′
+(a) is closer to the
+center than χ(a). Since no inward-moving agent can overtake another inward-moving agent,
+and since agent χ(o) moves into branch i, we deduce that agent a moves out of branch i, a
+contradiction since j belongs to J. Thus j ≥ s + 1. Now we argue that j > js. Lemma 4.1
+implies that agent χ(hi, si) moves outward to object hi, jsi. Since j ≥ s+ 1, agent a is either
+stationary or outward-moving, and hence cannot be overtaken by the outward-moving agent
+χ(hi, si). It follows that j > js, as required.
+Now we argue that part (4) holds. Since j > js and Lemma 4.1 implies js > s, we have
+j > s + 1. Thus agent a is outward-moving on branch i. It follows that hi, ki is the best
+match of agent a in R, as required.
+Lemma 4.3. Assume that hi, s + 1i <a · · · <a hi, 1i <a o holds. Then µ F µ
+∗ and
+reach(χ, τ ) \ R = reach(χ
+∗
+, τ ) 6= ∅.
+Proof. Since (χ, τ ) is nice and hi, s + 1i <a · · · <a hi, 1i <a o holds, Lemma 4.1 implies that
+the s + 1 exchanges used to transform µ to µ
+∗
+are all Pareto-improving. Hence µ F µ
+∗
+,
+The set reach(χ
+∗
+, τ ) is nonempty since it includes µ
+∗
+. It remains to prove that reach(χ, τ )\
+R = reach(χ
+∗
+, τ ).
+We first argue that reach(χ
+∗
+, τ ) ⊆ reach(χ, τ ) \ R. Let µ
+∗∗ belong to reach(χ
+∗
+, τ ). Thus
+µ
+∗ F µ
+∗∗. Since µ F µ
+∗
+, we conclude that µ F µ
+∗∗ and hence µ
+∗∗ belongs to reach(χ, τ ).
+Since χ
+∗
+(o) = a and hi, 1i <a o, we deduce that µ
+∗∗(a) does not belong to branch i. Since µ
+∗∗
+belongs to reach(χ, τ ) and µ
+∗∗(a) does not belong to branch i, we conclude that µ
+∗∗ belongs
+to reach(χ, τ ) \ R.
+Now we argue that reach(χ, τ ) \ R ⊆ reach(χ
+∗
+, τ ). Let µ
+∗∗ belong to reach(χ
+∗
+, τ ) \ R.
+From our discussion of the reachable matching problem on trees in Section 7.1, we can obtain
+20
+a sequence of swaps that transforms µ to µ
+∗∗ by repeatedly performing any swap that moves
+the two participating agents closer to their matched objects under µ
+∗∗. Since µ
+∗∗(a) does
+not belong to branch i, this means that we can begin by performing the s + 1 swaps that
+transform µ to µ
+∗
+. It follows that µ
+∗∗ belongs to reach(χ
+∗
+, τ ), as required.
+Lemma 4.3 implies that if line 4(b) is executed, then reach(χ
+∗
+, τ ) 6= ∅, and hence object
+b is well-defined.
+Lemma 4.4. Assume that hi, s + 1i <a · · · <a hi, 1i <a o holds. If k = 0 or b >a hi, ki, then
+b is the best match of agent a in reach(χ, τ ) and
+reach(χ, τ ′
+) = reach(χ
+′
+, τ ′
+).
+Otherwise, hi, ki is the best match of agent a in reach(χ, τ ).
+Proof. We consider two cases.
+Case 1: k = 0. In this case, R = ∅ and χ
+′ = χ
+∗
+. Hence Lemma 4.3 implies reach(χ
+∗
+, τ ) =
+reach(χ, τ ). Thus object b is the best match of agent a in reach(χ, τ ) and reach(χ, τ ′
+) =
+reach(χ
+′
+, τ ′
+).
+Case 2: k > 0. Since k > 0, object hi, ki is the best match of agent a in R. Lemma 4.3
+implies that b is the best match of agent a in reach(χ
+∗
+, τ ) = reach(χ, τ ) \ R. We consider
+two subcases.
+Case 2.1: b >a hi, ki. Thus b is the best match of agent a in reach(χ, τ ), χ
+′ = χ
+∗
+,
+τ
+′ = τ + (a, b), and reach(χ, τ ′
+) = reach(χ
+′
+, τ ′
+).
+Case 2.2: b <a hi, ki. Thus object hi, ki is the best match of agent a in reach(χ, τ ).
+The next lemma establishes that invariant I holds at the end of the iteration.
+Lemma 4.5. At the end of the iteration, (χ
+′
+, τ ′
+) is a nice pair for F, agent χ
+′
+(o) is matched
+in τ
+′
+, reach(χ
+′
+, τ ′
+) = reach(χ0, τ ′
+), and τ
+′ = serial(σ
+′
+).
+Proof. Observe that either k
+′ = −1 or k
+′ = k. Below we consider these two cases separately.
+Case 1: k
+′ = −1. In this case, step 4(c) is executed and the associated if condition
+evaluates to true. Furthermore, the if condition associated with step 5 evaluates to false.
+Thus χ
+′ = χ
+∗ and τ
+′ = τ + (a, b). It is straightforward to verify that the pair (χ
+′
+, τ ′
+) is
+nice for F with indices(χ
+′
+, τ ′
+, i) equal to j0 < · · · < js, and that χ
+′
+(o) = a is matched in
+τ
+′
+. By Lemma 4.4, object b is the best match of agent a in reach(χ, τ ). Since invariant
+I implies τ = serial(σ) and reach(χ, τ ) = reach(χ0, τ ), we deduce that τ
+′ = serial(σ
+′
+).
+By Lemma 4.4, reach(χ, τ ′
+) = reach(χ
+′
+, τ ′
+). Invariant I implies reach(χ, τ ) = reach(χ0, τ )
+and hence reach(χ, τ ′
+) = reach(χ0, τ ′
+). We conclude that reach(χ
+′
+, τ ′
+) = reach(χ0, τ ′
+), as
+required.
+Case 2: k
+′ = k. We begin by proving that k > 0. Assume for the sake of contradiction
+that k = 0. Part (5) of Lemma 4.2 implies that hi, s + 1i <a · · · <a hi, 1i <a o holds. Hence
+step 4(c) is executed, and since k = 0, the associated if condition evaluates to true. Hence
+k
+′ = −1, contradicting the Case 2 assumption.
+Since k
+′ = k > 0, we deduce that χ
+′ = χ and τ
+′ = τ + (a,hi, ki). It is straightforward
+to verify that (χ
+′
+, τ ′
+) is nice for F with indices(χ
+′
+, τ ′
+, i) equal to j1 < · · · < js < k. Since
+χ
+′ = χ and invariant I holds, we deduce that agent χ
+′
+(o) is matched in τ
+′
+.
+21
+We claim that hi, ki is the best match of agent a in reach(χ, τ ). If hi, s + 1i <a · · · <a
+hi, 1i <a o does not hold, the claim follows from parts (1) and (4) of Lemma 4.2, so assume
+that hi, s + 1i <a · · · <a hi, 1i <a o holds. Thus the if condition of step 4 evaluates to true,
+and hence the if condition of step 4(c) is evaluated. Since k
+′ = k > 0, the latter if condition
+evaluates to false, and hence Lemma 4.4 implies that the claim holds.
+Invariant I implies reach(χ, τ ) = reach(χ0, τ ) and τ = serial(σ). Thus the claim of the
+preceding paragraph implies τ
+′ = serial(σ
+′
+).
+Since χ
+′ = χ, invariant I implies reach(χ
+′
+, τ ) = reach(χ0, τ ) and hence reach(χ
+′
+, τ ′
+) =
+reach(χ0, τ ′
+).
+5 NP-Completeness of Reachable Object on Cliques
+It is easy to see that the reachable object on cliques problem belongs to NP. In this section,
+we prove that the problem is NP-hard by presenting a polynomial-time reduction from the
+known NP-complete problem 2P1N-SAT to reachable object on cliques.
+An instance of 2P1N-SAT is a propositional formula f over n variables x1, . . . , xn with
+the following properties: f is the conjunction of a number of clauses, where each clause is
+the disjunction of a number of literals, and each literal is either a variable or the negation
+of a variable; each variable occurs exactly three times in f, once in each of three distinct
+clauses; each variable xi occurs twice as a positive literal (i.e., xi) and once as a negative
+literal (i.e., ¬xi).
+Throughout the remainder of Section 5, let f denote a given instance of 2P1N-SAT with
+n variables x1, . . . , xn and m clauses C1, . . . , Cm.
+In Section 5.1, we describe a polynomial-time procedure for transforming f into an instance I of reachable object on cliques. In Section 5.2, we prove that f is a positive instance
+of 2P1N-SAT if and only if I is a positive instance of reachable object on cliques.
+5.1 Description of the Reduction
+We now describe how we transform a 2P1N-SAT instance f into a corresponding instance I
+of reachable object on cliques. For each variable xi
+in f, there are two agents ˆx
+1
+i
+and ˆx
+2
+i
+in
+I. For each clause Cj
+in f, there are three agents ˆuj
+, vˆj and ˆwj
+in I. Note that the name we
+use to refer to each agent in I includes a hat symbol. We adopt the convention that if the
+hat symbol is removed from the name of such an agent, we obtain the name of the initial
+endowment of that agent. For example, agents ˆuj and ˆx
+1
+i
+are initially endowed with objects
+uj and x
+1
+i
+, respectively. For convenience, we define Uˆ as the set of agents {uˆj
+| j ∈ [m]}, and
+we define U as the set of objects {uj
+| j ∈ [m]}. We define Vˆ , V , Wˆ , W, Xˆ , and X similarly.
+Let A (resp., B) denote the set of all agents (resp., objects) in I. Let N denote |B|. Thus
+N = 3m + 2n. Let KN denote the complete graph with vertex set B, and let E denote the
+edge set of KN . Let µ0 denote the initial matching of agents with objects.
+Below we describe the preferences ≻ of the agents in A over the objects in B. Let
+χ = (F, µ0) denote the initial configuration of I, where F = (A, B, ≻, E). Instance I asks
+the following reachability question: Is there a matching µ in reach(χ) such that µ( ˆwm) = u1?
+22
+Let variable xi appear in clauses Cp
+1
+i
+and Cp
+2
+i
+as a positive literal, where p
+1
+i < p2
+i
+, and in
+clause Cni
+as a negative literal. The definition of 2P1N-SAT implies that p
+1
+i
+, p2
+i
+, and ni are
+distinct.
+Below we list the preferences of each agent in A. In doing so, we specify only the
+objects that an agent prefers to its initial endowment; the order of the remaining objects is
+immaterial. The initial endowment is shown in a box. For any i in [n], the preferences of
+agent ˆx
+1
+i are
+xˆ
+1
+i
+: x
+2
+i ≻ wp
+1
+i
+≻ vp
+1
+i
+≻ x
+1
+i
+and the preferences of agent ˆx
+2
+i
+are
+xˆ
+2
+i
+: wni ≻ vni ≻ wp
+2
+i
+≻ vp
+2
+i
+≻ x
+1
+i ≻ x
+2
+i
+if ni < p2
+i
+, and are
+xˆ
+2
+i
+: wp
+2
+i
+≻ vp
+2
+i
+≻ wni ≻ vni ≻ x
+1
+i ≻ x
+2
+i
+otherwise.
+For any j in [m], the preferences of agent ˆuj are
+uˆj
+: vj ≻ uj
+.
+For any j in [m − 1], the preferences of agent ˆwj are
+wˆj
+: uj+1 ≻ wj
+.
+The preferences of agent ˆwm are
+wˆm : u1 ≻ v1 ≻ w1 ≻ u2 ≻ v2 ≻ w2 ≻ . . . ≻ um ≻ vm ≻ wm .
+For any j in [m], the preferences of agent ˆvj are
+vˆj
+: {x
+1
+i
+| j ∈ {p
+1
+i
+, ni}} ∪ {x
+2
+i
+| j = p
+2
+i
+} ≻ vj
+,
+where the set of objects preceding vj may be ordered arbitrarily.
+This completes the description of the reachable object on cliques instance I.
+5.2 Correctness of the Reduction
+In this section, we prove that f is a positive instance of 2P1N-SAT if and only if I is a
+positive instance of reachable object on cliques. Lemma 5.4 establishes the only if direction.
+Lemmas 5.11 through 5.17 lay the groundwork for Lemma 5.18, which establishes the if
+direction.
+For the purposes of our analysis, it is convenient to assign a nonnegative integer rank
+to each object in B, as follows. For any j in [m], we define rank(uj ) as 3j − 2, rank(vj ) as
+3j − 1, and rank(wj ) as 3j. The rank of any object in X is defined to be 0.
+Observation 5.1 below can be justified by enumerating all those agents who like object
+x
+1
+i at least as well as their initial endowment. Observations 5.2 and 5.3 can be justified in a
+similar manner.
+23
+Observation 5.1. For any i in [n] and any matching µ in reach(χ), agent µ
+−1
+(x
+1
+i
+) belongs
+to {xˆ
+1
+i
+, xˆ
+2
+i
+, vˆp
+1
+i
+, vˆni
+}.
+Observation 5.2. For any i in [n] and any matching µ in reach(χ), agent µ
+−1
+(x
+2
+i
+) belongs
+to {xˆ
+1
+i
+, xˆ
+2
+i
+, vˆp
+2
+i
+}.
+Observation 5.3. For any j in [m] and any matching µ in reach(χ), agents µ
+−1
+(vj ) and
+µ
+−1
+(wj ) belong to {uˆj
+, vˆj
+,wˆm} ∪ Aj and {wˆj
+,wˆm} ∪ Aj
+, respectively, where Aj denotes
+{xˆ
+1
+i
+| j = p
+1
+i
+} ∪ {xˆ
+2
+i
+| j ∈ {p
+2
+i
+, ni}}.
+Lemma 5.4. Assume that 2P1N-SAT instance f is satisfiable. Then there is a matching µ
+in reach(χ) such that µ( ˆwm) = u1 in the reachable object on cliques instance I.
+Proof. Let σ : {x1, . . . , xn} → {0, 1} denote a satisfying assignment for f. We specify a
+sequence of matchings µ0, . . . , µ3n+3m−1, which depends on σ, such that (1) µ3n+3m−1( ˆwm) =
+u1 and (2) µk−1 = µk or µk−1 →F µk for all k in [3n + 3m − 1]. We obtain this sequence in
+two phases.
+In the first phase, we perform the following three steps for each i from 1 to n.
+1. If σ(xi) = 1 and µ3i−3(ˆvp
+1
+i
+) = vp
+1
+i
+, we set µ3i−2 to the matching obtained by swapping
+vˆp
+1
+i
+with ˆx
+1
+i
+in µ3i−3. Otherwise, we set µ3i−2 to µ3i−3.
+2. If σ(xi) = 1 and µ3i−2(ˆvp
+2
+i
+) = vp
+2
+i
+, we set µ3i−1 to the matching obtained by swapping
+vˆp
+2
+i
+with ˆx
+2
+i
+in µ3i−2. Otherwise, we set µ3i−1 to µ3i−2.
+3. If σ(xi) = 0 and µ3i−1(ˆvni
+) = vni
+, we set µ3i to the matching obtained by first swapping
+xˆ
+1
+i with ˆx
+2
+i
+, and then swapping ˆvni with ˆx
+2
+i
+, in µ3i−1. Otherwise, we set µ3i to µ3i−1.
+It is easy to check that all of the swaps in the first phase are valid.
+Let Aj be as defined in the statement of Observation 5.3. We claim that at the end of the
+first phase, agent µ
+−1
+3n
+(vj ) belongs to Aj
+for all j in [m]. Assume for the sake of contradiction
+that for some j in [m], agent µ
+−1
+3n
+(vj ) does not belong to Aj
+. Since agents ˆuj and ˆwm do not
+participate in any swap in the first phase, µ3n(ˆuj ) = uj and µ3n( ˆwm) = wm. Since µ
+−1
+3n
+(vj )
+does not belong to {uˆj
+,wˆm} ∪ Aj
+, Observation 5.3 implies that µ3n(ˆvj ) = vj
+. Let variable xi
+satisfy clause Cj
+. The swaps in the ith iteration of first phase imply that µ
+−1
+3i
+(vj ) 6= ˆvj
+. Since
+no agent in Vˆ participates in more than one swap in the first phase, we have µ
+−1
+3n
+(vj ) 6= ˆvj
+,
+a contradiction since µ3n(ˆvj ) = vj
+. This completes the proof of the claim.
+Note that there is a unique object of rank k for each k in [3m]. Using the claim stated
+above, together with the fact that no agent in Uˆ ∪ Wˆ participates in a swap in the first
+phase, it is easy to verify that for any rank k in [3m − 1], there is an agent a such that
+rank(µ3n(a)) = k and a prefers the object of rank k + 1 to the object of rank k. The
+preferences of agent ˆwm imply that for any rank k in [3m − 1], agent ˆwm prefers the object
+of rank k to the object of rank k + 1. Moreover, rank(µ3n( ˆwm)) = 3m. In the second phase
+we perform 3m − 1 swaps, each involving agent ˆwm. For k running from 3m − 1 down to
+1, we set µ3n+3m−k to the matching obtained by swapping ˆwm with the agent matched to
+the object of rank k in µ3n+3m−k−1. The foregoing arguments show that all of these 3m − 1
+swaps are valid and rank(µ3n+3m−1( ˆwm)) = 1. Thus µ3n+3m−1( ˆwm) = u1.
+24
+Observation 5.5 below can be justified by using the preferences of agent ˆwm and the fact
+that if any agent a swaps from object b to b
+′
+then b
+′ ≻a b. Observations 5.6 through 5.10 can
+be justified similarly.
+Observation 5.5. For any matchings µ1 and µ2 in reach(χ) such that µ1 →F µ2, we have
+rank(µ2( ˆwm)) ≤ rank(µ1( ˆwm)).
+Observation 5.6. For any j in [m − 1] and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2, we have rank(µ2( ˆwj )) ≤ rank(µ1( ˆwj )) + 1.
+Observation 5.7. For any j in [m] and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2, we have rank(µ2(ˆuj )) ≤ rank(µ1(ˆuj )) + 1.
+Observation 5.8. For any j in [m] and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2, we have rank(µ2(ˆvj )) ≤ rank(µ1(ˆvj )).
+Observation 5.9. For any i in [n] and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2 and µ1(ˆx
+1
+i
+) belongs to B \ X, we have rank(µ2(ˆx
+1
+i
+)) ≤ rank(µ1(ˆx
+1
+i
+)) + 1.
+Observation 5.10. For any i in [n] and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2 and µ1(ˆx
+2
+i
+) belongs to B \ X, we have rank(µ2(ˆx
+2
+i
+)) ≤ rank(µ1(ˆx
+2
+i
+)) + 1.
+Lemma 5.11 below follows immediately from Observations 5.5 through 5.10.
+Lemma 5.11. For any agent a in A and any matchings µ1 and µ2 in reach(χ) such that
+µ1 →F µ2 and µ1(a) belongs to B \ X, we have rank(µ2(a)) ≤ rank(µ1(a)) + 1.
+Lemma 5.12. Let µ1 and µ2 be matchings in reach(χ) such that µ1 →F µ2. Then
+rank(µ2( ˆwm)) ≥ rank(µ1( ˆwm)) − 1.
+Proof. Assume for the sake of contradiction that rank(µ2( ˆwm)) < rank(µ1( ˆwm)) − 1. The
+preferences of ˆwm imply that µ1( ˆwm) and µ2( ˆwm) belong to B \ X. Thus there is an
+agent a such that µ1(a) belongs to B \ X and rank(µ2(a)) > rank(µ1(a)) + 1, contradicting
+Lemma 5.11.
+Lemma 5.13. Let i belong to [n] and j belong to [m]. If vˆj prefers x
+1
+i
+to vj
+, then vˆj prefers
+vj to x
+2
+i
+. Similarly, if vˆj prefers x
+2
+i
+to vj
+, then vˆj prefers vj to x
+1
+i
+.
+Proof. Assume that ˆvj prefers x
+1
+i
+to vj
+. The preferences of ˆvj
+imply that j ∈ {p
+1
+i
+, ni}. Since
+p
+1
+i
+, p2
+i
+, and ni are distinct, j 6= p
+2
+i
+. Hence the preferences of ˆvj
+imply that ˆvj prefers vj to
+x
+2
+i
+. We can use a similar argument to prove that if ˆvj prefers x
+2
+i
+to vj
+, then ˆvj prefers vj to
+x
+1
+i
+.
+Lemma 5.14. Let µ1 and µ2 be matchings in reach(χ) such that µ1 →F µ2 and µ1(ˆx
+2
+i
+) = x
+2
+i
+.
+Then µ2(ˆx
+2
+i
+) belongs to {x
+1
+i
+, x2
+i
+, vp
+2
+i
+}.
+25
+Proof. By examining the preferences of ˆx
+2
+i we deduce that object µ2(ˆx
+2
+i
+) belongs to
+{wni
+, wp
+2
+i
+, vni
+, vp
+2
+i
+, x1
+i
+, x2
+i
+}.
+Assume for the sake of contradiction that µ2(ˆx
+2
+i
+) belongs to {wni
+, wp
+2
+i
+, vni
+}. We consider
+three cases.
+Case 1: µ2(ˆx
+2
+i
+) = wni
+. Thus µ
+−1
+1
+(wni
+) = µ
+−1
+2
+(x
+2
+i
+). Since µ
+−1
+2
+(x
+2
+i
+) 6= ˆx
+2
+i
+, Observation 5.2
+implies that µ
+−1
+2
+(x
+2
+i
+) belongs to {xˆ
+1
+i
+, vˆp
+2
+i
+}. We consider two cases.
+Case 1.1: µ
+−1
+2
+(x
+2
+i
+) = ˆx
+1
+i
+. Thus µ
+−1
+1
+(wni
+) = ˆx
+1
+i
+. By examining the preferences of ˆx
+1
+i
+, we
+deduce that µ1(ˆx
+1
+i
+) 6= wni
+, a contradiction.
+Case 1.2: µ
+−1
+2
+(x
+2
+i
+) = ˆvp
+2
+i
+. A contradiction follows using a similar argument as in Case 1.1.
+Case 2: µ2(ˆx
+2
+i
+) = wp
+2
+i
+. A contradiction follows using a similar argument as in Case 1.
+Case 3: µ2(ˆx
+2
+i
+) = vni
+. A contradiction follows using a similar argument as in Case 1.
+Thus µ2(ˆx
+2
+i
+) belongs to {x
+1
+i
+, x2
+i
+, vp
+2
+i
+}.
+Throughout the remainder of Section 5.2, we say that an agent a is satisfied in a matching
+µ if µ(a) is the most preferred object of a. In Lemmas 5.15 through 5.18 below, let µ0, . . . , µt
+be a sequence of matching such that µs−1 →F µs for all s in [t], and for each i in [n] let P(i),
+(resp., Q(i) and R(i)) denote the predicate that holds if there is an integer s in [t] such that
+µs(ˆx
+1
+i
+) = vp
+1
+i
+(resp., µs(ˆx
+2
+i
+) = vp
+2
+i
+, µs(ˆx
+2
+i
+) = vni
+). Lemmas 5.15 and 5.16 below present useful
+properties of these predicates.
+Lemma 5.15. Let i be an element of [n] such that R(i) holds. Then Q(i) does not hold.
+Proof. Let s be an element of [t] such that µs(ˆx
+2
+i
+) = vni
+; such an s exists since R(i) holds.
+Assume that Q(i) holds. Let s
+′ be an element of [t] such that µs
+′(ˆx
+2
+i
+) = vp
+2
+i
+; such an s
+′
+exists
+as Q(i) holds. We consider two cases.
+Case 1: s
+′ > s. Let s
+′′ be an integer such that s ≤ s
+′′ ≤ s
+′
+. The preferences of agent ˆx
+2
+i
+imply that p
+2
+i < ni and µs
+′′(ˆx
+2
+i
+) belongs to {wp
+2
+i
+, vp
+2
+i
+, wni
+, vni
+}. Hence rank(µs
+′′(ˆx
+2
+i
+)) belongs
+to {3p
+2
+i
+, 3p
+2
+i −1, 3ni
+, 3ni −1}. Note that rank(µs(ˆx
+2
+i
+)) = 3ni −1, and rank(µs
+′(ˆx
+2
+i
+)) = 3p
+2
+i −1.
+Hence there is an s
+′′′ such that s ≤ s
+′′′ < s′ and rank(µs
+′′′+1(ˆx
+2
+i
+)) ≤ rank(µs
+′′′(ˆx
+2
+i
+)) − 2. It
+follows that there is an agent a such that µs
+′′′(a) belongs to B \ X and rank(µs
+′′′+1(a)) ≥
+rank(µs
+′′′(a)) + 2, contradicting Lemma 5.11.
+Case 2: s
+′ < s. We can derive a contradiction using a similar argument as in Case 1.
+Lemma 5.16. Let i be an element of [n] such that R(i) holds. Then P(i) does not hold.
+Proof. Let s be an element of [t] such that µs(ˆx
+2
+i
+) = vni
+; such an s exists since R(i) holds. We
+begin by proving the following claim: There is an integer s
+′′ in [s−1] such that µs
+′′(ˆx
+2
+i
+) = x
+1
+i
+.
+Assume for the sake of contradiction that there is no s
+′′ in [s−1] such that µs
+′′(ˆx
+2
+i
+) = x
+1
+i
+. Let
+s
+′′ be the least index in [s] such that µs
+′′(ˆx
+2
+i
+) 6= x
+2
+i
+. Since µs
+′′(ˆx
+2
+i
+) does not belong to {x
+1
+i
+, x2
+i },
+Lemma 5.14 implies that µs
+′′(ˆx
+2
+i
+) = vp
+2
+i
+. Thus Q(i) holds, contradicting Lemma 5.15. This
+completes the proof of the claim.
+Having established the claim, we let s
+′′ denote the least integer in [s − 1] such that
+µs
+′′(ˆx
+2
+i
+) = x
+1
+i
+. The preferences of agent ˆx
+2
+i
+imply that µs
+′′−1(ˆx
+2
+i
+) = x
+2
+i
+. Let a be the agent
+µ
+−1
+s
+′′−1
+(x
+1
+i
+). Since a 6= ˆx
+2
+i
+, Observation 5.1 implies that a belongs to {xˆ
+1
+i
+, vˆp
+1
+i
+, ˆvni
+}. We consider
+two cases.
+26
+Case 1: a ∈ {vˆp
+1
+i
+, vˆni
+}. Lemma 5.13 implies that a does not prefer x
+2
+i
+to their initially
+endowment. Hence µ
+−1
+s
+′′ (x
+2
+i
+) 6= a, a contradiction.
+Case 2: a = ˆx
+1
+i
+. Since µ0(ˆx
+1
+i
+) = µs
+′′−1(ˆx
+1
+i
+) = x
+1
+i
+, we deduce that µs(ˆx
+1
+i
+) = x
+1
+i
+6= vp
+1
+i
+for all
+s
+′
+such that 0 ≤ s
+′ < s′′. Moreover, ˆx
+1
+i
+is satisfied in µs
+′′ and hence µs
+′(ˆx
+1
+i
+) = x
+2
+i
+6= vp
+1
+i
+for all
+s
+′
+such that s
+′′ ≤ s
+′ ≤ t. Hence µs
+′(ˆx
+1
+i
+) 6= vp
+1
+i
+for all s
+′
+such that 0 ≤ s
+′ ≤ t. Thus P(i) does
+not hold.
+Lemma 5.17. Let j belong to [m] and assume that µt( ˆwm) = u1. Then there is an s in
+[t − 1] such that µs( ˆwm) = wj and µs+1( ˆwm) = vj
+.
+Proof. The only object with rank 3j (resp., 3j−1) is wj (resp., vj ). Since rank(µ0( ˆwm)) = 3m
+and rank(µt( ˆwm)) = 1, Lemma 5.12 implies that for every rank k in [3m − 1], there is an
+integer s in [t − 1] such that rank(µs( ˆwm)) = k + 1 and rank(µs+1( ˆwm)) = k. The lemma
+follows by choosing k to be 3j − 1.
+Lemma 5.18. Assume that µt( ˆwm) = u1. Then the 2P1N-SAT instance f is satisfiable.
+Proof. We construct an assignment σ : {x1, . . . , xn} → {0, 1} for f as follows: for any i in
+[n], we set σ(xi) to 1 if P(i) ∨ Q(i) holds, and to 0 otherwise.
+We now show that σ satisfies f. Let j belong to [m]. Let s be an element of [t − 1] such
+that µs( ˆwm) = wj and µs+1( ˆwm) = vj
+; such an s exists by Lemma 5.17. Thus there is an
+agent a such that µs(a) = vj and µs+1(a) = wj
+. Since a 6= ˆwm, Observation 5.3 implies that
+exactly one of the following three statements holds: (1) j = p
+1
+i and µs(ˆx
+1
+i
+) = vj
+; (2) j = p
+2
+i
+and µs(ˆx
+2
+i
+) = vj
+; (3) j = ni and µs(ˆx
+2
+i
+) = vj
+. We consider two cases.
+Case 1: (1) or (2) holds. Then P(i) or Q(i) holds, respectively. Hence σ(xi) = 1. By
+construction, the variable xi appears as the positive literal xi
+in clause Cj
+. Thus, Cj
+is
+satisfied.
+Case 2: (3) holds. Then R(i) holds. Lemmas 5.15 and 5.16 imply that P(i) and Q(i) do
+not hold. Hence σ(xi) = 0. By construction, the variable xi appears as the negative literal
+¬xi
+in clause Cj
+. Thus, Cj
+is satisfied.
+Since σ satisfies each clause Cj
+in f, σ satisfies f.
+Theorem 5.19. Reachable object on cliques is NP-complete.
+Proof. In Section 5.1, we described a polynomial-time reduction from 2P1N-SAT instance
+f to reachable object on cliques instance I. Thus the theorem follows from Lemmas 5.4
+and 5.18.
+6 Other NP-Completeness and NP-Hardness Results
+We prove the remaining NP-completeness and NP-hardness results stated in Table 1. Specifically, we show that the reachable object problem on generalized stars is NP-complete, reachable matching problem on cliques is NP-complete, and Pareto-efficient matching problem
+on cliques is NP-hard. These results are proved by adapting the corresponding proofs of
+Gourv`es et al. [10] and M¨uller and Bentert [14] for the object-moving model. The most
+significant changes are associated with the proof of the first result.
+27
+6.1 NP-Completeness for Reachable Object on Generalized Stars
+Theorem 6.1. Reachable object on generalized stars is NP-complete.
+Proof. It is easy to see that reachable object on generalized stars belongs to NP. We use a
+reduction from the problem 2P1N-SAT to establish that the reachable object on generalized
+stars is NP-complete. In an instance of 2P1N-SAT, we are given a propositional formula
+f that is the conjunction of m clauses C1, . . . , Cm. Each clause Ci
+is the disjunction of a
+number of literals, where each literal is either a variable or the negation of a variable. The
+set of variables is x1, . . . , xn. For each variable xj
+, the positive literal xj appears in exactly
+two clauses, and the negative literal ¬xj appears in exactly one clause. We are asked to
+determine whether the formula f is satisfiable.
+Given such a formula f, we construct a corresponding reachable object on generalized
+stars instance I = (F, µ) where F = (A, B, ≻, E) as follows. We begin by describing the set
+of objects B. For each clause index i, there are two objects c
+′
+i and c
+′′
+i
+in B. There is also
+a special object c
+′′
+0
+in B. For each variable index j, there are five objects in B: “dummy”
+objects dj and d
+′
+j
+; an object nj corresponding to the lone occurrence of the negative literal
+¬xj
+in f; an object pj corresponding to the first occurrence of the positive literal xj
+in f
+(i.e., the occurrence associated with the lower-indexed clause); an object p
+′
+j
+corresponding to
+the other occurrence of the positive literal xj
+. Thus there are a total of 2m + 5n + 1 objects
+in B.
+Observe that our identifier for any given object in B includes a single lowercase letter.
+By changing this letter to upper case, we obtain our identifier for the agent initially matched
+to that object. So, for example, agent C
+′′
+0
+is initially matched to object c
+′′
+0
+.
+We now describe the edge set E. Object c
+′′
+m is the center object. We begin by describing
+m + n + 1 vertex-disjoint subgraphs of (B, E): a “clause gadget” for each clause index i,
+a “variable gadget” for each variable index j, and an additional gadget that we call the
+“staircase”. Clause gadget i consists of the lone object c
+′
+i
+. Variable gadget j is a path of
+length 3 containing the objects nj
+, dj
+, p
+′
+j
+and pj
+, in that order, and the lone object d
+′
+j
+. The
+staircase is a path of length m containing the sequence of objects c
+′′
+0
+, c′′
+1
+, . . . , c′′
+m. We say that
+object c
+′′
+0
+is at the bottom of the staircase, and that object c
+′′
+m is at the top of the staircase.
+The following additional m + 2n edges are used to connect these m + n + 1 subgraphs into a
+generalized star: there is an edge from object c
+′
+i
+to object c
+′′
+m for each clause index i; there
+is two edges from object pj
+, d′
+j
+to object c
+′′
+m, respectively, for each variable index j.
+With regard to the agent preferences, all that matters is the set objects(I, a) associated
+with each agent a in A. It is straightforward to verify that we can choose agent preferences so that the following conditions are satisfied. First, for each clause index i, we have
+objects(I, C′
+i
+) = {c
+′
+i
+} ∪ {c
+′′
+k
+| i − 1 ≤ k ≤ m}. Second, for each integer i such that 0 ≤ i ≤ m,
+we have
+objects(I, C′′
+i
+) = {c
+′′
+k
+| i ≤ k ≤ m} ∪ {pj
+| j ∈ [n]} ∪ {p
+′
+j
+| j ∈ [n]}.
+Finally, for each variable index j, the following properties hold: objects(I, Dj ) is equal
+to {dj
+, p′
+j
+, pj
+, d′
+j
+, c′′
+m}; objects(I, D′
+j
+) is equal to {d
+′
+j
+, pj
+, p′
+j
+, c′′
+m}; objects(I, Nj ) is equal to
+{nj
+, dj
+, p′
+j
+, pj
+, c′′
+m, c′
+i
+} where i is the index of the clause that contains the negative literal xj
+;
+objects(I, Pj ) is equal to {pj
+, p′
+j
+, dj
+, c′′
+m, c′
+i} where i is the index of the clause that contains
+the first occurrence of the positive literal xj
+; objects(I, P′
+j
+) is equal to {p
+′
+j
+, dj
+, nj
+, pj
+, c′′
+m, c′
+i
+}
+28
+where i is the index of the clause that contains the second occurrence of the positive literal
+xj
+.
+We claim that agent C
+′′
+0
+(which starts out at the bottom of the staircase) can reach object
+c
+′′
+m (at the top of the staircase) if and only if f is satisfiable.
+We begin by addressing the “if” direction of the claim. Assume that f is satisfiable. Fix
+a satisfying assignment for f, and for each clause index i, let ℓi denote a literal in Ci that
+is set to true by this satisfying assignment. Let Li denote the agent that corresponds to
+literal ℓi
+, as follows: if ℓi
+is the negative literal ¬xj
+, then Li
+is equal to Nj
+; if ℓi
+is the first
+occurrence of the positive literal xj
+, then ℓi
+is equal to Pj
+; if ℓi
+is the second occurrence of
+the positive literal xj
+, then ℓi
+is equal to P
+′
+j
+. Note that the Li
+’s are all distinct.
+For any variable xj
+, let Lj = {Li
+| 1 ≤ i ≤ m} ∩ {Nj
+, Pj
+, P′
+j
+}. Note that if |Lj
+| ≥ 2 then
+Lj = {Pj
+, P′
+j}.
+For each clause index i, 1 ≤ i ≤ m, let f(i) denote the unique variable index j such that
+Li ∈ {Nj
+, Pj
+, P′
+j}.
+We now describe how to perform a sequence of swaps that result in agent C
+′′
+0 being
+matched to object c
+′′
+m. We perform these swaps in m phases. We will define each phase so
+that a certain invariant holds. Specifically, we will ensure that the following conditions hold
+after k phases have been completed, 0 ≤ k ≤ m: (1) the sequence of agents associated with
+the m + 1 staircase objects, c
+′′
+0
+, . . . , c′′
+m is C
+′
+1
+, . . . , C′
+k
+, C′′
+0
+, . . . , C′′
+m−k
+; (2) for any clause index i
+such that k < i ≤ m, the agent matched to object c
+′
+i
+is C
+′
+i
+; (3) for any variable index j such
+that Lj 6⊆ {Li
+| 1 ≤ i ≤ k}, the agents matched to the objects nj
+, dj
+, p
+′
+j
+, and d
+′
+j
+are Nj
+, Dj
+,
+P
+′
+j
+, and D′
+j
+, respectively, and the agent matched to object pj
+is Pj
+if {Li
+| 1 ≤ i ≤ k}∩Lj = ∅
+and belongs to {C
+′′
+m−i+1 | 1 ≤ i ≤ k} otherwise.
+Notice that if we can prove the invariant holds after m phases, then condition (1) of
+the invariant implies that agent C
+′′
+0
+is matched to object c
+′′
+m, as desired. It is easy to see
+that the invariant holds at the outset (i.e., after 0 phases). Let k be an integer such that
+1 ≤ k ≤ m, and assume that the invariant holds after k − 1 phases. It remains to describe
+how to implement phase k so that the claimed invariant holds after phase k.
+Let j denote f(k). We implement phase k in three stages. In the first stage, we perform
+swaps within variable gadget j to move agent Lk to the center object c
+′′
+m. To see how to
+do this, consider the following cases. Notice that Condition (2) of the invariant implies the
+agent matched with the center object c
+′′
+m is C
+′′
+m−k+1.
+Case 1: Lk = Nj
+. Thus Lj = {Nj}. Condition (3) of the invariant implies that the
+agents matched to the objects nj
+, dj
+, p
+′
+j
+, pj
+, and d
+′
+j
+are Nj
+, Dj
+, P
+′
+j
+, Pj
+, and D′
+j
+, respectively.
+Using 8 swaps within agents of variable gadget j and agent C
+′′
+m−k+1, we can rearrange these
+six agents so that the agents matched to the objects nj
+, dj
+, p
+′
+j
+, pj
+, c
+′′
+m, and d
+′
+j
+are P
+′
+j
+, Pj
+,
+C
+′′
+m−k+1, D′
+j
+, Nj
+, and Dj
+, respectively. Thus agent Lk is matched to the center object c
+′′
+m, as
+required.
+Case 2: Lk = Pj
+.Thus {Pj} ⊆ Lj ⊆ {Pj
+, P′
+j
+} Condition (3) of the invariant implies that
+Lk is matched to object pj
+, so swap Lk with C
+′′
+m−k+1 as required.
+Case 3: Lk = P
+′
+j
+and Lj = {P
+′
+j
+}.
+Condition (3) of the invariant implies that the agents matched to the objects nj
+, dj
+, p
+′
+j
+,
+pj
+, and d
+′
+j are Nj
+, Dj
+, P
+′
+j
+, Pj
+, and D′
+j
+, respectively. By swapping P
+′
+j with Pj and then with
+C
+′′
+m−k+1, we can ensure that Lk is matched to object c
+′′
+m, as required.
+Case 4: Lk = P
+′
+j
+and Lj = {Pj
+, P′
+j
+}. Thus {Li
+| 1 ≤ i < k} ∩ Lj = {Pj}. Condition (3)
+29
+of the invariant implies that the agents matched to the objects nj
+, dj
+, p
+′
+j
+, d
+′
+j
+, and pj are Nj
+,
+Dj
+, P
+′
+j
+, D′
+j
+, and an agent in the set {C
+′′
+m−i+1 | 1 ≤ i < k}, respectively. By swapping agent
+P
+′
+j with the agent matched to pj and then with C
+′′
+m−k+1, we can ensure that Lk is matched
+to object c
+′′
+m, as required.
+At the start of the second stage, the agent matched with the center object c
+′′
+m is Lk (due
+to the first stage), and the agent matched with object c
+′
+k
+is C
+′
+k
+(due to condition (2) of the
+invariant). In the second stage, we use one swap to rearrange these two agents so that the
+agents matched to the objects c
+′′
+m and c
+′
+k
+are C
+′
+k
+and Lk.
+At the start of the third stage, the sequence of agents associated with the m+ 1 staircase
+objects c
+′′
+0
+, . . . , c′′
+m is
+C
+′
+1
+, . . . , C′
+k−1
+, C′′
+0
+, . . . , C′′
+m−k
+, C′
+k
+,
+(due to condition (1) of the invariant and the second stage). In the third stage, we perform
+m − k + 1 swaps to move agent C
+′
+k down from the top of the staircase to object c
+′′
+k−1
+.
+It remains to verify that the invariant holds after phase k. The third stage ensures that
+condition (1) of the invariant holds after phase k. Condition (2) of the invariant holds after
+phase k because it held before phase k and the only clause gadget involved in a swap in phase
+k is clause gadget k. After phase k, condition (3) of the invariant only makes a nontrivial
+claim about the allocation of a variable gadget j for which Lk = Pj and Lj = {Pj
+, P′
+j
+}. In
+this case, after phase k, the agents matched to the objects nj
+, dj
+, p
+′
+j
+, and d
+′
+j
+are Nj
+, Dj
+, P
+′
+j
+,
+C
+′′
+m−k+1, and D′
+j
+, respectively, so the associated claim is satisfied. Moreover, the claims made
+in condition (3) after phase k that concern other variable gadgets follow from condition (3)
+before phase k since the only variable gadget involved in any swaps in phase k is variable
+gadget j.
+We now address the “only if” direction. Assume that a sequence S of valid swaps results
+in agent C
+′′
+0 being matched to object c
+′′
+m. Thus there are integers 0 = t0 < t1 < · · · < tm
+such that for 0 ≤ k ≤ m, agent C
+′′
+0 first becomes matched to object c
+′′
+k
+at “time” tk, i.e.,
+immediately after the first tk swaps of S have been performed. For any integer k such that
+0 ≤ k ≤ m, let Q(k) denote the predicate “at time tk, agent C
+′
+i
+is matched to object c
+′′
+i−1
+for all i such that 1 ≤ i ≤ k”. We now use induction on k to prove that Q(k) holds for
+0 ≤ k ≤ m. It is easy to see that Q(0) holds. Let k be an integer such that 1 ≤ k ≤ m and
+assume that Q(k − 1) holds. We need to prove that Q(k) holds. Since Q(k − 1) holds, each
+agent in {Ci
+| 1 ≤ i < k} is matched to its favorite object at time tk−1, and hence does not
+move thereafter. Thus, to establish that Q(k) holds, it is sufficient to prove that the agent,
+call it a, moving from object c
+′′
+k
+to object c
+′′
+k−1
+in swap tk of S (which moves agent C
+′′
+0
+from
+object c
+′′
+k−1
+to object c
+′′
+k
+) is C
+′
+k
+. Since c
+′′
+k−1 belongs to objects(I, a), we deduce that a belongs
+to
+{C
+′
+i
+| 1 ≤ i ≤ k} ∪ {C
+′′
+i
+| 0 ≤ i < k}.
+As discussed above, for 1 ≤ i < k, agent C
+′
+i
+is permanently matched to object c
+′′
+i−1 as of time
+tk−1. It follows that a does not belong to {C
+′
+i
+| 1 ≤ i < k}. It also follows that each agent
+in {C
+′′
+i
+| 1 ≤ i < k} moved up the staircase from object c
+′′
+k−1
+to object c
+′′
+k prior to time tk−1,
+and hence can never return to object c
+′′
+k−1
+; thus agent a does not belong to {C
+′′
+i
+| 1 ≤ i < k}.
+Since agent a is not equal to C
+′′
+0
+, we conclude that agent a is equal to C
+′
+k
+, as required. This
+completes our proof by induction that Q(k) holds for 0 ≤ k ≤ m.
+30
+Since Q(m) holds, we know that for each clause index i, the sequence of swaps S causes
+agent C
+′
+i
+to move away from its initial object c
+′
+i
+. For any clause index i, let Ai denote
+{a ∈ A | c
+′
+i ∈ objects(I, a)} − C
+′
+i
+. We can only swap agent C
+′
+i
+away from its initial object
+c
+′
+i
+in favor of some agent in Ai
+. Our reduction ensures that Ai
+is equal to the set of agents
+corresponding to literals satisfying clause i, in the following sense: for each negative literal
+¬xj appearing in Ci
+, the agent Nj belongs to Ai
+; for each positive literal xj such that the
+first (resp., second) occurrence of xj appears in Ci
+, the agent Pj (resp., P
+′
+j
+) belongs to Ai
+.
+For each clause index i, let Li denote the agent in Ai that swaps with agent C
+′
+i when C
+′
+i
+moves away from its initial object c
+′
+i
+, and let ℓi denote the literal corresponding to Li
+. We
+claim that it is possible to find a truth assignment for f that simultaneously sets all of the
+literals ℓi to true, and thus satisfies f. To prove this, it suffices to show that for any variable
+index j, if Nj belongs to {Li
+| 1 ≤ i ≤ m} then {Li
+| 1 ≤ i ≤ m} ∩ {Pj
+, P′
+j} = ∅. Below
+we prove that the following stronger claim holds: For any variable index j, if a sequence of
+swaps causes agent Nj to leave variable gadget j (i.e., to move from object pj to object c
+′′
+m)
+then agents Pj and P
+′
+j
+remain in variable gadget j under this sequence of swaps.
+To prove the latter claim, let us fix a sequence of swaps S that causes agent Nj to leave
+variable gadget j. The only agent a 6= Nj such that object nj belongs to objects(I, a) is P
+′
+j
+.
+Since Nj moves away from its initial object nj under S, we deduce that S includes two swaps
+moving agent P
+′
+j first to object dj and then to object nj
+. Since object nj
+is a leaf, agent P
+′
+j
+remains matched to object nj thereafter. Since agent Nj does not remain matched to object
+dj
+, it is eventually swapped to object p
+′
+j
+. Since agent Dj has previously moved from object
+dj to object p
+′
+j
+, it cannot move back to object dj
+. The only agent a 6∈ {Nj
+, Dj
+, P′
+j} such that
+dj belongs to objects(I, a) is agent Pj
+. Thus, the swap that moves agent Nj
+from object to
+dj to object p
+′
+j moves agent Pj
+from object p
+′
+j
+to object dj
+. Since agent P
+′
+j
+is permanently
+matched to object nj
+, we conclude that agent Pj
+is permanently matched to object dj
+. Thus
+if agent Nj
+leaves variable gadget j (indeed, if Nj merely reaches object p
+′
+j
+), then neither
+agent Pj nor agent P
+′
+j
+leaves variable gadget j.
+6.2 NP-Completeness for Reachable Matching on Cliques
+We begin by proving in Lemma 6.2 that reachable matching on general graphs is NPcomplete. We use Lemma 6.2 to establish that reachable matching on cliques is also NPcomplete.
+Lemma 6.2. Reachable matching on general graphs is NP-complete.
+Proof. It is easy to see that reachable matching on general graphs belongs to NP. We use a
+reduction from reachable object on generalized stars to reachable matching on general graphs
+to establish that reachable matching on general graphs is NP-complete.
+Fix an arbitrary reachable object on generalized stars instance I. Without loss of generality, we can assume that the associated configuration χ = (F, µ) is such that F = (A, B, ≻, E),
+A = {a1, . . . , an}, B = {b1, . . . , bn}, and χ(ai) = bi
+for 1 ≤ i ≤ n. We can also assume without loss of generality that our goal is to determine whether there is a matching µ1 in reach(χ)
+such that µ1(a1) = bn.
+Below we describe how to transform reachable object on generalized stars instance I
+into a reachable matching on general graphs instance I
+′
+such that I is a positive instance
+31
+of reachable object on generalized stars if and only if I
+′
+is a positive instance of reachable
+matching on general graphs . The reachable matching on general graphs instance I
+′ has two
+associated configurations χ
+′ = (F
+′
+, µ′
+) and χ
+′′ = (F
+′
+, µ′′), where F
+′ = (A′
+, B′
+, ≻′
+, E′
+). The
+set of agents A′
+is equal to A ∪ A∗ where A∗ = {a
+∗
+1
+, . . . , a∗
+n}. The set of objects B′
+is equal to
+B ∪ B∗ where B∗ = {b
+∗
+1
+, . . . , b∗
+n
+}. The perfect matching µ
+′
+from A′
+to B′
+satisfies µ
+′
+(ai) = bi
+and µ
+′
+(a
+∗
+i
+) = b
+∗
+i
+for 1 ≤ i ≤ n. The subgraph of (B′
+, E′
+) induced by the set of objects B is
+equal to (B, E). The subgraph of (B′
+, E′
+) induced by the set of objects B∗
+is a clique. There
+are n edges connecting these two subgraphs: there is an edge from object bi to object b
+∗
+i
+for
+1 ≤ i ≤ n. The agent preferences ≻′ are defined as follows.
+• For any integer i such that 1 ≤ i ≤ n, the most preferred object of agent a
+∗
+i
+is bi
+,
+followed by object b
+∗
+i
+, followed by the remaining objects in B′
+in arbitrary order.
+• The most preferred object of agent a1 is b
+∗
+n
+, followed by the objects in B in the order
+specified by the preferences of agent a1 under ≻, followed by the objects in B∗ − b
+∗
+n
+in
+arbitrary order.
+• The most preferred objects of agent an are b
+∗
+1
+, . . . , b∗
+n−1
+, followed by the objects in B
+in the order specified by the preferences of agent an under ≻, followed by object b
+∗
+n
+.
+• For any integer i such that 1 < i < n, the most preferred objects of ai are b
+∗
+i
+, . . . , b∗
+n−1
+,
+followed by b
+∗
+i−1
+, . . . , b∗
+1
+, followed by the objects in B in the order specified by the
+preferences of agent ai under ≻, followed by object b
+∗
+n
+.
+The perfect matching µ
+′′ associated with configuration χ
+′′ maps each agent in A′
+to its most
+preferred object in B′
+. (Note that µ
+′′ is a perfect matching from A′
+to B′
+, since no two
+agents in A′
+share the same most preferred object.)
+It is easy to see that we can construct instance I
+′
+in polynomial time in the size of
+instance I. It remains to argue that instance I is a positive instance of reachable object
+on generalized stars if and only if I
+′
+is a positive instance of reachable matching on general
+graphs.
+We begin by addressing the “only if” direction. Assume that instance I is a positive
+instance of reachable object on generalized stars. Thus there is a configuration χ1 in reach(χ)
+such that χ1(a1) = bn. Our construction of the agent preferences therefore ensures the
+existence of a configuration χ
+′
+1
+in reach(χ
+′
+) such that χ
+′
+1
+(ai) = χ1(ai) and χ
+′
+1
+(a
+∗
+i
+) = χ(a
+∗
+i
+) = b
+∗
+i
+for 1 ≤ i ≤ n.
+It is easy to check that a swap across edge (bi
+, b∗
+i
+) can be applied to configuration χ
+′
+1
+for 1 ≤ i ≤ n. Let χ
+′
+2 denote the configuration obtained by applying these n swaps to χ
+′
+1
+.
+Thus χ
+′
+2 belongs to reach(χ
+′
+). Furthermore, it is easy to check that each agent in A∗ + a1 is
+matched in χ
+′
+2
+to its most preferred object under ≻′
+.
+Next, we iteratively construct a sequence of n − 1 configurations χ
+′
+3
+, . . . , χ′
+n+1 such that
+configuration χ
+′
+k
+satisfies the following properties for 3 ≤ k ≤ n+ 1: χ
+′
+k belongs to reach(χ
+′
+);
+every agent in A ∪ {a1, . . . , ak−2} + an is matched in χ
+′
+k
+to its most preferred object in
+configuration χ
+′
+k
+. We begin by applying zero or one swaps to configuration χ
+′
+2
+to obtain
+configuration χ
+′
+3
+. If χ
+′
+2
+(an) = b
+∗
+1
+, then we define χ
+′
+3 as χ
+′
+2
+. If not, then χ
+′
+2
+(ai) = b
+∗
+1
+for some i
+in {2, . . . , n − 1}. The preferences of agents ai and an ensure that a swap between these two
+32
+agents can be applied to configuration χ
+′
+2
+. We define χ
+′
+3 as the configuration that results
+from applying this swap. It easy to see that configuration χ
+′
+3 belongs to reach(χ
+′
+) and that
+every agent in A ∪ {a1, an} is matched in χ
+′
+3
+to its most preferred object under ≻′
+.
+Now fix an integer k such that 4 ≤ k ≤ n + 1, and inductively assume that we have
+constructed a configuration χ
+′
+k−1
+in reach(χ
+′
+) such that every agent in A∪{a1, . . . , ak−3}+an
+is matched to its most preferred object under ≻′
+. We apply zero or one swaps to configuration
+χ
+′
+k−1
+to obtain configuration χ
+′
+k
+. If χ
+′
+k−1
+(ak−2) = b
+∗
+k−2
+, then we define χ
+′
+k
+as χ
+′
+k−1
+. If not, then
+χ
+′
+k−1
+(ai) = b
+∗
+k−2
+for some i in {k−1, . . . , n−1}. The preferences of agents ak−2 and ai ensure
+that a swap between these two agents can be applied to configuration χ
+′
+k−1
+. We define χ
+′
+k
+as
+the configuration that results from applying this swap. It easy to see that configuration χ
+′
+k
+belongs to reach(χ
+′
+) and that every agent in A ∪ {a1, . . . , ak−2} + an is matched in χ
+′
+k
+to its
+most preferred object under ≻′
+.
+Since χ
+′
+n+1 belongs to reach(χ
+′
+) and every agent in A′
+is matched in χ
+′
+n+1 to its most
+preferred object under ≻′
+, we conclude that χ
+′
+n+1 = χ
+′′ and hence that I
+′
+is a positive
+instance of reachable matching on general graphs.
+Now we address the “if” direction. Assume that instance I
+′
+is a positive instance of
+reachable matching on general graphs. Thus χ
+′′ belongs to reach(χ
+′
+), and hence there is a
+sequence of swaps S that transforms configuration χ
+′
+into configuration χ
+′′
+.
+By examining the preferences of the agents in A
+∗
+, we deduce that each agent in A
+∗
+participates in exactly one swap in S, and that the other agent participating in each of these
+swaps belongs to A. By examining the preferences of the agents in A, we deduce that agent
+a1 is the agent that swaps with agent a
+∗
+n
+, and that once an agent in A becomes matched to
+an object in B∗
+, it remains matched to an object in B∗
+thereafter. It follows that there is a
+permutation π of {1, . . . , n} such that π(n) = 1 and a
+∗
+i
+swaps with aπ(i)
+for 1 ≤ i ≤ n.
+For any integer k such that 0 ≤ k ≤ |S|, let χ
+′
+k denote the configuration reached by
+applying the first k swaps of sequence S to configuration χ
+′
+. Thus χ
+′ = χ
+′
+0
+, χ
+′′ = χ
+′
+|S|
+, and
+χ
+′
+k
+is of the form (F
+′
+, µ′
+k
+) where µ
+′
+k
+is a perfect matching from A′
+to B′
+.
+For any integer k such that 0 ≤ k ≤ |S|, we use the perfect matching µ
+′
+k
+to construct a
+perfect matching µk from A to B, as follows: for each agent a
+∗
+i
+in A∗
+such that µ
+′
+k
+(a
+∗
+i
+) belongs
+to B∗
+, we define µk(aπ(i)) as µ
+′
+k
+(aπ(i)); for each agent a
+∗
+i
+in A
+∗
+such that µ
+′
+k
+(a
+∗
+i
+) belongs to
+B, we define µk(aπ(i)) as µ
+′
+k
+(a
+∗
+i
+).
+For any integer k such that 0 ≤ k ≤ |S|, we define χk as the configuration (F, µk). It is
+straightforward to prove by induction on k that χk belongs to reach(χ) for 0 ≤ k ≤ |S|.
+Let ℓ denote the least integer such that χ
+−1
+ℓ
+(bn) = a
+∗
+n
+. We know that ℓ exists since
+χ
+−1
+|S|
+(bn) = a
+∗
+n
+, and that ℓ is positive since χ
+−1
+0
+(bn) = an. As discussed earlier, agent a1
+is the only agent that participates in a swap with agent a
+∗
+n
+. Hence χ
+−1
+ℓ−1
+(bn) = a1. Since
+χℓ−1 belongs to reach(χ), we conclude that I is a positive instance of reachable object on
+generalized stars, as required.
+It is easy to see that the reachable matching on cliques problem belongs to NP. We use
+a reduction from reachable object on cliques to reachable matching on cliques to establish
+that reachable matching on cliques is NP-complete. This reduction is similar to the one used
+in the proof of Lemma 6.2.
+Fix an arbitrary reachable object on cliques instance I. Without loss of generality, we
+can assume that the associated configuration χ = (F, µ) is such that F = (A, B, ≻, E),
+33
+A = {a1, . . . , an}, B = {b1, . . . , bn}, and χ(ai) = bi
+for 1 ≤ i ≤ n. We can also assume
+without loss of generality that our goal is to determine whether there is a matching µ1 in
+reach(χ) such that µ1(a1) = bn.
+We now describe how to transform reachable object on cliques instance I into a reachable
+matching on cliques instance I
+′
+. Instance I
+′ has two associated configurations χ
+′ = (F
+′
+, µ′
+)
+and χ
+′′ = (F
+′
+, µ′′), where F
+′ = (A
+′
+, B′
+, ≻′
+, E′
+). The set of agents A
+′
+is equal to A ∪ A
+∗
+where A∗ = {a
+∗
+1
+, . . . , a∗
+n
+}. The set of objects B′
+is equal to B ∪ B∗ where B∗ = {b
+∗
+1
+, . . . , b∗
+n
+}.
+Let K2n denote the complete graph with vertex set B′
+, and let E′ denote the edge set of
+K2n. The agent preferences ≻′ and the matchings µ
+′ and µ
+′′ are as described in the proof of
+Lemma 6.2.
+Let Eˆ denote the union of three sets of edges: {(bi
+, bj ) | i, j ∈ [n] ∧ i 6= j}; {(bi
+, b∗
+i
+) | i ∈
+[n]}; {(b
+∗
+i
+, b∗
+j
+) | i, j ∈ [n] ∧ i 6= j}. Lemma 6.3 below establishes that if a swap occurs on an
+edge e in I
+′
+, then e belongs to Eˆ.
+Lemma 6.3. Let i and j be elements of [n] such that i 6= j. Let µ1 and µ2 be matchings in
+reach(χ
+′
+) such that µ1 →F µ2. Then µ
+−1
+2
+(bi) 6= µ
+−1
+1
+(b
+∗
+j
+).
+Proof. We consider two cases.
+Case 1: µ
+−1
+1
+(b
+∗
+j
+) belongs to A∗
+. By examining the preferences of agents in A∗
+, we deduce
+that µ
+−1
+1
+(b
+∗
+j
+) = a
+∗
+j
+. The only object that agent a
+∗
+j prefers to b
+∗
+j
+is bj
+. Hence µ
+−1
+2
+(bi) 6= a
+∗
+j =
+µ
+−1
+1
+(b
+∗
+j
+).
+Case 2: µ
+−1
+1
+(b
+∗
+j
+) belongs to A. By examining the preferences of agents in A, we deduce
+that µ2(µ
+−1
+1
+(b
+∗
+j
+)) belongs to B∗
+. Hence µ
+−1
+2
+(bi) 6= µ
+−1
+1
+(b
+∗
+j
+).
+Using Lemma 6.3, along with the same reasoning as in the proof of Lemma 6.2, we deduce
+that I
+′
+is a positive instance of reachable matching on cliques if and only if I is a positive
+instance of reachable object on cliques. Thus Theorem 6.4 below holds.
+Theorem 6.4. Reachable matching on cliques is NP-complete.
+6.3 NP-Hardness for Pareto-Efficiency on Cliques
+Theorem 6.5. Pareto-efficient matching on cliques is NP-hard.
+Proof. We use the same reduction as we used in Section 6.2 to establish the NP-completeness
+of reachable matching on cliques. In analyzing that reduction, we proved that a given
+instance of reachable object on cliques is positive if and only if every agent gets its most
+preferred object in the corresponding instance of reachable matching on cliques. Therefore
+an efficient algorithm for computing a Pareto-efficient matching on cliques yields an efficient
+algorithm for reachable object on cliques. Since reachable object on cliques is NP-complete,
+we deduce that Pareto-efficient matching on cliques is NP-hard.
+7 Other Polynomial-Time Bounds
+In this section, we briefly discuss simple algorithms that serve to justify the remaining
+polynomial-time entries in Table 1.
+34
+For reachable matching on trees, the corresponding algorithm of Gourv`es et al. [10] for
+the object-moving model can also be used for the agent-moving model. In particular, for
+the agent-moving model, Section 7.1 shows that reachable matching problem on trees can
+be solved in O(n
+2
+) time.
+For the other two polynomial-time table entries for stars, observe that once an agent
+swaps away from the center object, it cannot participate in another swap. This observation
+severely restricts the swap dynamics, making it easy to establish that the reachable object
+problem on stars can be solved in O(n
+2
+) time and Pareto-efficient matching problem on stars
+can be solved in O(n) time.
+7.1 Reachable Matching on Trees
+Theorem 7.1. Reachable matching on trees can be solved in O(n
+2
+) time.
+Proof Sketch. Let µ and µ
+′ be the initial and target perfect matchings in an instance of the
+reachable matching problem on a tree. To solve the problem, we use the approach presented
+by Gourv`es et al. [10] for the object-moving model. Observe that every agent a moves along
+a unique dipath in the tree from µ(a) to µ
+′
+(a). Therefore, it suffices to check whether there
+is a sequence of swaps such that each agent moves according to its dipath. Let us say that
+an edge is good if the two agents currently matched to the endpoints of the edge both need
+to cross the edge as the next step along their respective dipaths. Using essentially the same
+argument as in the proof of Proposition 3 in Gourv`es et al. [10], we can show if the target
+matching is reachable and is not equal to the current matching, then at least one good edge
+exists. It follows easily that if the target matching is reachable, then we can reach it by
+repeatedly performing a swap across an arbitrary good edge.
+We now discuss how to find good edges efficiently so that the overall running time is
+O(n
+2
+). We begin by traversing the tree to construct a set containing all of the edges that
+are good in the initial state. The order of the edges within this set is immaterial, so it can
+be implemented using a simple data structure such as a list or stack. Then, while the set
+of good edges is nonempty, we perform the following steps. First, we remove an arbitrary
+good edge from the set, and perform the associated swap. It is easy to see that the other
+edges in the good set remain good after the swap. Furthermore, up to two edges can become
+good as a result of the swap, and a simple local search can be used to identify these edges
+in constant time. Any newly-identified good edges are added to the set of good edges, and
+we proceed to the next iteration.
+Initialization of the set of good edges takes O(n) time and each iteration of the loop
+performs one swap and takes constant time. Since the number of swaps is O(n
+2
+), the claimed
+time bound follows.
+7.2 Algorithms for Stars
+In this section, we solve the reachable object and Pareto-efficient matching problems on
+stars. We refer to the object located at the center of the star as the center object, and to
+the remaining objects as leaf objects. We refer to the agent that is currently matched to the
+center object as the center agent O, and to the remaining agents as leaf agents.
+35
+7.2.1 Reachable Object on Stars
+Theorem 7.2. Reachable object on stars can be solved in O(n
+2
+) time.
+Proof Sketch. Let a be the given agent and let b the given target object in an instance of
+the reachable object problem. Notice that there is a unique dipath for a to follow to reach
+b, and the dipath has at most two edges.
+There are three cases for the dipath, from center to leaf, from leaf to center, and from
+leaf to leaf. The center to leaf case is straightforward as the only way for agent a to reach
+object b is to perform a single swap involving both of them.
+For the leaf to center case, we use the approach presented by Gourv`es et al. [10] for the
+object-moving model. The problem reduces to the search of a path in a digraph G = (A, E)
+where (a, a′
+) ∈ E with a ∈ A, a′ ∈ A \ {O} if and only if a and a
+′
+can rationally trade when
+a is at the center position and a
+′
+is in its initial position. There is a path from O to a in G if
+and only if a can move to the center position. It takes O(n
+2
+) time to construct G and solve
+this path problem.
+We reduce the leaf to leaf case to the leaf to center case, as follows. First, we solve a
+leaf to center problem to determine whether agent a can be moved to the center without
+moving the initial owner of object b. If this is possible, then we check whether agent a and
+the initial owner of object b can trade their objects. This procedure works correctly because
+the ownership of any leaf object can change at most once in any valid sequence of swaps.
+To see this, observe that once an agent moves from the center to a leaf, it can never return
+to the center. Accordingly, for agent a to move to object b, the initial owner of b needs to
+remain stationary until a reaches the center.
+7.2.2 Pareto Efficiency on Stars
+Theorem 7.3. Pareto-efficient matching on stars can be solved in O(n) time.
+Proof Sketch. We use an algorithm based on serial dictatorship [1]. First, we prune any
+leaf agent with its associated object if the agent does not prefer the center object to its
+own object, since this leaf agent will never be involved in any swap. Therefore, the center
+agent can swap with any remaining leaf agent only if the leaf agent holds one of its preferred
+objects. If the top preference of the center agent out of the remaining objects is the center
+object, then the current matching is Pareto-efficient as no swaps can occur. Otherwise, the
+top preference of the center agent a out of the remaining objects is a leaf object b, and we
+can apply the swap operation that moves agent a to object b. The previous owner of object
+b becomes the new center agent. Then, we prune agent a and object b and recurs on the
+new center agent. It is easy to see that this whole process takes O(n) time, and when each
+agent is pruned, it holds its favorite object among the remaining objects. It follows that
+the matching returned by this process is not Pareto-dominated by any other matching, and
+hence is Pareto-efficient.
+36
+8 Concluding Remarks
+In this paper, we have introduced the agent-moving model, and we have revisited the collection of problems listed in Table 1, which were previously considered in the context of the
+object-moving model. In all cases where a polynomial-time algorithm or hardness result has
+been established for the object-moving model, we have established a corresponding result
+for the agent-moving model.
+In addition, we have presented a polynomial-time algorithm for Pareto Efficiency on generalized stars in the agent-moving model, a problem that remains open in the object-moving
+model. It is natural to ask whether our techniques can be extended to address this open
+problem. Our algorithm relies on the polynomial-time solvability of the Reachable Object
+problem for the center agent, which allows us to compute an object that is matched to the
+center agent in some Pareto-efficient matching. In the object-moving model, no polynomialtime algorithm is known to compute an agent that is matched to the center object in some
+Pareto-efficient matching. (We do know how to compute the agents that can be reached
+by the center object in polynomial time, but it isn’t clear how to use this information to
+compute a Pareto-efficient matching in polynomial time.) An interesting direction for future
+research in the agent-moving model is to determine whether our techniques for solving Pareto
+Efficiency on generalized stars can be extended to trees. It would also be interesting to study
+strategic aspects of this model.
+

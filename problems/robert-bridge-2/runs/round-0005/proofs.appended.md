@@ -1,0 +1,29 @@
+Preliminaries and notation
+- X is either G_{•,≤D} (connected rooted graphs with maximum degree ≤ D) or G_{•,=D} (connected rooted D‑regular rooted graphs), for a fixed D≥2. For x=(G,ρ) and r∈N, B_r(x) denotes the rooted r‑ball. For a realized r‑ball F, the cylinder C(F):={x∈X: B_r(x)≅F}.
+- A metric d on X is strongly local if ∀ε>0 ∃R such that d(x,y)<ε ⇒ B_R(x)≅B_R(y). Equivalently, every d‑ball lies inside a local cylinder.
+
+Lemma 1 (parity in even‑regular graphs). Let G be D‑regular with even D. If e is a bridge, then both components of G−e are infinite.
+Proof. If G−e has a finite component S, then ∑_{v∈S}deg_G(v)=D|S| is even, while also equals 2|E(S)|+1, a contradiction.
+
+Theorem 2 (2‑way infinite bridges are meagre and dense). Fix D>2 and X∈{G_{•,≤D},G_{•,=D}} with the local topology. For k∈N let P_k be the set of graphs that contain a 2‑way infinite bridge at distance ≤k from the root. Then P_k is nowhere dense for each k. Consequently P=⋃_{k} P_k is meagre. Moreover, P is dense in X.
+Proof. Nowhere dense: Let C(F) be any realized cylinder with radius r≥k. Let S⊆L_r(F) be the set of boundary vertices with residual degree (deg_F(v)<D). If S=∅, then no edge at distance ≤k can be a 2‑way bridge in any completion of C(F) (one side would lack capacity to become infinite), so P_k∩C(F)=∅.
+Assume S≠∅. For each v∈S add a new vertex x_v adjacent to v at distance r+1, and connect the set {x_v: v∈S} into a single simple cycle that lies outside B_r via additional new vertices, respecting degree bounds (possible since D>2). Let H be the resulting finite extension and let F′=B_{r+2}(H). Then for any edge e within distance ≤k, choose v_A,v_B∈S on distinct sides of F−e if they exist; there are paths in F from the endpoints of e to v_A and v_B that avoid e, and the external x‑cycle gives a path between v_A and v_B outside B_r. Hence e lies on a cycle contained in B_{r+2}(H), so no such e is a bridge in any completion with r+2‑ball F′. Therefore C(F′)⊆C(F) and C(F′)∩P_k=∅. Nonemptiness holds since we can leave at least one new vertex on the external cycle with residual capacity to admit infinite continuation. Thus P_k is nowhere dense.
+Meagre: P is a countable union of nowhere dense sets.
+Dense: Given any cylinder C(F), outside a large radius attach two disjoint infinite trees (≤D) or regular trees (=D, by distributing stubs) and connect them by a single edge e, then connect the core to exactly one of the trees by a long path. This produces a 2‑way infinite bridge e while preserving the inner ball, so P intersects every cylinder. Hence P is dense.
+
+Corollary 3 (even‑regular comeagre bridgeless). In X=G_{•,=D} with even D>2, every bridge is 2‑way infinite by Lemma 1. By Theorem 2 the set of graphs with a 2‑way infinite bridge is meagre. Hence the set of bridgeless graphs is comeagre.
+
+Lemma 4 (robust nowhere denseness under strongly local metrics). Let d be strongly local on X and let S⊂X have the property that for every realized cylinder C(F) there exists a realized refinement cylinder C(F′)⊆C(F) with C(F′)⊆X\S. Then S is nowhere dense in (X,d).
+Proof. Let U be a nonempty d‑open set and x∈U. Choose ε>0 with B_d(x,ε)⊂U and let R be such that d‑closeness <ε enforces agreement on B_R. Then B_d(x,ε)⊂C(B_R(x)). By hypothesis choose a refinement F′ of B_R(x) with C(F′)⊆X\S. Pick y∈C(F′); by strong locality there is δ>0 with B_d(y,δ)⊂C(F′)⊂X\S. Hence every nonempty open set contains a nonempty open subset disjoint from S; thus int_d(cl_d S)=∅.
+
+Lemma 5 (finite odd‑D bubble). Let D≥3 be odd. There exists an odd n≥D+2 and a connected simple graph T on n vertices with degree sequence (D−1,D,…,D). 
+Proof. Erdős–Gallai: The sum Dn−1 is even since D,n are odd. For 1≤k≤n−1, if k≤D then Dk≤kn−k (as n≥D+2). If k≥D+1 then min(D,k)=D and Dk ≤ k(k−1)+(n−k)D ⇔ 0 ≤ k^2−(2D+1)k+Dn, minimized at k=D+1 with value D(n−D−1)≥D>0. A connected realization follows by standard edge‑switching.
+
+Theorem 6 (bridgeless is nowhere dense for odd D under strongly local metrics). Let D≥3 be odd. In X=G_{•,≤D} and X=G_{•,=D}, the set of bridgeless graphs is nowhere dense under any strongly local metric.
+Proof. Fix a nonempty cylinder C(F) and pick a boundary vertex u with deg_F(u)<D. Let T be given by Lemma 5 with special vertex t_0 of degree D−1. Form F′ by adjoining T disjointly outside B_r(F) and adding a single edge e=ut_0; within F′ add edges so that every vertex of T (including t_0) attains degree D counted within the ball, and add no other edges from T to the rest of the ball. Leave at least one vertex outside T with residual capacity so completions exist (for =D, finish local degrees by standard fillers and use a completion as below). Then in any completion of C(F′) within ≤D or =D, no vertex of T can be incident to a new edge (already at degree D in the ball), so e is the unique edge across the cut and hence a bridge. By Lemma 4, bridgeless is nowhere dense under any strongly local metric.
+
+Remark (D‑regular completion for odd D). Given a finite refined ball in which finitely many vertices have residual degree, an explicit completion to an infinite connected D‑regular graph can be done by attaching disjoint rooted D‑regular trees to residual stubs and then finitely patching degrees using distant vertices to avoid parallel edges; this standard construction ensures the refined ball embeds as B_R.
+
+Notes.
+- The sealed‑bubble forcing is impossible for even D in ≤D: if every vertex in the finite side has degree D, then |∂S| must be even; thus |∂S|=1 cannot occur. Therefore Theorem 6 is restricted to odd D.
+- Theorem 2 and Corollary 3 show that in even‑regular spaces, bridgeless is already comeagre under the local topology (and any topologically equivalent strongly local metric).

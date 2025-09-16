@@ -78,6 +78,15 @@ export interface ProblemStatus {
     
     /** Phase where the error occurred (execution, parallel_execution, etc.) */
     error_phase?: string
+    
+    /** Current round within the current batch (1-based) */
+    current_batch_round?: number
+    
+    /** Total number of rounds in the current batch */
+    batch_size?: number
+    
+    /** Starting round number of the current batch */
+    batch_start_round?: number
   }
   
   /** Per-round status details */
@@ -200,6 +209,17 @@ export interface ProverConfig {
   paperAccess?: Record<string, boolean>
 }
 
+export interface VerifierConfig {
+  /** Whether the verifier has access to calculator */
+  calculator: boolean
+  
+  /** Focus instruction type */
+  focus: string
+  
+  /** Paper access permissions - maps paper path to boolean */
+  paperAccess?: Record<string, boolean>
+}
+
 export interface RunParameters {
   /** Number of research rounds to execute */
   rounds: number
@@ -215,6 +235,9 @@ export interface RunParameters {
   
   /** Per-prover configurations */
   proverConfigs?: ProverConfig[]
+  
+  /** Verifier configuration */
+  verifierConfig?: VerifierConfig
   
   /** Focus description for this research round */
   focusDescription?: string

@@ -1,0 +1,6 @@
+Round X (last round) — concise summary
+- Problem: decide/produce a reachable allocation on a tree that is globally Pareto-efficient (TREE-REACHABLE-PE).
+- Proven building blocks: any reachable allocation is individually rational (IR); reachability to a fixed target on a tree is decidable in O(n^2) (good-edge scheduler) and produces a witness; global PO of an allocation is testable in O(n^2) via the improvement-digraph (PO ⇔ no directed cycle). Hence TREE-REACHABLE-PE ∈ NP (certificate = target allocation).
+- TTC (Top Trading Cycles) is globally PO, so testing TTC reachability gives a one-sided polynomial certificate (if reachable, YES). However a 3-agent counterexample shows PO ≠ core, so TTC is not guaranteed to be the unique IR+PO outcome — the critical claim “IR+PO ⇒ TTC” remains unproven and is the decisive open pivot.
+Next actions: prove or refute IR+PO⇒TTC (or find small counterexamples), run small-instance enumeration (n≤6), and/or develop a treewidth DP (FPT) or other parameterized algorithm.
+Citations: papers/paper1.txt; research notes (round X).

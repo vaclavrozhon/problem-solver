@@ -1,0 +1,56 @@
+Ideas
+- We list graph classes that (for all weights consistent with the class and all biases h) guarantee existence of a pure Nash equilibrium (PNE) in signed network coordination (SNC) games with binary actions.
+- We also state a constructive new class (acyclic dependency digraphs) and an SCC-wise decomposition result. Finally, we recall “cohesive core” conditions ensuring existence with a specific structure of the equilibrium.
+
+Model reminder
+- Players i ∈ V choose x_i ∈ {±1}. Payoffs u_i(x) = h_i x_i + x_i ∑_j W_{ij} x_j.
+- Directed signed graph: (i,j) ∈ E ⇔ W_{ij} ≠ 0. Player i’s payoff depends on her out-neighbors j (the j with W_{ij} ≠ 0).
+
+Results (statements and succinct proofs)
+1) Undirected networks (W = W′)
+Claim: Every SNC game on an undirected network admits a PNE.
+Reason: The game is an exact potential game with potential Φ(x) = 1/2 ∑_{i,j} W_{ij} x_i x_j + ∑_i h_i x_i. Finite exact potential games admit PNE (Monderer–Shapley). This is Proposition pr:pot_mixed(i,ii) in the provided paper.
+
+2) Unsigned networks (W ≥ 0)
+Claim: Every SNC game on an unsigned network admits a PNE.
+Reason: The game exhibits increasing differences (supermodular). Hence PNE exist and the NE set is a nonempty lattice (Topkis). See Proposition prop:super-modular in the paper.
+
+3) Structurally balanced networks
+Definition: V = V_1 ⊔ V_2 such that W_{ij} ≥ 0 if i,j in same part; W_{ij} ≤ 0 if i ∈ V_q, j ∈ V_r, q ≠ r.
+Claim: Every SNC game on a structurally balanced network admits a PNE.
+Reason: There exists a gauge transform [σ] (diagonal with entries ±1) s.t. [σ]W[σ] ≥ 0 (unsigned). Apply (2) to the transformed game and map equilibria back (Lemma NashGauge). This is Proposition prop:structurally-balanced-equilibria in the paper.
+
+4) Acyclic dependency digraphs (new)
+Let G be a DAG with respect to the directed edges i→j where W_{ij} ≠ 0.
+Claim: Every SNC game on a DAG admits a PNE (for any real weights and any h).
+Proof (constructive): Process vertices in reverse topological order by repeatedly removing sinks. If i is a sink (no out-neighbors), set x_i ∈ argmax_{±1} h_i x_i (both if tie). Remove i and continue. When choosing x_i at some step, all j with W_{ij} ≠ 0 have already been fixed, so x_i ∈ argmax_{±1} x_i(h_i+∑_j W_{ij}x_j) is a best response to the current (and final) x_{-i}. Since later choices cannot change any out-neighbor of i, i remains a BR in the final profile. Thus the constructed x is a PNE.
+
+5) SCC-wise decomposition (new)
+Let the condensation of the digraph be a DAG of strongly connected components (SCCs) C_1,…,C_m, ordered so that edges go from C_r to C_s only if r < s. Suppose each SCC subgraph is either undirected or structurally balanced.
+Claim: The SNC game admits a PNE.
+Proof (induction over SCCs): Start from terminal SCC C_m. Since it has no outgoing edges, the game restricted to C_m has a PNE for any external field; true because: undirected ⇒ exact potential, or structurally balanced ⇒ gauge to unsigned ⇒ supermodular. Fix a PNE x^{(m)} on C_m. Move to C_{m-1}: its players face an external field equal to h_i plus ∑_{j∈C_s, s>m-1} W_{ij} x^{(s)}_j, a fixed vector. Again by the same reason (undirected or structurally balanced), C_{m-1} admits a PNE x^{(m-1)}. Continue backwards to C_1. The concatenation x = (x^{(1)},…,x^{(m)}) is a PNE on the whole graph because each player’s best-response condition depends only on out-neighbors inside its own SCC and in later SCCs, which have been fixed when choosing x^{(r)}.
+
+6) Cohesive coordinating core (paper’s main existence theorem)
+Let V = R ⊔ S. Assume G_R is unsigned (or more generally structurally balanced). Define the out-degree splits w_i^R = ∑_{j∈R} |W_{ij}|, w_i^S = ∑_{j∈S} |W_{ij}|.
+- Unsigned core (consensus): If there exists a ∈ {±1} with w_i^R + a h_i ≥ w_i^S for all i∈R, and the S-restricted game with R frozen at a·1 has a PNE, then there exists a PNE with x_R = a·1. Special cases ensuring the S-restricted game has a PNE: G_S undirected (potential) or G_S structurally balanced (gauge to unsigned). This is Proposition prop:mixed1 and Corollaries th:mixed_existence1–2.
+- Structurally balanced core (polarization): If τ ∈ {±1}^R makes G_R^{[τ]} unsigned and w_i^R + τ_i h_i ≥ w_i^S for all i∈R, and the S-restricted game with R frozen at τ has a PNE, then there exists a PNE with x_R = τ (Theorem theo:main-existence; corollaries as above for G_S).
+
+Examples
+- No PNE: 2-node “discoordination” (W_{12}>0,W_{21}<0) and 3-cycle of negative directed edges (both violate 1–6).
+- DAG: a directed chain 1→2→3 with arbitrary signs/weights always has a PNE by reverse-topological construction.
+- Mixed: Figures in the paper (e.g., Fig. 1 and Fig. 5 therein) satisfy cohesive-core conditions yielding equilibria with R at consensus/polarization.
+
+Obstacles/limits
+- The above are sufficient, not necessary. There are graphs outside 1–6 still admitting PNE for particular (W,h). Conversely, small cycles with antagonism can destroy existence.
+
+Next steps
+- Tighten the SCC criterion: identify the largest class of SCCs that admit PNE under arbitrary external fields (beyond undirected/structurally balanced), then combine through the condensation DAG.
+- Explore minimal cohesiveness thresholds ensuring existence when S is “well-behaved” (potential/structurally balanced/DAG).
+- Quantify robustness: perturbations of W within classes keep PNE existence; give explicit bounds.
+
+Formal statements (for verifier)
+Proposition A (DAG existence). Let G be a directed acyclic graph, W_{ij} ≠ 0 ⇔ (i,j) ∈ E, and h ∈ ℝ^V arbitrary. Then the SNC game admits a pure Nash equilibrium. Proof given above.
+
+Proposition B (SCC decomposition). If every strongly connected component induces a subgraph that is undirected or structurally balanced, then the SNC game admits a pure Nash equilibrium. Proof by reverse topological induction, using existence on each SCC under arbitrary external fields (Propositions 1 and 3).
+
+These complement the paper’s results (undirected, unsigned, structurally balanced; cohesive-core with undirected/structurally-balanced S).

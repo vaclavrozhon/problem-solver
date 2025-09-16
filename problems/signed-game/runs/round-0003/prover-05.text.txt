@@ -1,0 +1,40 @@
+Ideas
+- Strengthen the “uniform guarantee ⇔ DAG” classification with a robust obstruction lemma using dominant signed cycles (addresses extra out-neighbors and nonzero-support constraints).
+- Classify universally PNE-admitting (UPA) SCCs for functional digraphs (outdegree ≤ 1) by cycle sign; give a constructive algorithm. This adds a new, fully-characterized UPA family beyond undirected/structurally balanced.
+- Provide a linear-time feasibility test for structural balance (directed sense used here) via parity constraints.
+
+Lemma A (Dominant negative directed cycle obstructs PNE)
+Let G=(V,E) contain a directed cycle C=(i_1→i_2→…→i_k→i_1). Fix any nonzero weights on edges not in C; for edges in C choose weights W_{i_r,i_{r+1}} = s_r L with s_r∈{±1} and ∏_{r=1}^k s_r = −1, and choose L > 2∑_{r=1}^k ∑_{j≠i_{r+1}} |W_{i_r j}|. Set h=0. Then the SNC game has no pure Nash equilibrium.
+Proof. For any profile x, at each i_r,
+sgn(h_{i_r} + ∑_j W_{i_r j} x_j) = sgn( s_r L x_{i_{r+1}} + η_r ), with |η_r| ≤ ∑_{j≠i_{r+1}} |W_{i_r j}| < L/2.
+Hence the best response is uniquely x_{i_r} = s_r x_{i_{r+1}} (no tie). Composing around C yields x_{i_1} = (∏ s_r) x_{i_1} = −x_{i_1}, a contradiction. ∎
+Corollary. If a dependency digraph contains a directed cycle, there exists W (supported on E) and h such that no PNE exists (take the construction above). This yields the necessity direction in the uniform guarantee ⇔ DAG theorem, even when edges not on the cycle must remain nonzero.
+
+Theorem B (Uniform guarantee ⇔ DAG, refined)
+A dependency digraph guarantees a PNE for every real W (zero diagonal, supported on E) and every h iff it is acyclic. Sufficiency by backward induction; necessity by Lemma A.
+
+UPA SCCs for functional digraphs
+Definition. G is functional if every row of W has ≤1 nonzero entry (outdegree ≤1). Each SCC is either a single node or a single directed cycle.
+Proposition C (Functional SCCs are UPA ⇔ cycle-sign positive)
+Let U be an SCC of a functional digraph. If U is a singleton, trivially UPA. Otherwise U is a directed k-cycle with weights a_r=W_{i_r,i_{r+1}}≠0.
+Then the induced subgame on U is universally PNE-admitting (for all external fields f∈ℝ^U) iff ∏_{r=1}^k sgn(a_r)=+1. In this case, a PNE exists for all f; if the product is −1, take f=0 to get no PNE.
+Proof. Necessity: with f=0 and negative product, the BR constraints are x_{i_r}=sgn(a_r)x_{i_{r+1}}, impossible. Sufficiency: choose σ on U with σ_{i_{r+1}}=σ_{i_r} sgn(a_r), consistent as the product is +1; then [σ]W_{UU}[σ] has all cycle weights |a_r|>0 (unsigned). For any f, the transformed restricted subgame is an unsigned network coordination game (supermodular), hence admits a PNE; map back via x=[σ]y preserves PNE (Lemma in the paper). ∎
+Corollary D (Functional digraphs are UPA ⇔ all cycle-signs positive)
+Every SCC is a singleton or a directed cycle. Apply Proposition C to each SCC; the SCC-wise composition theorem then yields existence for all h.
+Algorithm (constructive): decompose into SCCs (linear time), check each directed cycle’s sign product, and if all positive, compute a PNE by solving cycles after a gauge (unsigned) and then trees feeding into them by backward induction.
+
+Lemma E (Linear-time structural balance test)
+Given directed signed G, decide if ∃σ∈{±1}^V with [σ]W[σ]≥0. For each edge (i,j), impose the parity constraint σ_i σ_j = sgn(W_{ij}) (require same sign for positive edges, opposite for negative). View constraints on the undirected skeleton. BFS/DFS propagation from arbitrary seeds detects inconsistency in O(|E|). Feasible ⇔ structurally balanced (directed sense). This realizes the gauge existence in Lemma 2 of the paper algorithmically.
+
+Examples
+- Functional positive cycle (UPA): 1→2→3→1 with signs (+,+,+); any f admits a PNE; construct via σ=+1 and unsigned cycle.
+- Functional negative cycle (non-UPA): 1→2→3→1 with signs (+,+,−); f=0 gives no PNE.
+- Uniform obstruction on general digraph: any directed cycle allows the dominant-negative-cycle construction (Lemma A) to kill PNE for some W,h.
+
+Obstacles
+- UPA classification for general SCCs beyond undirected or structurally balanced remains open; functional case gives a complete answer.
+
+Next steps
+- Extend UPA characterization from functional SCCs to “almost functional” (each node has at most one positive out-neighbor after an optimal gauge).
+- Combine Lemma A with cohesive-core conditions to derive graph-local obstructions/guarantees when only a few cycles are negative but heavily biased.
+- Implement an end-to-end checker: DAG? else SCCs; if each SCC is undirected/structurally balanced/functional-positive, construct a PNE by reverse-topological order; else report obstructing cycles or try cohesive-core methods.

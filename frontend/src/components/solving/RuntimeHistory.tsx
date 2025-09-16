@@ -51,10 +51,10 @@ export const RuntimeHistory: React.FC<RuntimeHistoryProps> = ({ status }) => {
         ⏱️ Model Runtime History
       </h4>
       
-      <div style={{ 
-        maxHeight: '300px',
-        overflowY: status.rounds.length > 3 ? 'auto' : 'visible',
-        paddingRight: status.rounds.length > 3 ? '8px' : '0'
+      <div style={{
+        maxHeight: '400px',
+        overflowY: 'auto',
+        paddingRight: '8px'
       }}>
         {[...status.rounds].reverse().map((round, index) => {
           const roundNum = status.rounds.length - index;

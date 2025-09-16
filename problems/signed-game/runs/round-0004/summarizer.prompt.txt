@@ -1,0 +1,1404 @@
+=== SYSTEM ===
+You are a research **summarizer**. Summarize this *last round only* for a human log.
+
+Include:
+- 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
+- 1–3 **Open questions / TODOs** for the next round.
+- 1–3 **Citations to files** you relied on (e.g. round files or papers by name).
+
+**Return strictly JSON**:
+{
+  "summary_md": "Readable summary of the round (≤200 words)",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
+  "highlights": [],
+  "next_questions": []
+}
+
+=== USER ===
+=== Task (txt) ===
+
+Definitions.
+• A signed network is a graph G = (V, E) where each edge has a
+weight wuv ∈ R (can be negative). Each vertex i ∈ V is a player
+who chooses an action xi ∈ {−1, +1}.
+• The utility of i ∈ V is given by a function that depends on the
+weights and actions. Typical examples:
+• pure anti-coordination (all weights = −1):
+ui(xi) = |j ∈ N(i) : xj ̸= xi|
+• signed payoff (binary actions xi ∈ {±1}):
+ui(xi) = \sum_{j∈N(i)} (w_{ij} \cdot x_i \cdot x_j)
+
+• A strategy X is a pure Nash equilibrium (or stable coloring) if
+no vertex can change its action and strictly increase its utility.
+
+Question: Identify graphs that guarantee the existence of a pure
+Nash equilibrium in signed coordination games.
+
+
+=== Notes ===
+
+# Research Notes
+
+
+
+Added identified PNE-guaranteeing graph classes for signed network coordination (SNC) games (binary actions):
+
+- Undirected graphs (W symmetric): exact potential → PNE exist; a BR-stable subset exists (per paper).
+- Unsigned graphs (W≥0): supermodular → PNE exist; global I-reachability implies BR-reachability in binary.
+- Structurally balanced directed graphs: ∃σ with [σ]W[σ]≥0 (definition here: bipartition V=V1⊔V2 with W_ij≥0 within parts and ≤0 across). Gauge to unsigned → supermodular → PNE exist.
+- DAG dependency digraphs (i→j iff W_ij≠0): backward induction from sinks constructs a PNE; BR-path mimics the order.
+- SCC composition: If every SCC is “universally PNE-admitting under arbitrary external fields” (e.g., undirected or structurally balanced), then the whole game has a PNE; construct by solving SCCs in reverse topological order.
+- Cohesive cores (from paper): If R is unsigned (or structurally balanced after a signature τ) and satisfies w_i^R + a h_i ≥ w_i^S (or w_i^R + τ_i h_i ≥ w_i^S), and the S-subgame (with R frozen) has a PNE (e.g., S undirected or structurally balanced), then a global PNE exists with x_R fixed (consensus/polarization).
+- Weight-dominance: If |h_i|>∑_j|W_ij| ∀i, then x=sgn(h) is a strict PNE.
+
+Counterexamples: 2-node discoordination (W_12>0, W_21<0) and the directed 3-cycle with all negative arcs both lack PNE.
+
+Key modeling convention: dependency arc i→j iff W_ij≠0 so u_i depends only on its out-neighbors. Structural balance is taken in this directed sense; σ_i=+1 on one part, −1 on the other yields [σ]W[σ]≥0.
+
+Open directions: characterize SCCs that are universally PNE-admitting beyond undirected/structurally-balanced; design a polynomial-time checker; develop end-to-end algorithm: detect DAG, else SCC-decompose, test each SCC, construct PNE by reverse topological order; integrate cohesive-core criteria when some SCCs fail the universal property.
+
+New main guarantee and subclasses
+
+- Graph-level (uniform) guarantee: A dependency digraph guarantees a PNE for all weight matrices W (zero diagonal, supported on E) and all biases h iff it is a DAG. Necessity: any directed cycle can be given edge signs with product −1 and h=0 to force contradictory BR constraints and destroy PNE; sufficiency: backward induction.
+- SCC composition remains the core construction: if each SCC is universally PNE-admitting (UPA) for arbitrary external fields (e.g., undirected or structurally balanced in the directed sense ∃σ with [σ]W[σ]≥0), then a global PNE exists with a BR-path by reverse topological order.
+- Two-player UPA classification: a 2-node SCC is UPA iff W_{12} and W_{21} have the same sign (including zeros). This forbids “matching-pennies digons.”
+- Diagnostic cycle criteria: (i) Dominant negative directed cycle (each edge weight exceeds all other influences at its tail) ⇒ no PNE. (ii) Dominant positive directed cycle ⇒ exactly two internal PNE on that cycle, independent of external fields.
+- Additional subclasses covered by SCC composition: (a) Forest underlying undirected graph with sign-symmetric digons (only SCCs are singletons or sign-symmetric digons) ⇒ PNE. (b) Functional digraphs (outdegree ≤1) with all directed cycles sign-positive ⇒ PNE for all h; necessity within this class: a negative cycle obstructs PNE at h=0.
+
+Algorithmic pipeline (draft): (1) If DAG, construct PNE by backward pass. (2) Else, decompose into SCCs; per SCC check symmetry or structural balance (cycle-parity after switching). If all pass ⇒ construct by reverse order. (3) Otherwise, test functional/forest subclasses or use cohesive-core conditions; otherwise, report obstructions (e.g., dominant negative cycles).
+
+Additions to PNE-guaranteeing classes and diagnostics (binary SNC games, i→j iff W_ij≠0)
+
+- Functional digraphs (outdegree ≤ 1): An SCC is universally PNE-admitting (UPA) for all external fields iff every directed cycle has positive sign (product of edge signs +1). Proof: path-product signature σ makes internal arcs nonnegative; unsigned subgame ⇒ supermodular ⇒ PNE for all fields; negative cycle yields a contradiction at h=0. Whole-graph existence follows by SCC composition. Note: uniform in h for fixed W; not a graph-only guarantee over all W.
+- Two-node SCCs: UPA ⇔ W_{12}W_{21}≥0 (forbids matching-pennies digons). Switch to unsigned via σ when both are negative.
+- Forests with sign-symmetric digons: Only SCCs are singletons/sign-symmetric digons, hence UPA; SCC composition yields a PNE.
+- Directed structural balance (SCC): ∃σ with [σ]W_{UU}[σ]≥0 iff every directed cycle in U has positive sign; checkable in O(|U|+|E|) by parity labeling.
+- Dominant negative directed cycles: If on a directed cycle each edge weight exceeds the sum of all other influences at its tail and the cycle sign product is −1, then no PNE (robust obstruction). Dominant positive cycles force two internal PNE.
+
+Pipeline (updated): (1) If DAG ⇒ build PNE by backward pass. (2) Else SCC-decompose. For each SCC U: test symmetry (exact potential) or structural balance (parity via switching); if functional, test positive cycles; if all SCCs are UPA ⇒ construct PNE by reverse topological order. Otherwise, attempt cohesive-core criteria or report obstructions (e.g., dominant negative cycles).
+
+New modules added
+
+- Multi-core cohesive existence: Partition V=R^1⊔⋯⊔R^m⊔S. For each block R^t, assume there exists τ^{(t)} with G_{R^t}^{[τ^{(t)}]} unsigned and the cohesiveness inequalities w_i^{R^t}+τ_i^{(t)}h_i ≥ w_i^{V\R^t} for all i∈R^t. If the S-restricted game with R frozen at τ_R admits a PNE, then the full game has a PNE with x_{R^t}=τ^{(t)} for all t. Proof by global gauge [σ] fixing each R^t to +1; within blocks W^{[σ]}≥0 and Δ_i ≥ 2(h_i^{[σ]}+w_i^{R^t} − w_i^{V\R^t}) ≥ 0.
+
+- Monotone bounded-length BR paths in unsigned components: Starting from −1_U, flipping any i with positive marginal yields a monotone BR path of length ≤|U| to a PNE. Under SCC composition after gauging each SCC to unsigned, a BR path to a global PNE has length ≤∑_k |U_k|.
+
+- Forests with sign-symmetric digons: Underlying undirected forest and every digon {i,j} has sgn(W_{ij})=sgn(W_{ji}). Then SCCs are singletons or 2-node symmetric digons (UPA), so a PNE exists for all h by SCC composition.
+
+- Structural balance (directed SCC): ∃σ with [σ]W_{UU}[σ]≥0 iff every directed cycle in U has positive sign; linear-time parity labeling.
+
+- Dominant negative cycles: If on a directed cycle C each main edge dominates (|W_{i s(i)}| greater than the sum of other outgoing magnitudes and |h_i|) and the cycle sign product is −1, then no PNE (robust nonexistence certificate).
+
+Notes: Functional/SCC UPA results are uniform in h for fixed W. Counting of PNE on functional cycles is exact (two) when all nodes are strictly responsive (|h_i|<|w_i|); with ties, treat counts as lower bounds; existence still holds.
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+Main Results
+
+We identify graph classes for which every signed network coordination game with binary actions x_i∈{±1} and utilities u_i(x)=h_i x_i + x_i∑_j W_{ij}x_j admits a pure Nash equilibrium (PNE). The dependency arc i→j is present iff W_{ij}≠0, so u_i depends only on its out-neighbors.
+
+1) Directed acyclic dependency graphs (DAGs)
+Theorem (DAG ⇒ PNE). If the dependency digraph is acyclic, then for any real weights W and bias vector h, the game admits a PNE. Moreover, a best-response (BR) path to it exists.
+Proof. Take a topological order v_1,…,v_n with i→j ⇒ i<j. Construct x by backward induction: for k=n,…,1 pick x_{v_k}∈argmax_{a∈{±1}} a(h_{v_k}+∑_{j>k}W_{v_k j}x_{v_j}). Because u_{v_k} depends only on out-neighbors v_j with j>k (already fixed), x_{v_k} is a best response in the final profile. Updating players in order n,n−1,…,1 yields a BR-path to this PNE.
+
+2) SCC-wise composition under per-component PNE admissibility
+Definition (Universally PNE-admitting component). An induced subgame on U⊆V is universally PNE-admitting if for every external field f∈ℝ^U the game with utilities u_i(y)=y_i(∑_{j∈U}W_{ij}y_j+f_i) admits a PNE.
+Examples. (a) Undirected W_{ij}=W_{ji} on U: exact potential ⇒ PNE for all f. (b) Structurally balanced on U: ∃σ_U with [σ_U]W_{UU}[σ_U]≥0; after y↦[σ_U]y the game is unsigned (supermodular) ⇒ PNE for all f; mapping back preserves PNE.
+
+Theorem (SCC composition ⇒ PNE). Let C_1,…,C_m be the SCCs of the dependency digraph ordered so edges go only from C_k to C_ℓ with k<ℓ. If each induced subgame on C_k is universally PNE-admitting (e.g., undirected or structurally balanced), then for any W,h the full game admits a PNE. A BR-path exists.
+Proof. Process SCCs in reverse topological order. For the sink C_m, u_i depends only on x_{C_m} and h, so pick a PNE x^*_{C_m}. Suppose x^*_{C_{k+1}},…,x^*_{C_m} are fixed. For i∈C_k, u_i(x)=x_i(∑_{j∈C_k}W_{ij}x_j)+x_i(h_i+∑_{j∉C_k}W_{ij}x^*_j). Treat f^{(k)}=h_{C_k}+W_{C_k,>k}x^*_{>k} as an external field. By the hypothesis on C_k, choose a PNE x^*_{C_k}. The concatenation x^*=(x^*_{C_1},…,x^*_{C_m}) is a PNE since each i∈C_k depends only on x_{C_k} and later components (fixed when x^*_{C_k} was chosen). Concatenating BR-paths inside C_m,C_{m−1},…,C_1 yields a global BR-path.
+
+Discussion and relevance
+- The DAG result is a clean, graph-theoretic guarantee that covers arbitrary signs and weights.
+- The SCC composition theorem modularizes PNE existence: it suffices to certify each SCC as universally PNE-admitting (e.g., undirected or structurally balanced). This strictly includes DAGs (all SCCs are singletons) and globally undirected/structurally balanced graphs as special cases, and provides a constructive method to build a PNE by solving SCCs from sinks upward.
+
+3) Graph-level classification (uniform guarantee)
+Theorem (Uniform guarantee ⇔ DAG). A dependency digraph guarantees a PNE for every real weight matrix W (zero diagonal, supported on the digraph) and every bias vector h∈ℝ^V if and only if it is acyclic (a DAG).
+Proof. If acyclic, a PNE exists by backward induction along a topological order (item 1). Conversely, if there is a directed cycle C, choose h=0 and put nonzero weights only on C with an odd number of negative signs so that the product of edge signs is −1. Then the best-response constraints along C force x_i = s_i x_{succ(i)} with ∏ s_i = −1, which is inconsistent, so no PNE exists. Hence only DAGs provide a uniform guarantee over all W,h.
+
+4) Functional digraphs (outdegree ≤ 1)
+Theorem (UPA ⇔ all directed cycles positive). Suppose each vertex has outdegree ≤1. Decompose the graph into SCCs; each SCC is either a singleton or a directed simple cycle. The game admits a PNE for every bias vector h (uniform in h) if and only if every directed cycle C has positive sign product ∏_{(i→j)∈C} sgn(W_{ij})=+1. A best-response path to a PNE exists.
+Proof. For a cycle C, if the sign product is +1, there exists a signature σ with [σ]W[σ] nonnegative on C, so the restricted subgame on C is unsigned (supermodular) and admits a PNE for any external field; if the product is −1, with h=0 the best-response constraints around C are inconsistent, so no PNE exists. Singletons are trivial. Process SCCs in reverse topological order: choose a PNE for each sink cycle, then for upstream singletons set their action as a best response to their unique successor. Concatenation yields a global PNE; concatenating within-SCC BR-paths gives a BR-path in the full game.
+
+5) Forests with sign-symmetric digons
+Corollary. If the underlying undirected graph is a forest and, for every undirected edge {i,j}, either exactly one arc exists or both arcs exist with the same sign (sgn(W_{ij})=sgn(W_{ji})), then for any h the game admits a PNE, and a BR-path to it exists.
+Proof. Each SCC is either a singleton or a 2-node digon. Singletons are trivial; a 2-node digon with same-sign arcs satisfies W_{12}W_{21}≥0 and is universally PNE-admitting (after a signature, the 2-player subgame is unsigned and supermodular). Contracting SCCs yields a DAG; by SCC composition (item 2), selecting per-SCC PNEs in reverse topological order gives a global PNE and a BR-path.
+
+
+=== Verifier Summary ===
+
+Validated: (a) multi-core cohesive existence (with minor proof corrections), (b) bounded-length monotone BR paths in unsigned (and gauged) SCCs, (c) forests with sign-symmetric digons ⇒ PNE via SCC composition, (d) structural-balance parity checker and dominant negative cycle obstruction. We added rigorous proofs for (a) and (b) to proofs.md and a concise forest corollary to output.md. Next: characterize further UPA SCCs and implement the full checker/constructor pipeline.
+
+
+=== Current Notes ===
+
+# Research Notes
+
+
+
+Added identified PNE-guaranteeing graph classes for signed network coordination (SNC) games (binary actions):
+
+- Undirected graphs (W symmetric): exact potential → PNE exist; a BR-stable subset exists (per paper).
+- Unsigned graphs (W≥0): supermodular → PNE exist; global I-reachability implies BR-reachability in binary.
+- Structurally balanced directed graphs: ∃σ with [σ]W[σ]≥0 (definition here: bipartition V=V1⊔V2 with W_ij≥0 within parts and ≤0 across). Gauge to unsigned → supermodular → PNE exist.
+- DAG dependency digraphs (i→j iff W_ij≠0): backward induction from sinks constructs a PNE; BR-path mimics the order.
+- SCC composition: If every SCC is “universally PNE-admitting under arbitrary external fields” (e.g., undirected or structurally balanced), then the whole game has a PNE; construct by solving SCCs in reverse topological order.
+- Cohesive cores (from paper): If R is unsigned (or structurally balanced after a signature τ) and satisfies w_i^R + a h_i ≥ w_i^S (or w_i^R + τ_i h_i ≥ w_i^S), and the S-subgame (with R frozen) has a PNE (e.g., S undirected or structurally balanced), then a global PNE exists with x_R fixed (consensus/polarization).
+- Weight-dominance: If |h_i|>∑_j|W_ij| ∀i, then x=sgn(h) is a strict PNE.
+
+Counterexamples: 2-node discoordination (W_12>0, W_21<0) and the directed 3-cycle with all negative arcs both lack PNE.
+
+Key modeling convention: dependency arc i→j iff W_ij≠0 so u_i depends only on its out-neighbors. Structural balance is taken in this directed sense; σ_i=+1 on one part, −1 on the other yields [σ]W[σ]≥0.
+
+Open directions: characterize SCCs that are universally PNE-admitting beyond undirected/structurally-balanced; design a polynomial-time checker; develop end-to-end algorithm: detect DAG, else SCC-decompose, test each SCC, construct PNE by reverse topological order; integrate cohesive-core criteria when some SCCs fail the universal property.
+
+New main guarantee and subclasses
+
+- Graph-level (uniform) guarantee: A dependency digraph guarantees a PNE for all weight matrices W (zero diagonal, supported on E) and all biases h iff it is a DAG. Necessity: any directed cycle can be given edge signs with product −1 and h=0 to force contradictory BR constraints and destroy PNE; sufficiency: backward induction.
+- SCC composition remains the core construction: if each SCC is universally PNE-admitting (UPA) for arbitrary external fields (e.g., undirected or structurally balanced in the directed sense ∃σ with [σ]W[σ]≥0), then a global PNE exists with a BR-path by reverse topological order.
+- Two-player UPA classification: a 2-node SCC is UPA iff W_{12} and W_{21} have the same sign (including zeros). This forbids “matching-pennies digons.”
+- Diagnostic cycle criteria: (i) Dominant negative directed cycle (each edge weight exceeds all other influences at its tail) ⇒ no PNE. (ii) Dominant positive directed cycle ⇒ exactly two internal PNE on that cycle, independent of external fields.
+- Additional subclasses covered by SCC composition: (a) Forest underlying undirected graph with sign-symmetric digons (only SCCs are singletons or sign-symmetric digons) ⇒ PNE. (b) Functional digraphs (outdegree ≤1) with all directed cycles sign-positive ⇒ PNE for all h; necessity within this class: a negative cycle obstructs PNE at h=0.
+
+Algorithmic pipeline (draft): (1) If DAG, construct PNE by backward pass. (2) Else, decompose into SCCs; per SCC check symmetry or structural balance (cycle-parity after switching). If all pass ⇒ construct by reverse order. (3) Otherwise, test functional/forest subclasses or use cohesive-core conditions; otherwise, report obstructions (e.g., dominant negative cycles).
+
+Additions to PNE-guaranteeing classes and diagnostics (binary SNC games, i→j iff W_ij≠0)
+
+- Functional digraphs (outdegree ≤ 1): An SCC is universally PNE-admitting (UPA) for all external fields iff every directed cycle has positive sign (product of edge signs +1). Proof: path-product signature σ makes internal arcs nonnegative; unsigned subgame ⇒ supermodular ⇒ PNE for all fields; negative cycle yields a contradiction at h=0. Whole-graph existence follows by SCC composition. Note: uniform in h for fixed W; not a graph-only guarantee over all W.
+- Two-node SCCs: UPA ⇔ W_{12}W_{21}≥0 (forbids matching-pennies digons). Switch to unsigned via σ when both are negative.
+- Forests with sign-symmetric digons: Only SCCs are singletons/sign-symmetric digons, hence UPA; SCC composition yields a PNE.
+- Directed structural balance (SCC): ∃σ with [σ]W_{UU}[σ]≥0 iff every directed cycle in U has positive sign; checkable in O(|U|+|E|) by parity labeling.
+- Dominant negative directed cycles: If on a directed cycle each edge weight exceeds the sum of all other influences at its tail and the cycle sign product is −1, then no PNE (robust obstruction). Dominant positive cycles force two internal PNE.
+
+Pipeline (updated): (1) If DAG ⇒ build PNE by backward pass. (2) Else SCC-decompose. For each SCC U: test symmetry (exact potential) or structural balance (parity via switching); if functional, test positive cycles; if all SCCs are UPA ⇒ construct PNE by reverse topological order. Otherwise, attempt cohesive-core criteria or report obstructions (e.g., dominant negative cycles).
+
+New modules added
+
+- Multi-core cohesive existence: Partition V=R^1⊔⋯⊔R^m⊔S. For each block R^t, assume there exists τ^{(t)} with G_{R^t}^{[τ^{(t)}]} unsigned and the cohesiveness inequalities w_i^{R^t}+τ_i^{(t)}h_i ≥ w_i^{V\R^t} for all i∈R^t. If the S-restricted game with R frozen at τ_R admits a PNE, then the full game has a PNE with x_{R^t}=τ^{(t)} for all t. Proof by global gauge [σ] fixing each R^t to +1; within blocks W^{[σ]}≥0 and Δ_i ≥ 2(h_i^{[σ]}+w_i^{R^t} − w_i^{V\R^t}) ≥ 0.
+
+- Monotone bounded-length BR paths in unsigned components: Starting from −1_U, flipping any i with positive marginal yields a monotone BR path of length ≤|U| to a PNE. Under SCC composition after gauging each SCC to unsigned, a BR path to a global PNE has length ≤∑_k |U_k|.
+
+- Forests with sign-symmetric digons: Underlying undirected forest and every digon {i,j} has sgn(W_{ij})=sgn(W_{ji}). Then SCCs are singletons or 2-node symmetric digons (UPA), so a PNE exists for all h by SCC composition.
+
+- Structural balance (directed SCC): ∃σ with [σ]W_{UU}[σ]≥0 iff every directed cycle in U has positive sign; linear-time parity labeling.
+
+- Dominant negative cycles: If on a directed cycle C each main edge dominates (|W_{i s(i)}| greater than the sum of other outgoing magnitudes and |h_i|) and the cycle sign product is −1, then no PNE (robust nonexistence certificate).
+
+Notes: Functional/SCC UPA results are uniform in h for fixed W. Counting of PNE on functional cycles is exact (two) when all nodes are strictly responsive (|h_i|<|w_i|); with ties, treat counts as lower bounds; existence still holds.
+
+
+=== Current Proofs ===
+
+# Rigorous Proofs
+
+
+
+Definitions. Let G=(V,E,W) be a directed signed network with binary actions x_i∈{±1} and utilities u_i(x)=h_i x_i + x_i ∑_j W_{ij} x_j. The dependency arc i→j is present iff W_{ij}≠0, so u_i depends only on its out-neighbors.
+
+Lemma 1 (Undirected ⇒ exact potential). If W is symmetric, the game is an exact potential game with Φ(x)=1/2∑_{i,j} W_{ij} x_i x_j + ∑_i h_i x_i. Hence a PNE exists.
+Proof. If x,y differ only at i with y_i=−x_i, Φ(y)−Φ(x)=2(h_i+∑_j W_{ij}x_j)x_i = u_i(y)−u_i(x). Finite exact potential games admit PNE.
+
+Lemma 2 (Unsigned ⇒ supermodular). If W_{ij}≥0 for all i,j, then for δ_i(x)=u_i(+1,x_{−i})−u_i(−1,x_{−i})=2h_i+2∑_j W_{ij}x_j and x≤y, δ_i(y)−δ_i(x)=2∑_j W_{ij}(y_j−x_j)≥0, so the game has increasing differences and admits a PNE.
+
+Lemma 3 (Gauge transform and Nash correspondence). For σ∈{±1}^V, define [σ] diagonal, W^{[σ]}=[σ]W[σ], h^{[σ]}=[σ]h. Then u_i^{[σ]}(x)=u_i([σ]x). Consequently, y is a PNE in the [σ]-transformed game iff x=[σ]y is a PNE in the original game.
+Proof. u_i^{[σ]}(x)=x_i(∑_j W^{[σ]}_{ij}x_j)+h^{[σ]}_i x_i = u_i([σ]x). Best-response sets transform via multiplication by σ_i.
+
+Lemma 4 (Directed structural balance ⇔ unsigned via gauge). Suppose V admits a bipartition V=V_1⊔V_2 with W_{ij}≥0 for i,j in the same part and W_{ij}≤0 across parts. Let σ_i=+1 on V_1, σ_i=−1 on V_2. Then W^{[σ]}=[σ]W[σ] is entrywise nonnegative. Conversely, if ∃σ with W^{[σ]}≥0, the induced bipartition by σ has nonnegative within-part and nonpositive across-part weights.
+
+Theorem 1 (DAGs guarantee PNE). If the dependency digraph is acyclic, then for any W,h the game admits a PNE; moreover a BR-path to it exists.
+Proof. Let v_1,…,v_n be a topological order with i→j ⇒ i<j. For k=n,…,1, pick x_{v_k}∈argmax_{a∈{±1}} a(h_{v_k}+∑_{j>k}W_{v_k j}x_{v_j}). Each u_{v_k} depends only on x_{v_j} with j>k, which are already fixed, so x_{v_k} is a best response in the final profile. Updating players in order n,n−1,…,1 yields a BR-path to the constructed PNE.
+
+Theorem 2 (SCC-wise composition). Let C_1,…,C_m be the strongly connected components (SCCs) of the dependency digraph ordered so edges go only from C_k to C_ℓ with k<ℓ. Suppose each induced subgame on C_k admits a PNE for every external field (equivalently here: each C_k is either undirected or structurally balanced). Then the full game admits a PNE; a BR-path exists.
+Proof. Proceed by reverse topological order. For C_m (a sink SCC), utilities of i∈C_m depend only on x_{C_m} and h, so by the hypothesis on C_m there exists a PNE x^*_{C_m}. Suppose x^*_{C_{k+1}},…,x^*_{C_m} fixed. For i∈C_k, u_i(x)=x_i(∑_{j∈C_k}W_{ij}x_j) + x_i(h_i+∑_{j∉C_k}W_{ij}x^*_j). Treating f^{(k)}=h_{C_k}+W_{C_k,>k}x^*_{>k} as an external field, by the hypothesis on C_k there is a PNE x^*_{C_k}. Concatenate x^*=(x^*_{C_1},…,x^*_{C_m}). For i∈C_k, u_i depends only on x_{C_k} and on x in later SCCs, which are exactly those fixed when x^*_{C_k} was chosen; hence each i is best responding in x^*. A BR-path is obtained by concatenating BR-paths inside C_m,C_{m−1},…,C_1, holding later components fixed at each stage.
+
+Corollary 2.1. If each SCC is undirected (exact potential) or structurally balanced (via Lemma 4 and Lemma 2), then the hypothesis of Theorem 2 holds, so a PNE exists and is BR-reachable.
+
+Remark. The DAG case is the special case when all SCCs are singletons. Lemma 4 plus Lemma 3 ensures structurally balanced components remain PNE-admitting under arbitrary external fields.
+
+Theorem 3 (Weight-dominance). If |h_i|>∑_j |W_{ij}| ∀i, then x_i=sgn(h_i) defines a strict PNE.
+Proof. For any x_{−i}, the sign maximizing u_i is sgn(h_i+∑_j W_{ij} x_j)=sgn(h_i), because |∑_j W_{ij} x_j|<|h_i|. Hence each player has a unique best response equal to sgn(h_i).
+
+Theorem (Uniform graph-level classification: PNE for all W,h iff DAG).
+Let G=(V,E) be the dependency digraph (i→j iff W_{ij}≠0). The following are equivalent:
+(i) For every weight matrix W with zero diagonal supported on E and every h∈ℝ^V, the SNC game u_i(x)=h_i x_i + x_i∑_j W_{ij} x_j admits a pure Nash equilibrium.
+(ii) G is acyclic (a DAG).
+Proof. (ii⇒i) Topologically order v_1,…,v_n so i→j implies i<j. Construct x by backward induction k=n,…,1, setting x_{v_k}∈argmax_{a∈{±1}} a(h_{v_k}+∑_{j>k}W_{v_k j}x_{v_j}). Each u_{v_k} depends only on already fixed out-neighbors, hence x is a PNE.
+(i⇒ii) Suppose G has a directed cycle C=(i_1→…→i_k→i_1). Choose h=0 and set all off-cycle weights to 0. On C, choose nonzero W so that the product of edge signs ∏_{ℓ=1}^k sgn(W_{i_ℓ,i_{ℓ+1}}) = −1 (e.g., choose an odd number of negative edges). For any profile x, a best response at i_ℓ requires x_{i_ℓ}=sgn(W_{i_ℓ,i_{ℓ+1}}) x_{i_{ℓ+1}}. Any PNE would satisfy all k constraints, whose product yields x_{i_1}=(∏ sgn) x_{i_1}=−x_{i_1}, impossible. Hence there exist W,h with no PNE, contradicting (i). ∎
+
+Proposition (Two-player UPA classification).
+Let U={1,2} and consider the induced subgame with weights a=W_{12}, b=W_{21}. The subgame on U admits a PNE for every external field f∈ℝ^U iff ab≥0.
+Proof. If ab≥0 and at least one of a,b is zero, one player’s utility is independent of the other’s action; the other has a linear term; a PNE exists for all f. If a,b>0, the 2-player game is supermodular (unsigned) and thus has a PNE for all f. If a,b<0, apply σ=(1,−1) to make both off-diagonals nonnegative; by gauge equivalence, the transformed unsigned game has a PNE for all f, and mapping back preserves PNE. Conversely, if ab<0, with f=(0,0) the subgame is the 2-player discoordination (matching pennies) and has no PNE. Hence UPA ⇔ ab≥0. ∎
+
+Lemma (Single directed cycle is UPA iff positive sign product).
+Let C=(1→2→…→k→1) with W_{i,i+1}≠0 on cycle edges and no other internal edges; external field f arbitrary. Then the restricted subgame on C admits a PNE for every f iff ∏_{i=1}^k sgn(W_{i,i+1})=+1.
+Proof. If the product is −1, set f=0; best responses enforce x_i=sgn(W_{i,i+1})x_{i+1}, whose product implies x_1=−x_1, impossible. If the product is +1, choose σ with σ_iσ_{i+1}=sgn(W_{i,i+1}). Then [σ]W has W^{[σ]}_{i,i+1}=|W_{i,i+1}|≥0, so the transformed subgame is unsigned and supermodular; for any f^{[σ]}=[σ]f it admits a PNE. Mapping back via x=[σ]y preserves PNE. ∎
+
+Theorem (Functional digraphs: UPA ⇔ all directed cycles are positive).
+Assume outdegree ≤1 for all i. Let U be an SCC. If U is a singleton, the restricted subgame is trivially UPA. Otherwise U is a directed simple cycle. By the Lemma, the restricted subgame on U is UPA iff its cycle sign product is +1. For the whole graph, order SCCs in reverse topological order (condensation DAG). For sinks (cycles), pick a PNE for the restricted subgame (exists for all external fields). For predecessors, the external field induced by already fixed successors is constant; since each predecessor SCC is either a singleton (trivial) or a cycle with positive product (UPA), choose a PNE. Concatenation yields a global PNE; a BR-path is obtained by concatenating within-SCC BR-paths from sinks upwards. Conversely, if some directed cycle has negative sign product, set h=0 and restrict to that cycle; by the Lemma there is no PNE; thus the SCC (and the whole game) is not UPA. ∎
+
+Lemma (Dominant negative directed cycle obstruction).
+Let C=(i_1→…→i_L→i_1) with edge signs s_k=sgn(W_{i_k,i_{k+1}}) and product ∏ s_k=−1. Suppose for each k, |W_{i_k,i_{k+1}}| > |h_{i_k}| + ∑_{j≠i_{k+1}} |W_{i_k j}|. Then no PNE exists.
+Proof. For any profile x, S_k=h_{i_k}+∑_j W_{i_k j}x_j has sign sgn(W_{i_k,i_{k+1}}x_{i_{k+1}}), hence best response enforces x_{i_k}=s_k x_{i_{k+1}}. Multiplying around C yields x_{i_1}=−x_{i_1}, a contradiction. ∎
+
+Theorem (Multi-core cohesive existence).
+Let V=R^1⊔⋯⊔R^m⊔S. For each t, suppose there exists τ^{(t)}∈{±1}^{R^t} such that (i) G_{R^t}^{[τ^{(t)}]} is unsigned (i.e., τ_i^{(t)} W_{ij} τ_j^{(t)} ≥ 0 for i,j∈R^t), and (ii) w_i^{R^t} + τ_i^{(t)} h_i ≥ w_i^{V\R^t} for all i∈R^t. Let τ_R be the concatenation of τ^{(t)} and assume the S-restricted game with R frozen at τ_R admits a PNE z^*. Then the full game admits a PNE x^* with x^*_{R^t}=τ^{(t)} for all t and x^*_S=z^*.
+Proof. Define σ by σ_i=τ_i^{(t)} if i∈R^t and σ_i=1 if i∈S. Consider the [σ]-transformed game; h_i^{[σ]}=σ_i h_i and (W_{R^t R^t})^{[σ]}≥0 for each t. By the hypothesis on S, z^* is a PNE of the S-restricted transformed game with R fixed at 1_R. For i∈R^t, with x_R=1_R and x_S=z^*, the best-response marginal is
+Δ_i = 2(h_i^{[σ]} + ∑_{j∈R^t} W^{[σ]}_{ij}·1 + ∑_{j∉R^t} W^{[σ]}_{ij} x_j).
+Since W^{[σ]}_{R^t R^t}≥0, the internal sum equals ∑_{j∈R^t} W^{[σ]}_{ij} = ∑_{j∈R^t} |W_{ij}| = w_i^{R^t}. Moreover |∑_{j∉R^t} W^{[σ]}_{ij} x_j| ≤ ∑_{j∉R^t} |W_{ij}| = w_i^{V\R^t}. Hence Δ_i ≥ 2(h_i^{[σ]} + w_i^{R^t} − w_i^{V\R^t}) ≥ 0 by (ii). Thus +1∈B_i in the transformed game for all i∈R^t. Since z^* is a PNE on S under 1_R, x̃^*=(1_R,z^*) is a PNE of the transformed game. Mapping back via x^*=[σ]x̃^* gives a PNE with the stated coordinates. ∎
+
+Lemma (Monotone bounded-length BR-path in unsigned subgames).
+Let U⊆V and suppose W_{ij}≥0 for all i,j∈U; fix any external field f∈ℝ^U. There is a BR-path from −1_U to a PNE of the U-restricted game of length ≤|U|, monotone nondecreasing coordinatewise.
+Proof. Define Δ_i(x)=2(f_i+∑_{j∈U} W_{ij}x_j), which is nondecreasing in x when W≥0. Starting at y^{(0)}=−1_U, while some Δ_i(y^{(k)})>0, flip i to +1 to obtain y^{(k+1)}. Monotonicity implies coordinates never flip back, so after at most |U| flips no Δ_i>0 remains. At termination, any i with y_i=+1 has Δ_i≥0 and any with y_i=−1 has Δ_i≤0, so y is a PNE. Each step is a best response. ∎
+
+Corollary (BR-path length bound under SCC composition with unsigned SCCs).
+Let U_1,…,U_m be SCCs in reverse topological order of the condensation DAG. Suppose for each k there exists σ^{(k)} with (W_{U_k U_k})^{[σ^{(k)}]}≥0 (e.g., U_k structurally balanced). Fix h. Sequentially gauge each U_k and apply the lemma to find a BR-path within U_k (with external fields induced by later SCCs) of length ≤|U_k|. Concatenating yields a BR-path to a global PNE of total length ≤∑_k |U_k|. ∎
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+Main Results
+
+We identify graph classes for which every signed network coordination game with binary actions x_i∈{±1} and utilities u_i(x)=h_i x_i + x_i∑_j W_{ij}x_j admits a pure Nash equilibrium (PNE). The dependency arc i→j is present iff W_{ij}≠0, so u_i depends only on its out-neighbors.
+
+1) Directed acyclic dependency graphs (DAGs)
+Theorem (DAG ⇒ PNE). If the dependency digraph is acyclic, then for any real weights W and bias vector h, the game admits a PNE. Moreover, a best-response (BR) path to it exists.
+Proof. Take a topological order v_1,…,v_n with i→j ⇒ i<j. Construct x by backward induction: for k=n,…,1 pick x_{v_k}∈argmax_{a∈{±1}} a(h_{v_k}+∑_{j>k}W_{v_k j}x_{v_j}). Because u_{v_k} depends only on out-neighbors v_j with j>k (already fixed), x_{v_k} is a best response in the final profile. Updating players in order n,n−1,…,1 yields a BR-path to this PNE.
+
+2) SCC-wise composition under per-component PNE admissibility
+Definition (Universally PNE-admitting component). An induced subgame on U⊆V is universally PNE-admitting if for every external field f∈ℝ^U the game with utilities u_i(y)=y_i(∑_{j∈U}W_{ij}y_j+f_i) admits a PNE.
+Examples. (a) Undirected W_{ij}=W_{ji} on U: exact potential ⇒ PNE for all f. (b) Structurally balanced on U: ∃σ_U with [σ_U]W_{UU}[σ_U]≥0; after y↦[σ_U]y the game is unsigned (supermodular) ⇒ PNE for all f; mapping back preserves PNE.
+
+Theorem (SCC composition ⇒ PNE). Let C_1,…,C_m be the SCCs of the dependency digraph ordered so edges go only from C_k to C_ℓ with k<ℓ. If each induced subgame on C_k is universally PNE-admitting (e.g., undirected or structurally balanced), then for any W,h the full game admits a PNE. A BR-path exists.
+Proof. Process SCCs in reverse topological order. For the sink C_m, u_i depends only on x_{C_m} and h, so pick a PNE x^*_{C_m}. Suppose x^*_{C_{k+1}},…,x^*_{C_m} are fixed. For i∈C_k, u_i(x)=x_i(∑_{j∈C_k}W_{ij}x_j)+x_i(h_i+∑_{j∉C_k}W_{ij}x^*_j). Treat f^{(k)}=h_{C_k}+W_{C_k,>k}x^*_{>k} as an external field. By the hypothesis on C_k, choose a PNE x^*_{C_k}. The concatenation x^*=(x^*_{C_1},…,x^*_{C_m}) is a PNE since each i∈C_k depends only on x_{C_k} and later components (fixed when x^*_{C_k} was chosen). Concatenating BR-paths inside C_m,C_{m−1},…,C_1 yields a global BR-path.
+
+Discussion and relevance
+- The DAG result is a clean, graph-theoretic guarantee that covers arbitrary signs and weights.
+- The SCC composition theorem modularizes PNE existence: it suffices to certify each SCC as universally PNE-admitting (e.g., undirected or structurally balanced). This strictly includes DAGs (all SCCs are singletons) and globally undirected/structurally balanced graphs as special cases, and provides a constructive method to build a PNE by solving SCCs from sinks upward.
+
+3) Graph-level classification (uniform guarantee)
+Theorem (Uniform guarantee ⇔ DAG). A dependency digraph guarantees a PNE for every real weight matrix W (zero diagonal, supported on the digraph) and every bias vector h∈ℝ^V if and only if it is acyclic (a DAG).
+Proof. If acyclic, a PNE exists by backward induction along a topological order (item 1). Conversely, if there is a directed cycle C, choose h=0 and put nonzero weights only on C with an odd number of negative signs so that the product of edge signs is −1. Then the best-response constraints along C force x_i = s_i x_{succ(i)} with ∏ s_i = −1, which is inconsistent, so no PNE exists. Hence only DAGs provide a uniform guarantee over all W,h.
+
+4) Functional digraphs (outdegree ≤ 1)
+Theorem (UPA ⇔ all directed cycles positive). Suppose each vertex has outdegree ≤1. Decompose the graph into SCCs; each SCC is either a singleton or a directed simple cycle. The game admits a PNE for every bias vector h (uniform in h) if and only if every directed cycle C has positive sign product ∏_{(i→j)∈C} sgn(W_{ij})=+1. A best-response path to a PNE exists.
+Proof. For a cycle C, if the sign product is +1, there exists a signature σ with [σ]W[σ] nonnegative on C, so the restricted subgame on C is unsigned (supermodular) and admits a PNE for any external field; if the product is −1, with h=0 the best-response constraints around C are inconsistent, so no PNE exists. Singletons are trivial. Process SCCs in reverse topological order: choose a PNE for each sink cycle, then for upstream singletons set their action as a best response to their unique successor. Concatenation yields a global PNE; concatenating within-SCC BR-paths gives a BR-path in the full game.
+
+5) Forests with sign-symmetric digons
+Corollary. If the underlying undirected graph is a forest and, for every undirected edge {i,j}, either exactly one arc exists or both arcs exist with the same sign (sgn(W_{ij})=sgn(W_{ji})), then for any h the game admits a PNE, and a BR-path to it exists.
+Proof. Each SCC is either a singleton or a 2-node digon. Singletons are trivial; a 2-node digon with same-sign arcs satisfies W_{12}W_{21}≥0 and is universally PNE-admitting (after a signature, the 2-player subgame is unsigned and supermodular). Contracting SCCs yields a DAG; by SCC composition (item 2), selecting per-SCC PNEs in reverse topological order gives a global PNE and a BR-path.
+
+
+=== Papers (text) ===
+
+=== Paper (papers/paper1.txt) ===
+
+ \documentclass[10pt,twocolumn,twoside]{IEEEtran}
+                                                          % if you need a4paper
+%\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4
+                                                          % paper
+
+
+% See the \addtolength command later in the file to balance the column lengths
+% on the last page of the document
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\green}[1]{\textcolor{black!50!green}{#1}}
+%\usepackage{ulem}
+\newcommand{\ep}{\mathcal{S}}
+%this command denotes coordinating players in perturbed coordination games
+\newcommand{\set}[1]{\left\{#1\right\}}
+\newcommand{\cp}{{\mc R}}
+\usepackage{cite}\usepackage{hyperref}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{amsmath,amssymb,bm,bbm,mathrsfs,amscd}
+\usepackage{calc}
+\usepackage{color}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{tikz}
+\usepackage{comment}
+\usetikzlibrary{patterns}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{rotating}
+\usepackage{mathtools}
+\usepackage{color}
+\usepackage{subfig}
+\usepackage{enumerate,pgfplots}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{example}{Example}%}
+\newtheorem{remark}{Remark}
+\newtheorem{assumption}{Assumption}
+\newcommand{\ba}{\begin{array}}
+\newcommand{\ea}{\end{array}}
+\newcommand{\fr}{\frac}
+\newcommand{\pd}{\partial}
+\newcommand{\vt}{\mathbf}
+\newcommand{\mb}{\boldsymbol}
+\newcommand{\be}{\begin{equation}}
+\newcommand{\ee}{\end{equation}}
+\newcommand{\abs}[1]{\lvert#1\rvert}
+\newcommand{\ds}{\displaystyle}
+\newcommand{\mbb}{\mathbb}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\ups}{\upsilon}
+\newcommand{\mc}{\mathcal}
+\newcommand{\dfr}{\dfrac}
+\newcommand{\tcr}{\textcolor{red}}
+\newcommand{\ra}{\rightarrow}
+\newcommand{\ov}{\overline}
+\newcommand{\ul}{\underline}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Zpr}{\mathbb{Z}_{p^r}}
+\newcommand{\B}{\mathcal{B}}
+\def\1{\boldsymbol{1}}
+\def\etav{\boldsymbol{\eta}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\D}{\mathbb{D}}
+\newcommand{\summ}{\sum\limits}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\del}{{\mb{\mathrm{de}}}_{\mb\lambda}}
+\newcommand{\de}{\mathrm{d}}
+\newcommand{\prodd}{\prod\limits}
+\newcommand{\intt}{\int\limits}
+\newcommand{\se}{\text{ if }}
+\newcommand{\tcb}{\textcolor{blue}}
+
+\newcommand{\ut}{\set{u_i}_{i\in \mathcal{V}}}
+\tikzstyle{v_c}=[circle, draw,inner sep=2pt, minimum width=12pt]
+\tikzstyle{v_a}=[circle, draw,inner sep=2pt, minimum width=12pt]%, color=red]
+\tikzstyle{edge} = [draw,thick,-,font=\small ]
+\tikzstyle{label} = [draw,fill=black,font=\normalsize]
+
+
+
+\DeclareMathOperator{\supp}{supp} \DeclareMathOperator{\lcm}{lcm}
+\DeclareMathOperator{\lpcf}{lpcf} \DeclareMathOperator{\co}{co}
+\DeclareMathOperator*{\dint}{\int\int}
+\DeclareMathOperator{\Iso}{Iso} \DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\dist}{dist}
+\def\Z{\mathbb{Z}}
+\def\N{\mathbb{N}}
+\def\E{\mathbb{E}}
+\def\R{\mathbb{R}}
+\def\C{\mathbb{C}}
+\def\P{\mathbb{P}}
+\def\trace{{\rm tr}\,}
+\def\diag{{\rm diag}\,}
+\def\mod{\text{mod}}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\setlength{\belowcaptionskip}{-18pt}
+
+    
+\title{On Signed Network Coordination Games}
+\author{Martina Vanelli,~\IEEEmembership{Member,~IEEE}, Laura~Arditti, 
+Giacomo~Como,~\IEEEmembership{Member,~IEEE,} and
+        Fabio~Fagnani% <-this % stops a space
+\thanks{Some of the results in this paper appeared in preliminary form in \cite{vanelli2020games} \cite{arditti2021equilibria}.}
+\thanks{
+		Martina Vanelli is with the Institute for Information and Communication Technologies, Electronics and Applied Mathematics (ICTEAM), Université catholique de Louvain, 1348 Ottignies-Louvain-la-Neuve, Belgium
+	(e-mail: martina.vanelli@uclouvain.be).}
+\thanks{	Laura Arditti was with the Department of Mathematical Sciences
+	“G.L. Lagrange,” Politecnico di Torino, 10129 Torino, Italy. She is now
+	working in the financial sector in Zurich 8048, Switzerland (e-mail:
+	laura.arditti@gmail.com).}
+\thanks{	Giacomo Como is with the Department of Mathematical Sciences
+	“G.L. Lagrange,” Politecnico di Torino, 10129 Torino, Italy, and also
+	with the Department of Automatic Control, Lund University, 22100 Lund,
+	Sweden (e-mail: giacomo.como@polito.it).}
+\thanks{	Fabio Fagnani is with the Department of Mathematical Sciences
+	“G.L. Lagrange,” Politecnico di Torino, 10129 Torino, Italy (e-mail:
+	fabio.fagnani@polito.it).}
+
+	
+	%The authors are with the  Department of Mathematical Sciences ``G.L.~Lagrange,'' Politecnico di Torino, 10129 Torino, Italy  (e-mail: {\{laura.arditti;\,giacomo.como;\,fabio.fagnani;\,martina.vanelli\}@polito.it}). G. Como is also with the Department of Automatic Control, Lund University, 22100 Lund, Sweden.}
+\thanks{
+%This research 
+%%was carried on within the framework of the MIUR-funded {\it Progetto di Eccellenza} of the {\it Dipartimento di Scienze Matematiche G.L.~Lagrange}, Politecnico di Torino, CUP: E11G18000350001. It 
+%received partial support from the MIUR  Research Project PRIN 2017 ``Advanced Network Control of Future Smart Grids'' (http://vectors.dieti.unina.it), and by the {\it Compagnia di San Paolo} through the Project ``SMaILE''. 
+}
+%\thanks{This work was partially supported by a MIUR grant ``Dipartimenti di Eccellenza 2018--2022'' [CUP: E11G18000350001], a MIUR  Research Project PRIN 2017 ``Advanced Network Control of Future Smart Grids'' (http://vectors.dieti.unina.it), and by the Compagnia di San Paolo.}%
+}% <-this % stops a space
+
+\begin{document}
+
+
+
+\maketitle
+\thispagestyle{empty}
+%\pagestyle{empty}
+
+%\blue{Modifiche Laura -- segnate in blu}
+%
+%\green{Modifiche Martina -- segnate in verde + uniformare IEEEproof e proof}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract}%\tcr{DA CAMBIARE UN PO'}
+We study binary-action pairwise-separable network games that encompass both coordinating and anti-coordinating behaviors. 
+Our model is grounded in an underlying directed signed graph, where each link is associated with a weight that describes the strenght and nature of the interaction. The utility for each agent is an aggregation of pairwise terms determined by the weights of the signed graph in addition to an individual bias term. We consider a scenario that assumes the presence of a prominent 'cohesive' subset of players, who are either connected exclusively by positive weights, or forms a structurally balanced subset that can be bipartitioned into two adversarial subcommunities with positive intra-community and negative inter-community edges. %, that is, a subme 
+Given the properties of the game restricted to the remaining players, our results guarantee the existence of Nash equilibria characterized by a consensus or, respectively, a polarization within the first group, as well as their stability under  best response transitions. Our results can be interpreted as robustness results, building on the super-modular properties of coordination games and on a novel use of the concept of graph cohesiveness. %Additionally, we notice how a gauge transformation of the strategy profile set allows to apply our results to a situation where a subset of players forms a structurally balanced subset. 
+\end{abstract}
+
+\textbf{Index terms:} Coordination games, anti-coordination games, network games, signed graphs, network robustness, best response dynamics, robust stability.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+
+
+\section{Introduction}
+A key feature of many socio-technical systems is the heterogeneity among the behaviors of the agents in the network and among their interactions and mutual influences. Such heterogeneities pose significant challenges in various fields including traffic and routing games,  epidemics models.
+
+In this paper, we focus on heterogeneous interactions within networks of agents engaged in strategic games with binary actions. Our model encompasses two prominent families of network games \cite{Blume:1993,Jackson:2008,Galeotti.ea:2010,Jackson.Zenou:2015}: network coordination games \cite{Ellison:1993,Young:1993,Morris:2000,Young:2006,Jackson.Storms:2025} and network anti-coordination games \cite{Bramoulle.ea:2004,Galam:2004,Bramoulle:2007,Lopez-Pintado:2009,Grabisch.Li:2019},  both of which have a variety of applications in economics, social sciences, and biology. In their simplest version, the utility of a player in a network coordination (anti-coordination) game is an affine increasing (decreasing) function of the number of her neighbors in the network playing the same action. Despite their apparent similarity, both fundamental properties and applications of network coordination and network anti-coordination games are quite different. 	
+
+Network coordination games model the so called strategic complements effects, that is when the choice of a certain action by one player makes it more appealing for other players to play the same action. They are used to model social network features like the adoption of beliefs or behavioral attitudes, or economic ones such as the spread of a new technology. Mathematically, they belong to the broader class of super-modular games \cite{Topkins:1979,Milgrom.ea:1990,Vives:1990,Topkins:1998}. As a consequence, Nash equilibria always exist and one special instance of them are the consensus strategy profiles, namely, those where all individuals are playing the same action. Moreover, asynchronous best response dynamics globally reach the set of Nash equilibria in network coordination games. \cite{Ramazi.Cao:2020}  
+
+In contrast, network anti-coordination games are representative of another class of games exhibiting the so called strategic substitutes effect. In this case, the choice of a certain action by one player makes it more appealing for the other players to play the opposite action. They provide a natural model in situations where players are competing for resources that can become congested or in models where players can provide a public good, buy snob goods, or, in general, when there are gains from differentiation. In contrast to network coordination games, existence of Nash equilibria for anti-coordination games is guaranteed  in special cases  strongly dependent on the network structure. \cite{Bramoulle:2007} Moreover, even when equilibria exist, asynchronous best response dynamics may have limit cycles. 
+
+Network games comprising both coordinating and anti-coordinating interactions have been recently proposed to model the presence of anti-conformist behaviors in a social community, accounting for some form of heterogeneity \cite{Ramazi.Riehl.Cao:2016,Grabisch.ea:2019,ramazi2023characterizing, le2023heterogeneous, liang2025coevolution} . More generally, games exhibiting both strategic complements and substitutes have been recently proposed in the economic literature  \cite{Monaco:2016} to model heterogeneous interactions, e.g., markets with coexistence of both Cournot and Bertrand type firms. Such mixed games may fail to possess Nash equilibria. A fundamental example is the matching pennies game, which is a two-player game with one coordinating and one anti-coordinating player. %\tcr{DA QUI, VA CAMBIATA UN PO'} 
+In contrast with the matching pennies game, one can imagine that in a scenario where most of the players are coordinating and form a 'well' connected subset, the presence of few anti-coordinating players should not prevent the coordinating players to reach a consensus and possibly the whole system to reach a Nash equilibrium. This is one main motivation to our work. 
+
+Another application is when a subset of the graph is structurally balanced \cite{Harary:1953,Cartwright:1956}. A structurally balanced signed graph is one where vertices can be split into two subsets so that intra links on every set have positive weight, while links connecting the two groups have negative weight. Such property envisages a polarization in the system's equilibrium. 
+ In this case we want to determine whether such polarization is still reached even if the entire graph is not structurally balanced. 
+ 
+{\color{black} Network models with signed weights have appeared in many other different fields: to model the presence of antagonistic interactions in social networks \cite{Harary:1953,Cartwright:1956, Macy:2003, Leskovec:2010}, inhibitory signals in genetics \cite{Kauffman:1969, Thomas:1973} and neural networks \cite{Hopfield:2010}, antiferromagnetic bonds in spin glasses \cite{Mezard}.
+The popular Linear Threshold Model (LTM) originally introduced in \cite{Granovetter:1978} for non negative graphs has been recently proposed in the context of signed graphs in \cite{He:2013, Golesa:2025}. This dynamical system is strictly related to the best response dynamics for network ccordination games. Literature on LTM on signed graphs has focused on showing the differences with respect to the nonnegative case: lack of cascades, dependence on the activation pattern, polarization. Somewhat analogous are the studies of the linear averaging dynamics on signed graphs \cite{Altafini:2012, Altafini:2013}. Therein, the important concept of structurally balanced graph %, originally introduced in social science in \cite{Harary:1953,Cartwright:1956},  
+is used to determine the structure of the steady state dynamics. %A structurally balanced signed graph is one where vertices can be split into two subsets so that intra links on every set have positive weight, while links connecting the two groups have negative weight. Such property envisages a polarization in the system's equilibrium.  %\tcr{When the graph is not structurally balanced, one can look for the biggest Robust structural balance \cite{wang2020robust}. 
+}
+
+In this paper, we consider a finite set of agents whose network of interactions is modelled as a directed signed graph. Given two agents, it is possible that a link exists in just one direction and, even when both links  are present, they may have a different weight and possibly weights with opposite signs. This means that agent $i$ may tend to coordinate with an agent $j$, while agent $j$ tends to anti-coordinate with $i$. The utility of agent $i$ is an aggregation of a family of pairwise terms one for each of the out-neighbors of $i$ plus an individual bias term. Each pairwise term can be of coordination or anti-coordination type and is modulated by the corresponding graph weight.  We call such games signed network coordination games.
+The focus of this paper is on the existence of pure strategy Nash equilibria in signed-network coordination (SNC) games and the analysis of their stability with respect to best response transitions. 
+
+Our work builds on two fundamental concepts. The first one is a novel use of the notion of cohesiveness originally proposed in the pioneering work \cite{Morris:2000} to describe the pure Nash equilibria of network coordination games. The second is the super-modularity property \cite{Topkins:1979,Milgrom.ea:1990,Vives:1990,Topkins:1998} of network coordination games, particularly the robustness results recently appeared in \cite{arditti2024robust}. 
+The general setup of our results is that of a SNC game where the set of agents $\mc V$ is split into two subsets $\mc V=\mc R\cup\mc S$. Agents in $\mc R$ are assumed to be intra themselves coordinating and form a sufficiently 'cohesive' subset. Alternatively, they are assumed to form a 'cohesive' structurally balanced subset. In this latter case, a transformation of the strategy profile set allows to obtain a coordinating subset. If agents in $\mc S$ possess an equilibrium conditioned to any possible value of the actions taken by the agents in $\mc R$, then a Nash equilibrium exists that is a consensus or a polarization (respectively) on the agents in $\mc R$. This is the content of our first result, Theorem \ref{theo:main-existence}. 
+
+Conditions for the convergence of the best response dynamics are characterized in terms of a novel notion of indecomposability, related to the uniform non-cohesiveness property used in \cite{Morris:2000}, and make a fundamental use of robust properties of super-modular games \cite{arditti2024robust}. Our main result, Theorem \ref{theo:main-stability}, formalizes these ideas. 
+
+Weaker preliminary results have appeared in \cite{vanelli2020games} and \cite{arditti2021equilibria}. In \cite{vanelli2020games}, the underlying graph of interactions was a complete one. In \cite{arditti2021equilibria}, each agent was engaged in interactions of only one type, either coordinating or anti-coordinating. Moreover, the graph restricted to each of the two subgroups was assumed to be undirected.
+
+We conclude this section by presenting a brief outline of this paper. The remainder of this section is devoted to the introduction of some basic notational conventions to be followed throughout the paper.  In Section \ref{sec:network-coordination-games}, we formally introduce SNC game %, we recall a number of basic facts on super-modular and potential games,
+ and we present few examples illustrating the problem we want to consider. In Section \ref{sec:prel}, we derive some preliminary results for three classes of signed graphs: undirected, unsigned and structurally balanced. In Section \ref{sec:results}, we present our main results, in particular Theorems \ref{theo:main-existence} and \ref{theo:main-stability}, and show their applicability. %In Section \ref{sec:SB}, we discuss the applicability of our results to graphs that contain a cohesive structurally BR-stable subset. 
+Finally, Section \ref{conclusion} presents some final remarks.
+
+\subsection*{Notation}
+Let $\mathds{R}$ and $\R_{+}$ denote the set of real numbers and non-negative real numbers, respectively. For a finite set $\mc{U}$, $\R^{\mc{V}}$  denotes the space of real column vectors $x$, whose entries $x_i$ are indexed by the elements $i$ in $\mc{V}$. For a vector $x$ in $\R^{\mc V}$ and a subset $\mc A\subseteq\mc V$, we use the notation $x_{\mc A}$ in $\R^{\mc A}$ for the restricted vector with entries $(x_{\mc A})_i=x_i$ for every $i$ in $\mc A$. The all-$1$ vector, whose size may be deduced from the context, will be denoted by $\1$. For a vector $x$ in $\R^{\mc V}$ and some $i$ in $\mc V$, we write $x_{-i}=x_{\mc V\setminus\{i\}}$ for the vector in $\R^{\mc V\setminus\{i\}}$ obtained from $i$ by removing its $i$-th entry. 
+
+Similarly, for two finite sets $\mc U$ and $\mc V$, $\R^{\mc{U}\times\mc V}$  denotes the space of real matrices $M$ whose entries $M_{ij}$ are indexed by the pairs $(i,j)$ in $\mc{U}\times\mc V$. For a matrix $M$ in $\R^{\mc{U}\times\mc V}$ and two subsets $\mc A\subseteq\mc U$ and $\mc B\subseteq\mc V$, we use the notation $M_{\mc A\mc B}$ in $\R^{\mc A\times\mc B}$ for the restricted matrix, with entries $(M_{\mc A\mc B})_{ij}$ for every $i$ in $\mc A$ and $j$ in $\mc B$.  
+For a vector $d$ in $\R^{\mc A}$, $[d]$ stands for the diagonal matrix with diagonal coinciding with $d$, i.e.,  $[d]\in\R^{\mc A\times\mc A}$ is such that $[d]_{ii}=d_i$ and $[d]_{ij}=0$ for every $i$ in $\mc A$ and $j$ in $\mc A\setminus\{j\}$. 
+
+
+\section{Model}
+\label{sec:network-coordination-games}
+
+
+In this section, we introduce the model in its general form and present the main issues addressed in the rest of the paper.
+\subsection{Signed Network Coordination Games}
+We model networks as finite directed weighted signed graphs $\mc G=(\mc V, \mc E, W)$, with non-empty set of nodes $\mc V$, set of directed links $\mc E\subseteq\mc V\times\mc V$, and weight matrix $W$ in $\R^{\mc V\times\mc V}$ such that $W_{ij} \neq 0$ if and only if $(i,j)$ is a link in $\mc E$. 
+We do not allow for the presence of self-loops, equivalently, we assume that the weight matrix $W$ has zero diagonal. Throughout, finite directed weighted signed graphs without self-loops will be simply referred to as \emph{networks}.\footnote{Notice that we do not assume in general that $W_{ij}$ and $W_{ji}$ have the same sign (a property referred to as ``digon sign-symmetry'' in \cite{Altafini:2013}.)}
+
+We shall call a network $\mc G=(\mc V, \mc E, W)$ \emph{undirected} when the weight matrix $W=W'$ is symmetric, so that in particular $(j,i)$ is a link in $\mc E$ whenever $(i,j)$ is, and in this case they have the same weight $W_{ij}=W_{ji}$. We refer to a network $\mc G=(\mc V, \mc E, W)$ as \emph{unsigned} when the weight matrix $W$ is non-negative, i.e., all links $(i,j)$ in $\mc E$ have positive weight $W_{ij}>0$. For a network $\mc G=(\mc V, \mc E, W)$ and a subset of nodes $\mc U\subseteq\mc V$, we consider the subnetwork $\mc G_{\mc U}=(\mc U,\mc E_{\mc U},W_{\mc U\mc U})$ where $\mc E_{\mc U}=\mc E\cap(\mc U\times\mc U)$ is the subset of links with both tail node and head node in $\mc U$, while $W_{\mc U\mc U}$ is the sub-matrix of $W$ obtained by restricting its row and column sets to $\mc U$.
+
+
+
+
+\begin{example}\label{ex1}
+Figure \ref{fig:graph1} illustrates a network with weight values reported next to the corresponding links. Notice that, for $\mc R=\{1,2,\dots, 8\}$ the subnetwork $\mc G_{\mc R}$ is unsigned, whereas for  $\mc S=\mc V\setminus \mc R=\{9,10,\dots, 13\}$ % and $\tilde{\mc S}=\mc V\setminus \tilde{\mc R}=\{7, 8,\dots, 13\}$ 
+the subnetwork $\mc G_{\mc S}$ is undirected.
+\end{example}
+	\begin{figure}
+	\centering
+	\begin{tikzpicture}[scale=1.2]
+		\foreach \x/\name in {(1.3,0)/1,  (2.7,0)/3, (4,-1)/4, (4,0)/5,(5,-1)/6, (2,1)/2}\node[shape=circle,draw, fill=gray!30!white](\name) at \x {\small\name};
+		
+			\foreach \x/\name in {(2,-1)/7, (3.5,1)/8/-1}\node[shape=circle,draw, fill=gray!30!white ](\name) at \x {\small\name};
+		%rectangle?
+		\foreach \x/\name in {(6,0)/9,(3,-1.5)/10,(1,-1.5)/11,(0,0)/12,(5,1)/13}\node[shape=circle,draw ](\name) at \x {\small\name};
+		%\foreach \x/\name in {(6,0)/9,(3,-1.5)/10,(1,-1.5)/11,(0,0)/12,(5,1)/13}\node[shape=circle,draw=red,text=red](\name) at \x {\small\name};
+		
+		\foreach \a/\b/\w in {4/6/2,1/7/2, 2/8/3,7/3/1}\path [<-,draw] (\a) edge node[above] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in {  7/10/-2,3/13/-7,  13/5/-2 }\path [<-,draw, red] (\a) edge node[above] {\small\w} (\b);%5/9/-4, 
+		
+		
+		\foreach \a/\b/\w in {3/5/3,  4/10/2,3/4/1}\path [->,draw] (\a) edge node[below] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in {  1/12/2}\path [->,draw, bend right=20] (\a) edge node[above] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in {5/9/-1}\path[->,draw,red, bend left=20] (\a) edge node[above] {\small\w} (\b);
+		
+		
+		\path [->,draw,bend left=20] (9) edge node[below] {\small4} (5);
+		
+		\path [->,draw,red, bend right=20] (12) edge node[below] {\small-4} (1);
+		
+		%\foreach \a/\b/\w in { 2/11/1}\path [<->,draw] (\a) edge node[above] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in {2/3/1, 4/5/3}\path [<->,draw] (\a) edge node[right] {\small\w} (\b);
+		
+		
+		\foreach \a/\b/\w in { 12/11/-2,13/9/-5}\path [<->,draw,red] (\a) edge node[right] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in { 11/10/-1}\path [<->,draw,red] (\a) edge node[below] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in { 8/13/-1,7/11/-1}\path [<->,draw,red] (\a) edge node[above] {\small\w} (\b);
+		
+		\foreach \a/\b/\w in {1/2/3}\path [->,draw] (\a) edge node[left] {\small\w} (\b);		
+	\end{tikzpicture}
+	\caption{A network with 13 nodes. Weights are represented by the values on the links. Nodes in the set $\mc R= \{1, \dots, 8\}$ are colored in gray, while nodes in the complement set $\mc S= \{9, \dots, 13\}$ are white.}
+	\label{fig:graph1}
+\end{figure}
+
+
+
+\begin{definition}\label{def:coordination}
+	The \emph{signed network coordination (SNC) game} with \emph{binary actions}  on a network $\mc G=(\mc V,\mc E,W)$ with  external field $h$ in $\R^{\mc V}$ is the strategic game with player set $\mc V$, whereby every player $i$ in $\mc V$ has action set $\mc A=\{\pm1\}$ and utility function $u_i: \mc X\rightarrow \R$ given by
+	\be\label{eq:ut} u_i(x)=u_i(x_i,x_{-i})=h_ix_i+ x_i\sum_{j\in\mc V}W_{ij}x_j\,,\ee 
+	for every strategy profile $x$, where $\mc X=\mc A^\mc V$ denotes the set of strategy profiles of all players and $x_{-i}$ in $\mc X_{-i}=\mc A^{\mc V\setminus\{i\}}$ stands for the strategy profile of all players except for player $i$.
+\end{definition}
+We now provide an interpretation of the SNC games introduced above. The utility function \eqref{eq:ut} is the sum of two terms. 
+The first addend in the right-hand side of  \eqref{eq:ut} is a standalone term $h_ix_i $ (i.e., a term that depends only on the action of player $i$) that models the bias of player $i$ towards one of the two possible actions depending on the sign of the preference term $h_i$: if $h_i>0$ (respectively, $h_i<0$), then player $i$ has a bias towards action $+1$ ($-1$), in that, in the absence of the network (i.e., if $W=0$) this action would provide a utility that is $2h_i$ larger than its alternative $-1$ ($+1$); if $h_i=0$, then no bias is present in that both actions $+1$ and $-1$ would reward player $i$ with the same utility in the absence of the network.
+The second addend in the right-hand side of  \eqref{eq:ut} is the aggregate of pairwise interaction terms $x_iW_{ij}x_j$, each of which can be interpreted as the utility of player $i$ in a two-player game with player $j$. Notice that, while the sum index $j$ in the right-hand side of \eqref{eq:ut} formally runs over all players $j$ in $\mc V$, the sum is effectively only over players $j$ such that $W_{ij}\ne0$, i.e., out-neighbors of player $i$ in the network $\mc G$. Observe that a SNC game with binary actions is an instance of a polymatrix or pairwise-separable game \cite{Yanovskaya:1968,Arditti.Como.Fagnani:2024}.
+
+We say that a player $i$ in $\mc V$ has a \textit{coordinating} interaction with another player $j$ when $W_{ij}>0$, meaning that the utility $u_i(x)$ of player $i$ increases when player $j$ plays the same action as $i$, i..e, when $x_ix_j=1$. Conversely, when $W_{ij}<0$, player $i$ is said to have an \textit{anti-coordinating} interaction with player $j$ in $\mc V$, namely its utility decreases when player $j$ is playing the same action. 
+In the special case when the network $\mc G=(\mc V,\mc E,W)$ is unsigned, namely when $W_{ij}\geq 0$ for every $i$ and $j$ in $\mc V$, the SNC game with binary actions is known as a \textit{network coordination game}. On the other hand, when $W_{ij}\leq 0$ for every $i$ and $j$ in $\mc V$, the SNC game is known as a \textit{network anti-coordination game}. 
+
+
+Observe that our general model of SNC game accounts for asymmetric behaviors: while it is possible that two nodes $i$ and $j$ have the same type of interaction one against the other one, it can happen that a player $i$ has a coordinating interaction with another player $j$ (i.e., $W_{ij}>0$) while $j$ has an anti-coordinating interaction with $i$ or is not influenced by player $i$ at all (i.e., $W_{ji}=0$). This makes the analysis of such games particularly challenging.  
+Notice that our framework encompasses and generalizes the special  cases studied in our previous works \cite{vanelli2020games} and \cite{arditti2021equilibria}  where, for every player $i$ in $\mc V$, either $W_{ij}\geq 0$ for every $j$ in $\mc V$, or $W_{ij}\leq 0$ for every $j$ in $\mc V$. 
+
+
+
+\subsection{Best Responses and Nash Equilibria}
+
+
+The \textit{best response} (BR) correspondence for a player $i$ in $\mc V$ is the set of its optimal actions given the strategy profile of the other players. 
+Formally,
+$$\B_i(x_{-i})= \argmax_{x_i \in\mc A}u_i(x_i,x_{-i}) \,.$$
+A (pure strategy) \emph{Nash equilibrium} is a strategy profile $x^*$ in $\mc X$ such that 
+$$x^*_i\in\B_i(x^*_{-i})\,,\qquad\forall i\in\mc V\,.$$
+The set of Nash equilibria of a game will be denoted as $\mc N$. 
+A Nash equilibrium $x^*$ in $\mc N$ is called \emph{strict} if $\mc B_i(x^*_{-i}) =\{x^*_i\}$ for every $i$ in $\mc V$. The set of strict Nash equilibria of a game will be denoted as $\mc N^*$. 
+
+The purpose of this work is to investigate the existence of Nash equilibria for SNC games and study their stability properties under best response transformations. Formally, consider two strategy profiles $x$ and $y$ in $\mc X$. For $l\ge0$, a length-$l$ \emph{best response path} (\emph{BR-path}) from $x$ to $y$ is an $(l+1)$-tuple of strategy profiles in $\mc X^{l+1}$, denoted with 
+$(x^{(0)},x^{(1)},\ldots x^{(l)})$,  such that 
+\begin{itemize}
+	\item $x^{(0)}=x$, and $x^{(l)}=y$; 
+	\item for every $k=1,2,\ldots, l$, there exists a player $i_k$ in $\mc V$ such that  
+	\be\label{eq:BRpath} x^{(k)}_{-i_k}=x^{(k-1)}_{-i_k}\,, \qquad 	x_{i_k}^{(k)}\in\B_{i_k}(x_{-i_k}^{(k-1)})\setminus\{x^{(k-1)}_{i_k}\}\,.\ee 
+\end{itemize}
+A BR-path is thus a sequence of unilateral modifications of the strategy profile where one agent at a time changes its action to any of its best responses to the current strategy profile of the rest of the population. Notice that, with the above definition, for every strategy profile $x$ in $\mc X$,   there always exists a length-$0$ BR-path $(x)$ from $x$ to itself. 
+
+We shall refer to a subset of strategy profiles $\mc X^*\subseteq\mc X$ as:
+\begin{itemize}
+	\item \emph{BR-reachable} from strategy $x$ in $\mc X$ if there exists a BR-path from $x$ to some strategy profile $y$ in $\mc X^*$;  
+	\item \emph{globally} BR-reachable if it is BR-reachable from every strategy profile $x$ in $\mc X$;
+	\item \emph{BR-invariant} if there are no BR-paths from any $y$ in $\mc X^*$ to any $z$ in $ \mc X\setminus\mc X^*$;
+	\item \emph{globally BR-stable} if it is globally BR-reachable and BR-invariant.
+\end{itemize}
+
+Notice that a BR-reachable (hence, in particular a globally BR-reachable or globally BR-stable) set of strategy profiles $\mc X^*$ is necessarily non-empty. 
+Observe that a singleton $\{x^*\}$ is BR-invariant if and only if $x^*$ is a strict Nash equilibrium. 
+A globally BR-stable set is one from which it is impossible to exit through unilateral best response modifications and that can be reached from every initial strategy profile through a finite number  of such modifications. 
+
+
+\begin{remark} The notions of BR-reachability, BR-invariance, and global BR-stability are particularly relevant for the study of the so-called asynchronous best response dynamics \cite{Blume:1995}.  
+These are a class of asynchronous dynamics modeled as discrete-time Markov chains with finite state space coinciding with the strategy profile set $\mc X$, whereby, at every time step $t=0,1,2,\ldots$, conditioned on the current configuration $X(t)=x$, one player $i$ is randomly selected from  the player set $\mc V$ according to a distribution that assigns positive probability to all players, and she updates her action to a value $X_i(t + 1)$ chosen uniformly from her best response set $\mc B_i(x_{-i})$. In fact, observe that, on the one hand, a subset of strategy profiles  $\mc X^*\subseteq\mc X$ is  BR-invariant if and only if it is a trapping set for the asynchronous best response dynamics, i.e., if $X(s)\in\mc X^*$ for some $s\ge0$ implies that $X(t)\in\mc X^*$ for every $t\ge s$.  On the other hand, $\mc X^*$ is globally BR-stable if and only if, for every probability distribution of the initial state $X(0)$ of the asynchronous best response dynamics, there exists a random time $T$ that is finite with probability $1$ and is such that $X(t)\in\mc X^*$ for every $t\ge T$. \end{remark}
+
+\begin{remark}\label{remark:I-reachable}
+ In \cite{arditti2024robust}, the notion of improvement path (I-path) was introduced along with the related notions of I-reachability, I-invariance, and I-stability. Specifically, a length-$l$  I-path is a $(l+1)$-tuple of strategy profiles  $(x^{(0)},x^{(1)},\ldots x^{(l)})$ such that for every $k=1,2,\ldots, l$ there exists a player $i_k$ in $\mc V$ such that  
+\be\label{eq:Ipath} x^{(k)}_{-i_k}=x^{(k-1)}_{-i_k}\,, \qquad 	u_{i_k}(x^{(k)})>u_{i_k}(x^{(k-1)}) \,.\ee 
+Notice that, if the action space of every player is binary, as is our case, then condition \eqref{eq:Ipath} implies condition \eqref{eq:BRpath}, so that every I-path is also a BR-path, but not necessarily vice versa. As a consequence, every (globally) I-reachable set of strategy profiles is (globally) BR-reachable. Conversely, every BR-invariant  set of strategy profiles is I-invariant, but not vice versa: e.g., every non-strict Nash equilibrium is I-invariant but not BR-invariant. On the other hand, neither global I-stability implies global BR-stability nor vice versa: e.g., for the SNC game of Example \ref{ex:onelink} with $\alpha=0$, the set of Nash equilibria $\mc N$ is globally I-stable but not globally BR-stable. 
+\end{remark}
+
+
+The following two examples show how Nash equilibria may not exist for SNC games. 
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}[scale=0.9, swap]
+		\node[v_c] (vc) at (0,0) {1};
+		\node[v_a, draw] (va) at (2,0) {2};
+		\path[->, draw, bend right=20] (vc) edge node[below] {1} (va);
+		\path[<-, draw, bend left=20,red] (vc) edge node[above] {-1} (va);
+		\node (1) at (1,-1) {(a)};
+		%\draw[edge, bend right=20, ->] (vc) to {+} (va);
+		%\draw[edge,bend left=20, <-, red] (vc) to {-} (va);
+		%\node[v_a] (v0) at (4,0) {1};
+		%\node[v_c] (v1) at (6,0) {1}; 
+		%\draw[edge] (v0) to (v1);
+	\end{tikzpicture}
+	\hspace{15pt}
+	\begin{tikzpicture}[scale=0.9, swap]
+		\node[shape=circle,draw] (1) at (0,0) {1};
+		\node[shape=circle,draw] (2) at (1,1.5) {2};
+		\node[shape=circle,draw] (3) at (2,0) {3};
+		\path[->, draw,red] (1) edge node[left] {-1} (2);
+		\path[->, draw,red] (2) edge node[right] {-1} (3);
+		\path[->, draw,red] (3) edge node[below] {-1} (1);
+		\node (1) at (1,-1) {(b)};
+	\end{tikzpicture}	
+	\caption{Two signed graphs representing: (a) the discoordination game and (b) a directed anti-coordination game.}
+	\label{fig:disc_game}
+\end{figure}
+
+
+\begin{example}\label{ex:discoord}
+The SNC game on the network (a) in Figure \ref{fig:disc_game} with external field $h=0$ reduces to a two-player game with binary action set $\mc A=\{\pm1\}$ and utilities $u_1(x_1, x_2) = x_1x_2$ and $u_2(x_1, x_2) =-x_1x_2$.  This is commonly referred to as the discoordination game \cite{jackson2015games} and known not to possess Nash equilibria. 
+\end{example} 
+\begin{example}\label{ex:3ringanticoord}
+The SNC game with binary actions on the network (b) in Figure \ref{fig:disc_game} with external field $h=0$ is an anti-coordination game. For $x^*$ to be a Nash equilibrium, one should have $x_1^*=-x_2^*=x_3^*=-x_1^*$, which is impossible in $\{\pm1\}^3$. Hence, this game does not admit any Nash equilibria.
+\end{example} 
+
+ 
+Even for SNC games that do admit Nash equilibria, these may fail to be  globally BR-reachable or BR-invariant, as illustrated in the following two examples. 
+
+\begin{example}\label{ex:onelink} Consider a SNC game on a network $\mc G=(\mc V,\mc E,W)$ with two nodes  $\mc V=\{1,2\}$, a single link $\mc E=\{(1,2)\}$, and weight matrix $W=(1,0)'(0,1)\,,$ 
+and  external field $h=(0,\alpha)$, where $\alpha$ is a scalar parameter. Then, the set of Nash equilibria is 
+$$\mc N=\left\{\ba{lcl}
+\{-\1\}&\se&\alpha<0\,,\\
+\{\pm\1\}&\se&\alpha=0\,,\\
+\{\1\}&\se& \alpha>0\,.
+\ea\right.$$
+It is easily verifiable that $\mc N$ is globally BR-reachable for every $\alpha$. 
+In fact, for $\alpha\ne0$ then the unique Nash equilibrium is strict, so that $\mc N$ is BR-invariant, hence globally BR-stable. On the other hand, for $\alpha=0$, there are two Nash equilibria neither of which is strict: in this case, neither $\mc N$ nor any of it subsets are BR-reachable, and there are no globally BR-stable sets. 
+\end{example}
+
+
+
+\begin{example} \label{ex:nostability} 
+
+\begin{figure}
+	\centering	
+	
+	\vspace{8pt}
+	\begin{tikzpicture}[scale = 0.9]
+	
+		\node[shape=circle,draw] (8) at (4,2){8} ;
+		
+		\foreach \x/\name in {(0,0)/1,   (1,2)/2, (2,0)/3,  (4,0)/4,  (6,0)/5,(7,2)/6,  (8,0)/7}\node[shape=circle,draw, fill=gray!30!white](\name) at \x {\small\name};
+		%\node[shape=circle,fill=white!60!gray, draw] (8) at (4,2){8} ;
+		%\node[shape=circle,draw=red, text=red] (8) at (4,2){8} ;
+		
+		\path [<->,draw] (1) edge node[left] {1} (2);
+		\path [->,draw] (3) edge node[right] {1} (2);
+		\path [->,draw] (3) edge node[below] {1} (1);
+		\path [<-,draw] (3) edge node[below] {1} (4);
+		%\path [<-,draw] (3) edge node[left] {1} (8);
+		%\path [<-,draw] (5) edge node[right] {1} (8);
+		\path [<->,draw=red, text=red] (3)  edge node[left] {-1} (8);
+		\path [<->,draw=red, text=red] (5)  edge node[right] {-1} (8);
+		\path[->, draw, bend right=20] (4) edge node[right] {1} (8);
+		\path[<-, draw, bend left=20,red] (4) edge node[left] {-1} (8);
+		\path [->,draw] (4) edge node[below] {1} (5);
+
+		\path [->,draw] (5) edge node[left] {1} (6);
+		\path [->,draw] (5) edge node[below] {1} (7);
+		\path [<->,draw] (6) edge node[right] {1} (7);
+	\end{tikzpicture}
+	\caption{A signed graph with $8$ nodes and a coordinating set made of $7$ players (in gray). 
+	}
+	\label{fig:noeq_nostability}
+\end{figure}	
+
+Consider the signed-network related to the graph in Figure \ref{fig:noeq_nostability} with $h=0$. Observe that the set $\mc R= \{1,\dots, 7\}$ is a coordinating set. A direct check shows that the set of Nash equilibria is $\mc N=\{\pm x^*\}$, where $x^*$ is the strategy profile with $x^*_{\mc R} =\1$  and $x^*_8 = -1$. However, $\mc N$ is not globally BR-reachable, as the subset of strategy profiles $$\mc X_{\mc R}=\{y\in\mc X:\,y_1=y_2=y_3=-y_5=-y_6=-y_7\}\,,$$ is BR-invariant. 
+	
+\end{example}
+
+
+ 
+
+\section{Preliminary results}\label{sec:prel}
+
+In this subsection, we shall first present some preliminary results on two special classes of SNC games: SNC games on undirected networks and network coordination games (i.e., SNC games on unsigned networks). We will rely on standard results on super-modular and potential games, respectively, to show that the set of Nash equilibria $\mc N$ of both these classes of games is non-empty and globally BR-reachable, and, for undirected SNC games, that $\mc N$ contains a non-empty globally BR-stable subset. We will then present a number of examples of SNC games outside these two classes that illustrate the specific challenge in the study of the existence and stability of Nash equilibria of general SNC games.
+
+\subsection{SNC games on undirected networks}
+A strategic game with strategy profile space $\mc X$  is called \emph{exact potential} if there exists a \emph{potential function} $\Phi:\mc X\to\R$ 
+such that,  for every player $i$ in $\mc V$ and strategy profiles $x$ and $y$ in $\mc X$,  
+\begin{equation}\label{potential_function}
+x_{-i}=y_{-i}\quad\Longrightarrow\quad u_i(y)-u_i(x) =\Phi(y)-\Phi(x)\,,
+ \end{equation}
+It is well known \cite{Monderer.Shapley:1996} that the set of Nash equilibria $\mc N$ of every finite exact potential game  is always nonempty: in particular, every global maximum point $x^*$  of the potential function $\Phi(x)$ is a Nash equilibrium.  The following result states that a SNC game on a network $\mc G$ is an exact potential game if and only if $\mc G$ is undirected and that, in this case, its set of Nash equilibria contains  a nonempty globally BR-stable subset. 
+
+
+
+
+ \begin{proposition}\label{pr:pot_mixed}
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with  external field $h$.
+Then, 
+ \begin{enumerate}
+ \item[(i)] the game is exact potential if and only if $\mc G$ is undirected.  \end{enumerate}
+Moreover, if $\mc G$ is undirected, then:  
+ \begin{enumerate}
+ \item[(ii)]  $\Phi:\mc X\to\R$ is an exact potential function for the SNC game if and only if there exists a constant $C$ in $\R$ such that 
+\be\label{potential_function_het}
+\Phi(x)=\frac{1}{2}\sum_{i,j\in \mc V}W_{ij}x_i x_j + \sum_{i\in \mc V} h_i x_i+C\,,  
+\ee
+for every strategy profile $x$ in $\mc X$;
+ \item[(iii)]   there exists a globally BR-stable set $\ov{\mc N}$ such that 
+ $$\argmax_{x\in\mc X}\Phi(x)\subseteq\ov{\mc N}\subseteq\mc N\,.$$
+ \end{enumerate}
+\end{proposition} 
+\begin{proof}
+(i) Consider two strategy profiles $x$ and $y$ in $\mc X$ such that $x_{-i}=y_{-i}$ and $y_i=1=-x_i$ for some player $i$ in $\mc V$. Then, from \eqref{eq:ut} we have  that 
+\be\label{uiy-x} u_i(y)-u_i(x) =2\sum_{k\in\mc V}W_{ik}x_k+2h_i\,.\ee
+
+If $\mc G$ is undirected, then \eqref{potential_function_het} and \eqref{uiy-x} imply that 
+\be\label{phiy-x} 
+\ba{rcl}\Phi(y)-\Phi(x)&=&\ds\sum_{k\in\mc V}W_{ik}x_k+\sum_{k\in\mc V}W_{ki}x_k+2h_i\\[15pt]
+&=&\ds2\sum_{k\in\mc V}W_{ik}x_k+2h_i\\[15pt]
+&=&u_i(y)-u_i(x)\,,\ea\ee
+thus proving that the SNC game with binary actions on $\mc G$ with  external field $h$ is an exact potential game. 
+
+On the other hand, if $\mc G$ is not undirected, let $i\ne j$ in $\mc V$ be such that \be\label{Wij<Wji}W_{ij}< W_{ji}\,,\ee 
+and consider a configuration $x$ such that $x_i=x_j=-1$.  Let $y$, $w$, and $z$ in $\mc X$ be the configuration such that, respectively: $y_i=1$ and $y_{-i}=x_{-i}$;  $w_j=1$ and $w_{-j}=x_{-j}$; $z_{-j}=y_{-j}$ and $z_j=1$. Observe that 
+\be\label{uiz-w} \ba{rcl}u_i(z)-u_i(w) &\!\!\!=\!\!\!&\ds2\sum_{k\in\mc V}W_{ik}w_k+2h_i\\[15pt]
+&\!\!\!=\!\!\!&\ds2\sum_{k\in\mc V}W_{ik}x_k+2h_i+2\sum_{k\in\mc V}W_{ik}(w_k-x_k)\\[15pt]
+&\!\!\!=\!\!\!&u_i(y)-u_i(x)+4W_{ij}\,,\ea\ee
+where the last identity follows from the fact that $w_{-j}=x_{-j}$ and $w_j=1=-x_j$. 
+Similarly, we have that 
+\be\label{ujz-y} \ba{rcl}u_j(z)-u_j(y) &\!\!\!=\!\!\!&2\ds\sum_{k\in\mc V}W_{jk}y_k+2h_j\\[15pt]
+&\!\!\!=\!\!\!&2\ds\sum_{k\in\mc V}W_{jk}x_k+2h_j+2\sum_{k\in\mc V}W_{jk}(y_k-x_k)\\[15pt]
+&\!\!\!=\!\!\!&u_j(w)-u_j(x)+4W_{ji}\,,\ea\ee
+where the last identity follows from the fact that $y_{-i}=x_{-i}$ and $y_i=1=-x_i$. 
+It the follows from \eqref{Wij<Wji}, \eqref{uiz-w}, and \eqref{ujz-y} that
+\be\label{no-potential}
+\ba{rcl}0
+&<&4(W_{ji}-W_{ij})\\[5pt]
+&=&u_i(y)-u_i(x)+u_j(x)-u_j(w)\\[5pt]
+&&+u_i(w)-u_i(z)+u_j(z)-u_j(y)\,.
+\ea
+\ee
+It then follows from \cite[Corollary 2.9]{Monderer.Shapley:1996}  that the SNC game with binary actions on $\mc G$ with external field $h$ is not an exact potential game.
+%Observe that \eqref{no-potential} implies that the SNC game with binary actions on $\mc G$ with external field $h$ is not an exact potential game, as if it were, then \eqref{no-potential} and \eqref{potential_function} would imply that 
+%$$\ba{rcl}0
+%&<&u_i(y)-u_i(x)+u_j(x)-u_j(w)\\[5pt]
+%&&+u_i(w)-u_i(z)+u_j(z)-u_j(y)\\[5pt]
+%&=&\Phi(y)-\Phi(x)+\Phi(x)-\Phi(w)\\[5pt]
+%&&+\Phi(w)-\Phi(z)+\Phi(z)-\Phi(y)\\[5pt]
+%&=&0
+%\,,\ea$$
+% which is a contradiction.
+
+(ii) If $\mc G$ is undirected, then \eqref{phiy-x} implies that $\Phi$ defined in \eqref{potential_function_het} is an exact potential function for  the SNC game with binary actions on $\mc G$ with  external field $h$. The claim then follows from  \cite[Lemma 2.7]{Monderer.Shapley:1996}.
+
+(iii) The claim is a direct consequence of \cite[Lemma 2]{Catalano.ea:2024}. 
+\end{proof}
+
+
+%\begin{example}\tcr{ESEMPIO CHE MOSTRA $\ov{\mc N}\ne\mc N$ E NOT NECESSARILY STRICT NASH}
+%$$W=\left(\ba{ccccc}0&-1&1&0&0\\-1&0&1&1&0\\1&1&0&1&1\\0&1&1&0&-1\\0&0&1&-1&0\ea\right)$$
+%\end{example}
+
+
+
+\subsection{SNC games on unsigned networks}
+%We first focus that network coordination games. % are  an instance of super-modular games.  
+A finite strategic game where all players have binary action set $\mc A=\{\pm1\}$ is \emph{super-modular}\cite{Topkins:1979,Milgrom.ea:1990,Vives:1990,Topkins:1998} if it satisfies the \emph{increasing difference property}, i.e., if 
+\be\label{IDP}u_i(+1,x_{-i})-u_i(-1,x_{-i})\le u_i(+1,y_{-i})-u_i(+1,y_{-i})\,,\ee
+for every two strategy profiles $x$ and $y$ in $\mc X$ such that $x\le y$. 
+For super-modular games, Nash equilibria are guaranteed to exist and they form a lattice in the strategy profile space.
+The following result states that a SNC game is super-modular if and only if it is a network coordination game and that, in this case, the set of its Nash equilibria is non-empty and globally BR-reachable. 
+
+\begin{proposition}  \label{prop:super-modular}
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with  external field $h$.
+Then, 
+ \begin{enumerate}
+ \item[(i)] the game is super-modular if and only if $\mc G$ is unsigned;  
+ \item[(ii)] if $\mc G$ is unsigned, then the set of Nash equilibria $\mc N$ is globally BR-reachable.
+ \end{enumerate}
+\end{proposition}
+\begin{IEEEproof} (i) For every strategy profile $x$ in $\mc X$ and player $i$ in $\mc V$, let 
+$$\delta_i(x)=u_i(+1,x_{-i})-u_i(-1,x_{-i})=2h_i+2\sum_{j\in\mc V}W_{ij}x_j\,.$$
+Then, for every two strategy profiles  $x$ and $y$ in $\mc X$, we have
+\be\label{dy-dx}\delta_i(y)-\delta_i(x)=\sum_{j\in\mc V}W_{ij}(y_j-x_j)\,,\ee
+for every $i$ in $\mc V$. 
+If $W_{ij}\ge0$ for every $i$ and $j$ in $\mc V$, then \eqref{dy-dx} implies that 
+$$\delta_i(y)-\delta_i(x)=\sum_{j\in\mc V}W_{ij}(y_j-x_j)\ge0\,,$$ 
+whenever $x\le y$, so that the increasing difference property \eqref{IDP} holds true, hence SNC game is super-modular.  
+
+Conversely, if $W_{ij}<0$ for some $i$ and $j$ in $\mc V$, then let $x$ and $y$  in $\mc X$ be two strategy profiles such that $x_j=-1$, $y_j=+1$, and $x_{-j}=y_{-j}$, so that $x\le y$. Then,  \eqref{dy-dx} implies that
+$$\delta_i(y)-\delta_i(x)=2W_{ij}<0\,,$$ so that the increasing difference property \eqref{IDP} does not hold true, hence the SNC game is not super-modular.  
+
+(ii) This is a direct consequence of \cite[Proposition 3(v)]{arditti2024robust}, which asserts that the set of Nash equilibria is globally I-stable (i.e., globally I-reachable and I-invariant) and the fact that I-reachability implies BR-reachability (c.f.~Remark \ref{remark:I-reachable}).
+\end{IEEEproof}\medskip
+
+\begin{remark} Proposition \ref{prop:super-modular} ensures that every network coordination game, i.e., every SNC game with binary actions on an unsigned network $\mc G$, admits Nash equilibria and that the set $\mc N$ of Nash equilibria is globally BR-reachable. Notice that, $\mc N$ may not be BR-invariant, as Example \ref{ex:onelink} illustrates. 
+\end{remark}
+
+\subsection{Signed network games on structurally balanced networks}
+The results in the previous subsection can be extended by introducing the notion of structural balance \cite{Harary:1953,Cartwright:1956}. 
+This is a property of signed networks that corresponds to the possibility of exactly partitioning the signed graph into two adversary sub-communities, such that all links within each sub-community have positive weight, whereas all links between nodes of different communities have negative weights.  
+When the graph is structurally balanced, the SNC game can be transformed through a change of variables into a network coordination game. Consensus strategy profiles in the network coordination game corresponds to strategy profiles that take opposite sign in the two communities of the structurally balanced graph. 
+
+%In the following, we exploit the existence of structurally balanced subnetworks to obtain results on existence, reachability and stability of strategy profiles that are polarized in the structurally balanced component. %and generalize previous results considering strategy profiles that are consensus on the coordinating side, we obtain strategy profiles that polarized in the structurally balanced subnetwork.
+First, to every $\sigma$ in $\mc X=\{\pm1\}^{\mc V}$, we can associate a diagonal matrix $[\sigma]$ in $\R^{\mc V\times\mc V}$ with diagonal entries $$[\sigma]_{ii}=\sigma_i\,,\qquad \forall i\in\mc V\,.$$ 
+Such matrices identify linear operators in $\R^n$ that are referred to as \textit{gauge transformations} in some of the literature \cite{Altafini:2013}. 
+
+\begin{definition}
+For a network $\mc G=(\mc V,\mc E,W)$, and a vector $h$ in $\R^{\mc V}$, consider the SNC game with binary actions on $\mc G$ with  external field $h$. Given $\sigma$ in $\mc X$, let the $[\sigma]$-transformed network be 
+\be\label{sigmaG}\mc G^{[\sigma]}=(\mc V,\mc E,W^{[\sigma]})\,,\qquad W^{[\sigma]}=[\sigma]W[\sigma]\,,\ee
+and the $[\sigma]$-transformed external field \be\label{sigmad}h^{[\sigma]}=[\sigma]h\,.\ee
+Then, the \emph{$[\sigma]$-transformed} game is the SNC game with binary actions on $[\sigma]$-transformed network  $\mc G^{[\sigma]}$  with $[\sigma]$-transformed external field $h^{[\sigma]}$. 
+\end{definition}
+Observe that the utility function of every player $i$ in $\mc V$ in the $[\sigma]$-transformed game defined above is given by  
+\be\label{sigmau}\ba{rcl}\ds u^{[\sigma]}_i(x)
+&=&\ds x^TW^{[\sigma]}x+(h^{[\sigma]})^Tx\\[5pt] 
+&=&\ds x^T[\sigma]W[\sigma]x+h^T[\sigma]x\\[5pt] 
+&=&\ds  u_i([\sigma]x)\,,\ea\ee
+	for every strategy profile $x$ in $\mc X$. 
+Equation \eqref{sigmau} shows that, if we apply a gauge transformation $[\sigma]$ to a SNC game, we obtain a new SNC game whose utility functions coincide with the ones of the original game evaluated in the transformed strategy profiles $[\sigma]x$.
+This immediately leads to the following result. 
+\begin{lemma}\label{lemma:NashGauge} Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$, and let $\mc N$ be the set of its Nash equilibria. Given $\sigma$ in $\mc X$, consider the $[\sigma]$-transformed  game and let 
+$\mc B_i^{[\sigma]}$, for every player $i$ in $\mc V$, be its best response  correspondence, and $\mc N_{[\sigma]}$ be the set of its Nash equilibria. Then, 
+\be\label{BR=BR}\mc B_i^{[\sigma]}(x_{-i})=\sigma_i\mc B_i(([\sigma]x)_{-i})\,,\ee
+for every player $i$ in $\mc V$ and strategy profile $x$ in $\mc X$, and
+\be\label{Nash=Nash}\mc N=\{[\sigma]x^*:\,x^*\in\mc N_{[\sigma]}\}\,.\ee
+\end{lemma}
+\begin{IEEEproof}
+See Appendix \ref{sec:proof-lemma-NashGauge}.\end{IEEEproof}\medskip 
+
+
+
+ %As a consequence of the transformation in the actions, consensus strategy profiles in $\tilde{\mc G}$ will correspond to polarized ones in $\mc G$. 
+
+ Gauge transformations are particularly useful when the graph is structurally balanced, as per the following definition.
+\begin{definition}\label{sb} Consider a network $\mc G=(\mc V,\mc E, W)$. Then: 
+\begin{enumerate}
+\item[(i)] a \emph{balanced partition} of $\mc G$ is a binary partition 
+\be\label{balanced-partition} \mc V_1\cup \mc V_2=\mc V\,,\qquad \mc V_1\cap \mc V_2=\emptyset\,,\ee
+of its node set $\mc V$ such that 
+\be\label{balanced-partition-1} W_{ij}\geq 0\,,\qquad \forall i,j \in \mc V_q\,,\ q=1,2\,,\ee
+and
+\be\label{balanced-partition-2} W_{ij}\leq 0\,,\qquad \forall i \in \mc V_q\,,\ j\in\mc V_r\,,\ q\ne r\,,\ q,r\in\{1,2\}\,;\ee
+\item[(ii)] $\mc G$ is \emph{structurally balanced} if it admits a balanced partition. 
+%\item A subset $\mc R\subseteq\mc V$ is called \emph{structurally balanced} if $\mc G_{\mc R}$ is such.
+\end{enumerate}
+\end{definition}
+
+Definition \ref{sb} says that a network is structurally balanced if its node set can be split into two opposite parts such that links connecting nodes in the same part all have nonnegative weight, while links connecting nodes in opposite parts all have nonpositive weight. We have the following simple result. 
+\begin{lemma} \label{lemma:balanced}
+A network $\mc G=(\mc V,\mc E, W)$ is structurally balanced if and only if there exists a gauge transformation $[\sigma]$ such that the $[\sigma]$-transformed network $\mc G^{[\sigma]}$ is unsigned. 
+\end{lemma}
+\begin{IEEEproof} This result coincides with \cite[Lemma 1]{Altafini:2013}. However, since the work \cite{Altafini:2013} is developed under the ``digon sign-symmetry'' assumption (c.f.~footnote 1), and we are working in greater generality, we present a proof in Appendix \ref{sec:proof-lemma-balanced}.   
+\end{IEEEproof}\medskip
+
+Lemma \ref{lemma:balanced} and Proposition \ref{prop:super-modular} together imply the following result. 
+
+\begin{proposition}\label{prop:structurally-balanced-equilibria}
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$. 
+If $\mc G$ is structurally balanced, then the set of Nash equilibria $\mc N$ is  globally BR-reachable. 
+\end{proposition}
+\begin{IEEEproof}
+If $\mc G$ is structurally balanced, Lemma \ref{lemma:balanced} implies that there exists a gauge transformation $[\sigma]$ such that the whole node set $\mc V$ is coordinating in the $[\sigma]$-transformed network $\mc G^{[\sigma]}$. It then follows from Proposition \ref{prop:super-modular}(ii) that the $[\sigma]$-transformed SNC game with binary action on the network $\mc G^{[\sigma]}$ with external field $h^{[\sigma]}$  has a non-empty and globally BR-reachable set of Nash equilibria $\mc N_{[\sigma]}$. 
+Lemma \ref{lemma:NashGauge} then implies that the set of Nash equilibria of the SNC game with binary actions on $\mc G$ with external field $h$ satisfies  $\mc N=\{[\sigma]x^*:\,x^*\in\mc N_{[\sigma]}\}\ne\emptyset$ and is globally BR-reachable. 
+\end{IEEEproof}
+
+
+%\begin{example}
+%\tcr{CI STAREBBE BENE UN ESEMPIO, MAGARI ANTICIPANDONE UNO CHE VIENE DOPO}
+%\end{example}
+\begin{example}\label{ex:sb}
+	Consider the graph in Figure \ref{fig:sb}. The graph is not structurally balanced. Anyway, the subset $\mc R=\{1, \dots, 4\}$ is such that the graph $\mc G_{\mc R}$ is structurally balanced. Indeed, the partition $\mc R = \mc R_1 \cup \mc R_2$ with $\mc R_1=\{1,4\}$ and $\mc R=\{2,3\}$ is such that $W_{\mc R_q \mc R_q}\geq 0$ for $q$ in $\{1,2\}$ and $W_{\mc R_q \mc R_r}\leq 0$ for $q\neq r$, $q$, $r$ in $\{1,2\}$. According to Lemma \ref{lemma:balanced}, there exists a gauge transformation $[\sigma]$ such that $\mc R$ is a coordinating set of $\mc G^{[\sigma]}$. Indeed, if we consider the gauge transformation $[\sigma]$ with $\sigma=[1,-1,-1,1,1,1]$, we obtain that $W^{[\sigma]}=[\sigma]W[\sigma]$ is such that
+	%\left(\begin{matrix}
+		%		1 &0&0&0\\
+		%0 &-1&0&0\\
+		%0&0&-1&0\\
+		%0&0&0&1
+		%\end{matrix}\right)
+		$$
+		\small
+		\begin{aligned}
+			\tilde W_{\mc R\mc R}&= \diag\left(\begin{matrix}
+				1\\
+				-1\\
+				-1\\
+				1
+			\end{matrix}\right)\left[\begin{matrix}
+				0 &-2&0&2\\
+				-2 &0&1&0\\
+				-1 &1&0&-2\\
+				2&-1&0&0
+			\end{matrix}\right]  \diag\left(\begin{matrix}
+				1\\
+				-1\\
+				-1\\
+				1
+			\end{matrix}\right)\\
+			&=\left[\begin{matrix}
+				0 &2&0&2\\
+				2 &0&1&0\\
+				1 &1&0&2\\
+				2&1&0&0
+			\end{matrix}\right]\geq 0\,.
+		\end{aligned}
+		$$
+\end{example}
+
+{\color{black}\begin{figure}
+		\centering
+		\begin{tikzpicture}
+			\foreach \x/\name/\value in {(0,0)/4/1, (2,2)/2/1, (2,0)/3/1, (0,2)/1/1}\node[shape=circle,draw, , fill=gray!30!white](\name) at \x {\small \name};
+			\path [<->,draw] (2) edge node[right] {\small 1} (3);
+			\path [<->,draw, red] (2) edge node[above] {\small -2} (1);
+			\path [<->,draw] (1) edge node[left] {\small 2} (4);
+			\path [->,draw,red] (3) edge node[below] {\small -2} (4);
+			\path [->,draw,red] (3) edge node[above, near start] {\small -1} (1);
+			\path [->,draw,red] (4) edge node[above, near start] {\small -1} (2);
+			
+			\node[shape=circle, draw ](5) at (-1.5,1) {\small 5};
+			\node[shape=circle, draw ](6) at (3.5,1) {\small 6};
+			
+			\path[<->, draw] (4) edge node[above] {\small 1} (5);
+			\path[<->, draw, red] (1) edge node[above] {\small -1} (5);
+			\path[->, draw] (3) edge node[above] {\small 1} (6);
+			\path[<->, draw,red] (2) edge node[above] {\small -1} (6);
+			
+			%	\node[shape=circle, draw ](7) at (-3,1){\small 7};
+			%	\node[shape=circle, draw ](8) at (5,1){\small 8};
+			
+			%	\path [<->,draw=red, text=red] (7) edge node[above] {-3} (5);
+			%	\path [<->,draw=red, text=red] (8) edge node[above] {-3} (6);
+		\end{tikzpicture}	
+		\caption{Graph studied in Example \ref{ex:sb}. The subset $\mc R=\{1, \dots, 4\}$ (in gray) is such that $\mc G_{\mc R}$ is structurally balanced.}
+		\label{fig:sb}
+\end{figure}}
+
+\section{Main results }\label{sec:results}
+In this section, we present our main results. 
+
+Before proceeding, we introduce some notation that will play a crucial role in the following.
+For every node $i$ in $\mc V$ and subset of nodes $\mc B\subseteq\mc V$, we define
+\be\label{B-outdegree}w_i^{\mc B} = \sum_{j\in \mc B} {\color{black}|W_{ij}|}\,,\ee
+to be its $\mc B$-\textit{out-degree}. 
+In the special case when $\mc B=\mc V$ coincides with the whole node set, we simply refer to $$w_i=w_i^{\mc V}\,,$$ as the \textit{out-degree} of a node $i$ in $\mc V$ and let $w=|W|\1$ be the vector of out-degrees. 
+
+We will often consider binary partitions of $\mc V$ of the type 
+\be\label{binary-partition}\mc V={\mc R}\cup{\mc S}\,,\qquad \mc R\cap\mc S=\emptyset\,,\ee 
+%where ${\mc R}$ (and sometimes also $\mc S$) is a coordinating set. We will 
+and identify the strategy profile space as  the Cartesian product 
+$$\mc X=\mc X_{\mc R}\times \mc X_{\mc S}\,,$$ where $\mc X_{\mc R}=\mc A^{{\mc R}}$ and $\mc X_{\mc S}=\mc A^{{\mc S}}$. Correspondingly, we decompose every strategy profile $x$ in $\mc X$ as 
+$$x=(x_{\mc R},x_{\mc S})\,,$$ where $x_{\mc R}$ in $\mc X_{\mc R}$ is the strategy profile of the players in $\mc R$ and $x_{\mc S}$ in $\mc X_{\mc S}$ is the strategy profile of the  players in $\mc S$. 
+
+For every strategy profile $z$ in $\mc X_{\mc S}$, we consider the 
+SNC game with binary actions on the subnetwork $\mc G_{\mc R}$ with external field 
+$$h^{(z)}=h_{\mc R}+W_{\mc R\mc S}z\in \R^{\mc R}\,,$$ 
+i.e., the game with player set ${\mc R}$, action set $\mc A=\{\pm1\}$, and utility functions
+\begin{equation}\label{eq:perturbeh_coord}
+	u_i^{(z)}(y) =u_i(y,z)= y_i \sum_{j \in \cp} W_{ij} y_j + y_i \sum_{j \in \mc S} W_{ij}z_j+y_ih_i\,,
+\end{equation}
+for every player $i$ in $\cp$ and strategy profile $y$ in $\mc X_{\mc R}$. We shall refer to this game as the \emph{$\mc R$-restricted} SNC game with strategy profile of players in $\mc S$ frozen to $z$.
+
+Analogously, for a given strategy profile $y$ in $\mc X_{\mc R}$, the $\mc S$-restricted game with strategy profile of players in $\mc R$ frozen to $y$ refers to the game with player set $\mc S$,  action set $\mc A=\{\pm1\}$,  and utility functions
+\be\label{eq:S-utilities}
+	u_i^{(y)}(z) = u_i(y,z)=  z_i \sum_{j \in \mc S} W_{ij}z_j+z_i \sum_{j \in \cp} W_{ij} y_j+z_ih_i\,,
+\ee
+for every player $i$ in $\mc S$ and strategy profile $z$ in $\mc X_{\mc S}$.
+This can be interpreted as the SNC game with binary actions on the subnetwork $\mc G_{\mc S}$ with external field 
+$$h^{(y)}=h_{\mc S}+W_{\mc S\mc R}y\in \R^{\mc R}\,. $$ 
+
+We denote by $\mc N_{\mc R}^{(z)}$ the set of Nash equilibria of the $\mc R$-restricted SNC game with strategy profile of players in $\mc S$ frozen to $z$ and by $\mc N_{\mc S}^{(y)}$ the set of Nash equilibria of the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $y$. 
+
+
+
+
+\subsection{Existence of Nash equilibria}\label{sec:existence}
+In this subsection, we investigate the existence of Nash equilibria of SNC games with binary actions.  
+
+First, we consider a binary partition of the set of players as in \eqref{binary-partition}, such that the subnetwork $\mc G_{\mc R}$ is unsigned, and we look for Nash equilibria of the SNC game whose projection on the coordinating set $\mc R$ %$\bar{\mc R}\subseteq \mc R$ 
+is a consensus strategy profile, i.e., $$x^*=(a\1, z^*)\,,$$ for some $a=\pm 1$. 
+Our first result, stated below, guarantees the existence of such Nash equilibria in terms of two properties of the $\mc R$- and $\mc S$-restricted SNC games, respectively: the first one, cohesiveness, limits the influence that players in $\mc S$ can have on the players in $\mc R$, the second one ensures that the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to a consensus admits a Nash equilibrium.
+
+\begin{proposition}\label{prop:mixed1}
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$,  and a binary partition \eqref{binary-partition} such that $\mc G_{\mc R}$ is unsigned. Assume that 
+	there exists an action $a$ in $\{\pm1\}$ such that 
+			\be\label{assumptioni}w^{{\mc R}}_i +ah_i\geq w^{{\mc S}}_i\,,\qquad \forall i\in\mc R\,,\ee
+and  that \be\label{NSnon-empty}\mc N_{{\mc S}}^{(a\1)}\ne\emptyset\,.\ee
+	Then, there exists a Nash equilibrium $x^*$ in $\mc N$ such that \be\label{x*R=a1}x^*_{\mc R}=a\1\,.\ee %the set $\mc N \cap \mc T_a$ is non-empty.
+\end{proposition}
+\begin{IEEEproof}         
+Let $x^*$ in $\mc X$ be a strategy profile such that $x^*_{\mc R}=a\1$ and $x^*_{\mc S}=z^*$ in $\mc N_{{\mc S}}^{(a\1)}$ is a Nash equilibrium of the $\mc S$-restricted SNC game with strategy profile of players in $\mc S$ frozen to $a\1$. 
+We will now prove that $x^*$ is a Nash equilibrium of the SNC game. 
+	Since $z^*\in\mc N_{{\mc S}}^{(a\1)}$, what we are left to show is that $a\in \mc B_i(x_{-i}^*)$ for every player $i$ in $\mc R$. % Then, 
+	 Since $W_{ij}\geq 0$ for every player $i$ and $j$ in $\mc R$, 
+from  \eqref{eq:perturbeh_coord} this is equivalent to %verifying that
+	$$
+	a\left(aw_i^{{\mc R}}+h_i+(W_{{\mc R}{\mc S}}z^*)_i\right)\geq -a\left(aw_i^{{\mc R}}+h_i+(W_{{\mc R}{\mc S}}z^*)_i\right)\,,$$
+	or, equivalently, that
+	\be\label{wiR}w_i^{{\mc R}}+ah_i\geq -a(W_{{\mc R}{\mc S}}z^*)_i\,,\qquad \forall i\in\mc R\,.\ee
+	Since $$w^{{\mc S}}_i\geq -a(W_{{\mc R}{\mc S}}z^*)_i\,,\qquad  \forall i\in\mc R\,,$$ \eqref{wiR} follows from \eqref{assumptioni}. This completes the proof. 
+\end{IEEEproof}\medskip
+\begin{remark} \label{remark:cohesive}
+	In the special case when $h=0$, i.e., when all players are unbiased, using the identity $w_i^{{\mc S}}=w_i-w_i^{{\mc R}}$, we can rewrite condition \eqref{assumptioni} in Proposition \ref{prop:mixed1} as $$w_i^{{\mc R}}\geq w_i/2\,,\qquad \forall i\in{\mc R}\,.$$ 
+	This says that every node in ${\mc R}$ has at least half of the weight of its out-links towards other nodes in ${\mc R}$. In the terminology introduced in \cite{Morris:2000}, this says that ${\mc R}$ is a $1/2$-cohesive subset of $\mc V$ relative to the unsigned graph $(\mc V,\mc E, |W|)$.
+\end{remark}
+
+\begin{remark}
+Notice that the two networks of Examples \ref{ex:discoord} and \ref{ex:3ringanticoord}, for which Nash equilibria did not exist, were missing just one of the two assumptions in Proposition \ref{prop:mixed1}. Precisely, condition \eqref{assumptioni} was not satisfied by the network in Figure \ref{fig:disc_game} (a), while condition \eqref{NSnon-empty} was not satisfied by the network in Figure \ref{fig:disc_game} (b). We also observe that global BR-reachability is not guaranteed by conditions \eqref{assumptioni} and  \eqref{NSnon-empty}  alone, as already noticed in Example \ref{ex:nostability}. 
+\end{remark}
+
+We now present the following result extending Proposition \ref{prop:mixed1} to cases when $\mc G_{\mc R}$ is structurally balanced rather than unsigned. In this case, provided that $\mc R$ remains cohesive, we can determine sufficient conditions for the existence of Nash equilibria $x^*$ of the SNC game whose restriction $\tau=x^*_{\mc R}$ to the set $\mc R$ is such that the $[\tau]$-transformed subnetwork $\mc G_{\mc R}^{[\tau]}$ is unsigned. 
+
+
+\begin{theorem}\label{theo:main-existence}
+	Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$. 
+	Assume that there exists a binary partition as in \eqref{binary-partition} such that $\mc G_{\mc R}$ is structurally balanced  
+	and let $\tau$ in $\mc X_{\mc R}$ be such that 
+	\be\label{tauWtau}\tau_iW_{ij}\tau_j\ge0\,,\qquad \forall i,j\in\mc R\,.\ee 
+	If 
+		\be\label{wRitau}
+		w^{{\mc R}}_i + \tau_ih_i\geq w^{{\mc S}}_i\,,\qquad \forall i\in\mc R\,,
+		\ee
+		and
+		\be\label{NStau}\mc N_{{\mc S}}^{(\tau)}\ne\emptyset\,,\ee
+	then, there exists a Nash equilibrium $x^*$ in $\mc N$  such that 
+	\be\label{xRtau}x_{\mc R}^*=\tau\,.\ee
+	% and $x_i^*=- a$ for all $i$ in ${\mc R_2}$. %the set $\mc N \cap \mc T_a$ is non-empty.
+\end{theorem}
+\begin{IEEEproof}
+	%Consider any $\sigma$ as in Proposition \ref{pr2} and 
+	Let $\sigma$ in $\mc X$ be such that $\sigma_{\mc R}=\tau$ and $\sigma_{\mc S}=\1$. %In the forthcoming derivations, we will indicate $\sigma=(\tau,\1)$.
+Consider the  associated gauge transformation $[\sigma]$ and the SNC game with binary actions on the $[\sigma]$-transformed network  $\mc G^{[\sigma]}$ with external field $h^{[\sigma]}$. 
+%	Consider $\sigma$ in $\mc X$ such that $\sigma_{\mc R}=\tau$ and $\sigma_{\mc S}=\1$, %In the forthcoming derivations, we will indicate $\sigma=(\tau,\1)$.
+%and the associated gauge transformation $[\sigma]$. Consider the 
+%SNC game with binary actions on the $[\sigma]$-transformed network 
+%$\mc G^{[\sigma]}$ defined \eqref{sigmaG} with external field $h^{[\sigma]}$ as in \eqref{sigmad}. 
+Observe that condition \eqref{tauWtau} ensures that $\mc G^{[\sigma]}_{\mc R}$ is unsigned.  
+Moreover, assumption \eqref{wRitau} implies that 
+	\be\label{cond1}w_i^\mc R+h^{[\sigma]}_i \geq w_i^{\mc S},\qquad \forall i\in\mc R\,,\ee
+	where $w_i^{\mc R}$ and $w_i^{\mc S}$ denote, respectively, the $\mc R$- and $\mc S$-out-degrees of node $i$ (as defined in \eqref{B-outdegree}) that are the same in both the original network $\mc G$ and the $[\sigma]$-transformed one $\mc G^{[\sigma]}$, since gauge transformations do not alter degrees.
+Furthermore, it follows from equation \eqref{sigmau} that 	
+%	. Moreover, we notice from Proposition \ref{pr2}  that the utilities for the SNC game associated with $\tilde{\mc G}$ and $\tilde d$, restricted to $\mc S$, are given by 
+	$$u_i^{[\sigma]}(\1,  z)=u_i([\sigma](\1, z))=u_i(\tau, z)\,,\qquad \forall i\in\mc S\,,$$
+	which, together with assumption \eqref{NStau},  implies that 
+	$$(\mc N_{[\sigma]})_{{\mc S}}^{(\1)}=\mc N_{{\mc S}}^{(\tau)}\ne\emptyset\,.$$
+	Therefore, the $[\sigma]$-transformed SNC game % with binary actions on the network 
+%$\mc G^{[\sigma]}$ with external field $h^{[\sigma]}$ 
+satisfies all the assumptions of Proposition \ref{prop:mixed1}, hence it admits a Nash equilibrium $\tilde x^*$ in $\mc N_{[\sigma]}$ such that $\tilde x^*_{\mc R}=\1$. 
+Lemma \ref{lemma:NashGauge} then implies that $x^*=[\sigma]\tilde x^*\in\mc N$ is a Nash equilibrium for the SNC game with binary actions on $\mc G$ with external field $h$. Finally, observe  that $$x^*_{\mc R}=([\sigma]\tilde x^*)_{\mc R}=[\tau]\1=\tau\,,$$
+so that \eqref{xRtau} holds true, thus completing the proof. 
+\end{IEEEproof}\medskip
+
+
+
+
+
+
+
+
+Observe that assumption \eqref{NStau} in  Theorem \ref{theo:main-existence}, namely  the fact that the set $\mc N_{{\mc S}}^{(\tau)}$ of Nash equilibria of the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $\tau$, is automatically verified when the subnetwork $\mc G_{\mc S}$ is either undirected or structurally balanced itself. This leads to the following corollaries.
+
+
+\begin{corollary}\label{th:mixed_existence1}
+	Consider a SNC game with binary actions on $\mc G=(\mc V,\mc E,W)$ and a binary partition \eqref{binary-partition} where both  $\mc G_{\mc R}$ and $\mc G_{\mc S}$ are structurally balanced. If 
+	there exists $\tau$ in $\mc X_{\mc R}$ such that assumptions \eqref{tauWtau} and \eqref{wRitau} hold true, then there exists a Nash equilibrium $x^* \in \mc N$ satisfying equation \eqref{xRtau}. 
+\end{corollary}
+\begin{IEEEproof}
+	If the subnetwork $\mc G_{\mc S}$ is structurally balanced, then, for every $\tau$ in $\mc X_{\mc R}$, Proposition \ref{prop:structurally-balanced-equilibria} applied to  the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $\tau$, implies that assumption \eqref{NStau} holds true. 
+	The claim then follows from Theorem \ref{theo:main-existence}. 
+\end{IEEEproof}\medskip
+
+
+\begin{corollary}\label{th:mixed_existence2}
+	Consider a SNC game  with binary actions on $\mc G=(\mc V,\mc E,W)$ and a binary partition \eqref{binary-partition} where $\mc G_{\mc R}$ is structurally balanced and $\mc G_{\mc S}$ is undirected. If 
+	there exists $\tau$ in $\mc X_{\mc R}$ such that assumptions \eqref{tauWtau} and \eqref{wRitau} hold true, then there exists a Nash equilibrium $x^* \in \mc N$ satisfying equation \eqref{xRtau}. 
+\end{corollary}
+\begin{IEEEproof}
+	If the subnetwork $\mc G_{\mc S}$ is undirected,  then, for every $\tau$ in $\mc X_{\mc R}$, Proposition \ref{pr:pot_mixed} applied to  the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $\tau$  implies that assumption \eqref{NStau} holds true. 
+	The claim then follows from Theorem \ref{theo:main-existence}. 
+%
+%	
+%	If $\mc S$ is undirected, for every $y$ in $\mc X_{\mc R}$ the $\mc S$-restricted game with utilities 
+%	\be\label{alien-game}u_i^{(y)}(z)=z_i\sum_{j\in\mc R}W_{ij}y_j+z_i\sum_{j\in\mc S}W_{ij}z_j+h_iz_i\,,\qquad i\in\mc S\ee is an exact potential game with potential function
+%	$$\Phi^{(y)}(z)={\color{red}\frac{1}2}\sum_{i,j \in \mc S}W_{ij}z_iz_j+{\color{red}\sum_{i \in \mc S}\big(\sum_{j \in \mc R}W_{ij}y_j+h_i\big) z_i}\,.$$
+%	As a consequence, $\mc N_{\mc S}^{(y)}$ is non-empty. \cite{Monderer.Shapley:1996}. 
+%		The claim follows from Theorem \ref{lemma:mixed1}. 
+\end{IEEEproof}\medskip
+
+	
+\begin{remark}Corollaries \ref{th:mixed_existence1} and \ref{th:mixed_existence2}  significantly generalize previous results where the existence of (pure strategy) Nash equilibria was proved only for network coordination or network anti-coordination games over undirected graphs \cite{Ramazi.Riehl.Cao:2016}.  Moreover, Corollary \ref{th:mixed_existence2}  applies to the mixed network coordination/anti-coordination games studied in \cite{vanelli2020games, arditti2021equilibria}.\end{remark}
+\addtocounter{example}{-6}
+\begin{example}[cont'd]
+	Consider the graph in Figure \ref{fig:graph1} and let $h=0$. 
+	Observe that, for all $i$ in $\mc R$, it holds that
+	$w_i^{\mc R}\geq w_i^{\mc S}$. Since the subnetwork $\mc G_{\mc R}$ is unsigned and the subsetwork $\mc G_{\mc S}$ is undirected, 
+	Corollary \ref{th:mixed_existence2} implies the existence of two Nash equilibria $x^*$ and $x^{**}$ in $\mc N$ such that $x^*_{\mc R}=\1=-x^{**}_{\mc R}$. 
+\end{example}
+\addtocounter{example}{4}
+\begin{example}[cont'd]
+	Consider the graph in Figure \ref{fig:sb}. As previously observed, the subset $\mc R=\{1, \dots, 4\}$ is such that the graph $\mc G_{\mc R}$ is structurally balanced. Indeed, if we consider the gauge transformation $[\sigma]$ with $\sigma=[1,-1,-1,1,1,1]$, we obtain that $W^{[\sigma]}=[\sigma]W[\sigma]\geq 0$. Furthermore, for $h_i=0$, we have $w^{\mc R}\vert_{\mc R}=(4,3, 4, 3)> w^{\mc S}\vert_{\mc R}=(1,1,1,1) $. Since $\mc G_{\mc S}$ is undirected (no links), by Corollary \ref{th:mixed_existence2}, this implies that, for $\tau=(1,-1,-1,1)$, there exists a polarized Nash equilibrium, that is, a Nash equilibrium where $x_i^*=\tau_i$ for all $i$ in $\mc R$. For instance, the strategy profile $x^*=(1,-1,-1,1,-1,1)$ is a Nash equilibrium of the game. Notice that, since $\mc G_{\mc S}$ has no links, Corollary \ref{th:mixed_existence1} applies too.
+\end{example}
+%\addtocounter{example}{1}
+%\begin{example}[cont'd]
+%	Consider the graph in Figure \ref{fig:noeq_nostability} and let $h=0$. Both Corollaries \ref{th:mixed_existence1} and \ref{th:mixed_existence2} apply to this case. We notice that the Nash equilibrium found $x^*$ \tcr{NON SI CAPISCE DI CHI SI PARLI} is indeed a consensus on the coordinating agents. 
+%\end{example}
+
+
+
+% In the following subsection, we will  determine sufficient conditions for stability of the set of Nash equilibria where coordinating players are at consensus.
+
+\subsection{Stability of Nash equilibria}
+
+%\tcr{PARAGRAFO DA RISCRIVERE O ELIMINARE}
+We now present results on the global stability of Nash equilibria of SNC games. Before proceeding, it is convenient to reconsider the SNC game in Example \ref{ex:nostability}, whose set of Nash equilibria was shown to be not globally BR-reachable. A closer look at this example suggests that this is a direct consequence of the topological structure of the underlying network displayed in Figure \ref{fig:noeq_nostability}. %: this network is not \tcr{strongly connected}, more precisely, the subnetwork induced by the subset of coordinating players, 
+This network contains two components $\{1,2,3\}$ and $\{5,6,7\}$, each of which without any out-link towards other nodes in the graph. This decomposition of the graph is what prevents the coordinating players to reach a consensus starting from a polarized initial condition. 
+The observation above motivates the following definition that introduces a property of the graph guaranteeing that similar decompositions are not possible. The proposed definition also accounts for the external field $h$. It will be at the basis of the results presented in this subsection.
+ \begin{definition}\label{def:indecomp}
+ Consider a network $\mc G= (\mc V, \mc E, W) $ and two vectors  $h^-$ and $h^+$ in $\R^\mc V$ such that $h^{-}\leq h^+$. We say that $\mc G$ is  $(h^-,h^+)$-indecomposable if for every binary partition %\tcr{QUI I DUE INSIEMI NON SONO VUOTI MENTRE PRIMA SI', GIUSTO?}
+ \be\label{binarypartition+-}\mc V = \mc V^-\cup \mc V^+\,,\qquad \mc V^-\cap\mc V^+=\emptyset\,,\qquad\mc V^-\ne\emptyset\ne\mc V^+\,,\ee 
+ there exists a node $i$ in $\mc V$ such that either
+\begin{equation}\label{eq:ind1}
+	i \in \mc V^+ \text{ and } w_i^{\mc V^+} + h_i^+<  w_i^{\mc V^-}
+	\end{equation}
+	or 
+	\begin{equation}\label{eq:ind2} 
+		i \in \mc V^- \text{ and } w_i^{\mc V^-}-h_i^- < w_i^{\mc V^+}\,.
+	\end{equation}
+\end{definition}
+
+
+The following example illustrates the notion of indecomposability introduced in Definition \ref{def:indecomp} above. 
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}%[scale=0.8]
+		\hspace{0.2cm}
+		\foreach \x/\name/\value in {(0,0)/4/1, (2,2)/2/1, (2,0)/3/1, (0,2)/1/1}\node[shape=circle,draw](\name) at \x {\small \name};
+		\path [<->,draw] (2) edge node[right] {\small 1} (3);
+		\path [<->,draw] (2) edge node[above] {\small 2} (1);
+		\path [<->,draw] (1) edge node[left] {\small 2} (4);
+		\path [->,draw] (3) edge node[below] {\small 1} (4);
+		\path [->,draw] (3) edge node[above, near start] {\small 1} (1);
+		\path [->,draw] (4) edge node[above, near start] {\small 1} (2);
+		
+		
+	\end{tikzpicture}	
+	\caption{Graph considered in Example \ref{ex:dec1}.}
+	\label{fig:indec}
+\end{figure}
+
+
+\begin{example}\label{ex:dec1}
+	The network $\mc G$ in Figure \ref{fig:indec} is $(h^{-}, h^{+})$-indecomposable for $h^{+}=(3,2,0,2)=-h^{-} $. To see this, first notice that, for any partition where $|\mc V^+|=|\mc V^-|=2$, node $3$ satifies either \eqref{eq:ind1} or \eqref{eq:ind2} as a direct consequence of the facts that its out-degree is $w_3=3$ and $h_3^-=h_3^+=0$. 
+Suppose instead that $|\mc V^-	|=1$. A direct check shows that the node in $\mc V^-$ satisfies \eqref{eq:ind2}. The case when $|\mc V^+|=1$ is identical. %\tcr{VA RIAGGIUNTA UNA PARTE}
+
+
+	The network $\mc G$ in Figure \ref{fig:indec} is not $(h^{-}, h^{+})$-indecomposable for $h^{+}=\1$ and  $h^{-} = -h^{+}$. Indeed, if we take the partition $\mc V^+=\{1,4\}$ and $\mc V^-=\{2,3\}$, we have that $w_1^{\mc V^+}+h_1^+=3\geq 2= w_1^{\mc V^-}$, $w_4^{\mc V^+}+h_4^+=3\geq 1 = w_4^{\mc V^-}$, $w_2^{\mc V^+}-h_2^-=2\geq 1= w_2^{\mc V^+}$ and $w_3^{\mc V^-}-h_3^-=2\geq 2=w_3^{\mc V^+}$. Then, $\nexists i$ in $\mc V^+$ or $\mc V^-$ such that either \eqref{eq:ind1} or \eqref{eq:ind2} is violated.
+\end{example}
+
+%The indecomposability property introduced in Definition \ref{def:indecomp} can be given the following interpretation in terms of robustness of SNC games. Consider a strategic game with player set $\mc V$, action space $\mc A=\{\pm1\}$ for every player, and utility functions  
+%\be\label{utility-netcoord} u_i(x)=x_i\sum_{j\in\mc V} W_{ij}x_j+h_ix_i\,,\ee 
+%for every player $i$ in $\mc V$, 
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$ such that 
+\be\label{h-bounds} h^-_i\le h_i\le h_i^+\,,\qquad\forall i\in\mc V\,.\ee
+Given a binary partition as in \eqref{binarypartition+-}, consider the strategy profile $x$ in $\mc X$ with  $$x_{\mc V^+}=\1\,,\qquad x_{\mc V^-}=-\1\,.$$ 
+Then, conditions \eqref{eq:ind1} and \eqref{eq:ind2} imply that there exists a player $i$ in either  $\mc V^+$ or $\mc V^-$  that is not playing best response in strategy profile $x$. This implies that the SNC game on $\mc G$ with eternal field $h$  admits no coexistent Nash equilibria, i.e., no Nash equilibria other than, possibly, consensus strategy profiles. Notice that the absence of coexistent Nash equilibria implied by the $(h^-,h^+)$-indecomposability of the graph is robust with respect to changes of the vector $h$ in the hyper-rectangle $\{h\in\R^{\mc V}:\,\eqref{h-bounds}\}$.
+
+
+We will make use of a result in \cite{arditti2024robust} that ensures, for network coordination games on $(h^-,h^+)$-indecomposable unsigned networks, the existence of a BR-path from every strategy profile $x$ to a consensus strategy profile that is independent from the specific choice of the vector $h$ satisfying \eqref{h-bounds}. Precisely, \cite[Theorem 4(i)]{arditti2024robust} implies the following.
+
+\begin{lemma}\label{lemma-robust}  Consider an unsigned network $\mc G= (\mc V, \mc E, W) $ and two vectors  $h^-$, $h^+$ in $\R^\mc V$ for which $\mc G$ is $(h^-,h^+)$-indecomposable. Then, for every strategy profile $x^{(0)}$ in $\mc X$, there exists an $l$-tuple of strategy profiles $(x^{(1)},\ldots,x^{(l)})$,  with $1\le l\leq n$, such that $x^{(l)}\in\{\pm\1\}$ is a consensus  profile, and $(x^{(0)},x^{(1)},\ldots,x^{(l)})$ is a BR-path for every SNC game with binary actions on $\mc G$ with external field $h$ satisfying \eqref{h-bounds}. 
+
+\end{lemma}
+
+We can now get the following result.
+
+
+
+\begin{proposition}\label{prop:stability}
+Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$ and a binary partition \eqref{binary-partition} such that $\mc G_{\mc R}$ is unsigned. Let $h^-$ and $h^+$ in $\R^{\mc R}$ be the vectors with entries 
+\be\label{h+-}h^+_i=h_i+w_i^{{\mc S}}\,, \qquad h^-_i=h_i-w_i^{{\mc S}}\,,\qquad\forall i\in\mc R\,.\ee
+Assume that $\mc G_{\mc R}$ is $(h^-,h^+)$-indecomposable and 
+\be\label{wRi}w^{{\mc R}}_i -|h_i|> w^{{\mc S}}_i\,,\qquad\forall i\in\mc R\,.\ee
+Then:  
+\begin{enumerate}
+\item[(i)] if, for every $a$ in $\{\pm1\}$, the set 
+$\mc N_{{\mc S}}^{(a\1)}$  is globally BR-reachable for the $\mc S$-restricted SNC game with action profile of players in $\mc R$ frozen to $a\1$, 
+then, the subset  of Nash equilibria \be\label{tildeN}\tilde{\mc N}=\{x^*\in\mc N:\,x^*_{\mc R}\in\{\pm\1\}\}\,,\ee  is non-empty and globally BR-reachable. 
+	\end{enumerate}
+	Moreover: 
+	\begin{enumerate}
+	\item[(ii)] if, for every $a$ in $\{\pm1\}$, there exists a non-empty subset $\bar{\mc N}_{{\mc S}}^{(a\1)}\subseteq \mc N_{{\mc S}}^{(a\1)}$ that is globally BR-stable for the $\mc S$-restricted SNC game with action profile of players in $\mc R$ frozen to $a\1$, then there exists a non-empty globally BR-stable subset $\ov{\mc N}\subseteq\tilde{\mc N}$. 
+\end{enumerate}
+\end{proposition}
+
+\begin{IEEEproof} 
+Fix an arbitrary strategy profile $x$ in $\mc X$ and let $z=x_{\mc S}$. 
+On the one hand, since the subnetwork $\mc G_{\mc R}$ is unsigned and $(h^-,h^+)$-indecomposable, Lemma \ref{lemma-robust} implies that the set of consensus strategy profiles $\{\pm\1\}\subseteq\mc X_{\mc R}$ is globally BR-reachable for the $\mc R$-restricted network coordination game with action profile of players in $\mc S$ frozen to $z$, so that there exists a length-$l$ BR-path $((y^{(0)},z),(y^{(1)},z),\ldots,(y^{(l)},z))$ with $y^{(0)}=x_{\mc R}$ and $y^{(l)}=a\1$, for some $a$ in $\{\pm1\}$. 
+	On the other hand, since the set $\mc N_{{\mc S}}^{(a\1)}$  is globally BR-reachable for the $\mc S$-restricted SNC game with action profile of players in $\mc R$ frozen to $y=a\1$, there exists a length-$m$ BR-path 
+	$((a\1,z^{(0)}),(a\1,z^{(1)}),\ldots,(a\1,z^{(m)}))$ with $z^{(0)}=z$ and $z^{(m)}=z^*\in\mc N_{{\mc S}}^{(a\1)}$. 
+	
+	Observe that the strategy profile $x^*$ in $\mc X$ with $x^*_{\mc R}=a\1$ and  $x^*_{\mc S}=z^*$ is a Nash equilibrium for the original SNC game with binary actions on $\mc G$ with external field $h$, as every player $i$ in $\mc R$ is playing best response thanks to \eqref{wRi}, while every player $j$ in $\mc S$ is playing best response since $z^*\in\mc N_{{\mc S}}^{(a\1)}$. We have thus found a length-$(l+m)$ BR-path 
+	$((y,z),(y^{(1)},z),\ldots,(a\1,z),(a\1,z^{(1)}),\ldots,(a\1,z^*))$ from $x$ to $x^*$ in $\mc N$ with $x^*_{\mc R}=a\1$. 
+	The arbitrariness of initial strategy profile $x$ in $\mc X$ implies that the set $\tilde{\mc N}$ defined in \eqref{tildeN}, i.e., the subset of Nash equilibria in which players in $\mc R$ are at consensus is globally BR-reachable, thus proving point (i) of the claim. 
+	
+	To prove point (ii) of the claim, let $a$ in $\{\pm1\}$ be as above. Since there exists a non-empty subset $\bar{\mc N}_{{\mc S}}^{(a\1)}\subseteq \mc N_{{\mc S}}^{(a\1)}$ that is globally BR-stable for the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $a\1$, then the BR-path above can be constructed leading to $x^*$ such that $x^*_{\mc S}\in\bar{\mc N}_{{\mc S}}^{(a\1)}$. Now, notice that assumption \eqref{wRi} implies that,  in the strategy profile $x^*$ defined above, every player $i$ in ${\mc R}$ is playing a strict best response $\mc B_i(x^*_{-i})=\{a\}$. This, combined with the BR-invariance of $\ov{\mc N}_{\mc S}^{(a\1)}$ for the $\mc S$-restricted SNC game with strategy profile of players in $\mc R$ frozen to $a\1$, implies that 
+	$$\ov{\mc N}=\{x^*\in\mc X:\,x^*_{\mc R}\in\{\pm\1\}\,,\, x^*_{\mc S}\in\bar{\mc N}_{{\mc S}}^{(x^*_{\mc R})}\}\,,$$
+	is a non-empty, globally BR-stable subset of Nash equilibria, thus proving point (ii) of the claim. 
+	\end{IEEEproof}
+
+\begin{remark} In the special case of a network coordination game, i.e., when the network $\mc G$ is unsigned, Proposition \ref{prop:stability} provides sufficient conditions for consensus strategy profiles $\pm\1$ to be Nash equilibria and form a globally BR-reachable set. In this setting, the assumptions reduce to the following two conditions: (a) that $\mc G_{\mc R}$ is $(h^-,h^+)$-indecomposable; and (b) that $w_i>|h_i|$ for every $i$ in $\mc V$. Condition (a) ensures that no coexistent Nash equilibrium exists, while condition (b) ensures that both consensus strategy profiles $\pm\1$ are strict Nash equilibria. We notice that in this case conditions (a) and (b) are not just sufficient but also necessary for the set $\{\pm\1\}$ of consensus strategy profiles to be globally BR-stable. 
+\end{remark}
+
+We now present the following result extending Proposition \ref{prop:stability} to cases when $\mc G_{\mc R}$ is structurally balanced rather than unsigned. 
+
+\begin{theorem}\label{theo:main-stability}
+	Consider a SNC game with binary actions on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$. 
+	 Consider a binary partition as in \eqref{binary-partition}, such that $\mc G_\mc R$ is structurally balanced 
+	 and let $\tau$ in $\mc X_{\mc R}$ be such that $\mc G_{\mc R}^{[\tau]}$ is unsigned. 
+	Let $h^-$ and $h^+$ in $\R^{\mc R}$ be the vectors with entries 
+\be\label{h+-tau}h^+_i=\tau_ih_i+w_i^{{\mc S}}\,, \qquad h^-_i=\tau_ih_i-w_i^{{\mc S}}\,,\qquad\forall i\in\mc R\,.\ee
+Assume that $\mc G_{\mc R}^{[\tau]}$ is $(h^-,h^+)$-indecomposable and that \eqref{wRi} holds true. 
+%\be\label{wRi}w^{{\mc R}}_i -|h_i|> w^{{\mc S}}_i\,,\qquad\forall i\in\mc R\,.\ee
+Then:  
+\begin{enumerate}
+\item[(i)] if, for $y=\pm\tau$ in $\mc X_{\mc R}$, the set 
+$\mc N_{{\mc S}}^{(y)}$  is globally BR-reachable for the $\mc S$-restricted SNC game with the strategy profile in $\mc R$ frozen to $y$, 
+then, the subset of Nash equilibria \be\label{Ntau}\ov {\mc N}=\{x^*\in\mc N:x^*_{\mc R}\in\{\pm\tau\}\}\,,\ee  is globally BR-reachable. 
+	\end{enumerate}
+	Moreover: 
+	\begin{enumerate}
+	\item[(ii)] if, for $y=\pm\tau$ in $\mc X_{\mc R}$, there exists a non-empty subset $\bar{\mc N}_{{\mc S}}^{(y)}\subseteq \mc N_{{\mc S}}^{(y)}$ that is globally BR-stable for the $\mc S$-restricted SNC game where actions of players in $\mc R$ are frozen to $y$, then 
+	there exists a globally BR-stable subset of Nash equilibria contained in $\ov{\mc N}$. 
+\end{enumerate}
+\end{theorem}
+\begin{IEEEproof}
+Let $\sigma$ in $\mc X$ be such that $\sigma_{\mc R}=\tau$ and $\sigma_{\mc S}=\1$. %In the forthcoming derivations, we will indicate $\sigma=(\tau,\1)$.
+Consider the  associated gauge transformation $[\sigma]$ and the $[\sigma]$-transformed network  $\mc G^{[\sigma]}$. Observe that the assumptions ensure that $(\mc G^{[\sigma]})_{\mc R}=\mc G_{\mc R}^{[\tau]}$ is unsigned, that $\mc G_{\mc R}$ is $(h^-,h^+)$-indecomposable and that \eqref{wRi} holds true. We can thus apply Proposition \eqref{prop:stability} to the $[\sigma]$-transformed SNC game, whose points (i) and (ii) imply, respectively, points (i) and (ii) of the claim. 
+\end{IEEEproof}\medskip
+
+
+
+Similarly to Section \ref{sec:existence}, we may derive the following two corollaries from Theorem \ref{theo:main-stability}.
+
+\begin{corollary}\label{coro:reach} 
+Consider a SNC game on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$. 
+Consider a binary partition as in \eqref{binary-partition} such that $\mc G_{\mc R}$ and $\mc G_{\mc S}$ are both structurally balanced, and let $\tau$ in $\mc X_{\mc R}$ be such that $\mc G_{\mc R}^{[\tau]}$ is unsigned. Let $h^-$ and $h^+$ in $\R^{\mc R}$ be the vectors with entries as in \eqref{h+-}.
+If $\mc G_{\mc R}$ is $(h^-,h^+)$-indecomposable and \eqref{wRi} holds true, then the subset of Nash equilibria \eqref{Ntau} is globally BR-reachable.
+\end{corollary}
+\begin{IEEEproof} If the subnetwork $\mc G_{\mc S}$ is structurally balanced, then, for every $\tau$ in $\mc X_{\mc R}$, Proposition \ref{prop:structurally-balanced-equilibria} implies that the set  $\mc N_{{\mc S}}^{(y)}$  is globally BR-reachable for the $\mc S$-restricted SNC game with the strategy profile in $\mc R$ frozen to $y=\pm\tau$. 
+The claim then follows from Theorem \ref{theo:main-stability}(i). 
+\end{IEEEproof}
+	\begin{figure}
+	\centering
+	\begin{tikzpicture}
+		\foreach \x/\name/\value in {(0,0)/4/1, (2,2)/2/1, (2,0)/3/1, (0,2)/1/1}\node[shape=circle,draw, fill=gray!30!white](\name) at \x {\small \name};
+		\path [<->,draw] (2) edge node[right, near end] {\small 1} (3);
+		\path [<->,draw] (2) edge node[above] {\small 2} (1);
+		\path [<->,draw] (1) edge node[left] {\small 2} (4);
+		\path [->,draw] (3) edge node[below] {\small 1} (4);
+		\path [->,draw] (3) edge node[above, near start] {\small 1} (1);
+		\path [->,draw] (4) edge node[above, near start] {\small 1} (2);
+		
+		
+		\node[shape=circle, draw ](6) at (4,1) {\small 6};
+		\node[shape=circle, draw ](5) at (-2,1) {\small 5};
+		
+		\path[<-, draw, bend right=70] (5) edge node[above] {\small 2} (6);
+		\path[<->, draw, bend right=60,red] (2) edge node[above] {\small -1} (5);
+		
+		\path[<->, draw,red] (2) edge node[above] {\small -1} (6);
+		\path[<->, draw] (1) edge node[above] {\small 2} (5);
+		\path[<->, draw, red] (4) edge node[below] {\small -1} (5);
+	\end{tikzpicture}	
+	\caption{Signed graph with coordinating set $\mc R=\{1, \dots, 4\}$ in gray (see Example \ref{ex:non_dec_sup}).}
+	\label{fig:non_dec_sup}
+\end{figure}
+\begin{example}\label{ex:non_dec_sup}
+ Consider a SNC game on the graph in Figure \ref{fig:non_dec_sup} with $h=0$. Observe that  $\mc R=\{1,\dots, 4\}$ and $\mc S=\mc V\setminus \mc R$ are  coordinating sets with $w^{\mc R}\vert_{\mc R}-\abs{h}_{\mc R}=(4,3,3,3)> w^{\mc S}\vert_{\mc R}=(2,2,0,1)$. %Then, according to Corollary \ref{th:mixed_existence1}, there exists at least one Nash equilibrium where players in $\mc R$ are at consensus.
+Furthermore, the graph $\mc G_{\mc R}$ is $(h^+, h^-)$-indecomposable for $h^{+}=h_{\mc R} +w^{\mc S}\vert_{\mc R}=(2,2,0,1)$ and $h^-=h_{\mc R} -w^{\mc S}\vert_{\mc R}=-h^+$. This can be proved following the same reasoning as in Example \ref{ex:dec1} (notice that $\mc G_{\mc R}$ coincides with the graph in Figure \ref{fig:non_dec}). %according to point (a) in Corollary \ref{coro:stability}, we obtain $h^{+}=w^{\mc S}\vert_{\mc R}=(3,2,0,2)$ and $h^-=-w^{\mc S}\vert_{\mc R}=-h^+$. In Example \ref{ex:dec1}, we observed that the graph $\mc G_\mc R$ in Figure \ref{fig:non_dec} is $(h^{-},h^{+})$-indecomposable for such $h^{+}$ and $h^-$. 
+Then, according to Corollary \ref{coro:reach}, the set of Nash equilibria where the players in ${\mc R}$ are at consensus is globally BR-reachable.
+Notice that the set of Nash equilibria 
+$$\mc N=\{(a\1_{\mc R},-a,a),(a\1_{\mc R},a,-a) , a = \pm 1\}\,.$$ is not globally BR-stable. Indeed, for every $x^*$ in $\mc N$, the best response of player $5$ is $\mc B_5(x_{-5}^*)=\{\pm 1\}$, while $6$ is playing a strict best response. Therefore, there exists a best-response path (e.g., $((a\1_{\mc R},-a,a), (a\1_{\mc R},a,a))$ for $a=\pm 1$) that leaves the set of Nash equilibria. 
+\end{example}
+\begin{corollary}\label{coro:stability} 
+Consider a SNC game on a network $\mc G=(\mc V,\mc E,W)$ with external field $h$. 
+Consider a binary partition as in \eqref{binary-partition} such that $\mc G_{\mc R}$ is structurally balanced and $\mc G_{\mc S}$ is undirected. Let $\tau$ in $\mc X_{\mc R}$ be such that $\mc G_{\mc R}^{[\tau]}$ is unsigned and let $h^-$ and $h^+$ in $\R^{\mc R}$ be the vectors with entries as in \eqref{h+-}.
+If $\mc G_{\mc R}$ is $(h^-,h^+)$-indecomposable and \eqref{wRi} holds true, then there exists a globally BR-stable subset of Nash equilibria.
+\end{corollary}
+\begin{IEEEproof}
+	If the subnetwork $\mc G_{\mc S}$ is undirected,  then Proposition \ref{pr:pot_mixed} implies that, for $y=\pm\tau$ in $\mc X_{\mc R}$, there exists a non-empty subset $\bar{\mc N}_{{\mc S}}^{(y)}\subseteq \mc N_{{\mc S}}^{(y)}$ that is globally BR-stable for the $\mc S$-restricted SNC game where actions of players in $\mc R$ are frozen to $y$.
+The claim then follows from Theorem \ref{theo:main-stability}(ii). 
+\end{IEEEproof}
+
+
+{\color{black}
+	\begin{figure}
+		\centering
+		\begin{tikzpicture}
+			\foreach \x/\name/\value in {(0,0)/4/1, (2,2)/2/1, (2,0)/3/1, (0,2)/1/1}\node[shape=circle,draw, fill=gray!30!white](\name) at \x {\small \name};
+			\path [<->,draw] (2) edge node[right, near end] {\small 1} (3);
+			\path [<->,draw] (2) edge node[above] {\small 2} (1);
+			\path [<->,draw] (1) edge node[left] {\small 2} (4);
+			\path [->,draw] (3) edge node[below] {\small 1} (4);
+			\path [->,draw] (3) edge node[above, near start] {\small 1} (1);
+			\path [->,draw] (4) edge node[above, near start] {\small 1} (2);
+			
+			
+			\node[shape=circle, draw ](6) at (4,1) {\small 6};
+			\node[shape=circle, draw ](5) at (-2,1) {\small 5};
+			
+			\path[<->, draw, bend right=70, red] (5) edge node[above] {\small -1} (6);
+			\path[->, draw, bend right=60] (2) edge node[above] {\small 1} (5);
+			
+			\path[<->, draw,red] (2) edge node[above] {\small -1} (6);
+			\path[<->, draw, red] (1) edge node[above] {\small -1} (5);
+			\path[<->, draw, red] (4) edge node[below] {\small -1} (5);
+			%\path[<->, draw, red] (1) edge node[above] {\small $w_{15}$} (5);
+			%\path[<->, draw, red] (4) edge node[below] {\small $w_{45}$} (5);
+			%\path[->, draw, bend left=20] (2) edge node[above] {\small 1} (6);
+			%\path[->, draw, bend right=60] (2) edge node[above] {\small 1} (5);
+			%\path[<-, draw, bend right=20,red] (2) edge node[above] {\small -1} (6);
+			%\path[->, draw, bend right=20] (1) edge node[below, near end] {\small 2} (6);
+			%\path[<-, draw, bend right=20,red] (1) edge node[above] {\small -1} (5);
+			%\path[->, draw, bend left=20] (1) edge node[above] {\small 1} (5);
+			%\path[->, draw, bend left=20] (4) edge node[below] {\small 1} (5);
+			%\path[<-, draw, bend right=20,red] (4) edge node[below] {\small -1} (5);
+		\end{tikzpicture}	
+		\caption{Graph studied in Example \ref{ex:non_dec}.}
+		\label{fig:non_dec}
+	\end{figure}
+\begin{example}\label{ex:non_dec}
+Consider the SNC game on the graph in Figure \ref{fig:non_dec} with $h=(2,0,0,-1,0,0)$. Observe that $\mc R=\{1,\dots, 4\}$ is a coordinating set with $w^{\mc R}\vert_{\mc R}=(4,3,3,3)$ and  $w^{\mc S}\vert_{\mc R}=(1,2,0,1)$ and $\mc G_{\mc S}$ with $\mc S=\mc V\setminus \mc R$ is undirected.
+It holds that 
+$$
+w^{\mc R}\vert_{\mc R}-\abs{h}_{\mc R}=(2,3,3,2)>w^{\mc S}\vert_{\mc R}= (1,2,0,1)\,.
+$$
+ %Then, according to Corollary \ref{th:mixed_existence2}, there exists at least one Nash equilibrium where the players in $\mc R$ are at consensus. 
+Furthermore, the graph $\mc G_\mc R$ is $(h^{-},h^{+})$-indecomposable for $\tilde h^{+}=h\vert_{\mc R}+w^{\mc S}\vert_{\mc R}=(3,2,0,0)$ and $\tilde h^-=h\vert_{\mc R}-w^{\mc S}\vert_{\mc R}=(1,-2,0,-2)$. Again, this can proved following the same reasoning as in Example \ref{ex:dec1} and \ref{ex:non_dec_sup}. Then,  according to Corollary \ref{coro:stability}, the set of Nash equilibria where the players in ${\mc R}$ are at consensus contains a globally BR-stable subset.
+\end{example}
+\begin{example}\label{ex:dec}
+Consider now the SNC game on the graph in Figure \ref{fig:dec} and let $h=0$. Analogously to Example \ref{ex:non_dec}, we have that $\mc R=\{1,\dots, 4\}$ is a coordinating set with $w^{\mc R}\vert_{\mc R}=(4,3,3,3)$, %, $\mc G_\mc R$ coincides with the graph in Figure \ref{fig:indec}
+ and $\mc G_{\mc S}$ with $\mc S=\mc V\setminus \mc R$ is undirected. On the other hand, in this case, we have $w^{\mc S}\vert_{\mc R}=(1,1,1,1)$. 
+Since $w^{\mc R}\vert_{\mc R}\geq w^{\mc S}\vert_{\mc R}$, Corollary \ref{th:mixed_existence2} holds and existence of a Nash equilibrium where the players in $\mc R$ are at consensus is guaranteed. However, %according to point (a) in Theorem \ref{theo:stability}, we have $h^{+}=h+w^{\mc S}\vert_{\mc R}=(1,1,1,1)$ and $h^-=d-w^{\mc S}\vert_{\mc R}=-h^+$. In Example \ref{ex:dec2}, we proved that $\mc G_{\mc R}$ is not 
+$\mc G_{\mc R}$ is \textit{not} $(h^+,h^-)$-indecomposable for $h^{+}=h+w^{\mc S}\vert_{\mc R}=(1,1,1,1)$ and $h^-=h-w^{\mc S}\vert_{\mc R}=-h^+$. Indecomposability is indeed violated by $\mc R^{+}=\{1,4\}$ and $\mc R^-=\{2,3\}$. Therefore, Proposition \ref{prop:stability} and Theorem \ref{theo:main-stability} do not apply. Observe that $x^*=(1,-1,-1,1, -1,1, 1,-1)$ is a strict Nash equilibrium of the game where players in $\mc R$ are not at consensus. %Starting from this strategy profile, we will never reach a Nash equilibrium where coordinating agents are at consensus.
+\end{example}
+}
+
+

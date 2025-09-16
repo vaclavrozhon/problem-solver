@@ -1,0 +1,34 @@
+Ideas
+- We isolate a class where TREE-REACHABLE-PE is decidable in polynomial time (stars) and give rigorous proofs. We also add standard verifiers (reachability to a fixed target on trees; global PO test) to proofs. This yields firm progress and checkable lemmas.
+
+Basic verifiers (for proofs.md)
+1) Reachable ⇒ IR. Any allowed swap strictly improves its two endpoints and leaves others unchanged. By induction along a swap sequence, each agent strictly improves (or stays) relative to its initial endowment; thus every reachable matching is individually rational (IR).
+2) Global PO implies no allowed swap. If an allowed swap existed at µ, the resulting matching would strictly improve two agents and harm none, hence globally Pareto-dominating µ. Therefore any globally PO matching is a sink of the local swap dynamics.
+3) Fixed-target reachability on a tree in O(n^2). Given initial µ0 and target µ, each agent a has a unique dipath from µ0(a) to µ(a). Define an edge as good if its endpoints both need to cross it next along their dipaths. If µ is reachable and differs from current, at least one good edge exists; conversely, if we repeatedly swap along arbitrary good edges, we reach µ iff it is reachable. Initialization and maintenance of the good-edge set yields O(n^2) time and a witness sequence.
+4) Global PO test in O(n^2). Build the improvement digraph: arcs agent→object for strictly preferred objects, object→owner(object). A matching is globally PO iff the digraph is acyclic.
+
+Stars: unique terminal state and a complete algorithm
+Model. Star with center vertex c and leaves L. Agents are fixed on vertices; objects move by swaps across edges {c,ℓ}. Let x_t denote the object at c after t swaps (x_0 is initially at c). A swap across {c,ℓ} is allowed at state x if and only if h_ℓ ≻_c x and x ≻_ℓ h_ℓ (c prefers the leaf’s object; the leaf prefers the current center object).
+
+Acceptance digraph. On the set of objects B, add arc x→h_ℓ if leaf ℓ strictly prefers x to its endowment h_ℓ (i.e., x ≻_ℓ h_ℓ). Let ≻_c be the strict preference of the center agent over B. Define the ≻_c-monotone reachability set
+Y := { y ∈ B : there exists a directed path x_0 = y_0 → y_1 → … → y_k = y with y_{i+1} ≻_c y_i for all i }.
+Since ≻_c is a total order and Y is finite and nonempty (x_0 ∈ Y), Y has a unique ≻_c-maximum element; call it y⋆.
+
+Lemma (monotonicity and realizability). Along any allowed swap sequence, the center’s object strictly increases in ≻_c. Conversely, for any ≻_c-monotone directed path x_0→…→y_k in the acceptance digraph, the sequence of swaps (c with leaf owning y_1), …, (c with leaf owning y_k) is valid and brings the center to y_k.
+Proof. In any allowed swap x→h_ℓ, the center’s new object h_ℓ satisfies h_ℓ ≻_c x. Thus x_t is strictly increasing in ≻_c, and objects do not repeat. For realizability, note that the only way an object h_ℓ moves is across edge {c,ℓ}; hence if we have not yet swapped with leaf ℓ, h_ℓ remains at ℓ. On a path x_0→…→y_k, all targets y_i are distinct (strictly increasing in ≻_c), so at step i the current holder of y_i is still its initial leaf; the acceptance condition holds by construction, and the center also strictly prefers y_i to y_{i-1}. Thus the prescribed swaps are valid. ∎
+
+Proposition (unique terminal state on stars). Every maximal sequence of allowed swaps terminates at the same allocation µ⋆, in which the center holds y⋆; µ⋆ is independent of the swap order.
+Proof. By monotonicity, any sequence must terminate. Let y′ be the center’s final object under some maximal sequence. Each allowed swap corresponds to an arc in the acceptance digraph; thus y′ ∈ Y and y′ ≼_c y⋆. If y′ ≺_c y⋆, then the suffix of a path witnessing y⋆ from y′ would give a further allowed swap from y′, contradicting maximality. Hence y′ = y⋆. Since the center uniquely determines the allocation (for each leaf, whether and when it swapped is determined by the same monotone process), the terminal matching is unique. ∎
+
+Algorithm (stars). Compute y⋆ by a graph search in O(n^2): build arcs x→h_ℓ for all pairs (x,ℓ) with x ≻_ℓ h_ℓ, then run a DFS/BFS from x_0 restricted to arcs leading to strictly more preferred objects for c (i.e., only traverse x→x′ if x′ ≻_c x). Among visited nodes, select the ≻_c-maximum y⋆. Recover a realizing path to y⋆ (parent pointers) and simulate swaps to construct the unique terminal matching µ⋆. Finally, run the O(n^2) global PO test on µ⋆. If µ⋆ is globally PO, output µ⋆ and the swap sequence; else output NO.
+
+Correctness. By the Proposition, any reachable globally PO matching must coincide with the unique terminal matching; hence if µ⋆ is not globally PO, no reachable globally PO exists. Conversely, if µ⋆ is globally PO, it is reachable by the realizing path and is a valid TREE-REACHABLE-PE witness.
+Complexity. Building the acceptance digraph is O(n^2). The constrained reachability and path reconstruction are O(n^2). The improvement-digraph PO test is O(n^2). Overall O(n^2).
+
+Example (NO-instance on a path). Path A–B–C with endowments (A:a,B:b,C:c) and preferences A: c≻a≻b, B: b≻a≻c, C: a≻c≻b. No allowed swap is present initially; thus reach(µ0)={µ0}. The allocation (A:c,B:a,C:b) globally dominates µ0, so no reachable globally PO allocation exists (answer NO).
+
+Status of the main question on trees
+- General trees remain open. We provide: (i) polynomial verifiers (target reachability, global PO), so TREE-REACHABLE-PE ∈ NP; (ii) a complete O(n^2) algorithm for stars via the unique-terminal-state characterization; (iii) a NO-example on paths. TTC remains a sufficient certificate (if TTC is reachable, return it), but is not known to be necessary.
+
+Next steps
+- Attempt to extend the star analysis to generalized stars (one high-degree node) via branch-wise acceptance graphs and a center-first serial dictatorship, adapting Section 4 of the attached paper’s path subroutines. - Catalog small tree instances (n≤6) to test whether multiple terminal states can occur and to probe structure separating YES/NO instances.

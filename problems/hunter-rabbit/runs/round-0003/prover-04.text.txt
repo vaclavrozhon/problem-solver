@@ -1,0 +1,60 @@
+# New results this round
+
+- Uniform resolution of cycles: using the permanent-blockers lemma plus the k=1 classification on forests, we prove h(C_n)=2 for all n≥3. This also extends to all connected unicyclic graphs: h(G)=2.
+- We formalize and prove the permanent-blockers lemma (used informally before), and re-state the disjoint-union identity with a short proof.
+- We give explicit schedules and length bounds derived from these constructions.
+
+# Formal statements and proofs
+
+Lemma 1 (Permanent blockers; formal). Let G=(V,E), and let U⊆V. Suppose a schedule (S_i) satisfies U⊆S_i for all i. Let G′:=G−U, and define S′_i:=S_i\U (so |S′_i|≤|S_i|−|U|). Then for the R-recursion R^G_1:=V\S_1, R^G_{i+1}:=N_G(R^G_i)\S_{i+1}, and R^{G′}_1:=(V\U)\S′_1, R^{G′}_{i+1}:=N_{G′}(R^{G′}_i)\S′_{i+1}, we have R^G_i = R^{G′}_i for all i. In particular, (S_i) is winning on G iff (S′_i) is winning on G′. Consequently, h(G) ≤ |U| + h(G−U).
+
+Proof. By induction on i. Base: R^G_1=V\S_1=(V\U)\(S_1\U)=R^{G′}_1. Inductive step: assume R^G_i=R^{G′}_i⊆V\U. Then
+R^G_{i+1}=N_G(R^G_i)\S_{i+1}=(N_G(R^{G′}_i)\U)\(S_{i+1}\U)=N_{G′}(R^{G′}_i)\S′_{i+1}=R^{G′}_{i+1}.
+Thus equivalence and the bound follow. ∎
+
+Proposition 2 (Disjoint union). For graphs G,H on disjoint vertex sets, h(G⊔H)=max{h(G),h(H)}.
+
+Proof. Lower bound by subgraph monotonicity. For upper bound, interleave winning schedules on G and H: at each round shoot the k_G vertices prescribed for G and the k_H vertices for H (disjoint), using k=max(k_G,k_H) hunters (pad with arbitrary shots in the smaller component). The R-recursion factors over components, so both components are cleared by the product schedule. ∎
+
+Theorem 3 (Cycles). For all n≥3, h(C_n)=2.
+
+Proof. Lower bound: C_n has minimum degree 2, so h(C_n)≥2. Upper bound: fix any u∈V(C_n), take U={u}. Then G−U≅P_{n−1}, and by the k=1 classification (forests), h(P_{n−1})=1. By Lemma 1, h(C_n)≤|U|+h(P_{n−1})=2. ∎
+
+Corollary 4 (Explicit schedules and length). A 2-hunter schedule of length 2(n−1)−3=2n−5 captures on C_n: shoot u every round, and use the second hunter to run the standard 1-hunter sweep on the path C_n−u (shots 2,3,…,n−1,n−1,n−2,…,3 in path order).
+
+Theorem 5 (Unicyclic graphs). If G is a connected unicyclic graph, then h(G)=2.
+
+Proof. Lower bound: G contains C_m as a subgraph, so h(G)≥h(C_m)=2 by monotonicity. Upper bound: removing any vertex u on the unique cycle yields a tree; by Lemma 1 and the forest result, h(G)≤1+1=2. ∎
+
+Remark 6 (Multiple components). By Proposition 2, if each component is either a tree (h=1) or unicyclic (h=2), then h(G)=2 iff at least one component is unicyclic; otherwise h(G)=1.
+
+# Examples and checks
+
+- C_7: choose u=1 (shot every round). On the path 2–3–4–5–6–7, run the 1-hunter sweep of length 9: 2,3,4,5,6,6,5,4,3. With two hunters we shoot {1, x_t} at round t, where x_t is the path-sweep shot. By Lemma 1, this clears C_7 in 9 rounds.
+- General unicyclic: pick any vertex u on the unique cycle; same construction with the path-sweep on G−u (a tree) using the second hunter.
+
+# Algorithmic consequences
+
+- k=1 in linear time (forest test) remains as in prior rounds.
+- k=2 on cycles and unicyclic graphs: polynomial-time recognition and explicit schedules (by attempting each vertex u and checking whether G−u is acyclic; O(n(n+m)) naive, improvable with preprocessing).
+- Permanent blockers yield immediate YES-certificates: if fvs(G)≤k−1 then h(G)≤k. This covers, e.g., cactus graphs with a bounded number of cycles (we will pursue exact classification next).
+
+# Obstacles and cautions
+
+- The Z-process identity R_i = V \ (Z_i ∪ S_i) with Z_{i+1}={v: N(v)⊆Z_i∪S_i} is correct, but Z_i need not be monotone in i; peeling arguments that rely on permanence without further structure fail. Our proofs above avoid any Z-monotonicity.
+- A general n^{O(k)} recognition algorithm is still open. The permanent-blockers approach yields strong sufficient conditions but not necessary ones in general.
+
+# Next steps
+
+1) Cactus graphs (each edge in at most one cycle): attempt to prove h(G)≤2, by phase-wise blocking of a cut vertex adjacent to a cycle and sweeping attached trees, then moving along the block–cut tree; formalize “barrier at a cut vertex” lemmas under the R-recursion.
+2) Feedback vertex set parameterization: for fixed f=|U|, develop a DP that, given U, decides the minimum additional hunters x needed to clear G with per-round shots limited to f+x, explicitly modeling parity constraints at attachments between U and forest components. Target running time n·poly(n)·c^f.
+3) Stress-test degeneracy-equality on small graphs (n≤10) computationally; seek counterexamples with degeneracy 2 but suspected h≥3.
+4) Schedule-length bounds: quantify T_k(G)=minimum capture time with k=h(G) hunters on classes (cycles, unicyclic, cactus). For cycles we have T_2(C_n)≤2n−5; find asymptotic improvements or lower bounds.
+
+# Summary for inclusion
+
+- Lemma 1 (Permanent blockers) with proof; corollary h(G) ≤ |U|+h(G−U).
+- Proposition 2 (Disjoint union) with proof.
+- Theorem 3: h(C_n)=2 for all n≥3; proof via blocking one vertex and applying h(P_{n−1})=1; explicit O(n)–length schedules.
+- Theorem 5: If G is connected unicyclic then h(G)=2. Extension to arbitrary disjoint unions via Proposition 2.
+- Algorithmic corollaries: polynomial recognition and schedule construction for cycles/unicyclic graphs; YES-certificates via small feedback vertex sets. Open: general n^{O(k)} recognition; proposed DP paths on cactus/FVS-parameterized families.

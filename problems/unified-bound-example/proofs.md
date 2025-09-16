@@ -1,0 +1,83 @@
+# Rigorous Proofs
+
+
+
+Permutation family with UB = Θ(n log n) and OPT ≤ O(n log log n)
+
+Definitions
+- Let h ≥ 1 and n = 4^h. For any contiguous key interval I = [a..b] with |I| = 4^t, split I into four equal contiguous subintervals I1 < I2 < I3 < I4. Define m(I) := ⌊(a+b)/2⌋.
+- Define recursively F_0(I) to be the unique element of I. For t ≥ 1, define F_t(I) to be the concatenation of the four subsequences S2 := F_{t−1}(I2), S4 := F_{t−1}(I4), S1 := F_{t−1}(I1), S3 := F_{t−1}(I3), with the inductive constraint that for every interval J of size 4^u, the first element of F_u(J) is m(J). This is consistent since F_{u−1}(Jk) begins with m(Jk).
+- The permutation π_h is F_h([1..4^h]). Let T be the 4-ary decomposition tree whose nodes are the intervals I encountered by the recursion; each internal node v has an interval I_v of size s_v and children I_v(1)<I_v(2)<I_v(3)<I_v(4).
+- For any internal node v, the restriction of π_h to keys in I_v is exactly S2 ∘ S4 ∘ S1 ∘ S3, where Sk lists all keys in I_v(k) and no other keys.
+
+Lemma 1 (Midpoint separation). Let v be an internal node with interval size s_v and let k ∈ {1,2,3,4}. Let x be the first key of Sk in the restricted sequence at v. Then for any key y ∉ I_v(k), |x − y| ≥ s_v/8.
+Proof. By construction, x = m(I_v(k)), the midpoint of the child interval I_v(k), whose length is s_v/4. The distance from the midpoint to any boundary of I_v(k) is s_v/8. If y lies in a sibling I_v(k′), the closest such y is at the boundary between I_v(k) and I_v(k′), hence |x−y| ≥ s_v/8. If y lies outside I_v, the closest such y is at a boundary of I_v, and the distance from x to that boundary is ≥ s_v/8 as well. ∎
+
+Lemma 2 (Per-boundary UB). Let i be the global time index at which, within the restricted sequence for v, the traversal first enters child k (i.e., the boundary S?→Sk at v). Then UB_i(π_h) ≥ log(1 + s_v/8).
+Proof. At time i there has been no prior access to any key in I_v(k) (the subsequence for I_v(k) occurs only within Sk and we are at the first element of Sk). Therefore every prior key y lies in I_v \ I_v(k) or outside I_v. By Lemma 1, for all prior y we have |x_i − y| ≥ s_v/8. Hence for all j ≤ i−1, j + |x_i − x_{i−j}| ≥ s_v/8. Taking logs gives the claim. ∎
+
+Lemma 3 (Boundary–transition bijection). For each i ∈ {2,…,n}, let v(i) be the lowest (deepest) node in T whose children contain x_{i−1} and x_i in two different children; equivalently, v(i) is the lowest common ancestor (LCA) of the two leaves holding x_{i−1} and x_i. Then i is exactly one of the three child-boundary indices S2→S4, S4→S1, or S1→S3 within the restricted sequence at v(i). Moreover, the mapping i ↦ v(i) is a bijection between {2,…,n} and the multiset of all such boundaries over all internal nodes of T; in particular, the boundary indices over all nodes are pairwise distinct and their total number is n−1.
+Proof. The restricted sequence at any internal node v is the concatenation S2 ∘ S4 ∘ S1 ∘ S3, with no interleaving between different children. For any consecutive pair (x_{i−1}, x_i), there is a unique lowest node v whose children separate the two keys; at all descendants of v, the two keys lie in different subtrees, and at all ancestors they lie in the same child. Thus within the restriction to I_v the pair occurs at a boundary between two consecutive child blocks, necessarily one of S2→S4, S4→S1, S1→S3. Distinct consecutive pairs have distinct LCAs, so the boundary indices are distinct across nodes. Counting gives exactly three boundaries per internal node and a total of (4^h−1) internal nodes divided by 3 levels in a full 4-ary tree, hence 3·|(internal nodes)| = 4^h − 1 = n − 1 boundaries, matching the number of consecutive pairs. ∎
+
+Theorem 4 (UB lower bound). There exists a universal constant c > 0 such that UB(π_h) ≥ c · n · log n.
+Proof. By Lemma 3, the n−1 consecutive-pair indices are partitioned by internal nodes v, three per node. For each such index i associated with v, Lemma 2 gives UB_i ≥ log(1 + s_v/8). Hence
+UB(π_h) ≥ ∑_{v internal} 3 · log(1 + s_v/8).
+At level ℓ = 0,1,…,h−1 (counting 0 at the root), there are 4^ℓ internal nodes each with s_v = 4^{h−ℓ}. Therefore
+∑_{v internal} log(1 + s_v/8) ≥ ∑_{ℓ=0}^{h−1} 4^ℓ · ( (h−ℓ) · log 4 − O(1) ) = Θ( 4^h · h ) = Θ( n · log n ).
+Multiplying by the constant factor 3 and adjusting constants yields UB(π_h) ≥ c n log n. ∎
+
+Proposition 5 (Wilber-1 bound for a tailored reference tree). There exists a fixed static BST T_ref on [1..n] such that the Wilber-1 alternation bound W_1(T_ref, π_h) = O(n).
+Construction and proof. Build T_ref recursively: for each internal node interval I_v, create a BST node that partitions keys into L_v := I_v(1) ∪ I_v(2) and R_v := I_v(3) ∪ I_v(4), and recurse on L_v and R_v. Complete this into a full BST by arbitrary binary splits inside the contiguous subintervals. For any decomposition node v, the sequence restricted to I_v visits L_v and R_v in the order L_v, R_v, L_v, R_v (since the child order is 2,4,1,3), yielding exactly 3 alternations at that partition. Each internal decomposition node thus contributes 3 alternations. The remaining filler nodes partition contiguous intervals that the sequence visits as a single block at that scale, hence each such node sees at most one alternation. Since the total number of nodes is O(n), W_1(T_ref, π_h) = O(n). ∎
+
+Corollary 6 (BST upper bound). The Tango tree achieves cost O(W_1 · log log n) against any fixed reference tree. With T_ref from Proposition 5, there is an explicit BST algorithm whose total cost on π_h is O(n log log n). Therefore OPT_BST(π_h) ≤ O(n log log n).
+
+Conclusion. Combining Theorem 4 with the trivial UB(π_h) ≤ n log(1+n) gives UB(π_h) = Θ(n log n). Together with Corollary 6 we obtain OPT_BST(π_h) = o(UB(π_h)), resolving the separation task (non-strong form).
+
+2413-inflation: Wilber-1 = Θ(n) and Unified Bound = O(n)
+
+Setup and notation
+- Universe: keys [n] with n = 4^h. At every internal node of a 4-ary decomposition tree, an interval J of size 4^t is partitioned into four equal contiguous subintervals A(J) < B(J) < C(J) < D(J), each of size 4^{t-1}. The permutation π_h is obtained by concatenation in the fixed order B(J) then D(J) then A(J) then C(J), and recursing identically within each child.
+- Wilber-1 uses a fixed reference BST T. For a node w of T, alt(w) is the number of alternations between the left vs right subtree when scanning the access sequence restricted to w’s keys; W_1(T,π) := ∑_w alt(w).
+- The unified bound on permutations is UB(π) := ∑_{i=1}^n UB_i(π) where UB_i(π) := log(1 + min_{1≤j≤i-1} (j + |x_i − R_i(j)|)), R_i(j) being the j-th most recent prior key. For i≥2, UB_i(π) ≤ log(2 + |x_i − x_{i−1}|) by choosing j=1.
+
+Theorem 1 (Wilber-1 is linear).
+Construct a static reference BST T_ref recursively as follows. For any 4-ary node with children A<B<C<D:
+- Create a node that splits L := A∪B (left) vs R := C∪D (right).
+- In its left subtree, create a node splitting A vs B; in its right subtree, a node splitting C vs D.
+- Recurse within A, B, C, D.
+Then W_1(T_ref, π_h) = 5·(n−1)/3 = Θ(n).
+
+Proof.
+Fix an internal 4-ary node v with restricted time order B | D | A | C. Consider the three binary nodes in T_ref associated with v:
+- At the top split L vs R, the side sequence is L (block B), R (D), L (A), R (C), so alt = 3.
+- At the A-vs-B split (left child of the top split), the restricted sequence is B then A, so alt = 1.
+- At the C-vs-D split (right child), the restricted sequence is D then C, so alt = 1.
+Within each block, all accesses remain on one side of these three splits, so no further alternations accrue at these nodes. Each 4-ary node contributes exactly 3+1+1=5 to W_1. A full 4-ary tree with n leaves has (n−1)/3 internal nodes, hence W_1(T_ref, π_h) = 5·(n−1)/3. ∎
+
+Corollary 2 (BST algorithmic bound).
+Tango trees achieve cost O(W_1(T_ref) · log log n) on any access sequence. Therefore there is an explicit dynamic BST with total cost O(n log log n) on π_h.
+
+Theorem 3 (Unified bound is linear for π_h).
+UB(π_h) = O(n).
+
+Proof.
+Let S(π) := ∑_{i=2}^{n} log(2 + |x_i − x_{i−1}|). Since UB_i(π) ≤ log(2 + |x_i − x_{i−1}|) for i≥2, we have UB(π) ≤ log(1+n) + S(π) = O(1) + S(π). It suffices to show S(π_h) = O(n).
+
+For any 4-ary node v with interval I_v of size s_v, write the restricted sequence as a concatenation π(B) ◦ π(D) ◦ π(A) ◦ π(C). Then the sum S over consecutive pairs occurring within I_v decomposes exactly as
+S(π(v)) = S(π(B)) + S(π(D)) + S(π(A)) + S(π(C))
+          + log(2 + |last(B) − first(D)|)
+          + log(2 + |last(D) − first(A)|)
+          + log(2 + |last(A) − first(C)|),
+where first(·), last(·) denote the first and last keys (in time) of each child block. Since these two keys lie in adjacent contiguous subintervals of I_v, their key-distance is at most s_v. Hence
+S(π(v)) ≤ S(π(B)) + S(π(D)) + S(π(A)) + S(π(C)) + 3 · log(2 + s_v).
+Applying this recurrence from the root down to leaves (where S=0) telescopes and yields
+S(π_h) ≤ ∑_{v internal} 3 · log(2 + s_v).
+At level ℓ (root at ℓ=0), there are 4^ℓ nodes with s_v = 4^{h−ℓ}; thus
+S(π_h) ≤ 3 ∑_{ℓ=0}^{h−1} 4^ℓ · ( (h−ℓ)·log 4 + O(1) ) = O(4^h) = O(n).
+Therefore UB(π_h) ≤ O(1) + S(π_h) = O(n). ∎
+
+Remark 4 (Boundary lower bound is only linear).
+If, additionally, one enforces a midpoint-first rule inside each child, then at the three child-boundary times in v’s restricted sequence the accessed key is at key-distance ≥ s_v/8 from any earlier key in I_v. This gives UB_i ≥ log(1 + s_v/8) at 3 indices per v. Summing over all 4-ary nodes gives ∑_{ℓ=0}^{h−1} 4^ℓ·Θ(1 + h−ℓ) = Θ(n), not Θ(n log n).
+
+Conclusion.
+For the 2413-inflation family, W_1(T_ref, π_h) = Θ(n) (hence there exists a BST with O(n log log n) cost), while the unified bound satisfies UB(π_h) = O(n). The family does not realize UB = Θ(n log n).

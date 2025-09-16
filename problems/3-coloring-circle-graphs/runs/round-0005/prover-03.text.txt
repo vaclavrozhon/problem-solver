@@ -1,0 +1,49 @@
+New structural formulation of side extension and FPT branching
+
+Idea. For a fixed pivot chord x and a fixed 2-coloring of G[N(x)] with colors {a,b} (and c_x the third color), the question whether a side component H (in L or R) can be extended reduces exactly to selecting an independent set Z of vertices to receive color c_x so that H−Z is bipartite and admits a 2-coloring by {a,b} consistent with the interface constraints S(·) from N(x). This yields a clean necessary-and-sufficient condition and a natural FPT branching scheme parameterized by |Z| (per side) plus cc(N(x)).
+
+Precise formulation
+- For each y ∈ V(H), S(y) ⊆ {a,b} denotes the set of non-c_x colors that appear among neighbors of y in N(x) (computable in linear time per side by prefix sums along the side arc).
+- For any orientation o (a 2-coloring) of a bipartite graph K with bipartition (P,Q), write o(y) ∈ {a,b} for the color assigned to y.
+
+Theorem 1 (Exact side-extension criterion). Fix x, c_x, and a 2-coloring of each component of G[N(x)] into {a,b}, and let H be a side component. Then H admits an extension to a proper 3-coloring using {a,b,c_x} (respecting the fixed N(x)-colors) iff there exists an independent set Z ⊆ V(H) and a 2-coloring o of H−Z such that:
+- H−Z is bipartite;
+- For every y ∈ V(H) \ Z, we have o(y) ∉ S(y).
+When such (Z,o) exist, the coloring that assigns c_x to Z and o to V(H) \ Z is a valid extension on H.
+Proof. (⇒) Let φ be a valid extension on H with colors in {a,b,c_x}. Take Z := {y ∈ V(H) : φ(y) = c_x}. Then Z is independent (otherwise an edge is monochromatic c_x), and H−Z is 2-colored by {a,b} via o(y):=φ(y). For any y ∈ V(H) \ Z with φ(y) ∈ {a,b}, no neighbor z ∈ N(x) has φ(z)=φ(y), hence φ(y) ∉ S(y). Thus o(y) ∉ S(y). (⇐) Given (Z,o), color Z by c_x and V(H) \ Z by o. Edges inside V(H) \ Z are properly 2-colored; edges incident to Z have distinct colors c_x vs a/b; edges inside Z do not exist by independence. For edges to N(x), if y ∈ V(H) \ Z, then o(y) ∉ S(y) so no adjacent z ∈ N(x) uses o(y). Hence the extension is proper.
+
+Corollary 2 (Reduction to bipartite list-2-coloring). For any fixed Z, testing the existence of o satisfying o(y) ∉ S(y) for all y ∈ V(H) \ Z is equivalent to list-2-coloring on the bipartite graph H−Z with lists L(y) := { c ∈ {a,b} : c ∉ S(y) }, solvable in linear time.
+
+Algorithmic consequence: FPT branching by |Z|
+Proposition 3 (Side algorithm parameterized by |Z|). For a fixed pivot x, color c_x, and 2-coloring of G[N(x)], let t ≥ 0. If each side component H admits an independent set Z_H with |Z_H| ≤ t satisfying Theorem 1, then G is 3-colorable. Conversely, the following algorithm decides extendability under this promise in time O(∑_H n_H^t · poly(n_H)), where n_H := |V(H)|:
+- For each side component H, enumerate all independent sets Z ⊆ V(H) of size ≤ t (prune by adjacency). For each Z: check whether H−Z is bipartite and whether list-2-coloring with lists L(y) := {a,b}\S(y) is feasible; accept H if any Z passes.
+- Accept the pivot choice if all side components are accepted; otherwise reject.
+Trying all x, c_x, and both 2-colorings per N(x)-component yields overall O(n · 3 · 2^{cc(N(x))} · n^t · poly(n)) time.
+Correctness. Immediate from Theorem 1 and Corollary 2, with independence and bipartiteness checks per Z and linear-time 2-list-coloring.
+
+Remarks.
+- This subsumes the earlier bipartite-sides case (choose Z as any independent set containing all “violators” under some orientation) and the “oct ≤ 1” sufficient condition (|Z| ≤ 1). It also clarifies why the earlier necessity attempt failed: forcing Z to split as {v} ∪ B_o(H−{v}) is stronger than the existence of some Z meeting Theorem 1.
+- The unknown complexity of selecting a minimum independent odd cycle transversal on circle graphs motivates the parameter t. Even a crude enumeration for small t is practical and auditable.
+
+Structural and computational additions
+Lemma 4 (Helly-type clique for overlaps; proof sketch). In the overlap model, any clique S is pairwise intersecting without containment, hence ⋂_{x∈S}(s(x),t(x)) ≠ ∅. Therefore ω(G) ≤ w and ω(G)=max_σ ω(G[B(σ)]). This enables computing ω(G) in O(n·w·log w) via scanning σ and longest decreasing subsequence on permutation representations of B(σ).
+Lemma 5 (Degeneracy bound). The graph is (2w−2)-degenerate; hence m ≤ (w−1)n. Proof as in prior round (active-set argument near s(b) and t(b)).
+
+Example sanity check for Theorem 1
+- Let H be a 5-cycle v1–v2–v3–v4–v5–v1 with S(v1)=S(v3)=S(v5)={a,b}, S(v2)={a}, S(v4)={b}. Choose Z={v1,v3,v5} (independent). Then H−Z is the 2-path v2–v4, list-2-colorable with o(v2)=b, o(v4)=a, consistent with S(·). The extension exists as predicted.
+
+Obstacles and limits
+- Eliminating the 2^{cc(N(x))} factor: as argued earlier, side constraints “color a appears at y” become ORs over multiple N(x)-components; the resulting clauses have width ≥ 3, preventing a direct 2-SAT encoding without branching or additional structure.
+- Independent OCT on circle graphs: the existence of polynomial or FPT algorithms (beyond naive n^t enumeration) is unclear; in general graphs, OCT is FPT but independence adds complexity. Our scheme remains an explicit, parameterized pathway.
+
+Next steps (auditable)
+1) Implement the side algorithm with Theorem 1: for t=0 (pure bipartite sides) use the exact 2-SAT packaging; for t=1,2 enumerate Z and run bipartite list-2-coloring per candidate.
+2) Integrate with the pivot loop over x, c_x, and 2-colorings of N(x); precompute S(·) via prefix sums per side.
+3) Empirically profile distributions of cc(N(x)) and minimal t on random and crafted instances; seek pivots minimizing cc(N(x)) + t.
+4) Explore two-pivot separators (x,y): four side regions plus middle permutation N(x)∩N(y); attempt to lift Theorem 1 to this partition with simultaneous independent sets Z in each region.
+5) Hardness direction: formalize minimal gadgets where Z must be chosen from specified vertices to satisfy lists, approaching reductions from NAE-3SAT while preserving chord realizability.
+
+Summary
+- Exact characterization (Theorem 1): side extension exists iff there is an independent set Z whose removal makes the side bipartite and list-2-colorable w.r.t. S(·). This unifies and corrects prior partial criteria.
+- Algorithmic: an FPT scheme parameterized by t=|Z| per side plus cc(N(x)), with concrete, checkable subroutines (bipartiteness and bipartite list-2-coloring).
+- Reinforced structural tools: Helly clique bound and ω(G) computation; degeneracy ≤ 2w−2; both feed into analysis and heuristics.

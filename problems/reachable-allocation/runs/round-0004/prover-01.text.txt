@@ -1,0 +1,68 @@
+Ideas
+
+- We consolidate two auditable results about stars (object-network star, i.e., center object o adjacent to every leaf object). These clarify swap dynamics and give concrete tools for searching reachable matchings on stars, while also refuting “unique terminal allocation” on stars.
+- We introduce the center-transition digraph H that captures all possible sequences of center agents under allowed swaps on a star. For any simple directed path in H, we construct the exact resulting matching in closed form and can then test global PO in O(n^2). This yields an explicit, verifiable enumeration scheme (XP in the number of swaps), and a foundation for further pruning/DP.
+
+Non-uniqueness of terminal allocation on stars
+
+Claim A (counterexample). On a star with center object o and two leaves a,b, the order of swaps can lead to different (swap-stable) terminal allocations.
+- Agents and initial locations: center agent O at o; leaf agents A at a, B at b.
+- Preferences:
+  - O: a ≻ b ≻ o.
+  - A: b ≻ o ≻ a.
+  - B: o ≻ b ≻ a.
+Analysis.
+- Initially, O–A and O–B are both allowed (O prefers a,b over o; A,B prefer o over their leaves).
+- Sequence 1: O–A (center becomes A), then A–B (center becomes B). Final: center B at o; leaves: O at a, A at b. No further swap: B prefers o best; A at b prefers b over o; O at a prefers a over o.
+- Sequence 2: O–B only. Final: center B at o; leaves: A at a, O at b. No further swap: B prefers o best; A at a would swap to o, but B does not prefer a over o; O at b prefers b over o.
+Thus two distinct terminal allocations exist. Hence “unique terminal allocation” (order independence) fails on stars.
+
+Center-transition digraph for stars
+
+Let agents be vertices; let u be “center” iff u currently occupies object o. Define a directed graph H on agents:
+- Add arc u → v iff both conditions hold:
+  (i) u prefers object v (the leaf object at v) to o, and
+  (ii) v prefers o to its leaf object v.
+Observation B (soundness of arcs). If u is current center and u → v in H, then the swap (u at o, v at v) is allowed and results in v becoming the new center (at o).
+Proof. (i) and (ii) are exactly the allowed-swap conditions over edge (o,v). After the swap, v occupies o (becomes center), and u occupies leaf v.
+
+Lemma C (paths → feasible swap sequences). Let u0 be the initial center agent, and let P = (u0 → u1 → ··· → ut) be any simple directed path in H (no repeats). Then the sequence of swaps (u0 with u1), (u1 with u2), …, (u_{t−1} with u_t) is feasible from the initial state and results in u_t as the final center.
+Proof. By induction on path length. For i=0, Observation B applies at (u0,u1). After swap i, the center becomes u_{i+1}. Because the path is simple, u_{i+1} has not appeared earlier and so is still at its own leaf immediately before becoming center; again Observation B applies to the next arc.
+
+Lemma D (closed-form final matching from a path). For a simple path P = (u0 → u1 → ··· → ut) in H, the resulting matching µ(P) is:
+- center: u_t matched to o;
+- for i = 0,…,t−1: u_i matched to the leaf object of u_{i+1};
+- every agent w not in {u0,…,ut} remains at its original leaf object w.
+Proof. Each swap (u_i,u_{i+1}) moves u_i from center to leaf u_{i+1} and moves u_{i+1} to center; agents not on the path never move. The final center is u_t.
+
+Corollary E (terminal centers via sinks). Along any path P, the process can continue only along outgoing arcs from the current center to as-yet unvisited agents. Thus terminal centers are exactly nodes u such that, after removing already-visited nodes, the current u has no outgoing arc to any unvisited v. In particular, a sink of H is a terminal center for some path.
+
+Use for TREE-REACHABLE-PE on stars
+
+- Compute H in O(n^2) by scanning preferences for each ordered pair (u,v) to test u: v ≻_u o and v: o ≻_v v.
+- Enumerate simple directed paths P from u0; for each, compute µ(P) in O(|P|) via Lemma D and run the global PO test (improvement digraph acyclicity) in O(n^2).
+- If any µ(P) is globally PO, we have a constructive YES with its swap sequence. Otherwise, report NO for the star instance.
+Remarks. The enumeration is XP in the number of swaps (|P|). Nonetheless H and Lemma D provide a precise, verifiable structure of the reachable set on stars and a basis for pruning/DP design (e.g., forbidding revisits, early stopping at local sinks, bounding out-degree by preference filters).
+
+Global facts to retain (for trees)
+
+- Reachable ⇒ IR (already proved; belongs in proofs.md).
+- Global PO check is polynomial via the improvement digraph (acyclicity); belongs in proofs.md.
+- Tree target-reachability to a fixed µ* is O(n^2) by good-edge scheduling; belongs in proofs.md.
+- TTC is a sufficient one-sided certificate: if µTTC is tree-reachable, return it and the swap sequence.
+- NP membership: certificate µ*, verify reachability (O(n^2)) and PO (O(n^2)).
+
+Obstacles
+
+- On stars, terminal allocations are not unique (Claim A). Thus any approach relying on order-independence fails. The H-graph yields a clean necessary-and-sufficient characterization of center transitions but does not immediately bound the number of paths; a DP or pruning strategy is needed for poly-time completeness.
+- Extending H beyond stars to general trees is nontrivial: center is unique in stars, whereas trees have many adjacent pairs; local conflicts mean a single static digraph won’t capture all feasible sequences.
+
+Next steps
+
+1) Stars: Add to proofs.md the formal statements and proofs of Observation B, Lemmas C and D, and Corollary E; include the explicit counterexample to uniqueness (Claim A). Implement pruning rules on H (e.g., discard dominated arcs where choosing v blocks strictly better downstream options) and test on small n for reducing path search substantially.
+2) Trees: Use the “good-edge scheduling” target reachability as a verifier while exploring parameterized search on the number of swaps k: bounded-depth search over a compact move-graph, with early PO checks when a terminal is reached.
+3) Hardness (trees): Pursue a tree-preserving “ladder” gadget: a path with leaves that guarantees a directed cycle in the improvement digraph unless a designated agent reaches a designated object (encoding a source Reachable-Object-on-trees instance). Formalize the cycle-forcing ranks analogously to the clique reduction in Section 5 of the provided paper.
+
+Conclusion
+
+- We clarified star dynamics via the center-transition digraph H, proved that all center sequences correspond bijectively to simple paths, and gave a closed-form construction of the resulting matching. This yields a concrete, auditable enumeration scheme to search for reachable globally PO outcomes on stars, and a clean refutation of unique terminal allocation. These results are building blocks for stronger pruning/DP and for understanding the broader tree case.

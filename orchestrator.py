@@ -26,7 +26,7 @@ if openai_env_file.exists():
 sys.path.insert(0, str(Path(__file__).parent))
 
 from orchestrator.runner import run_round, run_paper_round
-from orchestrator.utils import write_status
+from orchestrator.utils import write_status, check_stop_signal, StopSignalException
 
 
 def main():
@@ -88,15 +88,40 @@ def main():
     # Create runs directory if it doesn't exist
     runs_dir = problem_dir / "runs"
     runs_dir.mkdir(exist_ok=True)
-    
+
     # Determine starting round number
     existing_rounds = sorted([d for d in runs_dir.iterdir() if d.is_dir() and d.name.startswith('round-')])
     start_round = len(existing_rounds) + 1
-    
+
+    # Write batch status file for this run
+    # This file tracks the current batch of rounds being executed, allowing the UI
+    # to correctly display "Round X of Y" even when previous rounds exist
+    import json
+    import time
+    batch_status = {
+        "batch_start_round": start_round,      # First round number in this batch
+        "batch_total_rounds": args.rounds,     # Total rounds requested for this batch
+        "batch_current_round": 0,              # Current position within batch (1-indexed when running)
+        "started_at": time.time(),             # Timestamp when batch started
+        "mode": args.mode                      # Research or paper mode
+    }
+    batch_status_file = runs_dir / "batch_status.json"
+    batch_status_file.write_text(json.dumps(batch_status, indent=2))
+
     # Run the requested number of rounds
     for round_offset in range(args.rounds):
         round_idx = start_round + round_offset
-        
+
+        # Update batch status with current round position (1-indexed for display)
+        batch_status["batch_current_round"] = round_offset + 1
+        batch_status_file.write_text(json.dumps(batch_status, indent=2))
+
+        # Check for stop signal before starting each round
+        if check_stop_signal(problem_dir):
+            print(f"\n⏹️  Stop signal detected. Stopping orchestrator.")
+            write_status(problem_dir, "idle", round_idx, {"stopped_by_signal": True})
+            break
+
         try:
             if args.mode == "paper":
                 verdict = run_paper_round(problem_dir, round_idx)
@@ -108,13 +133,34 @@ def main():
                 print(f"\n✅ Problem appears to be solved! Stopping early.")
                 break
             
+        except StopSignalException:
+            print(f"\n⏹️  Stop signal detected during round {round_idx}. Stopping orchestrator.")
+            write_status(problem_dir, "idle", round_idx, {"stopped_by_signal": True})
+            break
         except KeyboardInterrupt:
             print("\n\nInterrupted by user")
             write_status(problem_dir, "idle", round_idx, {"interrupted": True})
             sys.exit(0)
         except Exception as e:
             print(f"\n❌ Error in round {round_idx}: {e}")
-            write_status(problem_dir, "idle", round_idx, {"error": str(e)})
+            # Check if detailed error info already exists, preserve it
+            status_file = problem_dir / "runs" / "live_status.json"
+            existing_error_info = {}
+            if status_file.exists():
+                try:
+                    import json
+                    existing_status = json.loads(status_file.read_text(encoding="utf-8"))
+                    # Preserve existing error component and phase info if present
+                    if "error_component" in existing_status:
+                        existing_error_info["error_component"] = existing_status["error_component"]
+                    if "error_phase" in existing_status:
+                        existing_error_info["error_phase"] = existing_status["error_phase"]
+                except:
+                    pass
+            
+            error_info = {"error": str(e)}
+            error_info.update(existing_error_info)  # Keep existing component/phase info
+            write_status(problem_dir, "idle", round_idx, error_info)
             raise
     
     # Final summary

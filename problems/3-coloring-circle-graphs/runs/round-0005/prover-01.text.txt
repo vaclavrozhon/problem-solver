@@ -1,0 +1,39 @@
+Status and aims
+I add three checkable items: (A) a color-symmetry reduction for the ply-DP that shrinks the state space by a factor ≈ 6; (B) a necessary condition for 3-colorability based on common neighborhoods of adjacent chords (with a linear-time test per pair using permutation orders); (C) a careful audit explaining why eliminating the 2^{cc(N(x))} branching in the pivot 2-SAT by adding orientation variables for N(x)-components collapses to 3-SAT (hence generally fails).
+
+A. Color-symmetry reduction for the sweep/path DP
+Setup. Consider the standard DP over the path decomposition by sweep bags B(σ) of size ≤ w, for 3-colorability without lists.
+
+Proposition A1 (Canonical states by first-appearance renaming). Fix, once for all, a linear order of vertices within each bag (e.g., by increasing end-time). For a partial proper coloring c: B→{1,2,3}, define its canonical representative canon(c) as follows: scan B in order; when a new color first appears, rename it to the smallest unused label in {1,2,3}. Then canon(c) is unique within the S_3 orbit of c.
+Proof. The renaming rule depends only on the order of first appearances inside B and maps any two colorings in the same orbit to the same canonical map; conversely, different orbits have distinct canonical maps since the first-appearance pattern is an S_3-invariant complete identifier of orbits. ∎
+
+Lemma A2 (DP closure under canon). At an introduce step for u, for each canonical state s on the old bag, enumerate allowed color choices for u, add u, and then apply canon to the new assignment on the new bag; at a forget step, project and apply canon. The set of orbits of extendable partial colorings is preserved, and non-extendability is never introduced by canon.
+Proof. The DP recurrence is invariant under color permutations, so quotienting by S_3 is sound. Canon operates within orbits; hence any extendable class remains represented. ∎
+
+State bound. The number of canonical states on a bag of size t is Q(t)=S2(t,1)+S2(t,2)+S2(t,3)=(3^t−3·2^t+3)/6 + (2^t−2) + 1 = (1/6)·3^t + (1/2)·2^t + 1/3, where S2 are Stirling numbers of the second kind. Thus the DP runs in O(n·w·Q(w)) time and O(Q(w)) space; asymptotically this is a 6× reduction over 3^w.
+
+B. Common-neighborhood test for adjacent chords
+Observation. In any 3-coloring of any graph, for adjacent vertices x,y with colors α≠β, every z∈N(x)∩N(y) must have the third color γ, so N(x)∩N(y) must be independent.
+
+Proposition B1 (Necessary condition; permutation test). For a circle graph with a chord representation, for any adjacent chords x,y, the subgraph G[M] with M=N(x)∩N(y) must be edgeless. Moreover, given the representation and the circular order s(x)<s(y)<t(x)<t(y), M splits into chords with endpoints in (s(x),t(x))×(t(y),s(x)) and in (s(y),t(y))×(s(x),s(y)); in each block, G[M] is a permutation graph under the two endpoint orders. G[M] is independent iff, within each block, the right-order is increasing when the vertices are sorted by left-order.
+Proof. Necessity: as noted, all of M must be γ in a 3-coloring; hence G[M] has no edge. Structure: each member of M has one endpoint in each of the two opposite arcs; adjacency in each block equals inversion between the two arc orders (permutation model). In a permutation graph, edgelessness is equivalent to no inversion, i.e., monotone agreement of the two orders. ∎
+
+Algorithmic corollary. For any fixed adjacent pair (x,y), test independence of M in O(|M|) time (after extracting the two orders), by checking monotonicity; this can be used as an early reject.
+
+Examples. K4 violates B1 on every edge (two common neighbors adjacent). An odd wheel W_{2k+1} violates B1 on edges center–rim (two rim neighbors are adjacent), hence is correctly rejected.
+
+C. Why removing the 2^{cc(N(x))} branching via orientation variables fails (3-SAT barrier)
+Attempt. For a pivot x with c(x)=γ, let N(x) be bipartite with fixed bipartition (U_C,V_C) per component C. Introduce a Boolean o_C to map U_C→α, V_C→β vs swapped; for a side vertex y in a side component D with orientation variable o_D (mapping its bipartition to α/β) and a Boolean z_y indicating use of γ, try to express “if α appears among y’s neighbors in N(x) then (y uses β by o_D) or z_y=1” by 2-CNF.
+
+Barrier. “α appears among neighbors of y” is the disjunction over all incident edges y–n with n∈N(x) of the literals [n∈U_C ∧ o_C=U→α] or [n∈V_C ∧ o_C=V→α]. Encoding the implication (∨_i P_i) ⇒ (Q ∨ z_y) requires clauses of the form (¬P_i ∨ Q ∨ z_y), which are 3-clauses. There is no equivalent 2-CNF unless one branches on the truth pattern of the P_i’s (or relaxes to a one-way implication introducing false negatives). This formalizes the earlier “gated OR” obstruction and explains the necessity of branching over the orientations (or colors) of N(x)-components in general.
+
+Notes
+- B1 offers a cheap necessary test tied to circle structure (permutation blocks). It trivially subsumes the K4 obstruction and catches many dense configurations.
+- A1 reduces constants in the ply-DP decisively and is straightforward to implement.
+
+Next steps
+- Implement the canonical-state DP and measure speedup vs raw 3^w states on random and crafted instances.
+- Add the M-independence test as a preprocessing/pruning step in the pivot pipeline and in general solvers; report hit rates.
+- Explore two-pivot constraints: with adjacent x,y fixed and M independent, extend the single-pivot 2-SAT side packaging to both sides simultaneously (variables for both families of side components), while still branching on orientations of N(x)\
+(y) and N(y)\N(x), and verify correctness and complexity bounds.
+- Seek subclasses where the “gated OR” collapses (e.g., single-touch to N(x) or bounded degree into N(x)), enabling full 2-SAT without branching.

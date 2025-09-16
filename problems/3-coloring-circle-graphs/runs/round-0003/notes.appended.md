@@ -1,0 +1,38 @@
+# Research Notes
+
+
+
+Problem. Decide the complexity of 3-coloring circle graphs (intersection graphs of chords of a circle). Unger’s O(n log n) algorithm was refuted (Bachmann–Rutter–Stumpf). For k ≥ 4, k-coloring circle graphs is NP-complete.
+
+Key observations consolidated this round:
+- Representation: Cutting the circle away from endpoints turns chords into open intervals (s(x), t(x)) with x,y adjacent iff their intervals overlap without containment: s(x) < s(y) < t(x) < t(y) or vice versa.
+- Neighborhood structure: For any chord x, N(x) induces a permutation graph: neighbors of x have one endpoint on each side arc; adjacency among them is determined by inversion between the two side orders. Consequently, in any 3-coloring N(x) must be bipartite.
+- Two-chord view: For any x,y, the set N(x)∩N(y) is an induced subgraph of N(x) and hence also a permutation graph (permutation graphs are hereditary). This tightens and replaces a tentative “trapezoid” claim.
+
+Parameterized algorithm (ply w):
+- Define the interval ply w as the maximum number of intervals covering a point in the linearized representation. A sweep-line DP over the 2n endpoints maintains proper colorings of the active set; on the start of b, forbid colors used by current actives a with t(a) < t(b). This yields an algorithm for k-colorability in O(n·w·k^w) time and O(k^w) space. The parameter is representation-dependent; recognizing circle graphs and finding a representation is polytime.
+
+Bipartite-sides decomposition:
+- Fix a chord x. Removing x splits chords into three parts: left side L, right side R, and N(x). If L and R are bipartite, then for any fixed 2-coloring of each component of N(x), each side reduces to choosing one of its two bipartition orientations; vertices that cannot use their prescribed a/b color (due to conflicts with N(x)) are assigned the third color c_x, provided these “violators” form an independent set. This gives a polynomial-time extension test per choice and overall runtime O(3·2^{cc(N(x))}·poly(n)) for a fixed x; trying all x multiplies by n. This is polytime whenever cc(N(x)) is bounded and both sides are bipartite.
+
+Limits and obstacles:
+- Necessary local conditions (e.g., N(v) bipartite for all v) are far from sufficient; known triangle-free circle graphs can have chromatic number 5 (Ageev). The ply parameter can be Θ(n) even for easy instances. Extending the side method beyond bipartite sides appears to require an independent odd cycle transversal with list constraints.
+
+Next steps:
+- Unify and finalize the DP proof (k-colorability, O(n·w·k^w)). Implement and benchmark typical w values.
+- Replace the double-neighborhood trapezoid claim by the hereditary-permutation fact in all notes.
+- Explore a 2-SAT encoding to eliminate the 2^{cc(N(x))} factor; alternatively, branch on a small independent odd-cycle transversal per side.
+- Investigate two-chord separators and whether a global decomposition can be derived by combining permutation substructures.
+- Hardness attempt within K4-free circle graphs (gadget search aided by SAT/ILP).
+
+Additional consolidated points this round
+
+- Path-decomposition viewpoint. Let the 2n endpoints be sorted and consider the elementary segments between consecutive endpoints. For each segment σ, the bag B(σ) of intervals covering σ has size ≤ w (the ply). The sequence (B(σ)) is a path decomposition of the overlap graph: each vertex x appears in bags for σ ⊂ (s(x), t(x)) (contiguous), and each edge xy (with s(x)<s(y)<t(x)<t(y) or vice versa) is covered by any σ ⊂ (s(y), t(x)). Thus pathwidth ≤ w−1. The sweep DP is exactly standard DP on this path decomposition.
+
+- Structural: tiny ply. If w ≤ 2, the overlap graph is acyclic (a forest): in any cycle, pick the interval with the smallest right endpoint; its two neighbors start before and end after it, so some point is covered by three intervals—a contradiction.
+
+- Bipartite-sides pivot algorithm. For a chord x, if both sides L and R are bipartite and G[N(x)] is 2-colored, then each side component C admits a valid extension iff at least one orientation (assigning a/b to its bipartition) yields an independent set of violators; equivalently, one can encode the side as a 2-SAT instance with variables for component orientations and z-variables marking vertices assigned the third color. This gives polytime per fixed coloring of N(x) and yields an overall FPT algorithm in 2^{cc(N(x))} when such a pivot exists.
+
+- Limits. The attempt to fold all N(x)-component orientation choices into a single 2-SAT generally fails because “color appears” at a side vertex becomes an OR over multiple components. A special “single-touch” subclass (each side vertex sees at most one N(x)-component) admits cleaner 2-SAT constraints, but avoiding branching over side-component orientations still needs a careful, fully polynomial argument.
+
+- Next steps. Implement the ply-DP and the pivot algorithm (with 2-SAT packaging), measure typical w, cc(N(x)), and frequency of bipartite sides; explore two-pivot separators and orientations; pursue characterization for w ∈ {3,4}; and continue gadget search towards hardness within K4-free circle graphs.

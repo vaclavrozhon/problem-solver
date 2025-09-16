@@ -1,41 +1,28 @@
 {
-  "feedback_md": "All provers now correctly target the attainable bounds for Python\u2019s patched TimSort: the coarse O(n + nH) and the sharp (3/2)\u00b7nH + O(n) (tight). The key ingredients are consistently present: (i) a stack-growth invariant implying r_{i+2} > r_{i+1}+r_i and hence geometric growth along the stack; (ii) decomposition into starting vs. ending sequences; (iii) a geometric bound on the total cost of starting sequences with an explicit constant \u03b3 \u2248 16.49; (iv) a token scheme for ending sequences, including c- and s-tokens with nonnegativity, critically using the corrected case #5 to force a follow-up merge after #4/#5; (v) a height bound h \u2264 4 + 2 log2(n/r) after each starting sequence; (vi) conversion from merge cost to comparisons with O(n) overhead. These suffice to conclude comparisons = O(n + nH). For the sharp bound, the outlined potential method with \u03a6(r) = (3/2)\u00b7r\u00b7log2 r, the balanced-merge lemma (within factor \u03c6\u00b2), the forbidden patterns (no #2#2 and no XX#2), the pairing of unbalanced merges, and the grouping argument are all aligned with AJNP and standard.\n\nRigor: The statements are accurate; the proofs are largely complete at the level appropriate for proofs.md, though the invariant preservation (case-by-case) and the s-token nonnegativity (explicitly showing the immediate continuation after #4/#5 under the Python patch) should be written out once in full detail or cited precisely to AJNP. For the sharp bound, include the explicit functional inequality in the pairing lemma (concavity of F and the valid domain), and the grouping lemma statement with the O(r) slack per ending sequence. All provers avoid the false constant-1 claim and clearly state reliance on the patched Python variant and that galloping only decreases comparisons.\n\nNext steps: (1) Consolidate a single, self-contained coarse proof in proofs.md (with the explicit \u03b3 and the h-bound), referencing AJNP for invariant details; (2) add the full potential-method proof pieces for the 3/2 bound; (3) keep output.md as is; (4) optionally record explicit constants for the O(n) terms and note the sentinel technique for final collapse.\n",
-  "summary_md": "All submissions align on the correct TimSort bounds: coarse O(n + nH) via starting/ending decomposition, tokens, and height bound; and sharp (3/2)\u00b7nH + O(n) via a potential method, tight. We will finalize proofs.md with full invariant and s-token details and add the potential-grouping lemmas. output.md already reflects the corrected main theorem.",
+  "feedback_md": "Both provers present the correct target and a coherent, self-contained proof that Python\u2019s TimSort (with the repaired r2 + r3 \u2265 r4 guard) uses O(n + nH) comparisons, where H is the run-length entropy. They also correctly note that the user\u2019s stricter target \u201cO(nH)\u201d (without an additive n term) is impossible in general (H can be 0) and that even \u201c\u2264 nH + O(n)\u201d with leading constant 1 is false for TimSort (Buss\u2013Knop\u2019s lower bound implies a tight worst-case constant 3/2).\n\nRigor audit: The stack invariant (Fibonacci-type growth) is well stated and used to obtain exponential decay and a stack-height bound. The split into starting and ending sequences is appropriate. The O(n) bound for starting sequences is justified using r > rk at the last #2-merge and the derived 2^{-j/2} decay; ensure this inequality is explicitly justified at the last #2 and that indices are clear. The token accounting is the crux: the c-token and s-token credits/charges are consistent, and the critical point that s-tokens charged to R2 in #4/#5 are immediately re-credited because an additional merge must follow is made explicit. The per-element O(1 + log(n/r)) bound follows from the stack-height estimate h \u2264 4 + 2 log2(n/r); both provers correctly anchor h at the end of the starting sequence and use the pre-push tail for the r3 bound. Translation from merge-cost to comparisons plus O(n) for scanning is standard; also covering the final-collapse phase either via a fictitious sentinel run or charging O(n) is acceptable, but should be stated (both did).\n\nMinor suggestions: (1) State clearly that the analyzed variant is the Python-fixed rule set and that the \u201cfinal-collapse\u201d merges are either folded into the main loop or charged to O(n). (2) In output.md, add an explicit one-line impossibility argument for \u201cO(nH)\u201d (single run gives H=0 but scanning needs \u0398(n)). (3) If we aim for the precise leading term, finish the potential-function proof of (3/2) nH + O(n) as a separate, polished lemma chain (Prover 2\u2019s outline is nearly complete). (4) Where constants are cited (e.g., \u03b3 in starting sequences), either compute them once or refer to a bound (no need for exact values in output.md).\n\nOverall, the O(n + nH) result is sound and self-contained. The refined (3/2) nH + O(n) can be added later once fully polished.",
+  "summary_md": "We validated a complete, self-contained proof that Python\u2019s TimSort (with the repaired guard) uses O(n + nH) comparisons for run-length entropy H, and clarified that \u201cO(nH)\u201d without an additive n term is impossible (H can be 0) and that the tight worst-case constant for TimSort is 3/2. Next, finalize the potential-function proof for (3/2) nH + O(n).",
   "verdict": "promising",
   "blocking_issues": [
-    "Write out or precisely cite the full case analysis for the stack invariant preservation (#1\u2013#5).",
-    "State and prove (under case #5) that #4/#5 cannot end an ending sequence (needed for s-token nonnegativity).",
-    "In the sharp bound, include the explicit functional inequality/concavity argument and the grouping lemma with O(r) slack; ensure forbidden-pattern lemma is stated and proved.",
-    "Explicitly handle final collapse (sentinel run or O(n) charge) in the formal proof."
+    "The user\u2019s requested \u201cO(nH)\u201d bound (without +n) is false; our main result must be O(n + nH).",
+    "Small clarifications: fix the variant analyzed (Python with r2+r3\u2265r4) and explicitly fold or charge final-collapse merges.",
+    "Optional: complete the refined (3/2) nH + O(n) proof if desired for precision."
   ],
   "per_prover": [
     {
       "prover_id": "01",
-      "brief_feedback": "Clear, self-contained coarse proof with explicit \u03b3 and a crisp s-token lemma relying on case #5. Add the invariant case-check citation and, if desired, integrate the potential-method details.",
+      "brief_feedback": "Clear, correct O(n + nH) proof with the standard invariant, starting/ending split, and token amortization; good mention of constant-1 impossibility. Be explicit that the final-collapse is handled and that we analyze the Python-fixed rule set.",
       "score": "promising"
     },
     {
       "prover_id": "02",
-      "brief_feedback": "Well-structured coarse bound with all key lemmas and sharp-bound roadmap. Add explicit references for invariant preservation and the s-token continuation after #4/#5.",
-      "score": "promising"
-    },
-    {
-      "prover_id": "03",
-      "brief_feedback": "Concise and correct coarse proof with the necessary lemmas and an explicit follow-up after #4/#5. Ready to be moved to proofs.md; optional: add sharp-bound pieces.",
-      "score": "promising"
-    },
-    {
-      "prover_id": "04",
-      "brief_feedback": "Strongest synthesis: compact coarse proof and a clean presentation of the sharp (3/2) path with all needed lemmas. Just ensure the functional inequality in the pairing lemma is written clearly.",
-      "score": "promising"
-    },
-    {
-      "prover_id": "05",
-      "brief_feedback": "Good focus on explicit constants and the height bound; token accounting is sound. Incorporate invariant and #4/#5 follow-up details; optionally add the sharp-bound components.",
+      "brief_feedback": "Detailed, rigorous O(n + nH) proof and substantial structure toward the tight (3/2) nH + O(n) bound. Minor edits: fix the rule set scope and folding of final-collapse merges; consider adding the simple H=0 counterexample to rule out O(nH).",
       "score": "promising"
     }
   ],
   "notes_update": null,
   "proofs_update": null,
-  "output_update": null
+  "output_update": {
+    "action": "append",
+    "content": "Additional remark. A bound of the form comparisons \u2264 C\u00b7n\u00b7H without an additive \u0398(n) term cannot hold in general: when the input is already a single increasing run, H = 0 but any algorithm (and TimSort in particular) needs \u0398(n) comparisons to detect the run and terminate. This justifies the O(n + nH) form of the main result."
+  }
 }

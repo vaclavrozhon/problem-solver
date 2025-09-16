@@ -1,0 +1,60 @@
+Ideas
+- Strengthen structural control of the dynamics R_{i+1}=N(R_i)\S_{i+1} via “permanent blockers.” This yields compositional upper bounds and a clean reduction tool.
+- Consolidate exact computations on basic families: complete bipartite graphs, small cycles, and a new explicit 2-hunter capture on C_6. Use these to calibrate conjectures for general cycles.
+- Explore odd cycles with k=2 to detect a genuine obstruction (C_7 as a focal instance). Formulate small, checkable lemmas about how small R-sets evolve on C_{2m+1}.
+- Outline a separator-based approach parameterized by a permanently shot set U (|U|≤k) to confine the walk to G−U and then argue within components. This gives immediate FPT-recognition for classes where h is known on G−U (e.g., forests, cactus of bounded cycle length) and a general plan toward n^{O(k)}.
+
+Lemmas and rigorous proofs
+- Lemma A (Permanent blockers). For any U⊆V, if U⊆S_i for all i, then any walk avoiding capture lies entirely in G−U. Consequently, h(G) ≤ |U| + h(G−U).
+  Proof. If some walk visits u∈U at time t, then v_t=u∈S_t so the evader is caught. Hence every avoiding walk remains in V\U. The remaining |S_i\U| ≤ k−|U| shots can be scheduled as a winning strategy on G−U with h(G−U) hunters; adding the |U| blockers gives total ≤ |U|+h(G−U).
+
+- Lemma B (Exact value on complete bipartite graphs). For K_{p,q}, h(K_{p,q})=min{p,q}.
+  Proof. WLOG p≤q. Lower bound: δ(K_{p,q})=p, hence h≥p. Upper bound: shoot all p vertices of the p-side at round 1 and again at round 2. Then R_1 is contained in the q-side, so R_2=N(R_1)\(p-side)=∅.
+
+- Lemma C (Exact value on K_n). h(K_n)=n−1.
+  Proof. Lower bound: δ(K_n)=n−1. Upper bound: shoot V\{x} at round 1 and again at round 2.
+
+- Lemma D (Confinement via a single blocker). For any vertex u, if u∈S_i for all i, then any surviving walk is confined to G−{u}. In particular, if H=G−{u} then h(G) ≤ 1 + h(H) (a special case of Lemma A).
+
+Concrete examples and verified computations
+- C_5 with k=2 (re-verified under R-recursion). Let vertices 1–2–3–4–5–1.
+  S_1={1,3} ⇒ R_1={2,4,5}.
+  S_2={4,5} ⇒ R_2=N({2,4,5})\{4,5}={1,3}.
+  S_3={2,4} ⇒ R_3=N({1,3})\{2,4}={5}.
+  S_4={1,4} ⇒ R_4=N({5})\{1,4}=∅.
+  Hence h(C_5)≤2; together with δ(C_5)=2 we get h(C_5)=2.
+
+- C_6 with k=2 (new explicit 4-round capture). Vertices 1–2–3–4–5–6–1.
+  S_1={1,3} ⇒ R_1={2,4,5,6}.
+  S_2={4,6} ⇒ R_2=N({2,4,5,6})\{4,6}={1,3,5}.
+  S_3={2,4} ⇒ R_3=N({1,3,5})\{2,4}={6}.
+  S_4={1,5} ⇒ R_4=N({6})\{1,5}=∅.
+  Hence h(C_6)≤2; and δ(C_6)=2 gives h(C_6)=2.
+
+Odd cycles: insights and an obstruction pattern (to be tested on C_7)
+- Observation 1. On C_{2m+1}, a 3-set of vertices in alternating positions, e.g., {1,3,5}, has N({1,3,5}) of size 4 (e.g., {2,4,6,7} on C_7). Therefore one round with k=2 can reduce such a 3-set to exactly 2 vertices.
+- Observation 2. From a 2-set R={x,y} on C_{2m+1}:
+  • If x,y are nonadjacent, then |N(R)|=4 and one round can reduce to at best a 2-set.
+  • If x,y are adjacent, then |N(R)|=3 and one round can reduce to at best a 1- or 2-set; but with k=2, at least one vertex remains, so the next R has size ≥1 (never ∅ in one step).
+- Practical barrier encountered on C_7. We found sequences that reach a 2-set (sometimes adjacent), but a robust, certified reduction from size 2 to 1 and then to ∅ has not yet been found. This suggests two possibilities: (i) h(C_7)=2 but requires a longer, more delicate schedule; (ii) h(C_7)=3. A definitive answer needs a small-state exhaustive search (see Next steps).
+
+Consequences and corollaries
+- From Lemma A, any feedback vertex set F gives h(G) ≤ |F| + h(G−F). Thus, if one proves h(Forest)=1, it would follow that h(G) ≤ fvs(G)+1. Even without that, Lemma A immediately yields n^{O(k)} recognition for the subclass {G : ∃U⊆V, |U|≤k−1, and h(G−U)≤1}, since testing h(H)≤1 (on H=G−U) reduces to the k=1 case.
+- The confinement trick (Lemma D) reduces cycle capture to path capture: if h(P_n)=1 is established, then h(C_n)≤2 follows by fixing one blocker on some vertex u and playing the path schedule on C_n−{u} with the second hunter.
+
+Obstacles and corrections
+- The attractive identity h(G)=1 iff G is a forest remains open in the “if” direction. Counter-checks on stars (K_{1,r}) confirm h=1, and paths of small size (P_3,P_4) admit 1-hunter schedules; but a general proof is missing. Earlier flawed arguments invoking permanence of leaf deletions are discarded.
+- Even cycles behave more benignly for k=2 (C_6 captured in 4 rounds), but odd cycles require more care. The previous “antipodal fixed-shot” claim is false on odd cycles; schedules must adapt over time.
+
+Next steps (auditable, testable work)
+1) Decide C_7 with k=2 by exhaustive state search. State space for R is 2^{7} but symmetry reduces it; one can BFS on R-sets under all 21 choices of size-2 shots to determine reachability of ∅ from V. This will settle whether h(C_7)=2 or 3 and guide general odd-cycle analysis.
+2) Prove h(P_n)=1. Target a clean invariant on paths (e.g., strictly decreasing measure based on the convex hull of R_i or a two-step shrink lemma for intervals). Verifier can test candidate schedules on P_n up to moderate n to refine the invariant.
+3) Use Lemma A to get immediate FPT recognizers in n^{O(k)} for graphs with small feedback vertex sets: enumerate U with |U|≤k−1, test k=1 on G−U (once (2) is done). This yields an exact n^{O(k)} algorithm on that subclass.
+4) Build a separator DP skeleton: for a guessed permanent blocker set U (|U|≤k), confine to G−U, decompose into blocks linked by U, and simulate R-evolution within blocks using at most k−|U| shooters. Start with cactus and block graphs (where block-level behavior is simple), then generalize.
+5) Solidify the library of exact schedules: we now have K_n, K_{p,q}, C_5, C_6. Add explicit verified schedules (or lower bounds) for C_7, C_8, and small trees to calibrate conjectures and DP heuristics.
+
+Summary of concrete progress this round
+- Introduced and proved the permanent blockers lemma h(G) ≤ |U|+h(G−U), a useful reduction tool for structural algorithms.
+- Supplied a concise, correct 4-round 2-hunter capture schedule on C_6, sharpening the cycle picture; re-verified the C_5 schedule and the exact values for K_n and K_{p,q}.
+- Identified a precise obstruction pattern on odd cycles with k=2 and outlined a small-state BFS to settle C_7, the next critical test case.
+- Laid out a practical FPT route via small feedback vertex sets and a separator DP, contingent on resolving the k=1 case on forests.

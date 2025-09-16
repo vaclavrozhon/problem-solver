@@ -1,0 +1,45 @@
+Ideas
+- Formalize the forward dynamics. If P_i is the set of all possible rabbit positions just before round i, and hunters shoot S_i (|S_i|≤k) at round i, then the survivors move to neighbors and we get
+  P_{i+1} = N(P_i \ S_i).
+  A length-n schedule S_1,…,S_n is winning iff P_{n+1}=∅ starting from P_1=V(G).
+- Treating the evasion number h(G) as the minimum k for which there is some finite winning schedule (equivalently: there exists a schedule that makes P_t=∅ at some t; this then solves all horizons by truncation).
+- Two immediate bounds that can be checked and used algorithmically:
+  1) Lower bound: h(G) ≥ ω(G)−1 (ω = clique number). Proof: with k ≤ ω−2 shooters and an ω-clique, at each round ≥2 clique-vertices remain unshot; the rabbit can stay within the clique and at each step choose a neighbor unshot next round.
+  2) Upper bound: h(G) ≤ τ(G) (minimum vertex cover). Proof: let S be a vertex cover. Play S at round 1 and again at round 2. Then P_2 = N(V\S) ⊆ S (since V\S is independent), so P_2 ⊆ S and shooting S again yields P_3=∅.
+- Exact values on basic families (to calibrate):
+  • Cliques: h(K_r)=r−1 (LB=ω−1, UB=τ=r−1 match).
+  • Cycles: h(C_n)=2 (n≥3). One shooter never wins on a cycle because from any vertex there are two neighbors; at step i+1 the rabbit can always move to the neighbor that is not s_{i+1}. Two shooters win by playing two antipodal vertices every round: from any position the rabbit’s unique move next round enters the shot set.
+  • Paths: h(P_n)=1 (n≥2). We verified explicitly for n=3,4 by writing a short schedule; a general “1-shooter sweep” exists (induction on n; see Next steps for a proof plan). This already shows h can be strictly smaller than τ and smaller than pathwidth+1.
+
+Examples (toy computations via P_{i+1}=N(P_i\S_i))
+- P4 with order 1–2–3–4 and k=1: a winning 6-step schedule is S=(3,2,4,1,2,3). Forward sets: P1={1,2,3,4}, P2={1,2,3}, P3={2,4}, P4={1,3}, P5={2,4}, P6={3}, P7=∅.
+- C5 with k=2: S1={1,3} ⇒ P2={1,3,4,5}; S2={4,5} ⇒ P3={2,4}; S3={2,4} ⇒ P4=∅.
+
+Obstacles / what fails
+- Attempting to equate h(G) with pathwidth or treewidth runs into counterexamples immediately: for trees (pathwidth=1) we have h=1 (consistent), for cycles (pathwidth=2) we have h=2 (consistent), but for many graphs h < pathwidth+1 (e.g., C5: pw=2 but h=2<3; paths: pw=1 yet often h=1<<2 upper bound from bags). The direct “boundary-of-ordering” schedule proof does not mesh with the exact timing P_{i+1}=N(P_i\S_i). So equality with pathwidth/treewidth remains unproven and likely false as an identity.
+- A naive state-search on subsets P_i is exponential (2^n states). We need structure to get n^{O(k)}.
+
+Checkable lemmas (to move to proofs.md)
+- Lemma 1 (Dynamics): A schedule S_1,…,S_n is winning iff the forward recursion P_{i+1}=N(P_i\S_i), P_1=V, yields P_{n+1}=∅.
+- Lemma 2 (Clique LB): h(G) ≥ ω(G)−1. Proof sketch above.
+- Lemma 3 (Vertex-cover UB): h(G) ≤ τ(G). Proof sketch above. Corollary: h is FPT-approximable from above by k=τ (and test τ≤k in n^{O(k)} time via standard VC-FPT).
+- Lemma 4 (Cycles need 2): h(C_n)=2 for n≥3. Proof: k=1 fails as argued; k=2 wins by fixing two opposite vertices each round.
+- Lemma 5 (Paths need only 1): h(P_n)=1 for all n≥2. Constructive schedules exist; see P4 example. A clean general inductive “leaf-sweep” proof is plausible: under P_{i+1}=N(P_i\{v}), playing a leaf in a suitable back-and-forth traversal shrinks the possible-interval on the path until a singleton is reached; then one more shot empties P.
+
+Algorithmic consequences so far
+- Quick FPT certificates for NO/YES in many cases:
+  • If ω(G) ≥ k+2 we can immediately answer NO (h(G) > k). Decidable in O(n^{k+2}).
+  • If τ(G) ≤ k we can immediately answer YES (h(G) ≤ k) and even output a 2-round winning schedule S,S.
+- These two tests run in n^{O(k)} and already recognize a large fraction of instances.
+- On chordal graphs, h(G)=ω(G)−1 holds (conjectured; consistent with all examples), hence recognition reduces to ω≤k+1 which is n^{O(k)}. This gives a concrete, verifiable target class.
+
+Next steps (towards n^{O(k)} in general)
+1) Prove h(T)=1 for all trees T. Formalize the interval-shrinking invariant for paths and generalize via centroid/leaf pruning to trees. This will supply a nontrivial exact computation on a broad class and a critical structural insight (forests vs cycles for k=1), with a poly-time recognizer for k=1 (acyclic ⇔ YES).
+2) Seek a tighter combinatorial characterization of h in terms of standard parameters. We already have ω−1 ≤ h ≤ τ. Check whether h ≤ tw and/or h ≤ pw holds in general, and whether h is sandwiched between tw and ω−1 on more classes (chordal, series-parallel, outerplanar). If h ≤ tw, then treewidth ≤ k would imply a winning schedule with k shooters; since tw≤k is testable in linear time for fixed k, this would answer the main question positively.
+3) DP on small separators: Although arbitrary P-states blow up, an optimal step tends to use S_i that is a vertex cover of G[P_i] (making P_{i+1} ⊆ N(P_i\S_i) as small as possible). Explore a DP whose states are (H,S) where H is an induced subgraph determined by a small separator S (|S|≤k), and that simulates P-evolution across S using only the cut-structure. A plausible outcome is an n^{O(k)}-time recognition.
+4) Verify and then elevate: h(C_n)=2; h(K_r)=r−1; h on block graphs equals ω−1; h on cactus graphs is max over blocks; these are checkable and give more exact cases.
+
+Summary answer (current status)
+- We can already recognize many YES/NO cases in n^{O(k)} time via the sandwich ω−1 ≤ h ≤ τ; in particular, τ(G)≤k implies YES and ω(G)≥k+2 implies NO.
+- For k=1, strong evidence suggests a complete polynomial characterization (forests) is within reach; we supply an explicit winning schedule on paths and a general cycle-based obstruction.
+- Establishing an n^{O(k)} algorithm in full generality likely hinges on relating h to standard width parameters (treewidth/pathwidth) or on a separator-based DP; both are realistic next steps. Pending a precise equivalence, the “Yes, via treewidth” path remains an attractive route: proving h ≤ tw would immediately yield polynomial recognition for each fixed k.

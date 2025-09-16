@@ -1,0 +1,1 @@
+Output now contains a complete proof: (1) MST_log ≤ Reg_log in L∞ via Kruskal’s integral and a sparse H(t); (2) for any norm, MST_log^N ≤ (1+(log b)/log 3)·Reg_log; (3) Reg_log ≤ (log(1+n)/c_N)·MST_log^N; (4) parity/mod-m families give Reg/MST = Θ(log n), proving tightness.

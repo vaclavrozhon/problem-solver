@@ -1,0 +1,51 @@
+Ideas
+- Strengthen the catalog of PNE-guaranteeing graphs by: (i) a complete classification of 2-node SCCs that are universally PNE-admitting (UPA) for all external fields; (ii) a clean obstruction via dominant negative directed cycles; (iii) a constructive class beyond DAGs: functional digraphs (outdegree ≤ 1) whose directed cycles are sign-positive, with a full proof that they are UPA.
+- Provide simple, checkable inequalities ensuring consensus and two-cycle polarization under dominance.
+
+Theorem 1 (Two-player UPA classification)
+Consider two players with utilities u_1(x)=x_1(h_1+W_{12}x_2) and u_2(x)=x_2(h_2+W_{21}x_1), x_i∈{±1}.
+Then the induced 2-node SCC is UPA (i.e., admits a PNE for every h∈ℝ^2) if and only if W_{12}W_{21}≥0.
+Proof.
+(⇒) Necessity: If W_{12}W_{21}<0, w.l.o.g. W_{12}>0, W_{21}<0, take h=0. Best responses require x_1=sgn(W_{12}x_2)=x_2 and x_2=sgn(W_{21}x_1)=−x_1, impossible. Hence not UPA.
+(⇐) Sufficiency: If W_{12},W_{21}≥0, the game is unsigned (supermodular) so admits a PNE for all h. If W_{12},W_{21}≤0, pick σ=(1,−1); then [σ]W[σ] has nonnegative off-diagonal entries, hence the switched game is unsigned and admits a PNE for all switched h; mapping back via x=[σ]y preserves PNE. ∎
+
+Lemma 2 (Row-sum consensus certificate)
+If h_i+∑_j W_{ij}≥0 for all i, then x≡+1 is a PNE; if h_i+∑_j W_{ij}≤0 for all i, then x≡−1 is a PNE.
+Proof. At x≡+1, Δ_i=u_i(+1,·)−u_i(−1,·)=2(h_i+∑_j W_{ij})≥0; similarly for x≡−1. ∎
+
+Lemma 3 (Dominant negative directed cycle obstructs PNE)
+Let C=(i_1→i_2→…→i_L→i_1) be a directed cycle with sign product ∏_{k=1}^L s_k=−1, where s_k=sgn(W_{i_k i_{k+1}}). Suppose, for each k,
+|W_{i_k i_{k+1}}| > |h_{i_k}| + ∑_{j≠ i_{k+1}} |W_{i_k j}|.
+Then the game has no PNE.
+Proof. At any profile x, for each k,
+S_k:=h_{i_k}+∑_j W_{i_k j}x_j = W_{i_k i_{k+1}}x_{i_{k+1}} + R_k,
+with |R_k|<|W_{i_k i_{k+1}}|. Hence sgn(S_k)=sgn(W_{i_k i_{k+1}}x_{i_{k+1}}), so BR enforces x_{i_k}=sgn(S_k)=s_k x_{i_{k+1}}. Multiplying around C yields x_{i_1}=(∏ s_k) x_{i_1}=−x_{i_1}, impossible. ∎
+
+Theorem 4 (Functional digraphs with sign-positive cycles are UPA)
+Let the dependency digraph be functional: each i has at most one successor s(i). For i with s(i), write w_i=W_{i s(i)}. Assume every directed cycle C satisfies ∏_{(i→j)∈C} sgn(w_i)=+1. Then, for every h∈ℝ^V, the game admits a PNE, and a BR-path to it exists.
+Proof. For i with successor, define the unary best-response map
+f_i(x_{s(i)}) = sgn(h_i + w_i x_{s(i)}) ∈ {±1},
+interpreting ties arbitrarily (either choice acceptable). If |h_i|≥|w_i|, then f_i is constant; else f_i(x)=sgn(w_i)·x.
+Fix a directed cycle C=(i_1→…→i_L→i_1) and define F_C:=f_{i_1}∘f_{i_L}∘…∘f_{i_2}:{±1}→{±1}. If any f_{i_k} is constant, then F_C is constant and hence has a fixed point. If all are of the form x↦sgn(w_i)·x, then F_C(x)=(∏ sgn(w_i))·x=x by hypothesis, again two fixed points. Thus one can assign x on the cycle so that each i on C best responds.
+Now propagate outwards on each in-arborescence (edges point towards successors): for any edge j→i whose successor i is already assigned, set x_j:=f_j(x_i). Since u_j depends only on x_{s(j)} and h_j, this yields a best response at j. Doing this for all components produces a profile in which every player best responds. A BR-path is obtained by updating nodes in reverse topological order of the forest branches ending at cycles, then cycling nodes to the chosen fixed point on each cycle. ∎
+
+Corollary 5 (Necessity within the functional class for uniform guarantee)
+In functional digraphs, if some directed cycle has negative sign product, then there exists h (e.g., h=0) for which no PNE exists.
+Proof. With h=0 and all |h_i|<|w_i|, each f_i(x)=sgn(w_i)·x, so F_C(x)=−x has no fixed point. ∎
+
+Examples
+- Two-player: W_{12}=2, W_{21}=−3, h=0 has no PNE (Theorem 1 necessity). If W_{12}=2, W_{21}=5, any h admits a PNE (Theorem 1 sufficiency).
+- Dominant negative 3-cycle: W_{12}=−5, W_{23}=−5, W_{31}=−5; all other out-weights zero; h=0. Lemma 3 rules out PNE.
+- Functional positive 4-cycle: signs (+,+,−,−) so product +1. Theorem 4 applies; two PNE on the cycle; trees feeding in are assigned uniquely.
+
+Algorithms/checks
+- Two-node SCC UPA check: test W_{12}W_{21}≥0.
+- Functional UPA check: verify outdegree ≤1 and positive sign on each directed cycle (linear time); then construct PNE by cycle resolution + tree backpropagation.
+- Obstruction: if a negative directed cycle satisfies Lemma 3’s dominance, declare “no PNE” for that h (diagnostic for instances).
+
+Obstacles
+- Beyond functional SCCs, UPA characterization remains open; structural balance suffices but may not be necessary in general. Dominance obstructions give only sufficient conditions for nonexistence.
+
+Next steps
+- Extend UPA classification to SCCs that are unions of a few cycles with limited branching (bounded outdegree), via multi-unary compositions and parity arguments.
+- Provide a polynomial-time routine combining: SCC decomposition; per-SCC tests (undirected/structurally balanced/functional-positive); cycle-dominance diagnostics; cohesive-core constructions when some SCCs fail UPA.

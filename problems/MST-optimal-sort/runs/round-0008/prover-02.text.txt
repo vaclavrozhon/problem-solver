@@ -1,0 +1,61 @@
+# Asymptotic comparison between MST_log and Reg_log
+
+Fix a logarithm base (changing it rescales all values by a constant). For π∈S_n define
+P_π = { p_i = (i, π(i)) : i=1,…,n } ⊂ R^2.
+Fix a norm ∥·∥ on R^2. For distinct u,v∈P_π set w(u,v)=log(1+∥u−v∥). Let MST_log^{∥·∥}(π) be the total w-weight of a minimum spanning tree on P_π.
+
+For i≥2 set
+- Δ_i := |π(i)−π(i−1)|,
+- t_i := min{ i−j : 1≤j<i and |π(i)−π(j)|=1 }, with t_i := i−1 if the set is empty,
+- d_i := 1 + #{ k<i : min(π(i−1),π(i)) < π(k) < max(π(i−1),π(i)) },
+- r_i := min{ d_i + t_i, i }.
+Define Reg_log(π) := ∑_{i=2}^n log(1+r_i).
+
+We resolve the three questions by establishing: (i) MST_log ≤ C·Reg_log with an explicit C depending only on the norm (C=1 for L∞); (ii) no reverse constant holds; (iii) nevertheless Reg_log ≤ O(log n)·MST_log with explicit constants, and this is tight.
+
+
+Threshold graphs. For a metric space (X,d) and t≥0, define G(t) on X with edges {u,v} whenever d(u,v) ≤ t. Let κ(t) be the number of connected components of G(t).
+
+Lemma 1 (Kruskal integral identity). Let X be finite, d a metric, and T an MST of the complete graph on X with edge weights log(1+d). If the MST edge-lengths are ℓ_1≤⋯≤ℓ_{|X|−1}, then
+∑_{e∈T} log(1+ℓ_e) = ∫_0^∞ (κ(t)−1) dt/(1+t),
+where κ(t) is the component count of G(t).
+
+Proof. log(1+ℓ_j)=∫_0^{ℓ_j} dt/(1+t). Summing and exchanging sum/integral gives ∫_0^∞ m(t) dt/(1+t), where m(t)=|{j: ℓ_j≥t}|. By Kruskal’s algorithm, after inserting edges of length ≤t the forest has κ(t) components, hence exactly κ(t)−1 MST edges have length >t, i.e., m(t)=κ(t)−1 for all t except finitely many tie thresholds (measure-zero). ∎
+
+
+Theorem 1 (Exact one-sided domination in L∞). For all π,
+MST_log^{∞}(π) ≤ Reg_log(π).
+
+Proof. Apply Lemma 1 with X=P_π and d=∥·∥_∞. For t≥0 construct H(t)⊆G(t) as follows. Process i=1,…,n; when adding p_i: if Δ_i ≤ t, add {p_{i−1},p_i}; if there exists j<i with |π(i)−π(j)|=1 and t_i=i−j ≤ t, add {p_j,p_i}. These edges have L∞-lengths Δ_i and t_i respectively (since Δ_i, t_i≥1), hence belong to G(t). Expose vertices in increasing i. Adding p_i increases κ_H by 1; if at least one of the two edges is present, p_i attaches to earlier vertices and κ_H decreases by ≥1 (possibly by 2 if both edges connect to distinct components). Thus κ_H fails to return to its previous value only when both Δ_i>t and t_i>t. Therefore
+κ(t) ≤ κ_H(t) ≤ 1 + |{ i∈{2,…,n} : Δ_i>t and t_i>t }|.
+By Lemma 1,
+MST_log^{∞}(π) ≤ ∫_0^∞ ∑_{i=2}^n 1[Δ_i>t and t_i>t] dt/(1+t) = ∑_{i=2}^n log(1+min{Δ_i,t_i}).
+Since r_i=min{d_i+t_i,i} and d_i≥1, t_i≤i−1, we have r_i≥t_i, hence log(1+min{Δ_i,t_i}) ≤ log(1+t_i) ≤ log(1+r_i). Summing over i gives MST_log^{∞}(π) ≤ Reg_log(π). ∎
+
+Corollary 2 (Domination for any norm). Let ∥·∥ be any norm on R^2 and b:=sup_{∥z∥_∞=1} ∥z∥ ∈ [1,∞). Then for all π,
+MST_log^{∥·∥}(π) ≤ (1 + (log b)/log 3) · Reg_log(π).
+
+Proof. Let T_∞ be an L∞-MST. For any edge e, 1+∥e∥ ≤ b(1+∥e∥_∞), so log(1+∥e∥) ≤ log b + log(1+∥e∥_∞). Summing over e∈T_∞ and using Theorem 1 yields MST_log^{∥·∥}(π) ≤ (n−1)·log b + Reg_log(π). Since for i≥2, r_i≥2, we have Reg_log(π) ≥ (n−1)·log 3; absorb the additive term. For L_p in R^2, b=2^{1/p}, giving MST_log^{(p)}(π) ≤ (1 + (log 2)/(p·log 3))·Reg_log(π). ∎
+
+
+Theorem 3 (Universal logarithmic reverse bound). For any norm ∥·∥ on R^2 there exists c>0 (depending only on the norm) such that for all n and π,
+Reg_log(π) ≤ (log(1+n)/c) · MST_log^{∥·∥}(π).
+
+Proof. Any two distinct permutation points differ by ≥1 in each coordinate; thus each spanning-tree edge e satisfies ∥e∥_∞≥1. Let α:=inf{∥z∥ : ∥z∥_∞=1}>0 and set c:=log(1+α). Then ∥e∥ ≥ α (by homogeneity) and w(e)≥c, so MST_log^{∥·∥}(π) ≥ (n−1)·c. Also r_i≤i implies Reg_log(π) ≤ ∑_{i=2}^n log(1+i) ≤ (n−1)·log(1+n). Divide. For L∞, L2, L1 one may take α=1, √2, 2 respectively, hence c=log 2, log(1+√2), log 3. ∎
+
+
+Theorem 4 (Separation; no reverse constant). Fix any norm ∥·∥. There is no universal C such that Reg_log(π) ≤ C·MST_log^{∥·∥}(π) for all π and n. In fact, there exist permutations with Reg_log(π)/MST_log^{∥·∥}(π) = Θ(log n).
+
+Proof. For m≥2, define π^{(m)}_n by listing values by residue classes mod m, in increasing residue order and increasing within each class:
+π^{(m)}_n = (1,1+m,1+2m,…; 2,2+m,2+2m,…; …; m,2m,3m, …), truncated at n.
+Let m_r be the size of residue class r (so m_r≈n/m and ∑_r m_r=n). In L∞, connect consecutive indices within each class by time edges (length m, weight log(1+m)), totaling (n−m)·log(1+m). Connect the m class-blocks by m−1 boundary time edges (each O(log n)), totaling O(m log n). Thus MST_log^{∞}(π^{(m)}_n) ≤ (n−m)·log(1+m)+O(m log n)=Θ(n+m log n). By norm equivalence and the per-edge lower bound (Theorem 3), MST_log^{∥·∥}(π^{(m)}_n)=Θ(n+m log n).
+For Reg_log, fix r≥2. For the k-th element v=r+km of class r, its most recent earlier true neighbor is v−1=r−1+km (if v−1≤n), appearing exactly m_{r−1} steps earlier; otherwise no earlier neighbor exists and t_i≥m_{r−1}. In all cases t_i≥m_{r−1}, hence r_i≥t_i and log(1+r_i)≥log(1+m_{r−1}). Summing yields
+Reg_log(π^{(m)}_n) ≥ ∑_{r=2}^m m_r·log(1+m_{r−1}) = Θ(n log(n/m)).
+For fixed m, Reg_log(π^{(m)}_n)=Θ(n log n) while MST_log^{∥·∥}(π^{(m)}_n)=Θ(n), hence Reg_log/MST_log=Θ(log n). ∎
+
+
+Conclusion. For any fixed norm on R^2 and all permutations π:
+- Reg dominates MST: MST_log^{∞}(π) ≤ Reg_log(π), and more generally MST_log^{∥·∥}(π) ≤ (1 + (log b)/log 3)·Reg_log(π) with b:=sup_{∥z∥_∞=1} ∥z∥.
+- No reverse constant holds: there exist permutations with Reg_log(π)/MST_log^{∥·∥}(π) = Θ(log n).
+- Universal upper bound: Reg_log(π) ≤ (log(1+n)/c)·MST_log^{∥·∥}(π), with c>0 depending only on the norm (e.g., c=log 2 for L∞, c=log(1+√2) for L2, c=log 3 for L1).
+Thus the worst-case multiplicative gap is Θ(log n), and this is optimal up to constant factors. All constants depend only on the norm and the chosen logarithm base.

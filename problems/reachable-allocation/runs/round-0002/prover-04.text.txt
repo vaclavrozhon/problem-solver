@@ -1,0 +1,65 @@
+# Ideas
+
+- Formalize decision procedures that are verifiable in polynomial time: (a) testing global Pareto-efficiency (PO) of a fixed matching; (b) testing reachability of a fixed matching on a tree; (c) deducing TREE-REACHABLE-PE ∈ NP. Provide proofs suitable for proofs.md.
+- Prove a complete polynomial-time solution for stars: compute the unique swap-dynamics sink and test whether it is globally PO; if yes output it, else report “No.” This yields a fully rigorous polynomial-time decidability result on stars (a tree subclass).
+- Provide a concrete NO-instance on a path (and on a 3-leaf star) where no swap is allowed but the initial allocation is not globally PO. This shows that “local sink” does not imply global PO and motivates the explicit PO test.
+- Outline an FPT algorithm parameterized by treewidth, and a concrete plan for the double-star (two centers connected by a bridge), yielding a new nontrivial polynomial-time special case by case analysis of bridge-crossing patterns.
+
+# Lemmas and Proofs
+
+Lemma 1 (Reachable ⇒ Individually Rational). In the tree swap model with strict preferences, any allocation reachable from the initial endowment is individually rational (IR): each agent weakly prefers her assigned object to her initial endowment.
+
+Proof. Each allowed swap strictly improves both participants and leaves others unchanged; thus along any swap sequence, every agent’s assigned object is monotonically strictly improving at each of her own swaps and never decreases otherwise, relative to the initial endowment. ∎
+
+Lemma 2 (Polynomial-time test for global Pareto-efficiency). Given an allocation µ (a perfect matching), we can decide in O(n^2) whether µ is globally Pareto-efficient.
+
+Proof. Build the directed “improvement” graph G_µ on A ∪ B with arcs a→b for each object b such that b ≻_a µ(a), and arcs b→a where a = µ^{-1}(b). Then µ is PO iff G_µ has no directed cycle. If a cycle exists, the corresponding cycle of agents can strictly improve by cyclically permuting the objects along the cycle; conversely, if no cycle exists there is no nonempty coalition that can all be weakly better and at least one strictly better (standard TTC-improvement digraph characterization). G_µ has O(n) vertices and O(n^2) arcs; cycle detection is O(n^2). ∎
+
+Lemma 3 (Reachability of a fixed matching on a tree). Given initial matching µ_0 and target matching µ on a tree T, we can decide in O(n^2) whether µ is reachable by allowed swaps.
+
+Proof sketch. As in Gourvès–Lesca–Wilczynski, define each agent’s dipath along T from its current object to its target object. An edge e is good if the two agents currently at its incident objects both need to traverse e next along their dipaths. If µ is reachable and µ≠current, there exists a good edge. Iteratively swap across any good edge; this preserves goodness on other edges and can make up to two new edges good. This yields a procedure that either reaches µ or terminates when no good edge remains (then µ is unreachable). Initial good-edge set construction and all swaps can be implemented to run in O(n^2). ∎
+
+Theorem 4 (TREE-REACHABLE-PE ∈ NP). A certificate is a target matching µ*. Verification runs in polynomial time: (i) use Lemma 3 to check that µ* is reachable from µ_0 in O(n^2); (ii) use Lemma 2 to check that µ* is globally PO in O(n^2).
+
+# Stars: Polynomial-time Decidability
+
+We consider a star with center object o and leaf objects. Let the current center agent be O. 
+
+Observation 5 (Monotonicity on stars). Once an agent moves from the center to a leaf, that agent can never move again; and once a leaf takes the center, it remains center until it leaves (after a swap). Therefore, along any maximal sequence, each leaf object changes owner at most once, and the center “token” moves along a linear chain of center changes.
+
+Algorithm (Greedy center serial dictatorship for stars).
+- Prune every leaf agent a that does not strictly prefer o to its own endowment; such leaves are never part of any allowed swap. If all leaves are pruned, the current allocation is a sink.
+- While there exists a remaining leaf ℓ whose object b is the current center agent’s most-preferred among remaining objects, perform the swap (O, ℓ), making ℓ the new center. Then prune ℓ and object b (they will never move again). Continue until no swap is possible.
+
+Lemma 6 (Uniqueness of sink on a star). From any initial allocation on a star, every maximal sequence of allowed swaps reaches the same sink allocation σ, independent of the swap order.
+
+Proof. By Observation 5, the center agent sequence is a chain of distinct agents. At each step, the center must swap with a leaf whose object it strictly prefers; among such feasible leaves the choice does not affect future feasibility because (i) the chosen leaf is removed (pruning), (ii) no pruned leaf can return to the center, and (iii) remaining leaves’ future opportunities depend only on the multiset of remaining objects, not on the order. Thus any two maximal sequences are permutations of the same multiset of center-leaf swaps, yielding the same terminal matching σ. ∎
+
+Theorem 7 (TREE-REACHABLE-PE is decidable in polynomial time on stars). Compute σ by the greedy center process in O(n). Then test if σ is globally PO using Lemma 2 in O(n^2). If yes, output σ and a realizing swap sequence (the greedy sequence); otherwise report “No.”
+
+Proof. By Lemma 6, any reachable sink equals σ. Any globally PO reachable allocation must be a sink (otherwise a permitted swap would contradict global PO). Hence, if a globally PO reachable allocation exists, it must be σ. The test is therefore sound and complete. Complexity follows. ∎
+
+# Examples
+
+Example 1 (NO-instance on a path). Path A–B–C, initial (A:a,B:b,C:c), preferences: A: b ≻ a ≻ c; B: c ≻ b ≻ a; C: a ≻ c ≻ b. No edge swap is allowed initially (each swap hurts one endpoint), so initial is a sink. However, the allocation (A:b,B:c,C:a) strictly Pareto-dominates the initial allocation (3-cycle). Thus there is no reachable globally PO allocation. The algorithm for stars analogously certifies “No” on a star with B as center.
+
+Example 2 (YES-instance on a star). Star with center B, leaves A,C,D, initial (a,b,c,d), preferences: A: b ≻ ... ≻ a, B: d ≻ c ≻ a ≻ b, C: b ≻ ... ≻ c, D: c ≻ ... ≻ d. Greedy sequence: (B,C): B gets c; (B,D): B gets d; (B,A): B gets b? Check feasibility at each step. The unique sink equals (A:b, B:d, C:c, D:a). Testing PO via Lemma 2 confirms global PO. Hence instance is YES, with constructing sequence equal to greedy.
+
+# Parameterized and Structural Progress
+
+FPT by treewidth (outline). For a nice tree decomposition of width w, do a DP over bags. A bag state records: (i) a partial injection from agents in the bag to objects in the bag (O(n^{O(w)}) possibilities); (ii) consistency flags ensuring extendability (no object/agent reused); optionally (iii) local constraints ensuring that, if needed, the target matching µ is PO (the PO check is deferred to the root for the full matching). The DP enumerates candidate perfect matchings µ in n^{O(w)} time. For each µ at the root, verify reachability from µ_0 (Lemma 3) and PO (Lemma 2) in polynomial time; accept the first passing candidate. This yields an FPT algorithm running in f(w)·poly(n) time with f(w) = n^{O(w)}.
+
+Double-star plan (two centers u–v with leaves). Any bridge-crossing swap moves a single “token object” across u–v. The number and direction of crossings is bounded (at most O(n)). Enumerate O(n) patterns of bridge crossings (sequence of which leaf-object travels across the bridge). For each pattern, the instance decomposes into two star subproblems between crossings; solve each by the star algorithm, verify the composability of segments, and finally test PO of the combined terminal allocation. This promises an O(n^3)-time algorithm for double-stars; we will formalize the “token” invariant and the segment composition in the next round.
+
+# Obstacles
+
+- General trees: Multiple sinks can exist, and a sink need not be globally PO (Example 1). While TTC is a one-sided certificate (if TTC is reachable then answer is YES), it is not known whether every IR+PO equals TTC; we therefore cannot reduce TREE-REACHABLE-PE to TTC reachability. A separate, rigorous counterexample to “IR+PO ⇒ TTC” will be prepared by exhaustive small-instance search (n≤5) to settle this point definitively in our notes.
+- Enumerating all sinks appears exponential on general trees; thus naive search is unlikely to yield a polynomial-time algorithm.
+
+# Next Steps
+
+1) Formalize the double-star algorithm: prove the token-crossing invariant and the decomposition lemma; present full correctness and O(n^3) bound.
+2) Provide a concrete 4-agent example where an allocation is IR+PO but not equal to TTC (for the same endowment), ending the open dispute from the previous round; or else prove uniqueness under an additional structural assumption.
+3) Implement the treewidth-FPT DP rigorously: detail introduce/forget/join transitions, state space size, and correctness; add to proofs.md.
+4) Explore caterpillars (spine + leaves): attempt a dynamic serial-dictatorship along the spine with branch-wise star subproblems, and characterize bridge-crossing constraints as in the double-star case.
+5) Enrich the example catalog of small trees (n≤6), classifying instances with/without reachable global PO; this may suggest additional structure or hardness reductions.

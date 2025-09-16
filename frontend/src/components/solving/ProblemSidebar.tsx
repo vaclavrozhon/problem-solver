@@ -18,7 +18,7 @@
 
 import React from 'react'
 import { ProblemInfo, ProblemStatus } from './types'
-import { getProblemInfo, getStatusClassName } from './utils'
+import { getProblemInfo, getStatusClassName, getVerdictColor } from './utils'
 
 // =============================================================================
 // INTERFACES
@@ -50,6 +50,9 @@ interface ProblemItemProps {
   
   /** Problem information derived from status */
   problemInfo: ProblemInfo
+  
+  /** Raw status data for accessing verdict */
+  status?: ProblemStatus
   
   /** Whether this problem is currently selected */
   isSelected: boolean
@@ -164,6 +167,7 @@ export default function ProblemSidebar({
             key={problemName}
             problemName={problemName}
             problemInfo={problemInfo}
+            status={statusMap[problemName]}
             isSelected={isSelected}
             onClick={() => handleProblemSelect(problemName)}
             onDelete={onProblemDelete}
@@ -197,6 +201,7 @@ export default function ProblemSidebar({
 function ProblemItem({
   problemName,
   problemInfo,
+  status,
   isSelected,
   onClick,
   onDelete,
@@ -237,6 +242,20 @@ function ProblemItem({
   
   /** Determine if we should show the round indicator */
   const showRoundIndicator = problemInfo.status === 'running' && problemInfo.currentRound > 0
+  
+  /** Calculate remaining rounds to finish */
+  const remainingRounds = status?.overall.remaining_rounds || 0
+  const showRemainingRounds = problemInfo.status === 'running' && remainingRounds > 0
+  
+  /** Get the latest verdict from the most recent round */
+  const lastVerdict = status?.rounds && status.rounds.length > 0 
+    ? status.rounds.reduce((latest, current) => 
+        current.number > latest.number ? current : latest
+      ).verdict
+    : undefined
+    
+  /** Get the color for the verdict indicator */
+  const verdictColor = getVerdictColor(lastVerdict)
 
   // =============================================================================
   // MAIN RENDER
@@ -247,13 +266,29 @@ function ProblemItem({
       key={problemName}
       className={`problem-item ${isSelected ? 'selected' : ''}`}
     >
-      <div onClick={handleClick} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className={`status-dot ${problemInfo.status}`}></span>
-          <span>{problemName}</span>
+      <div onClick={handleClick} style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className={`status-dot ${problemInfo.status}`}></span>
+            <span>{problemName}</span>
+          </div>
+          <span 
+            style={{
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: verdictColor
+            }}
+            title={lastVerdict ? `Last verdict: ${lastVerdict}` : 'No verdict yet'}
+          ></span>
         </div>
-        {showRoundIndicator && (
-          <span className="small-font">Round {problemInfo.currentRound}</span>
+        {showRemainingRounds && (
+          <div style={{ marginTop: '4px', marginLeft: '20px' }}>
+            <span className="small-font" style={{ color: '#666' }}>
+              ({remainingRounds} more round{remainingRounds !== 1 ? 's' : ''})
+            </span>
+          </div>
         )}
       </div>
     </li>

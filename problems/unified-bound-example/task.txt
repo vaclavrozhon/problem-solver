@@ -1,0 +1,63 @@
+# Permutation UB-vs-OPT Separation Problem
+
+**Universe.** Keys are $[n]=\{1,2,\dots,n\}$ with the usual order.
+An **instance** is a permutation $\pi=(x_1,\dots,x_n)$ of $[n]$.
+
+## 1) Unified-bound cost on a permutation
+
+For each time $i\in\{1,\dots,n\}$:
+
+* Let $R_i(1),R_i(2),\dots,R_i(i-1)$ be the previously accessed keys ordered by **recency** (so $R_i(1)=x_{i-1}$, $R_i(2)=x_{i-2}$, …).
+* Define the **rank distance** $\Delta_i(j) := |\,x_i - R_i(j)\,|$.
+* The **per-access unified charge** is
+
+  $$
+  \mathrm{UB}_i(\pi)\;:=\;\log\!\Big(1+\min_{1\le j\le i-1}\big(j+\Delta_i(j)\big)\Big),
+  $$
+
+  with the convention $\mathrm{UB}_1(\pi):=\log(1+n)$.
+
+The **total unified-bound cost** is
+
+$$
+\mathrm{UB}(\pi):=\sum_{i=1}^n \mathrm{UB}_i(\pi).
+$$
+
+*(Remarks: logs are base 2; constants are irrelevant for asymptotics. Because $\pi$ is a permutation, “working-set number” equals the recency rank $j$, so this is the standard unified bound specialized to permutations.)*
+
+## 2) Optimal dynamic BST cost on a permutation
+
+We use the standard **dynamic BST model**:
+
+* The algorithm maintains a binary search tree $T$ over $[n]$.
+* To access $x_i$, it traverses parent/child pointers from the root to $x_i$; pointer moves and comparisons along the search path each cost 1.
+* After (or during) the access, it may perform any number of **rotations**, each costing 1.
+* The initial tree is a fixed balanced BST on $[n]$. (Allowing an arbitrary offline choice changes costs by at most an additive $O(n)$ and doesn’t affect asymptotics for this problem.)
+
+For a permutation $\pi$, the **cost of an algorithm $\mathcal A$** is the sum of search-path lengths plus rotations over the $n$ accesses. The **optimal BST cost** is
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi):=\min_{\mathcal A}\;\text{cost}_{\mathcal A}(\pi).
+$$
+
+## 3) The separation task
+
+Find an infinite family of permutations $\{\pi_n\}_{n=1}^\infty$, $\pi_n\in S_n$, such that
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi_n)\;=\;o\!\big(\mathrm{UB}(\pi_n)\big)
+\quad\text{as }n\to\infty.
+$$
+
+A **strong separation** would meet, for some constants $c,C>0$,
+
+$$
+\mathrm{OPT}_{\mathrm{BST}}(\pi_n)\;\le\; C n
+\qquad\text{and}\qquad
+\mathrm{UB}(\pi_n)\;\ge\; c\,n\log n,
+$$
+
+i.e., $ \mathrm{OPT}_{\mathrm{BST}}(\pi_n) / \mathrm{UB}(\pi_n) = O(1/\log n)$.
+
+*(Equivalently, in per-access terms: find $\pi_n$ with average BST cost $o(1)\cdot$UB’s average, e.g. $O(1)$ vs $\Omega(\log n)$.)*
+

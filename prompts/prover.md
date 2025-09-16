@@ -11,11 +11,11 @@ Inputs:
 - possibly some reference papers.
 
 What counts as progress:
-- Extract small lemmas/heuristics from literature and state them cleanly with one-line "why useful here".
+- Extract lemmas/heuristics from literature. Generalize them for current task, or explain why they could be helpful. 
 - Explore small examples & try to break your own claims with toy counterexamples.
 - Prove special cases or nontrivial bounds.
 - If an approach fails, explain crisply why.
-- Point out flaws in notes.md, proofs.md, or output.md (but you are not rewriting these files yourself, that's verifier's job).
+- Point out flaws in notes.md, proofs.md, or output.md (you are not rewriting these files yourself, that's verifier's job).
 
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 

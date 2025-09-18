@@ -48,6 +48,17 @@ app.include_router(tasks_router)
 DATA_ROOT = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()
 DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
+# Health check endpoints (must be before catch-all frontend route)
+@app.get("/healthz")
+def healthz():
+    """Liveness probe."""
+    return {"status": "ok"}
+
+@app.get("/readyz")
+def readyz():
+    """Readiness probe (basic)."""
+    return {"ready": DATA_ROOT.exists()}
+
 # Serve React frontend static files
 FRONTEND_BUILD_DIR = Path("frontend/dist")
 if FRONTEND_BUILD_DIR.exists():
@@ -126,17 +137,13 @@ def set_key(p: KeyPayload, token: str):
     return {"ok": True}
 
 
-@app.get("/")
-def root():
-    """Root endpoint."""
-    return {"message": "Automatic Researcher Backend API"}
+# Root endpoint removed - let frontend handle "/"
 
 
 @app.get("/healthz")
 def healthz():
     """Liveness probe."""
     return {"status": "ok"}
-
 
 @app.get("/readyz")
 def readyz():

@@ -24,11 +24,13 @@ except ImportError:
 # Import modular routers
 try:
     from .routers.problems import router as problems_router
+    from .routers.problems_public import router as problems_public_router
     from .routers.drafts import router as drafts_router
     from .routers.auth import router as auth_router
     from .routers.tasks import router as tasks_router
 except ImportError:
     from backend.routers.problems import router as problems_router
+    from backend.routers.problems_public import router as problems_public_router
     from backend.routers.drafts import router as drafts_router
     from backend.routers.auth import router as auth_router
     from backend.routers.tasks import router as tasks_router
@@ -55,6 +57,7 @@ app.add_middleware(
 
 # Include modular routers
 app.include_router(problems_router)
+app.include_router(problems_public_router)
 app.include_router(drafts_router)
 app.include_router(auth_router)
 app.include_router(tasks_router)

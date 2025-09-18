@@ -21,9 +21,12 @@ export default function OverviewPage() {
     try {
       // Load problems (solving tasks)
       const problemNames = await listProblems()
+
+      // Ensure problemNames is an array
+      const validProblemNames = Array.isArray(problemNames) ? problemNames : []
       const problemSummaries: ProblemSummary[] = []
-      
-      for (const name of problemNames) {
+
+      for (const name of validProblemNames) {
         try {
           const status = await getStatus(name)
           const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)

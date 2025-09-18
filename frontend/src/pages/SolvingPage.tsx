@@ -144,16 +144,19 @@ export default function SolvingPage() {
     try {
       setLoading(true)
       const problemList = await listProblems()
-      setProblems(problemList)
-      
+
+      // Ensure problemList is an array
+      const validProblemList = Array.isArray(problemList) ? problemList : []
+      setProblems(validProblemList)
+
       // Load status for all problems
-      await refreshAllStatuses(problemList)
-      
+      await refreshAllStatuses(validProblemList)
+
     } catch (error) {
       console.error('Failed to load problems:', error)
-      setMessage({ 
-        type: 'error', 
-        text: 'Failed to load problems. Please check your connection.' 
+      setMessage({
+        type: 'error',
+        text: 'Failed to load problems. Please check your connection.'
       })
       setProblems([])
     } finally {
@@ -165,11 +168,13 @@ export default function SolvingPage() {
    * Refreshes status for all problems (or provided list)
    */
   const refreshAllStatuses = async (problemList: string[] = problems) => {
-    if (problemList.length === 0) return
+    // Ensure problemList is an array
+    const validProblemList = Array.isArray(problemList) ? problemList : []
+    if (validProblemList.length === 0) return
 
     try {
       // Fetch status for all problems in parallel
-      const statusPromises = problemList.map(async (problem) => {
+      const statusPromises = validProblemList.map(async (problem) => {
         try {
           const status = await getStatus(problem)
           return { problem, status }
@@ -444,12 +449,15 @@ export default function SolvingPage() {
    * Renders global metrics header
    */
   const renderMetrics = () => {
-    const runningCount = problems.filter(p => {
+    // Ensure problems is an array before using filter/reduce
+    const validProblems = Array.isArray(problems) ? problems : []
+
+    const runningCount = validProblems.filter(p => {
       const status = statusMap[p]
       return status?.overall.is_running && status.overall.phase !== 'idle'
     }).length
 
-    const totalRounds = problems.reduce((sum, p) => {
+    const totalRounds = validProblems.reduce((sum, p) => {
       const status = statusMap[p]
       return sum + (status?.overall.current_round || 0)
     }, 0)

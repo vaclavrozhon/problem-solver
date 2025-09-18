@@ -14,6 +14,7 @@ from pathlib import Path
 
 def main():
     print("🚀 Starting Automatic Researcher in Railway production mode...")
+    print("🔄 Triggering fresh deployment")
 
     # Set up data directory
     data_root = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()

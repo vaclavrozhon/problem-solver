@@ -380,6 +380,27 @@ def delete_problem_rounds_public(problem: str, delete_count: int = 1):
         raise HTTPException(500, f"Error deleting rounds: {e}")
 
 
+@router.delete("/{problem}/rounds/{round_name}")
+def delete_specific_round_public(problem: str, round_name: str):
+    """Delete a specific round by name."""
+    problem_dir = REPO_PROBLEMS_ROOT / problem
+    runs_dir = problem_dir / "runs"
+    round_dir = runs_dir / round_name
+
+    if not round_dir.exists():
+        raise HTTPException(404, f"Round {round_name} not found")
+
+    if not round_dir.is_dir():
+        raise HTTPException(400, f"Round {round_name} is not a valid round directory")
+
+    try:
+        import shutil
+        shutil.rmtree(round_dir)
+        return {"ok": True, "message": f"Round {round_name} deleted successfully"}
+    except Exception as e:
+        raise HTTPException(500, f"Error deleting round {round_name}: {e}")
+
+
 @router.get("/{problem}/files")
 def list_problem_files_public(problem: str):
     """List all files in a problem directory."""

@@ -57,6 +57,13 @@ export async function deleteRounds(name: string, deleteCount: number) {
   return r.json();
 }
 
+export async function deleteRound(problemName: string, roundName: string) {
+  const r = await req(`/problems_public/${encodeURIComponent(problemName)}/rounds/${encodeURIComponent(roundName)}`, {
+    method: "DELETE"
+  });
+  return r.json();
+}
+
 export async function listFiles(name: string) {
   const r = await req(`/problems_public/${encodeURIComponent(name)}/files`);
   return r.json();

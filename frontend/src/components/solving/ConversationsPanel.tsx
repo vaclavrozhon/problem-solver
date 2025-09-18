@@ -27,6 +27,9 @@ import { getVerdictDisplayInfo, organizeTimings, formatDuration } from './utils'
 interface ConversationsPanelProps extends ProblemComponentProps {
   /** Optional callback when round is selected (for external coordination) */
   onRoundSelect?: (roundName: string) => void
+
+  /** Optional callback when a round is deleted */
+  onRoundDelete?: (roundName: string) => void
 }
 
 interface RoundDisplayProps {
@@ -34,21 +37,28 @@ interface RoundDisplayProps {
   round: RoundData
   /** Problem name for fetching files */
   problemName: string
-  
+
   /** Whether to show expanded details */
   expanded?: boolean
-  
+
   /** Callback when round is clicked */
   onSelect?: (roundName: string) => void
+
+  /** Whether this is the latest (newest) round */
+  isLatest?: boolean
+
+  /** Callback to delete this round */
+  onDelete?: (roundName: string) => void
 }
 
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
-export default function ConversationsPanel({ 
-  problemName, 
-  onRoundSelect 
+export default function ConversationsPanel({
+  problemName,
+  onRoundSelect,
+  onRoundDelete
 }: ConversationsPanelProps) {
   // =============================================================================
   // STATE MANAGEMENT
@@ -196,12 +206,14 @@ export default function ConversationsPanel({
               
               {/* Round list in reverse chronological order */}
               <div>
-                {rounds.slice().reverse().map((round) => (
-                  <RoundDisplay 
-                    key={round.name} 
+                {rounds.slice().reverse().map((round, index) => (
+                  <RoundDisplay
+                    key={round.name}
                     round={round}
                     problemName={problemName}
                     onSelect={onRoundSelect}
+                    isLatest={index === 0} // First item is the latest after reverse()
+                    onDelete={onRoundDelete}
                   />
                 ))}
               </div>
@@ -221,7 +233,7 @@ export default function ConversationsPanel({
  * Individual round conversation display component
  * Shows the three-way conversation between prover(s), verifier, and summarizer
  */
-function RoundDisplay({ round, problemName, expanded = false, onSelect }: RoundDisplayProps) {
+function RoundDisplay({ round, problemName, expanded = false, onSelect, isLatest = false, onDelete }: RoundDisplayProps) {
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
@@ -276,6 +288,16 @@ function RoundDisplay({ round, problemName, expanded = false, onSelect }: RoundD
   const handleRoundClick = () => {
     if (onSelect) {
       onSelect(round.name)
+    }
+  }
+
+  /**
+   * Handles deleting this round
+   */
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent triggering round selection
+    if (onDelete && confirm(`Delete ${round.name}? This action cannot be undone.`)) {
+      onDelete(round.name)
     }
   }
 
@@ -339,7 +361,25 @@ function RoundDisplay({ round, problemName, expanded = false, onSelect }: RoundD
             </span>
           </div>
         )}
-        
+
+        {/* Delete button for latest round */}
+        {isLatest && onDelete && (
+          <button
+            className="btn btn-sm btn-outline-danger"
+            onClick={handleDeleteClick}
+            style={{
+              fontSize: '12px',
+              padding: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+            title="Delete this round (latest only)"
+          >
+            🗑️ Delete
+          </button>
+        )}
+
       </div>
     </div>
   )

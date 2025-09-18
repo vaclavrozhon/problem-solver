@@ -1,0 +1,259 @@
+=== SYSTEM ===
+You are a strict mathematical verifier & research manager.
+
+You are being run in a loop with provers. Your tasks:
+- Audit their ideas for correctness and rigor.
+- Curate files (notes.md, proofs.md, and output.md).
+- Suggest the next steps.
+
+Inputs: 
+- task statement
+- outputs of provers
+- notes.md (informal progress & exploratory work so far)
+- proofs.md (rigorous proofs & detailed mathematics so far)
+- output.md (main results found so far)
+
+**Three-tier file system guidelines**:
+- **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
+
+- **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
+- **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
+
+Tasks:
+1) Audit rigor: identify unjustified steps, false statements, missing lemmas; produce minimal counterexamples.
+2) Triage value: separate genuine progress from noise.
+3) Guide next steps: propose what provers should try next.
+
+**Return strictly JSON**:
+{
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "summary_md": "Concise summary of this round's work for summarizer.",
+  "verdict": "promising|uncertain|unlikely",
+  "blocking_issues": ["List of issues preventing progress"],
+  "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+}
+
+**Verdict definitions**:
+- **promising**: Significant mathematical progress, publishable results
+- **uncertain**: Some progress you deem nontrivial, but with unresolved issues or incomplete reasoning  
+- **unlikely**: No meaningful progress, fundamentally flawed approaches, or just exploratory work
+
+**Update guidelines**:
+- Use null for any update field you don't want to modify
+- notes_update: Include informal reasoning, failed attempts, intuitions, exploratory work
+- proofs_update: Only include complete, rigorous proofs that you have verified
+- output_update: Only include main problem results that directly advance toward the solution
+
+
+=== USER ===
+=== Task (txt) ===
+
+
+Let M be a tridiagonal matrix with complex numbers z_1, z_2, ..., z_n on diagonal, all entries right below the main diagonal are 1 and all entries right above are -1, e.g.
+
+z_1 -1   0
+1    z_2 -1
+0   1       z_3
+
+Furthermore, the numbers on diagonal satisfy linear condition
+z_1 + 2 z_2 + 3z_3 + ... n z_n =0.
+
+Prove that there is no nilpotent matrix of this form.
+
+It has been checked computationally that the conjecture holds for n <= 5. 
+
+
+=== Notes ===
+
+Research Notes (corrected and consolidated)
+
+Setup
+- M = Z + S with Z = diag(z_1,…,z_n), S = L − U where L has ones on (i+1,i) and U has ones on (i,i+1). Let W = diag(1,…,n). Assume n ≥ 2. The weighted constraint is ∑_{i=1}^n i z_i = 0 (equivalently, tr(WM)=0). Under nilpotency, tr(M^k)=0 for all k≥1.
+
+Core identities (valid for all such M)
+- Continuant recurrence for leading principal minors P_k(λ) = det(λI − M_{[k]}): P_k = (λ − z_k) P_{k−1} + P_{k−2}. Coefficients: a_{k,1} = −∑_{j≤k} z_j; a_{k,2} = ∑_{i<j≤k} z_i z_j + (k−1); a_{k,3} = −∑_{i<j<ℓ≤k} z_i z_j z_ℓ − (k−3)∑_{j≤k} z_j − (z_1 + z_k).
+- Traces: tr(M^2) = ∑ z_i^2 − 2(n−1). tr(M^3) = ∑ z_i^3 − 6∑ z_i + 3(z_1 + z_n).
+- A := L − U satisfies tr(A^4) = 6n − 10. Consequently,
+  tr(M^4) = ∑ z_i^4 − 4 z_1^2 − 8∑_{i=2}^{n−1} z_i^2 − 4 z_n^2 − 4∑_{i=1}^{n−1} z_i z_{i+1} + (6n − 10).
+- Boundary entries: (M^n)_{n,1} = ∑ z_i. (M^{n+1})_{n,1} = h_2(z) − (n−1). (M^{n+2})_{n,1} = h_3(z) − (n+1)∑ z_i + (z_1 + z_n). Under ∑ z_i=0, this reduces to e_3 = −(z_1 + z_n); it does not imply z_1+z_n=0.
+- λ^{n−4} coefficient: c_{n−4} = e_4 + Q + C(n−2,2), where Q = ∑_{i<j} c(i,j) z_i z_j with c(i,j) = (n−1) − deg(i) − deg(j) + 1_{|i−j|=1} (deg(1)=deg(n)=1, others 2). Equivalently, Q = (n−1) e_2 − e_1 ∑ deg·z + ∑ deg·z^2 + A, where A = ∑_{i=1}^{n−1} z_i z_{i+1}.
+- Weighted traces: tr(WM)=∑ i z_i; tr(WM^2)=∑ i i z_i^2 − (n^2−1); tr(WM^3)=∑ i i z_i^3 − 6∑_{i=2}^{n−1} i z_i − 4 z_1 − (3n−1) z_n.
+- Commutator identity: tr([L,M] M^{k−1})=0 yields (M^{k−1})_{11} − (M^{k−1})_{nn} + ∑_{i=1}^{n−1} (z_i − z_{i+1}) (M^{k−1})_{i,i+1} = 0 for all k≥1.
+
+Consequences under nilpotency
+- From coefficients/traces: e_1=∑ z_i=0, e_2=−(n−1), e_3=−(z_1+z_n), tr(M^4)=0. The boundary identity at k=n+2 is redundant with e_3 when e_1=0.
+
+Main gap
+- None of these identities alone leverage ∑ i z_i=0 decisively. Coefficients and boundary entries involve symmetric sums and endpoint corrections, not index weights.
+
+Plan forward
+1) Use c_{n−4}=0 with tr(M^4)=0 and e_1,e_2,e_3 to eliminate e_4 and A = ∑ z_i z_{i+1}, isolating boundary variables (z_1,z_2,z_{n−1},z_n).
+2) Inject the weight via tr(WM)=0, tr(WM^2), tr(WM^3) to solve for z_1,z_n and aim to force z_1=z_n=0. Then prove a peeling step (Schur complement) reducing to size n−2 with inherited structure and a shifted weight constraint.
+3) If needed, compute tr(WM^4) for an extra independent weighted constraint. Validate on n=4,5 symbolically to align with computational checks.
+
+Small-n sanity: For n=3, e_1=0 and the weight imply z_1=z_3, z_2=−2 z_3, contradicting e_2=−2. Hence no nilpotent exists (consistent with checks).
+
+
+=== Current Output ===
+
+# Main Results
+
+
+
+
+=== Prover 1 Output ===
+
+Ideas and quick audit
+
+- The backbone of identities is now consistent, but two summaries still incorrectly conclude z_1 + z_n = 0 from nilpotency. The correct nilpotent consequence (with e_1=∑ z_i=0) is e_3 = −(z_1 + z_n). Please fix all summaries to reflect this; α_{n+2}=0 is redundant with a_{n,3}=0 and does not force z_1+z_n=0.
+- The λ^{n−4} coefficient c_{n−4} should be used with caution: under nilpotency, by Newton identities with p_k = tr(M^k) = 0 one has e_4 = −p_4/4, so c_{n−4}=0 is equivalent to tr(M^4)=0; it therefore adds no independent information beyond tr(M^4)=0. This dependence should be stated explicitly.
+- The weighted constraint ∑ i z_i = 0 is not yet exploited decisively. Weighted traces are the natural vehicle for it; tr(WM)=0 is the constraint, and higher tr(WM^r) produce additional, genuinely weighted identities.
+
+New rigorous result: weighted fourth trace
+
+Let M = Z + S with Z = diag(z_1,…,z_n), S = L − U, and W = diag(1,…,n). Then
+
+Theorem (explicit formula for tr(W M^4)). For every n ≥ 2,
+tr(W M^4) = ∑_{i=1}^n i z_i^4 − 6 z_1^2 − 6 n z_n^2 − 12 ∑_{i=2}^{n−1} i z_i^2 − 4 ∑_{i=1}^{n−1} (2 i + 1) z_i z_{i+1} + (3 n^2 − 2 n − 5).
+
+Proof. Expand (Z + S)^4 and observe that terms with an odd number of S’s contribute zero to the diagonal even after weighting by W: (i) WZ^3S and WS^3 have zero diagonal because S has zero diagonal, and S^3 has zero diagonal by bipartiteness of S. Hence
+tr(W M^4) = tr(W Z^4) + 6 tr(W Z^2 S^2) + 4 tr(W Z S Z S) + tr(W S^4).
+We compute each term explicitly.
+- tr(W Z^4) = ∑ i i z_i^4.
+- tr(W Z^2 S^2) = ∑ i i z_i^2 (S^2)_{ii}. Since (S^2)_{11}=(S^2)_{nn}=−1 and (S^2)_{ii}=−2 for 2≤i≤n−1, this equals −[z_1^2 + n z_n^2 + 2 ∑_{i=2}^{n−1} i z_i^2]. Thus 6 tr(W Z^2 S^2) = −6 z_1^2 − 6 n z_n^2 − 12 ∑_{i=2}^{n−1} i z_i^2.
+- tr(W Z S Z S) = ∑_{i,j} i z_i S_{i j} z_j S_{j i}. Only j = i±1 contribute. Using S_{i,i+1} = −1, S_{i+1,i} = 1, and S_{i,i−1} = 1, S_{i−1,i} = −1, we get
+  tr(W Z S Z S) = −∑_{i=1}^{n−1} [i z_i z_{i+1} + (i+1) z_{i+1} z_i] = −∑_{i=1}^{n−1} (2 i + 1) z_i z_{i+1}.
+  Hence 4 tr(W Z S Z S) = −4 ∑_{i=1}^{n−1} (2 i + 1) z_i z_{i+1}.
+- tr(W S^4) = ∑ i i (S^4)_{ii}. The diagonal of S^4 equals 2 at i=1,n; 5 at i=2,n−1; and 6 for 3≤i≤n−2 (n≥4). Summing gives tr(W S^4) = 3 n^2 − 2 n − 5 (valid for all n ≥ 3; for n=2 the formula also holds by direct check). Combining the four contributions yields the claimed identity. ∎
+
+Sanity checks
+
+- For n=3 and z = 0, tr(W S^4) = 16; the formula gives 3·9 − 6 − 5 = 16.
+- For n=4 and z = 0, the formula yields 3·16 − 8 − 5 = 35; direct computation gives weighted diagonal 2,5,5,2 summing to 35.
+
+Further clarifications and small fixes
+
+- Boundary entry at k = n+2: The correct identity is (M^{n+2})_{n,1} = h_3(z) − (n+1)∑ z_i + (z_1 + z_n). Under ∑ z_i=0 this reads (M^{n+2})_{n,1} = e_3 + (z_1 + z_n). Setting it to 0 (by nilpotency) gives e_3 = −(z_1 + z_n), consistent with a_{n,3}=0; no further conclusion.
+- Weighted quadratic trace: tr(W M^2) = ∑ i i z_i^2 − (n^2 − 1). This can be used together with tr(M^2)=0 (nilpotency) to normalize the weighted second moment: ∑ i i z_i^2 = n^2 − 1.
+- Weighted cubic trace (already in notes): tr(W M^3) = ∑ i i z_i^3 − 6∑_{i=2}^{n−1} i z_i − 4 z_1 − (3 n − 1) z_n. This is the first higher-order identity that truly encodes the weight vector.
+
+Obstacles
+
+- Coefficient identities a_{n,k} and boundary entries α_{n+q} do not encode index weights; they cannot use ∑ i z_i = 0 by themselves. Commutator identities with L (or J) yield tautologies for small k. New weighted identities at order 4 (proved above) increase algebraic leverage but do not by themselves vanish under nilpotency.
+
+Next steps (auditable)
+
+- Combine tr(M^4)=0 (unweighted) with tr(W M^4) (weighted) to eliminate the adjacent-product sum A := ∑ z_i z_{i+1} and express a weighted combination of z_1,z_n and the interior weighted squares in terms of known constants. Use also e_1=0, e_2=−(n−1), e_3=−(z_1+z_n), and tr(W M^2) to solve for z_1+z_n and A. Check for contradictions or forced endpoint vanishing for general n, and validate explicitly for n=4,5.
+- Derive and record the kernel summation-by-parts identities (not yet in the consolidated notes): for v ∈ ker M, ∑ z_i v_i^2 = 0 and ∑ i i z_i v_i^2 = −∑ v_i v_{i+1}. These connect the weight to the geometry of kernel vectors and may yield obstructions when combined with e_2 = −(n−1).
+- Optionally compute tr(W M^4) for n=4,5 symbolically against computational checks to validate the formula and test the elimination scheme. If needed, compute tr(W M^5) to introduce odd-degree weighted power sums and additional endpoint constraints.
+
+What to change in the writeup now
+
+- Remove claims that nilpotency implies z_1+z_n = 0; replace with e_3 = −(z_1+z_n).
+- Insert the new theorem (explicit tr(W M^4)) with proof and the explicit value tr(W S^4) = 3 n^2 − 2 n − 5.
+- Clarify that c_{n−4}=0 is equivalent to tr(M^4)=0 under nilpotency, hence not independent.
+- Keep both general and nilpotent-specialized forms of tr(M^3) clearly separated to avoid confusion.
+
+These corrections and additions make the current development internally consistent and add a substantial new, testable weighted identity at order 4 for use in the endpoint-elimination strategy.
+
+
+=== Prover 2 Output ===
+
+# Audit of the current writeup: corrections, gaps, and concrete improvements
+
+Below I evaluate the consolidated notes for correctness and completeness, point out flaws and unclear spots, and provide precise fixes and proofs where possible. I also outline actionable next steps that truly leverage the weighted constraint.
+
+## What is correct and should be retained
+
+- Setup and notation: M = Z + S with Z = diag(z_1,…,z_n) and S = L − U; W = diag(1,…,n). Weighted constraint is tr(WM) = ∑ i z_i = 0. Assume n ≥ 2.
+- Continuant recurrence for P_k(λ) = det(λI − M_{[k]}), and the explicit low-order coefficients a_{k,1}, a_{k,2}, a_{k,3} in terms of z_i. These are consistent and standard.
+- Unweighted traces:
+  • tr(M^2) = ∑ z_i^2 − 2(n−1).
+  • tr(M^3) = ∑ z_i^3 − 6∑ z_i + 3(z_1 + z_n). Under ∑ z_i = 0 this becomes ∑ z_i^3 + 3(z_1 + z_n).
+- A^4 and M^4:
+  • tr(A^4) = 6n − 10 (A = L − U). A direct proof using A^2’s banded structure is correct.
+  • tr(M^4) = ∑ z_i^4 − 4 z_1^2 − 8∑_{i=2}^{n−1} z_i^2 − 4 z_n^2 − 4∑_{i=1}^{n−1} z_i z_{i+1} + (6n − 10). This matches small-n checks.
+- Boundary entries via path counting:
+  • (M^n)_{n,1} = ∑ z_i.
+  • (M^{n+1})_{n,1} = h_2(z) − (n−1).
+  • (M^{n+2})_{n,1} = h_3(z) − (n+1)∑ z_i + (z_1 + z_n). Under ∑ z_i=0 this reduces to e_3 + (z_1 + z_n), so vanishing is equivalent to the λ^{n−3}-coefficient identity.
+- λ^{n−4} coefficient: c_{n−4} = σ_4(z) + Q + C(n−2,2), with
+  Q = ∑_{i<j} c(i,j) z_i z_j,
+  c(i,j) = (n−1) − deg(i) − deg(j) + 1_{|i−j|=1}, deg(1)=deg(n)=1, others 2.
+  Equivalent compact form: Q = (n−1) σ_2(z) − e_1(z) ∑ deg·z + ∑ deg·z^2 + A, where A = ∑_{i=1}^{n−1} z_i z_{i+1}.
+- Commutator identity: [L,M] = [L,Z] + E_{11} − E_{nn}, hence tr([L,M] X) = 0 gives
+  (X)_{11} − (X)_{nn} + ∑_{i=1}^{n−1} (z_i − z_{i+1}) X_{i,i+1} = 0 for any X (in particular X = M^{k−1}). This formula is correct and already includes the [L,U] boundary term E_{11} − E_{nn}.
+
+## Errors, misstatements, and gaps
+
+1) α_{n+2} implication is misstated in places.
+   The identity (M^{n+2})_{n,1} = h_3 − (n+1) e_1 + (z_1+z_n) shows that under e_1=0 and nilpotency, α_{n+2}=0 is equivalent to σ_3(z) = −(z_1+z_n). It does not imply z_1+z_n = 0. All statements asserting α_{n+2} ⇒ z_1+z_n=0 must be removed.
+
+2) Weighted trace tr(WM^2) was formerly misstated.
+   The correct identity is tr(WM^2) = ∑_{i=1}^n i z_i^2 − (n^2 − 1), not ∑ i z_i^2 − (n^2 − 1). Please ensure the incorrect version is purged.
+
+3) The regrouping formula for Q in c_{n−4} was wrong earlier.
+   The correct compact identity is Q = (n−1)σ_2 − e_1∑deg·z + ∑deg·z^2 + A (as recorded now). The earlier expression fails at n=4; do not reuse it. Add a short derivation (see below).
+
+4) n=3 “contradiction” is inadequately argued.
+   The text claims that ∑ i z_i=0 and e_1=0 force z_1=z_3, z_2=−2 z_3, “contradicting e_2=−2”. Over C this is not a contradiction (it yields z_3^2=2/3). The actual contradiction uses the cubic coefficient: e_3 = −(z_1+z_3) = −2 z_3 and σ_3(z) = z_1 z_2 z_3 = −2 z_3^3; equating gives z_3^3 = z_3, so z_3=0 or z_3^2=1, incompatible with z_3^2=2/3. Please correct the n=3 argument accordingly.
+
+5) Weighted traces vs. constraints.
+   The plan suggests “inject the weight” using tr(WM^2), tr(WM^3) to solve for z_1,z_n. Note: tr(WM^k) do not vanish under nilpotency and, by themselves, are not constraints; they are just identities. They become useful only when combined with other vanishing identities (e.g., s_k := 1^T M^k (1,2,…,n)^T = 0 for k ≥ n) or with commutator equations. The plan should pivot away from raw tr(WM^k) and toward quantities that must vanish under nilpotency (e.g., s_{n+q}) or commutator-derived relations.
+
+6) The commutator identity is stated correctly; however, its planned use needs specificity.
+   To be actionable, pick k=2,3,4 and insert explicit formulas for (M^{k−1})_{i,i+1}, (M^{k−1})_{11}, (M^{k−1})_{nn} (available via path-counts or recurrences) to derive concrete linear relations linking z_1,z_n to adjacent sums. This step is still missing.
+
+## Rigorous derivations to include (with proofs/sketches)
+
+A) tr(WM^3).
+- Expand (Z + A)^3 and observe that terms with exactly one A have zero trace with W in front because WZ^2 and ZWZ are diagonal and A has zero diagonal; tr(WA^3)=0 as A^3 is skew-symmetric with zero diagonal. Thus
+  tr(WM^3) = tr(W(ZA^2 + AZA + A^2Z)).
+- Compute each diagonal contribution:
+  • tr(W ZA^2) = ∑_{i=1}^n i z_i (A^2)_{ii} = −z_1 − 4 z_2 − ⋯ − 2(n−1) z_{n−1} − n z_n.
+  • tr(W A^2Z) = same as above.
+  • tr(W AZA) = ∑_{i=1}^n i(AZA)_{ii} with (AZA)_{ii} = −z_{i−1} − z_{i+1} (boundary terms dropped). Hence tr(WAZA) = −2 z_1 − 2∑_{i=2}^{n−1} i z_i − (n−1) z_n.
+- Summing yields
+  tr(WM^3) = ∑_{i=1}^n i z_i^3 − 4 z_1 − 6∑_{i=2}^{n−1} i z_i − (3n − 1) z_n.
+This should be recorded in proofs.md.
+
+B) Boundary identity at k = n+2 (complete count for c_j).
+- For the one-U skeleton W_t = J^{t−1} U J^{n+1−t} (t=2,…,n), the path visits level j exactly: 2 times for 2≤j≤n−1 except when j=t, where it is visited 3 times; for endpoints, level 1 is visited twice for t=2 and once otherwise; level n is visited twice for t=n and once otherwise. Summing over t gives c_1=c_n=n and c_j=n+1 for 2≤j≤n−1. This yields the −[(n+1)∑ z_i − (z_1+z_n)] contribution. Combine with the zero-U class to get the stated formula. Include a short, explicit visit-count proof.
+
+C) Q regrouping.
+- Using c(i,j) = (n−1) − deg(i) − deg(j) + 1_{|i−j|=1} we have
+  Q = (n−1)σ_2(z) − ∑_{i<j}(deg(i)+deg(j)) z_i z_j + ∑_{i=1}^{n−1} z_i z_{i+1}.
+- Note that ∑_{i<j}(deg(i)+deg(j)) z_i z_j = ∑_{i=1}^n deg(i) z_i ∑_{j≠ i} z_j = e_1(z) ∑ deg·z − ∑ deg(i) z_i^2.
+- Hence Q = (n−1)σ_2 − e_1 ∑ deg·z + ∑ deg·z^2 + A. This identity should replace earlier incorrect regroupings and be verified at n=4,5 (quick CAS check suggested).
+
+D) tr(A^4) = 6n − 10 (clean proof).
+- A^2 has diagonal entries −1 (i=1,n) and −2 (2≤i≤n−1), and ones on the two second diagonals; thus tr(A^4) = ∑_{i,j} (A^2)_{ij}^2 = [1^2+1^2 + 4(n−2)] + 2(n−2) = 6n − 10.
+
+E) n=3 contradiction (corrected).
+- From e_1=0 and weight: z_2 = −2 z_3 and z_1 = z_3. From e_2 = −(n−1) = −2 we get −3 z_3^2 = −2 ⇒ z_3^2 = 2/3.
+- From e_3 = −(z_1 + z_3) = −2 z_3, but σ_3(z) = z_1 z_2 z_3 = −2 z_3^3. Thus −2 z_3^3 = −2 z_3 ⇒ z_3(z_3^2 − 1)=0, a contradiction with z_3^2=2/3. Hence no nilpotent solution for n=3.
+
+## Strategic adjustments to truly use the weighted constraint
+
+- Weighted traces tr(WM^k) are identities but not constraints; they do not vanish under nilpotency. To exploit nilpotency, use quantities that must be zero:
+  • s_k := 1^T M^k (1,2,…,n)^T = 0 for k ≥ n. Compute s_n, s_{n+1}, s_{n+2} by path enumeration (analogous to (M^{n+q})_{n,1}) to obtain explicit index-weighted symmetric sums; these will incorporate the weight vector naturally and give true equations.
+  • The commutator identity tr([L,M] M^{k−1})=0 yields concrete linear relations when k is small and (M^{k−1}) entries are known or computable. Evaluate for k=2,3,4 to relate (z_1,z_n) to interior nearest-neighbor combinations.
+
+- Peeling step: Once endpoint vanishing (z_1=z_n=0) is forced, formalize a valid reduction (e.g., conjugation by a unitri-diagonal matrix or Schur complement arguments) showing the (n−2)×(n−2) central block retains form and inherits the shifted weighted constraint ∑_{i=2}^{n−1} (i−1) z_i = 0. This needs a precise lemma.
+
+## Actionable next steps
+
+1) Insert rigorous proofs for: tr(WM^3) (Section A), boundary identity at k=n+2 with explicit c_j counts (Section B), Q regrouping (Section C), and tr(A^4) (Section D) in proofs.md. Fix the n=3 argument as in Section E.
+
+2) Correct the summaries: remove the claim “α_{n+2} ⇒ z_1+z_n=0”; state accurately that α_{n+2}=0 is equivalent to σ_3(z)=−(z_1+z_n) under e_1=0.
+
+3) Compute s_n, s_{n+1}, s_{n+2} := 1^T M^{n+q} (1,2,…,n)^T explicitly by path enumeration and enforce s_{n+q}=0 under nilpotency. These should yield genuine weighted constraints, likely involving e_2, e_3, endpoints, and nearest-neighbor sums, and can be combined with tr(M^2)=tr(M^3)=tr(M^4)=0.
+
+4) Apply tr([L,M] M^{k−1})=0 for k=2,3,4 with explicit formulas for (M^{k−1}) entries to obtain further linear relations isolating endpoints.
+
+5) Validate the elimination/peeling mechanism on n=4,5 via symbolic computation using the corrected identities (consistent with the computational evidence), then generalize.
+
+This set of fixes and additions will make the current backbone rigorous and position the argument to finally exploit the weighted constraint and complete an induction.

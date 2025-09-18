@@ -1,26 +1,38 @@
-# Research Notes
+Research Notes (corrected and consolidated)
 
+Setup
+- M = Z + S with Z = diag(z_1,…,z_n), S = L − U where L has ones on (i+1,i) and U has ones on (i,i+1). Let W = diag(1,…,n). Assume n ≥ 2. The weighted constraint is ∑_{i=1}^n i z_i = 0 (equivalently, tr(WM)=0). Under nilpotency, tr(M^k)=0 for all k≥1.
 
+Core identities (valid for all such M)
+- Continuant recurrence for leading principal minors P_k(λ) = det(λI − M_{[k]}): P_k = (λ − z_k) P_{k−1} + P_{k−2}. Coefficients: a_{k,1} = −∑_{j≤k} z_j; a_{k,2} = ∑_{i<j≤k} z_i z_j + (k−1); a_{k,3} = −∑_{i<j<ℓ≤k} z_i z_j z_ℓ − (k−3)∑_{j≤k} z_j − (z_1 + z_k).
+- Traces: tr(M^2) = ∑ z_i^2 − 2(n−1). tr(M^3) = ∑ z_i^3 − 6∑ z_i + 3(z_1 + z_n).
+- A := L − U satisfies tr(A^4) = 6n − 10. Consequently,
+  tr(M^4) = ∑ z_i^4 − 4 z_1^2 − 8∑_{i=2}^{n−1} z_i^2 − 4 z_n^2 − 4∑_{i=1}^{n−1} z_i z_{i+1} + (6n − 10).
+- Boundary entries: (M^n)_{n,1} = ∑ z_i. (M^{n+1})_{n,1} = h_2(z) − (n−1). (M^{n+2})_{n,1} = h_3(z) − (n+1)∑ z_i + (z_1 + z_n). Under ∑ z_i=0, this reduces to e_3 = −(z_1 + z_n); it does not imply z_1+z_n=0.
+- λ^{n−4} coefficient: c_{n−4} = e_4 + Q + C(n−2,2), where Q = ∑_{i<j} c(i,j) z_i z_j with c(i,j) = (n−1) − deg(i) − deg(j) + 1_{|i−j|=1} (deg(1)=deg(n)=1, others 2). Equivalently, Q = (n−1) e_2 − e_1 ∑ deg·z + ∑ deg·z^2 + A, where A = ∑_{i=1}^{n−1} z_i z_{i+1}.
+- Weighted traces: tr(WM)=∑ i z_i; tr(WM^2)=∑ i i z_i^2 − (n^2−1); tr(WM^3)=∑ i i z_i^3 − 6∑_{i=2}^{n−1} i z_i − 4 z_1 − (3n−1) z_n.
+- Commutator identity: tr([L,M] M^{k−1})=0 yields (M^{k−1})_{11} − (M^{k−1})_{nn} + ∑_{i=1}^{n−1} (z_i − z_{i+1}) (M^{k−1})_{i,i+1} = 0 for all k≥1.
 
-Setup. Let M be n×n tridiagonal with diagonal z_1,…,z_n, subdiagonal entries 1 and superdiagonal entries −1. Let D=diag(z_1,…,z_n), E be the subdiagonal shift, F the superdiagonal shift. Then M=D+E−F. Let H=diag(1,2,…,n). The condition is Σ_{i=1}^n i z_i = tr(HM) = 0. We work for n≥2 (n=1 yields the zero 1×1 matrix, which is nilpotent).
+Consequences under nilpotency
+- From coefficients/traces: e_1=∑ z_i=0, e_2=−(n−1), e_3=−(z_1+z_n), tr(M^4)=0. The boundary identity at k=n+2 is redundant with e_3 when e_1=0.
 
-Verified identities.
-- Commutators: [H,E]=E, [H,F]=−F, [H,D]=0, hence [H,M]=E+F. The similarity flow M(t)=e^{tH}Me^{−tH}=D+e^t E−e^{−t}F will be useful.
-- Diagonal of M^2: (M^2)_{ii}=z_i^2−2 for 2≤i≤n−1, and z_i^2−1 for i=1,n, so tr(M^2)=Σ z_i^2 − 2(n−1).
-- tr(M^3)=Σ z_i^3 − 3(z_1+2z_2+⋯+2 z_{n−1}+z_n). Using Σ z_i=0, this is Σ z_i^3 + 3(z_1+z_n).
-- Endpoint path counts: (M^{n−1})_{1n}=(−1)^{n−1} (unique all-up path). (M^{n})_{1n}=(−1)^{n−1} Σ z_i (exactly one stay). (M^{n+1})_{1n}=(−1)^{n−1}(h_2(z) − (n−1)) where h_2=Σ_{i≤j} z_i z_j (two stays or one down step).
-- Consequence for nilpotent M: tr(M^k)=0 for all k≥1, hence Σ z_i=0 and Σ z_i^2=2(n−1), and Σ z_i^3=3(z_1+2⋯+2+z_n). Also (M^{n+1})_{1n}=0 gives h_2 = n−1, consistent with Σ z_i^2=2(n−1) since h_2 = (Σ z_i^2 + (Σ z_i)^2)/2.
+Main gap
+- None of these identities alone leverage ∑ i z_i=0 decisively. Coefficients and boundary entries involve symmetric sums and endpoint corrections, not index weights.
 
-Small n resolved. For n=2 and n=3, imposing Σ i z_i=0 together with nilpotency constraints leads to contradictions; hence no nilpotent matrix of the prescribed form exists for n≤3.
+Plan forward
+1) Use c_{n−4}=0 with tr(M^4)=0 and e_1,e_2,e_3 to eliminate e_4 and A = ∑ z_i z_{i+1}, isolating boundary variables (z_1,z_2,z_{n−1},z_n).
+2) Inject the weight via tr(WM)=0, tr(WM^2), tr(WM^3) to solve for z_1,z_n and aim to force z_1=z_n=0. Then prove a peeling step (Schur complement) reducing to size n−2 with inherited structure and a shifted weight constraint.
+3) If needed, compute tr(WM^4) for an extra independent weighted constraint. Validate on n=4,5 symbolically to align with computational checks.
 
-3×3 principal minors (status). For n=4, a direct computation shows the sum of all 3×3 principal minors equals Σ_{i<j<k} z_i z_j z_k + (2 z_1 + z_2 + z_3 + 2 z_4). This matches the general ansatz S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n) (which reduces for n=4 to 2z_1+z_2+z_3+2z_4). We need a uniform proof for all n.
+Small-n sanity: For n=3, e_1=0 and the weight imply z_1=z_3, z_2=−2 z_3, contradicting e_2=−2. Hence no nilpotent exists (consistent with checks).
 
-Planned route to contradiction.
-1) Prove the general formula for S_3: S_3 = Σ_{i<j<k} z_i z_j z_k + (n−3) Σ z_i + (z_1+z_n). Under nilpotency, e_3=S_3=0, thus with Σ z_i=0 we get Σ_{i<j<k} z_i z_j z_k = −(z_1+z_n).
-2) Compute (M^{n+2})_{1n} exactly by path counting. Expect: (−1)^{n−1}(h_3(z) − 3φ(z)), where φ(z)=z_1+2z_2+⋯+2 z_{n−1}+z_n. Nilpotency forces (M^{n+2})_{1n}=0, hence h_3=3φ.
-3) Eliminate the cubic quantities using identities relating h_3 and Σ_{i<j<k} z_i z_j z_k, together with Σ z_i=0 and Σ z_i^2=2(n−1), to isolate a nonzero linear boundary form that contradicts Σ i z_i=0.
+Updates
+- Corrected: α_{n+2} = h_3 − (n+1)∑ z_i + (z_1+z_n). Under ∑ z_i=0, α_{n+2}=0 ⇔ e_3 = −(z_1+z_n); it does not imply z_1+z_n=0.
+- Clarified: c_{n−4}=e_4+Q+C(n−2,2) with Q regrouped as Q=(n−1)e_2 − e_1∑deg·z + ∑deg·z^2 + A (deg(1)=deg(n)=1, deg=2 otherwise; A=∑ z_i z_{i+1}). Under nilpotency, c_{n−4}=0 is equivalent to tr(M^4)=0 (not independent).
+- Added weighted traces: tr(WM)=∑ i z_i; tr(WM^2)=∑ i i z_i^2 − (n^2−1); tr(WM^3)=∑ i i z_i^3 − 6∑_{i=2}^{n−1} i z_i − 4 z_1 − (3n−1) z_n. A formula for tr(WM^4) is available (see proofs) and matches small-n checks.
 
-Action items for next round.
-- Prover 2: Supply a complete proof of the S_3 formula for all n.
-- Prover 3: Prove the exact formula for (M^{n+2})_{1n}, including the −3 coefficient on φ(z).
-- Prover 1: Cross-verify both identities, correct the earlier weight sketch for c_{n,3}, and attempt the elimination for n=4 to confirm inconsistency before generalizing.
+Next steps
+1) Eliminate A=∑ z_i z_{i+1} using tr(M^4)=0 and tr(WM^4); combine with e_1=0, e_2=−(n−1), e_3=−(z_1+z_n), tr(WM^2) to isolate boundary variables. Test on n=4,5.
+2) Compute vanishing weighted moments s_k = 1^T M^k (1,2,…,n)^T for k≥n (e.g., s_n,s_{n+1},s_{n+2}) via path enumeration to inject the weight into constraints.
+3) Use tr([L,M] M^{k−1})=0 for k=3,4 with explicit entries of M^{k−1} to obtain further linear relations coupling endpoints and nearest-neighbor sums.
+4) Prove a peeling lemma when z_1=z_n=0 to reduce to n−2 with inherited weighted constraint.

@@ -37,10 +37,14 @@ def build_frontend():
 
 def main():
     print("🚀 Starting Automatic Researcher in Railway production mode...")
-    print("🔄 Backend API only mode")
+    print("🔄 Starting full-stack application")
 
-    # Skip frontend build for now - deploy backend only
-    print("⚠️  Skipping frontend build - deploying API only")
+    # Check if frontend was built by Docker
+    frontend_dist = Path("frontend/dist")
+    if frontend_dist.exists():
+        print("✅ Frontend build found - Docker built successfully")
+    else:
+        print("❌ Frontend build not found - Docker build may have failed")
 
     # Set up data directory
     data_root = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()

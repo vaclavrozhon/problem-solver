@@ -287,8 +287,7 @@ export default function TaskCreationPage() {
                     resize: 'vertical'
                   }}
                 />
-              </div>
-            )}
+            </div>
 
             {/* Description Field */}
             <div style={{ marginBottom: '16px' }}>

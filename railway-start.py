@@ -2,9 +2,8 @@
 """
 Railway production startup script.
 
-This script runs only the FastAPI backend without the frontend dev server,
-suitable for Railway deployment where the frontend would be served separately
-or built as static files.
+This script builds the frontend and serves both frontend and backend
+in a single Railway service.
 """
 
 import subprocess
@@ -12,9 +11,36 @@ import sys
 import os
 from pathlib import Path
 
+def build_frontend():
+    """Build the React frontend for production."""
+    print("📦 Building React frontend...")
+    frontend_dir = Path("frontend")
+
+    if not frontend_dir.exists():
+        print("⚠️  Frontend directory not found, skipping build")
+        return False
+
+    try:
+        # Install frontend dependencies
+        subprocess.run(["npm", "install"], cwd=frontend_dir, check=True)
+
+        # Build frontend
+        env = os.environ.copy()
+        env["VITE_API_BASE"] = "https://automatic-researcher-production.up.railway.app"
+        subprocess.run(["npm", "run", "build"], cwd=frontend_dir, env=env, check=True)
+
+        print("✅ Frontend built successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Frontend build failed: {e}")
+        return False
+
 def main():
     print("🚀 Starting Automatic Researcher in Railway production mode...")
-    print("🔄 Triggering fresh deployment")
+    print("🔄 Building frontend and backend")
+
+    # Build frontend first
+    build_frontend()
 
     # Set up data directory
     data_root = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()

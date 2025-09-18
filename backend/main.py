@@ -8,6 +8,8 @@ all the modular routers for different functionality areas.
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 import os
@@ -45,6 +47,27 @@ app.include_router(tasks_router)
 # Data directory setup
 DATA_ROOT = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()
 DATA_ROOT.mkdir(parents=True, exist_ok=True)
+
+# Serve React frontend static files
+FRONTEND_BUILD_DIR = Path("frontend/dist")
+if FRONTEND_BUILD_DIR.exists():
+    # Mount static files
+    app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR / "assets"), name="assets")
+
+    # Serve index.html for all non-API routes (SPA routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Don't serve frontend for API routes
+        if full_path.startswith(("api/", "problems/", "drafts/", "auth/", "tasks/", "docs", "redoc", "openapi.json", "healthz")):
+            raise HTTPException(404, "Not found")
+
+        index_file = FRONTEND_BUILD_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        else:
+            raise HTTPException(404, "Frontend not built")
+else:
+    print("⚠️  Frontend build directory not found, serving API only")
 
 
 # Basic authentication models and endpoints

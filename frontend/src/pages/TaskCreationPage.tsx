@@ -19,8 +19,8 @@ export default function TaskCreationPage() {
   
   // Paper management state
   interface PaperEntry {
-    type: 'file' | 'text'
-    data: File | string
+    type: 'text' // Only text supported in this version
+    data: string
     description: string
     filename?: string // for text entries
     id: string // unique identifier for download links
@@ -29,9 +29,7 @@ export default function TaskCreationPage() {
   const [paperEntries, setPaperEntries] = useState<PaperEntry[]>([])
   const [showAddPaperModal, setShowAddPaperModal] = useState(false)
   
-  // Temporary state for adding papers
-  const [newPaperType, setNewPaperType] = useState<'file' | 'text'>('file')
-  const [newPaperFile, setNewPaperFile] = useState<File | null>(null)
+  // Temporary state for adding papers (text only)
   const [newPaperText, setNewPaperText] = useState('')
   const [newPaperDescription, setNewPaperDescription] = useState('')
   
@@ -41,65 +39,39 @@ export default function TaskCreationPage() {
   const [createdTaskName, setCreatedTaskName] = useState<string | null>(null)
 
   function handleAddSinglePaper() {
-    let entry: PaperEntry | null = null
-    
-    if (newPaperType === 'file' && newPaperFile) {
-      entry = {
-        type: 'file',
-        data: newPaperFile,
-        description: newPaperDescription,
-        id: Date.now().toString()
-      }
-    } else if (newPaperType === 'text' && newPaperText.trim()) {
+    if (newPaperText.trim()) {
       // Generate filename based on content preview
       const filename = `text_${Date.now()}.txt`
-      entry = {
+      const entry: PaperEntry = {
         type: 'text',
         data: newPaperText,
         description: newPaperDescription,
         filename: filename,
         id: Date.now().toString()
       }
-    }
-    
-    if (entry) {
+
       setPaperEntries([...paperEntries, entry])
       resetNewPaperForm()
       setMessage({ type: 'success', text: 'Paper added successfully!' })
     } else {
-      setMessage({ type: 'error', text: 'Please select a file or enter text content.' })
+      setMessage({ type: 'error', text: 'Please enter text content.' })
     }
   }
   
   function resetNewPaperForm() {
-    setNewPaperFile(null)
     setNewPaperText('')
     setNewPaperDescription('')
-    setNewPaperType('file')
-    // Reset file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-    if (fileInput) fileInput.value = ''
   }
 
   function downloadPaper(entry: PaperEntry) {
-    if (entry.type === 'file') {
-      // Create download link for file
-      const url = URL.createObjectURL(entry.data as File)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = (entry.data as File).name
-      a.click()
-      URL.revokeObjectURL(url)
-    } else {
-      // Create download link for text content
-      const blob = new Blob([entry.data as string], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = entry.filename || 'paper.txt'
-      a.click()
-      URL.revokeObjectURL(url)
-    }
+    // Create download link for text content
+    const blob = new Blob([entry.data], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = entry.filename || 'paper.txt'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   function removePaperEntry(index: number) {
@@ -156,33 +128,16 @@ export default function TaskCreationPage() {
 
     for (const entry of paperEntries) {
       try {
-        if (entry.type === 'file') {
-          const file = entry.data as File
-          if (taskType === 'solving') {
-            await uploadProblemPaper(taskName, file)
-          } else {
-            await uploadDraftPaper(taskName, file)
-          }
-        } else if (entry.type === 'url') {
-          const url = entry.data as string
-          if (taskType === 'solving') {
-            await addProblemPaperFromUrl(taskName, url)
-          } else {
-            await addDraftPaperFromUrl(taskName, url)
-          }
-        } else if (entry.type === 'text') {
-          const content = entry.data as string
-          const filename = entry.filename || 'text-paper.txt'
-          if (taskType === 'solving') {
-            await uploadProblemTextContent(taskName, content, filename, entry.description)
-          } else {
-            await uploadDraftTextContent(taskName, content, filename, entry.description)
-          }
+        // Only text content is supported in this version
+        const content = entry.data
+        const filename = entry.filename || 'text-paper.txt'
+        if (taskType === 'solving') {
+          await uploadProblemTextContent(taskName, content, filename, entry.description)
+        } else {
+          await uploadDraftTextContent(taskName, content, filename, entry.description)
         }
       } catch (err: any) {
-        const identifier = entry.type === 'file' ? (entry.data as File).name : 
-                          entry.type === 'url' ? (entry.data as string) : 
-                          entry.filename || 'text content'
+        const identifier = entry.filename || 'text content'
         errors.push(`Failed to upload ${identifier}: ${err.message}`)
       }
     }
@@ -310,53 +265,16 @@ export default function TaskCreationPage() {
           <div style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px' }}>📚 Add Reference Papers (Optional)</h3>
             
-            {/* Paper Type Dropdown */}
+            {/* Text Input Area - File upload disabled for this version */}
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                Paper Type:
+                Paper Content (text only for now):
               </label>
-              <select 
-                value={newPaperType} 
-                onChange={e => setNewPaperType(e.target.value as 'file' | 'text')}
-                style={{ 
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}
-              >
-                <option value="file">Upload File</option>
-                <option value="text">Paste Text</option>
-              </select>
-            </div>
-
-            {/* Upload/Text Input Area */}
-            {newPaperType === 'file' ? (
-              <div style={{ marginBottom: '16px' }}>
-                <input
-                  type="file"
-                  accept=".pdf,.txt,.md,.tex"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setNewPaperFile(e.target.files[0])
-                    }
-                  }}
-                  style={{ 
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
-            ) : (
-              <div style={{ marginBottom: '16px' }}>
-                <textarea
-                  value={newPaperText}
-                  onChange={e => setNewPaperText(e.target.value)}
-                  placeholder="Paste your text content here (txt, md, or tex format supported)"
-                  rows={6}
+              <textarea
+                value={newPaperText}
+                onChange={e => setNewPaperText(e.target.value)}
+                placeholder="Paste your text content here (txt, md, or tex format supported)"
+                rows={6}
                   data-gramm="false"
                   data-gramm_editor="false"
                   data-enable-grammarly="false"
@@ -425,7 +343,7 @@ export default function TaskCreationPage() {
                         gap: '8px'
                       }}>
                         <span style={{ fontSize: '14px' }}>
-                          {entry.type === 'file' ? '📄' : '📝'}
+                          📝
                         </span>
                         <button
                           type="button"
@@ -443,10 +361,7 @@ export default function TaskCreationPage() {
                           }}
                           title="Click to download"
                         >
-                          {entry.type === 'file' 
-                            ? (entry.data as File).name
-                            : entry.filename
-                          }
+                          {entry.filename}
                         </button>
                         <button
                           type="button"

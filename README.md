@@ -89,6 +89,42 @@ automatic-researcher/
                 └── timings.json          # Performance metrics
 ```
 
+## 🚀 Railway Deployment
+
+To deploy this application on Railway for public internet access:
+
+### Quick Deploy
+
+1. **Fork this repository** on GitHub
+2. **Create Railway account** at https://railway.app
+3. **Connect GitHub** and select your forked repo
+4. **Set environment variables** in Railway dashboard:
+   ```
+   OPENAI_API_KEY=your_openai_api_key_here
+   AR_DATA_ROOT=/app/data
+   ```
+5. **Deploy** - Railway will automatically detect the configuration
+
+### Configuration Files
+
+- **`railway.json`** - Railway deployment configuration
+- **`railway-start.py`** - Production startup script (backend only)
+- **`requirements.txt`** - Python dependencies
+
+### Development vs Production
+
+- **Local development**: Use `python3 run.py` (runs backend + frontend)
+- **Railway production**: Uses `railway-start.py` (backend only)
+
+The app will be available at `https://your-app-name.up.railway.app`
+
+### Notes
+
+- Frontend is not included in Railway deployment (backend API only)
+- Consider deploying frontend separately on Netlify/Vercel
+- Data persists across deployments using Railway's persistent volumes
+- OpenAI API key is required for AI functionality
+
 ## 🧩 Architecture Overview
 
 ### Core Components

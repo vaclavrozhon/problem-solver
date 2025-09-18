@@ -18,6 +18,9 @@ from pathlib import Path
 REPO = Path(__file__).parent.resolve()
 VENV = REPO / "venv"
 
+# Detect Railway environment
+RAILWAY_ENV = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+
 def ensure_env():
     """Load API key from ~/.openai.env into environment if present."""
     home_env = Path.home() / ".openai.env"
@@ -81,7 +84,14 @@ def start_frontend() -> subprocess.Popen:
     return proc
 
 def main():
-    print("🔬 Starting Automatic Researcher — New UI")
+    # Check if running in Railway production environment
+    if RAILWAY_ENV:
+        print("🚀 Detected Railway environment - redirecting to production startup")
+        print("   Use railway-start.py for Railway deployment")
+        print("   This script (run.py) is for local development only")
+        sys.exit(1)
+
+    print("🔬 Starting Automatic Researcher — New UI (Development Mode)")
     ensure_env()
 
     # Ensure a project-local virtual environment and install backend deps

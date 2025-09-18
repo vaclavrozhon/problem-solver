@@ -59,11 +59,11 @@ def start_frontend() -> subprocess.Popen:
     if not fe_dir.exists():
         raise RuntimeError("frontend/ directory not found")
     print("📦 Ensuring frontend dependencies (npm install)...")
-    # Best-effort install; ignore errors if already installed
     try:
         subprocess.run(["npm", "install"], cwd=str(fe_dir), check=True)
+        print("✅ Frontend dependencies installed successfully")
     except subprocess.CalledProcessError as e:
-        print(f"⚠️  npm install failed (continuing): {e}")
+        raise RuntimeError(f"❌ Failed to install frontend dependencies: {e}\n   Please run 'cd frontend && npm install' manually and try again.")
 
     print("🧩 Starting Vite dev server (new UI) on http://localhost:5173 ...")
     env = os.environ.copy()

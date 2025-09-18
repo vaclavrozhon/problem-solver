@@ -25,11 +25,13 @@ def main():
     print(f"🌐 Starting server on port {port}")
 
     # Check for OpenAI API key
-    if not os.environ.get("OPENAI_API_KEY"):
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_key:
         print("⚠️  Warning: OPENAI_API_KEY environment variable not set")
         print("   Set this in Railway dashboard for AI functionality to work")
     else:
-        print("✅ OPENAI_API_KEY found")
+        print(f"✅ OPENAI_API_KEY found (length: {len(openai_key)})")
+        print("🤖 AI functionality enabled")
 
     # Start uvicorn directly (no virtual environment needed in Railway)
     try:

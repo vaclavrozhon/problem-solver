@@ -2,6 +2,15 @@
 
 An AI-powered research system that automates mathematical problem-solving and proof generation using large language models (LLMs). The system orchestrates multiple AI agents in a collaborative research process, with a web interface for monitoring and control.
 
+## 🌐 Deployment Strategy
+
+This system is designed to work in two environments:
+
+- **🔧 Local Development**: For testing, development, and personal use. Run `python3 run.py` to start both backend and frontend locally.
+- **🌍 Global Production**: Public web application deployed on Railway for users worldwide. The developer pushes changes from local development that automatically deploy to the global version.
+
+Users access the global version, while development and testing happen locally with periodic pushes to production.
+
 ## Overview
 
 This project implements an automated research pipeline where AI agents work together to:

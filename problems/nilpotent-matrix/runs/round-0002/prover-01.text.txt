@@ -1,57 +1,87 @@
-Ideas
+# Focused critique and rigorous additions
 
-- Prove an exact formula for S_3, the sum of all 3×3 principal minors. This pins down the λ^{n−3} coefficient of the characteristic polynomial and is independent of any nilpotency assumption.
-- Compute (M^{n+2})_{1n} exactly. Correct the earlier “−3 φ” guess: a careful path count shows a different linear form appears. Under Σ z_i = 0 and tr(M^3)=0, the identity becomes redundant, but its explicit form is useful for cross-checks.
-- Use these identities to settle the case n=4 completely (contradiction), as a sanity check and a template for higher n.
+This round addresses correctness, clarity, and the missing use of the weighted constraint. I point out concrete issues in the notes, supply fully rigorous lemmas (with proofs), and propose auditable next steps that directly involve the weight operator W = diag(1,…,n).
 
-Lemma 1 (S_3 formula)
-Let M be the n×n tridiagonal M=D+E−F with D=diag(z_1,…,z_n), E_{i+1,i}=1, F_{i,i+1}=1. Let S_3 be the sum of all 3×3 principal minors of M. Then
-S_3 = ∑_{1≤i<j<k≤n} z_i z_j z_k + (n−3) ∑_{i=1}^n z_i + (z_1+z_n).
-Proof. A 3×3 principal submatrix is a disjoint union of consecutive blocks. For an index set of size 3 there are three types:
-- Three isolated indices i<j<k: the determinant is z_i z_j z_k.
-- Exactly one adjacent pair i,i+1 and an isolated index k: the determinant is (z_i z_{i+1}+1) z_k = z_i z_{i+1} z_k + z_k.
-- Three consecutive indices i,i+1,i+2: the determinant is z_i z_{i+1} z_{i+2} + z_i + z_{i+2}.
-Summing over all 3-sets S gives: cubic parts altogether equal ∑_{i<j<k} z_i z_j z_k (each triple monomial is counted exactly once, whether the triple contains adjacency or not). The linear parts collect as follows. From the “one adjacent pair” case, for each fixed k the index i can be any of 1,…,n−1 except k−2,k−1,k,k+1 when these lie in [1,n−1]; this yields coefficients n−3 for k∈{1,n}, n−4 for k∈{2,n−1}, and n−5 otherwise. From the “three consecutive” case, the sum ∑_{i=1}^{n−2} (z_i + z_{i+2}) adds 1 to the coefficients of k∈{1,2,n−1,n} and 2 to 3≤k≤n−2. Adding the two contributions yields the linear coefficient of z_k equal to n−2 for k∈{1,n} and n−3 for 2≤k≤n−1. Hence the linear part is (n−3)∑_i z_i + (z_1+z_n).
-∎
 
-Corollary 1.1 (cubic-vs-linear under Σ z_i=0)
-If ∑ z_i=0 then S_3 = ∑_{i<j<k} z_i z_j z_k + (z_1+z_n).
+Corrections and gaps to fix now
 
-Lemma 2 ((M^{n+2})_{1n} exact formula)
-Let h_3(z) := ∑_{1≤i≤j≤k≤n} z_i z_j z_k (complete homogeneous symmetric polynomial of degree 3) and L_n(z) := (n+1) ∑_{i=1}^n z_i − (z_1+z_n). Then
-(M^{n+2})_{1n} = (−1)^{n−1} ( h_3(z) − L_n(z) ).
-Proof. Interpret (M^p)_{1n} as the sum over length-p walks on {1,…,n} from n to 1 with allowed steps: “down” j→j−1 (weight −1), “up” j→j+1 (weight +1), and “stay” j→j (weight z_j). To reach 1 from n in n+2 steps, beyond the n−1 minimal down-steps, there are exactly two combinatorial types of extra operations: (i) three stays; (ii) one up–down pair (returning to the same level) and one stay. Case (i) contributes (−1)^{n−1} h_3(z) (choose a multiset of three stay-levels along the monotone path). Case (ii) contributes linearly in z. For fixed k, count decorated paths with the unique stay at level k and the up–down pair anchored at some j∈{1,…,n−1}:
-- For j≤k−2: the stay occurs before the pair (1 way for each j).
-- For j=k−1: two possibilities (stay before the pair, or between the up and down steps at level k=j+1).
-- For j=k: two possibilities (stay before the up, or after the down, both at level k).
-- For j≥k+1: the stay occurs after the pair (1 way for each j).
-Summing yields the count c_k of such decorations: c_1=c_n=n and c_k=n+1 for 2≤k≤n−1. Each such path has weight (−1)^{n} z_k (one extra down contributes an extra −1), hence the total contribution of case (ii) is (−1)^{n} ∑_k c_k z_k = (−1)^{n−1} [ (n+1)∑_i z_i − (z_1+z_n) ] = (−1)^{n−1} L_n(z). Combining (i) and (ii) proves the formula.
-∎
+- h₃ vs e₃ vs p₃ confusion: For variables z = (z₁,…,zₙ), one has h₃ = e₁³ − 2e₁e₂ + e₃. In particular, if e₁ = ∑ zᵢ = 0, then h₃ = e₃. The earlier claim “h₃ = (2/3)∑ zᵢ³ − E₃” is incorrect. This must be corrected wherever used.
+- α_{n+2} factor: The correct path-classification for α_{n+2} := (M^{n+2})_{n,1} gives α_{n+2} = h₃(z) − (n−1)∑ zᵢ (proof below). Under ∑ zᵢ=0, α_{n+2}=h₃=e₃. Thus α_{n+2}=0 forces e₃=0, and together with a_{n,3}=0 (which reads e₃ = −(z₁+zₙ) when e₁=0) one concludes z₁+zₙ=0. The “−3” factor appearing in prior notes is erroneous.
+- tr(M³): The general identity is tr(M³) = ∑ zᵢ³ − 6∑ zᵢ + 3(z₁+zₙ). The shortened form tr(M³)=∑ zᵢ³ + 3(z₁+zₙ) holds only when ∑ zᵢ=0. Please standardize statements accordingly.
+- Weighted condition usage: So far, the weight ∑ i zᵢ has only been repackaged (e.g., as tr(WM) or as sums of boundary entries), but not exploited to force a contradiction beyond what nilpotency already gives. We need identities where W enters essentially.
 
-Remarks on Lemma 2
-- Under ∑ z_i=0, L_n(z) simplifies to −(z_1+z_n).
-- Using Newton’s identities, h_3 equals (p_1^3 − 2 p_1 p_2 + p_3)/3 in terms of power sums p_m=∑ z_i^m; hence if ∑ z_i=0 and tr(M^3)=p_3−3φ(z)=0 with φ=z_1+2z_2+⋯+2 z_{n−1}+z_n, then h_3 = p_3/3 = φ. Thus Lemma 2 becomes (M^{n+2})_{1n}=(−1)^{n−1}(φ+z_1+z_n) when ∑ z_i=0; this vanishes identically once φ=−(z_1+z_n), so Lemma 2 brings no new constraint beyond tr(M^3)=0 and ∑ z_i=0.
 
-Consequences for nilpotent M
-If M is nilpotent then det(λI−M)=λ^n, hence the principal symmetric sums vanish: e_1=∑ z_i=0, e_2=∑_{i<j} z_i z_j + (n−1)=0 (equivalently ∑ z_i^2=2(n−1)), and e_3=S_3=0. From Lemma 1 and ∑ z_i=0, e_3=0 implies ∑_{i<j<k} z_i z_j z_k = −(z_1+z_n). Newton’s identities also give h_3 = e_1^3 − 2 e_1 e_2 + e_3; with e_1=0 this yields h_3=e_3=0, hence φ=0 as noted above.
+Rigorous lemmas and proofs to add
 
-Worked case n=4 (complete contradiction)
-Assume M is 4×4 nilpotent and ∑ i z_i=0. Then e_1=0, e_2=0, e_3=0. From e_2=0 we get ∑ z_i^2=6. From e_3=0 and Lemma 1 (with n=4) we get z_1 z_2 z_3 + z_1 z_2 z_4 + z_1 z_3 z_4 + z_2 z_3 z_4 + (2 z_1 + z_2 + z_3 + 2 z_4)=0. As observed, e_3=0 and e_1=0 force φ=0, i.e. z_1+2 z_2+2 z_3+z_4=0. Together with ∑ i z_i= z_1+2 z_2+3 z_3+4 z_4=0 and ∑ z_i=0 one solves
-(z_1,z_2,z_3,z_4) = (−t, 3t, −3t, t)
-for some t∈C, hence ∑ z_i^2 = 20 t^2 = 6 ⇒ t^2 = 3/10. The determinant det M equals the continuant p_4 generated by p_0=1, p_1=z_1, p_2=z_2 z_1+1, p_3=z_3 p_2+p_1, p_4=z_4 p_3+p_2. Substituting the above parametrization yields
-p_4 = 9 t^4 − 7 t^2 + 1 = 9·(3/10)^2 − 7·(3/10) + 1 = −29/100 ≠ 0.
-Thus det M ≠ 0, contradicting nilpotency. Hence no nilpotent M exists for n=4 under the weighted constraint.
+Notation: M = D + L − U with D = diag(z₁,…,zₙ), L the lower shift, U the upper shift. Let W = diag(1,…,n).
 
-Obstacles
-- Lemma 2 shows (M^{n+2})_{1n}=0 brings no new constraint once e_1=e_2=e_3=0 are imposed; it reduces to φ=0, already implied by e_3=0 and e_1=0.
-- Extending the n=4 elimination to general n likely needs the e_4 constraint (sum of 4×4 principal minors) or a precise determinant formula under the linear constraints. A uniform closed form for S_4 analogous to Lemma 1 (with cubic and linear boundary pieces) is plausible but requires careful combinatorics of 4×4 blocks and adjacent pairs.
+1) Commutator identities (for reference)
+- [W, M] = L + U.
+- [L, M] = [L, D] + E_{1,1} − E_{n,n}, with ([L, D])_{i+1,i} = zᵢ − z_{i+1}.
+Proofs are standard and already essentially present; keep them in proofs.md.
 
-Next steps
-- Prove a general S_4 formula: e_4 as the sum of 4×4 principal minors decomposes into the pure quartic symmetric sum plus lower-degree boundary corrections; identify the linear part explicitly. Under e_1=e_2=e_3=0 and ∑ i z_i=0, show e_4 ≠ 0.
-- Alternatively, develop a continuant-based elimination: use p_k = z_k p_{k−1} + p_{k−2} across k with e_1=e_2=e_3 constraints to force a normalized pattern of z’s (as in n=4), then compute p_n symbolically to show it cannot vanish.
-- Cross-check small sizes n=5,6 computationally to conjecture the general boundary-linear coefficients for S_4 and guide the proof.
+2) Boundary entries of powers (left and right edges)
+- For 1 ≤ k ≤ n: (M^k)_{k,1} = ∑_{j=1}^k z_j and, for 0 ≤ k ≤ n−1, (M^k)_{k+1,1} = 1.
+- For 1 ≤ k ≤ n: (M^k)_{n−k+1,n} = (−1)^{k−1} ∑_{j=n−k+1}^n z_j.
+Proof (sketch). Enumerate paths on the chain graph from column 1 to row k (resp. n) in k steps using D,L,U moves. Minimal-length constraints force exactly one D and no U for the left edge case, and exactly one D and no L for the right edge; signs for U’s are (−1) per U. Details as in prior round; formalize in proofs.md.
 
-Summary of progress
-- Fully proved the S_3 identity for all n.
-- Proved the corrected exact formula (M^{n+2})_{1n} = (−1)^{n−1}(h_3 − L_n) with L_n=(n+1)∑ z_i − (z_1+z_n); clarified its redundancy under e_1=e_2=e_3=0.
-- Settled n=4 completely by contradiction using e_1=e_2=e_3=0, the weighted constraint, and the continuant for det M. The mechanism suggests using e_4 in general to close the argument for arbitrary n.
+3) Weighted-sum reformulations
+- tr(WM) = ∑ i zᵢ (since tr(WL)=tr(WU)=0). So the weighted constraint is exactly tr(WM) = 0.
+- ∑_{k=1}^n (M^k)_{k,1} = ∑_{k=1}^n ∑_{j=1}^k z_j = (n+1)∑ zᵢ − ∑ i zᵢ. Hence if ∑ zᵢ = 0 (true for nilpotent M), the constraint ∑ i zᵢ = 0 is equivalent to ∑_{k=1}^n (M^k)_{k,1} = 0.
+- Also ∑ i zᵢ = ∑_{k=1}^n T_k with T_k := ∑_{j=n−k+1}^n z_j = (−1)^{k−1}(M^k)_{n−k+1,n} (exact, no need to assume ∑ zᵢ=0).
+These identities place the weighted constraint squarely into sums of specific boundary entries of powers.
+
+4) Exact formula for α_{n+2} with proof
+Let α_m := (M^m)_{n,1}. For m = n+2 there are two path-types from 1 to n in m steps:
+- Type A: d = 3 diagonal steps, u = 0 up-steps, ℓ = n−1 down-steps; weight = product of the 3 diagonal z’s; summing over all placements yields h₃(z).
+- Type B: d = 1 diagonal, u = 1 up-step, ℓ = n down-steps; weight = (−1)·z_i for the unique z_i chosen. The number of valid placements of the single U among the n L’s, subject to the path staying within the chain constraints, is exactly n−1 (U cannot occur before the first L nor after the last L, otherwise the path exits the 1..n strip). Thus the total contribution is −(n−1)∑ zᵢ.
+Therefore
+α_{n+2} = h₃(z) − (n−1)∑ zᵢ.
+In particular, if ∑ zᵢ = 0, then α_{n+2} = h₃ = e₃.
+
+5) Consequence: z₁ + zₙ = 0 under nilpotency
+If M is nilpotent then α_{n+2} = 0 and ∑ zᵢ = 0, hence e₃ = 0. On the other hand, the previously verified coefficient identity a_{n,3} = 0 reads (with e₁=0)
+0 = a_{n,3} = −e₃ − (z₁ + zₙ).
+Thus e₃ = 0 implies z₁ + zₙ = 0. This step is sound and should replace the factor-3 argument in notes.
+
+6) A weighted trace identity for M²
+tr(WM²) = ∑_{i=1}^n i z_i^2 − (n² − 1).
+Proof. Expand M² = D² + (DL + LD) − (DU + UD) + (L² + U²) − (LU + UL). Since L,U have zero diagonal, tr(WDL)=tr(WLD)=tr(WDU)=tr(WUD)=tr(WL²)=tr(WU²)=0. We have (LU)_{ii}=1 for 2≤i≤n and (UL)_{ii}=1 for 1≤i≤n−1. Hence tr(W LU) = ∑_{i=2}^n i and tr(W UL) = ∑_{i=1}^{n−1} i, so tr(W(LU+UL)) = n² − 1. The claim follows.
+Remark. This shows tr(WM²) is completely explicit. While it doesn’t by itself contradict nilpotency or ∑ i zᵢ = 0, it is a reusable identity that couples W and the z’s quadratically.
+
+7) Kernel summation-by-parts identity (weighted)
+Let 0 ≠ v ∈ ker M with boundary v₀ = v_{n+1} = 0 and recurrence v_{i+1} = z_i v_i + v_{i−1}. Then
+∑_{i=1}^n i z_i v_i^2 = − ∑_{i=1}^{n−1} v_i v_{i+1}.
+Proof. Multiply v_{i+1} − z_i v_i − v_{i−1} = 0 by i v_i and sum i=1..n. The cross terms telescope to −∑_{i=1}^{n−1} v_i v_{i+1} using v₀ = v_{n+1} = 0 as in the analysis. This identity is new in the notes and precisely exhibits how the weighted functional interacts with a kernel vector.
+Comments. On its own this does not contradict ∑ i zᵢ = 0, but it is a promising bridge to combine with other constraints (e.g., ∑ z_i v_i^2 = 0 from the unweighted pairing) and with explicit structure of v coming from the transfer recurrences.
+
+
+Where the current writeup needs tightening
+
+- Provide the full proof of item (4): α_{n+2} = h₃ − (n−1)∑ zᵢ. The path classification is simple, but the admissibility count (n−1 for the single U) must be justified carefully (e.g., via a bijection between valid placements and the n−1 interior edges of the path graph).
+- Unify all uses of tr(M³) under one general identity and then state the nilpotent corollary as a separate line; currently both forms appear and may confuse the reader.
+- Explicitly record the equivalence ∑ i zᵢ = 0 ⇔ tr(WM)=0, and under ∑ zᵢ=0 the equivalent form ∑_{k=1}^n (M^k)_{k,1} = 0. These translations matter when we try to craft weighted commutator arguments.
+- Remove or correct the incorrect “h₃ = (2/3)∑ zᵢ³ − e₃” and the “α_{n+2} = −3 e₃” claims. Replace them with the clean chain: α_{n+2}=h₃−(n−1)∑ zᵢ; with ∑ zᵢ=0 this is α_{n+2}=e₃; under nilpotency α_{n+2}=0 so e₃=0; then a_{n,3}=0 gives z₁+zₙ=0.
+
+
+Ideas to leverage the weighted constraint going forward
+
+- W-traces: We now have tr(WM)=0 (the weighted condition) and an explicit tr(WM²). It is feasible to compute tr(WM³) explicitly (though more involved since cyclicity doesn’t neutralize W). These give concrete equations involving weighted power sums of z and short “edge” corrections. Combining tr(M^k)=0 and tr(WM^k) identities for k=1,2,3 may overdetermine z₁ and zₙ in terms of the interior, possibly enabling an induction.
+- Kernel method: The two identities ∑ z_i v_i^2 = 0 and ∑ i z_i v_i^2 = −∑ v_i v_{i+1}, together with the Riccati variables w_{i+1} = z_i + 1/w_i (from v_{i+1}/v_i = z_i + 1/w_i), give a closed system whose weighted sums can be tracked. With z₁+zₙ=0 already forced by α_{n+2}, this method may yield a contradiction (e.g., by showing ∑ i z_i v_i^2 ≠ 0 unless z ≡ 0, which is impossible by e₂ = −(n−1)).
+- Edge-peeling induction: With z₁+zₙ=0, re-express e₂, e₃, and a_{n,4} in terms of the middle block z₂,…,z_{n−1} and z₁. Investigate whether P_n(λ) factors as λ²P_{n−2}(λ) plus a term that is incompatible with P_n(λ)=λⁿ under the two linear relations e₁=0, ∑ i zᵢ=0. A block-determinant approach (eliminating the 1st and nth rows/columns) may show that nilpotency of M forces nilpotency of the middle (n−2)×(n−2) tridiagonal with an inherited weighted relation, enabling induction. This is precise and checkable.
+
+
+Obstacles (why some routes fail)
+
+- Coefficients and boundary entries α_{n+q} alone do not produce index-weighted terms; they depend on symmetric polynomials and small boundary corrections (z₁,zₙ), not on ∑ i zᵢ. Hence pushing α_{n+q} without W will not incorporate the weighted constraint.
+- Inequalities (e.g., positivity) are unavailable: zᵢ ∈ ℂ, so Cauchy–Schwarz-type obstructions for the weighted sums do not apply.
+
+
+Next steps (auditable and targeted)
+
+1) Formalize and include in proofs.md the exact α_{n+2} identity with full combinatorial proof and a short note deducing z₁+zₙ=0 from nilpotency.
+2) Compute tr(WM³) explicitly. With tr(M)=0, tr(M²)=0, tr(M³)=0 and tr(WM)=0, tr(WM²) known, and tr(WM³) (to be computed), attempt to solve for z₁ and zₙ in terms of interior z’s, then show incompatibility with e₂ = −(n−1) and e₃ = 0.
+3) Develop the block-determinant (Schur complement) reduction eliminating indices 1 and n. Make precise what weighted relation the (n−2) middle block inherits from ∑ i zᵢ=0 and e₁=0, and prove an induction step (if the middle block were nilpotent under its inherited constraint, then so would M be; contrapositive yields the desired impossibility).
+4) Document the kernel weighted identity (item 7) and explore whether combining it with ∑ z_i v_i^2 = 0 and z₁+zₙ=0 already forces constraints on v (e.g., via a short computation for n=4,5) that contradict e₂=−(n−1).
+
+These items directly address the principal gap: bringing the weighted condition into identities that interact with nilpotency in a nontrivial way, while cleaning up the existing derivations for correctness and future reuse.

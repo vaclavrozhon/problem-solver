@@ -6,9 +6,8 @@
  * consistent styling and behavior across different deletion types.
  * 
  * Features:
- * - Delete Rounds Modal: Remove old conversation rounds from a problem
  * - Delete Problem Modal: Remove entire problem with all associated data
- * - Configurable round deletion count
+ * - Reset Problem Modal: Clear all interactions while keeping the task
  * - Clear warning messages and confirmation flow
  * - Keyboard support (Enter/Escape)
  * - Loading states during deletion
@@ -23,45 +22,30 @@ import React, { useEffect } from 'react'
 // =============================================================================
 
 interface DeleteModalsProps {
-  /** Whether the delete rounds modal is visible */
-  showDeleteRoundsModal: boolean
-  
   /** Whether the delete problem modal is visible */
   showDeleteProblemModal: boolean
-  
+
   /** Whether the reset problem modal is visible */
   showResetProblemModal: boolean
-  
-  /** Number of rounds to delete (for rounds modal) */
-  deleteRoundsCount: number
-  
+
   /** Problem name to delete (for problem modal) */
   problemToDelete: string | null
-  
+
   /** Problem name to reset (for reset modal) */
   problemToReset: string | null
-  
+
   /** Loading state during delete operations */
   loading: boolean
   
-  /** Callback to set rounds count */
-  onSetDeleteRoundsCount: (count: number) => void
-  
-  /** Callback to close delete rounds modal */
-  onCloseDeleteRoundsModal: () => void
-  
   /** Callback to close delete problem modal */
   onCloseDeleteProblemModal: () => void
-  
+
   /** Callback to close reset problem modal */
   onCloseResetProblemModal: () => void
-  
-  /** Callback to execute rounds deletion */
-  onDeleteRounds: () => void
-  
+
   /** Callback to execute problem deletion */
   onDeleteProblem: () => void
-  
+
   /** Callback to execute problem reset */
   onResetProblem: () => void
 }
@@ -95,18 +79,13 @@ const MODAL_CONTENT_STYLE: React.CSSProperties = {
 // =============================================================================
 
 export default function DeleteModals({
-  showDeleteRoundsModal,
   showDeleteProblemModal,
   showResetProblemModal,
-  deleteRoundsCount,
   problemToDelete,
   problemToReset,
   loading,
-  onSetDeleteRoundsCount,
-  onCloseDeleteRoundsModal,
   onCloseDeleteProblemModal,
   onCloseResetProblemModal,
-  onDeleteRounds,
   onDeleteProblem,
   onResetProblem
 }: DeleteModalsProps) {
@@ -119,9 +98,6 @@ export default function DeleteModals({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showDeleteRoundsModal) {
-          onCloseDeleteRoundsModal()
-        }
         if (showDeleteProblemModal) {
           onCloseDeleteProblemModal()
         }
@@ -129,11 +105,8 @@ export default function DeleteModals({
           onCloseResetProblemModal()
         }
       }
-      
+
       if (e.key === 'Enter' && !loading) {
-        if (showDeleteRoundsModal) {
-          onDeleteRounds()
-        }
         if (showDeleteProblemModal) {
           onDeleteProblem()
         }
@@ -143,7 +116,7 @@ export default function DeleteModals({
       }
     }
 
-    if (showDeleteRoundsModal || showDeleteProblemModal || showResetProblemModal) {
+    if (showDeleteProblemModal || showResetProblemModal) {
       document.addEventListener('keydown', handleKeyDown)
       // Prevent body scrolling when modal is open
       document.body.style.overflow = 'hidden'
@@ -154,14 +127,11 @@ export default function DeleteModals({
       }
     }
   }, [
-    showDeleteRoundsModal,
     showDeleteProblemModal,
     showResetProblemModal,
     loading,
-    onCloseDeleteRoundsModal,
     onCloseDeleteProblemModal,
     onCloseResetProblemModal,
-    onDeleteRounds,
     onDeleteProblem,
     onResetProblem
   ])
@@ -179,13 +149,6 @@ export default function DeleteModals({
     }
   }
 
-  /**
-   * Handles rounds count input change with validation
-   */
-  const handleRoundsCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Math.max(1, Math.min(100, parseInt(e.target.value) || 1))
-    onSetDeleteRoundsCount(value)
-  }
 
   // =============================================================================
   // RENDER HELPERS
@@ -594,7 +557,6 @@ export default function DeleteModals({
 
   return (
     <>
-      {renderDeleteRoundsModal()}
       {renderDeleteProblemModal()}
       {renderResetProblemModal()}
       

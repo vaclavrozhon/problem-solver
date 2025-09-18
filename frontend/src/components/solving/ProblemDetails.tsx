@@ -41,14 +41,15 @@ interface ProblemDetailsProps extends StatusDisplayProps, MessageHandlerProps {
   /** Callback when user stops a problem */
   onStop: () => void
   
-  /** Callback to trigger delete rounds modal */
-  onDeleteRounds: () => void
   
   /** Callback to trigger delete problem modal */
   onDeleteProblem: () => void
   
   /** Callback to trigger reset problem modal */
   onResetProblem: () => void
+
+  /** Callback when user deletes a round */
+  onDeleteRound?: (roundName: string) => void
 }
 
 // Tab configuration
@@ -92,9 +93,9 @@ export default function ProblemDetails({
   setMessage,
   onRunStart,
   onStop,
-  onDeleteRounds,
   onDeleteProblem,
-  onResetProblem
+  onResetProblem,
+  onDeleteRound
 }: ProblemDetailsProps) {
   // =============================================================================
   // STATE MANAGEMENT
@@ -280,7 +281,6 @@ export default function ProblemDetails({
             setMessage={setMessage}
             onRunStart={onRunStart}
             onStop={onStop}
-            onDeleteRounds={onDeleteRounds}
             onDeleteProblem={onDeleteProblem}
             onResetProblem={onResetProblem}
           />
@@ -291,6 +291,7 @@ export default function ProblemDetails({
           <ConversationsPanel
             problemName={problemName}
             onRoundSelect={handleRoundSelect}
+            onRoundDelete={onDeleteRound}
           />
         )
       

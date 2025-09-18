@@ -53,8 +53,6 @@ interface StatusPanelProps extends StatusDisplayProps, MessageHandlerProps {
   /** Callback when user stops a problem */  
   onStop: () => void
   
-  /** Callback to trigger delete rounds modal */
-  onDeleteRounds: () => void
   
   /** Callback to trigger delete problem modal */
   onDeleteProblem: () => void
@@ -81,7 +79,6 @@ export default function StatusPanel({
   setMessage,
   onRunStart,
   onStop,
-  onDeleteRounds,
   onDeleteProblem,
   onResetProblem
 }: StatusPanelProps) {
@@ -799,14 +796,6 @@ export default function StatusPanel({
           🔄 Reset Problem
         </button>
         
-        <button 
-          className="btn btn-danger" 
-          onClick={onDeleteRounds}
-          disabled={loading || !status?.rounds?.length}
-          style={{ fontSize: '12px', padding: '6px 10px' }}
-        >
-          🗑️ Delete Rounds
-        </button>
         
         <button 
           className="btn btn-danger" 

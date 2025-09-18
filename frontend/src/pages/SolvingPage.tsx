@@ -26,14 +26,14 @@ import ProblemSidebar from '../components/solving/ProblemSidebar'
 import ProblemDetails from '../components/solving/ProblemDetails'
 import DeleteModals from '../components/solving/DeleteModals'
 import { ProblemStatus, AppMessage } from '../components/solving/types'
-import { 
-  listProblems, 
-  getStatus, 
-  runRound, 
-  stopProblem, 
-  deleteRounds,
+import {
+  listProblems,
+  getStatus,
+  runRound,
+  stopProblem,
+  deleteRound,
   deleteProblem,
-  resetProblem 
+  resetProblem
 } from '../api'
 
 // =============================================================================
@@ -77,11 +77,6 @@ export default function SolvingPage() {
   // MODAL STATE MANAGEMENT  
   // =============================================================================
   
-  /** Delete rounds modal visibility */
-  const [showDeleteRoundsModal, setShowDeleteRoundsModal] = useState(false)
-  
-  /** Number of rounds to delete */
-  const [deleteRoundsCount, setDeleteRoundsCount] = useState(1)
   
   /** Delete problem modal visibility */
   const [showDeleteProblemModal, setShowDeleteProblemModal] = useState(false)
@@ -266,48 +261,6 @@ export default function SolvingPage() {
     }
   }
 
-  /**
-   * Handles round deletion
-   */
-  const handleDeleteRounds = async () => {
-    if (!selectedProblem) return
-    
-    setLoading(true)
-    try {
-      const result = await deleteRounds(selectedProblem, deleteRoundsCount)
-      
-      // Check if deletion was actually performed
-      if (result.deleted && result.deleted > 0) {
-        setMessage({ 
-          type: 'success', 
-          text: `Successfully deleted ${result.deleted} round(s)` 
-        })
-        
-        // Refresh the problem after deletion
-        setTimeout(() => {
-          window.location.reload() // Simple way to refresh conversations
-        }, 1000)
-      } else {
-        // No rounds were deleted (usually due to business logic constraints)
-        setMessage({ 
-          type: 'warning', 
-          text: result.message || `No rounds were deleted` 
-        })
-      }
-      
-      setShowDeleteRoundsModal(false)
-      
-    } catch (error: any) {
-      console.error('Failed to delete rounds:', error)
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'Failed to delete rounds' 
-      })
-      setShowDeleteRoundsModal(false)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   /**
    * Handles complete problem deletion
@@ -411,12 +364,6 @@ export default function SolvingPage() {
     }
   }
 
-  /**
-   * Opens delete rounds modal
-   */
-  const openDeleteRoundsModal = () => {
-    setShowDeleteRoundsModal(true)
-  }
 
   /**
    * Opens delete problem modal
@@ -438,12 +385,6 @@ export default function SolvingPage() {
     }
   }
 
-  /**
-   * Closes delete rounds modal
-   */
-  const closeDeleteRoundsModal = () => {
-    setShowDeleteRoundsModal(false)
-  }
 
   /**
    * Closes delete problem modal
@@ -459,6 +400,40 @@ export default function SolvingPage() {
   const closeResetProblemModal = () => {
     setShowResetProblemModal(false)
     setProblemToReset(null)
+  }
+
+  /**
+   * Handles deleting a specific round
+   */
+  const handleDeleteRound = async (roundName: string) => {
+    if (!selectedProblem) return
+
+    setLoading(true)
+    try {
+      await deleteRound(selectedProblem, roundName)
+      setMessage({
+        type: 'success',
+        text: `Round "${roundName}" deleted successfully`
+      })
+
+      // Refresh status for the current problem
+      if (selectedProblem) {
+        setTimeout(() => {
+          getStatus(selectedProblem).then(status => {
+            setStatusMap(prev => ({ ...prev, [selectedProblem]: status }))
+          })
+        }, 500) // Small delay to allow backend to process
+      }
+
+    } catch (error: any) {
+      console.error('Failed to delete round:', error)
+      setMessage({
+        type: 'error',
+        text: error.message || 'Failed to delete round'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // =============================================================================
@@ -638,26 +613,21 @@ export default function SolvingPage() {
           setMessage={setMessage}
           onRunStart={handleRunStart}
           onStop={handleStop}
-          onDeleteRounds={openDeleteRoundsModal}
           onDeleteProblem={openDeleteProblemModal}
           onResetProblem={openResetProblemModal}
+          onDeleteRound={handleDeleteRound}
         />
       </div>
 
       {/* Delete modals */}
       <DeleteModals
-        showDeleteRoundsModal={showDeleteRoundsModal}
         showDeleteProblemModal={showDeleteProblemModal}
         showResetProblemModal={showResetProblemModal}
-        deleteRoundsCount={deleteRoundsCount}
         problemToDelete={problemToDelete}
         problemToReset={problemToReset}
         loading={loading}
-        onSetDeleteRoundsCount={setDeleteRoundsCount}
-        onCloseDeleteRoundsModal={closeDeleteRoundsModal}
         onCloseDeleteProblemModal={closeDeleteProblemModal}
         onCloseResetProblemModal={closeResetProblemModal}
-        onDeleteRounds={handleDeleteRounds}
         onDeleteProblem={handleDeleteProblem}
         onResetProblem={handleResetProblem}
       />

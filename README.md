@@ -1,6 +1,16 @@
 # Automatic Researcher
 
-An AI-powered research system that can solve problems and write papers automatically using multiple AI agents working in coordinated rounds.
+An AI-powered research system that automates mathematical problem-solving and proof generation using large language models (LLMs). The system orchestrates multiple AI agents in a collaborative research process, with a web interface for monitoring and control.
+
+## Overview
+
+This project implements an automated research pipeline where AI agents work together to:
+- Generate mathematical proofs and solutions (Prover agents)
+- Verify and critique the proposed solutions (Verifier agent)
+- Summarize research progress (Summarizer agent)
+- Write and refine academic papers (Paper writing agents)
+
+The system supports iterative rounds of research, with each round building on previous findings through feedback loops and accumulated knowledge.
 
 ## 🏗️ Project Structure
 
@@ -30,11 +40,14 @@ automatic-researcher/
 │   └── [other frontend files]
 ├── orchestrator/           # Modular orchestrator package
 │   ├── __init__.py        # Package initialization
-│   ├── models.py          # Pydantic data models (74 lines)
-│   ├── utils.py           # Utility functions (264 lines)
-│   ├── papers.py          # Paper processing (122 lines)
-│   ├── agents.py          # AI agent interactions (387 lines)
-│   └── runner.py          # Round execution logic (158 lines)
+│   ├── models.py          # Pydantic data models for agent outputs
+│   ├── utils.py           # Utility functions for status, file I/O
+│   ├── papers.py          # PDF processing and context extraction
+│   ├── agents.py          # OpenAI API interactions, prompt handling
+│   ├── runner.py          # Round execution logic for research/paper modes
+│   ├── problem_agents.py  # Prover, Verifier, Summarizer agents
+│   ├── paper_agents.py    # Paper Suggester and Fixer agents
+│   └── file_manager.py    # Research file and paper management
 ├── prompts/               # AI agent prompts
 │   ├── prover.md          # Prover agent system prompt
 │   ├── verifier.md        # Verifier agent system prompt
@@ -81,34 +94,64 @@ automatic-researcher/
 ### Core Components
 
 **Orchestrator System** (Modular Architecture)
-- **orchestrator.py**: Main entry point (102 lines, down from 1537)
-- **orchestrator/models.py**: Pydantic models for structured AI outputs
-- **orchestrator/utils.py**: File operations, status management, JSON processing
-- **orchestrator/papers.py**: PDF extraction, paper parsing, context building
-- **orchestrator/agents.py**: AI agent interactions (OpenAI API calls)
-- **orchestrator/runner.py**: Round execution logic for research and writing
+- **orchestrator.py**: Main CLI entry point for running research/paper rounds
+- **orchestrator/runner.py**: Manages the complete flow of each research round
+- **orchestrator/problem_agents.py**: Research agents (Prover, Verifier, Summarizer)
+- **orchestrator/paper_agents.py**: Paper writing agents (Suggester, Fixer)
+- **orchestrator/agents.py**: Common agent utilities and OpenAI API interactions
+- **orchestrator/models.py**: Pydantic models for structured agent outputs
+- **orchestrator/file_manager.py**: Manages research files and paper attachments
+- **orchestrator/utils.py**: Helper functions for status tracking, file I/O
+- **orchestrator/papers.py**: PDF processing and context extraction
 
 **Backend API** (FastAPI)
-- **backend/main.py**: REST API endpoints for frontend
-- **backend/services/tasks.py**: Task creation, deletion, management
+- **backend/main.py**: FastAPI application setup with CORS middleware
+- **backend/routers/problems.py**: Problem CRUD operations, status tracking, round execution
+- **backend/routers/tasks.py**: Background task execution for running rounds
+- **backend/routers/drafts.py**: Draft paper management endpoints
+- **backend/routers/auth.py**: Basic authentication endpoints (placeholder)
+- **backend/services/tasks.py**: Task queue implementation for async operations
 - **backend/models.py**: API request/response models
+- **backend/config.py**: Environment and path configuration
 
 **Frontend Interface** (React + TypeScript)
-- **SolvingPage**: Problem-solving interface with rounds, conversations, files
-- **WritingPage**: Paper writing interface with draft management
-- **TaskCreationPage**: Create new problems or writing tasks
+- **pages/SolvingPage.tsx**: Main research interface with problem list and details
+- **pages/WritingPage.tsx**: Paper writing interface with draft management
+- **pages/OverviewPage.tsx**: Dashboard view of all problems
+- **pages/TaskCreationPage.tsx**: Create new problems or writing tasks
+- **components/solving/ProblemSidebar.tsx**: Problem list with status indicators
+- **components/solving/ProblemDetails.tsx**: Tabbed interface (Status/Conversations/Files)
+- **components/solving/StatusPanel.tsx**: Real-time status monitoring and controls
+- **components/solving/ConversationsPanel.tsx**: Round-by-round agent conversations
+- **components/solving/FilesPanel.tsx**: Problem file editor
+- **components/solving/RuntimeHistory.tsx**: Execution timeline visualization
+- **components/solving/ProverConfig.tsx**: Prover agent configuration UI
+- **components/solving/DeleteModals.tsx**: Confirmation dialogs
+- **api.ts**: Backend API communication layer
 
 ### AI Agent Workflow
 
-**Problem Solving Mode:**
-1. **Prover(s)**: Generate research progress and hypotheses
-2. **Verifier**: Review prover outputs, provide feedback and verdict
-3. **Summarizer**: Create concise round summaries and highlight key points
+**Research Mode (Problem Solving):**
+1. **Prover Phase**: Multiple prover agents (configurable 1-N) work in parallel
+   - Each prover can have different focus strategies (creative, rigorous, etc.)
+   - Optional calculator access for computations
+   - Custom instructions per round
+2. **Verifier Phase**: Single verifier reviews all prover outputs
+   - Provides targeted feedback for each prover
+   - Assigns scores (promising/uncertain/unlikely)
+   - Updates research notes and proofs
+3. **Summarizer Phase**: Creates concise round summary
+   - Highlights key developments
+   - Generates one-line summary for quick reference
 
 **Paper Writing Mode:**
-1. **Paper Suggester**: Analyze current draft and provide improvement advice
-2. **Paper Fixer**: Apply suggestions and rewrite LaTeX content
-3. **LaTeX Compiler**: Attempt to compile the updated paper
+1. **Paper Suggester**: Analyzes current draft and research
+   - Provides specific improvement recommendations
+   - Identifies missing sections or weak arguments
+2. **Paper Fixer**: Applies suggestions to improve the paper
+   - Rewrites LaTeX content
+   - Maintains academic paper structure
+3. **LaTeX Compiler**: Automatic compilation with error handling
 
 ### Data Flow
 
@@ -119,6 +162,18 @@ automatic-researcher/
 5. **Web Interface**: Frontend displays progress, conversations, and files
 
 ## 🚀 Key Features
+
+### Real-time Monitoring
+- Live status updates during execution with phase tracking
+- Progress indicators showing round X of Y
+- Detailed timing information for each agent
+- Error reporting with component-level granularity
+
+### Multi-Agent Collaboration
+- Parallel prover execution for diverse approaches
+- Centralized verification for quality control
+- Iterative refinement through feedback loops
+- Accumulated knowledge across rounds
 
 ### Problem Solving
 - **Multi-prover support**: Run multiple provers in parallel for diverse approaches
@@ -138,11 +193,21 @@ automatic-researcher/
 - **File management**: Easy access to all generated files and papers
 - **Task management**: Create, run, delete, and reset tasks
 
-### Technical Improvements
-- **Modular architecture**: Orchestrator broken into logical, maintainable modules
-- **Proper round tracking**: Accurate remaining rounds based on user requests
-- **Clean UI**: Removed redundant sections, improved PDF handling
-- **Delete functionality**: Complete task deletion with proper cleanup
+### Flexible Configuration
+- Customizable number of provers per round (1-N)
+- Different prover focus strategies (creative, rigorous, systematic)
+- Model selection via environment variables
+- Per-problem paper attachments with descriptions
+- Custom focus descriptions for targeted research
+
+### Web Interface Features
+- Problem management (create, delete, reset)
+- Real-time execution monitoring with auto-refresh
+- Round-by-round conversation history
+- File editing capabilities (problem.md, notes.md, proofs.md)
+- Stop/resume execution control
+- Prover configuration UI
+- PDF paper viewing and management
 
 ## 🔧 Configuration
 
@@ -162,23 +227,35 @@ automatic-researcher/
 
 ## 📊 File Organization
 
-### Rounds Structure
-Each round creates a timestamped directory containing:
-- **Agent outputs**: Raw text, JSON responses, and parsed results
-- **Timing data**: Performance metrics for each agent
-- **Context files**: List of files used as context
-- **Progress updates**: Incremental progress and summaries
+### Problem Directory Structure
+```
+problems/[problem-name]/
+├── problem.md              # Problem statement (user-provided)
+├── notes.md               # Research notes (agent-maintained)
+├── proofs.md              # Accumulated proofs (agent-maintained)
+├── papers/                # Attached research papers
+│   ├── paper1.pdf
+│   └── paper1_description.txt
+└── runs/                  # Execution history
+    ├── live_status.json   # Current execution status
+    ├── batch_status.json  # Batch round tracking
+    ├── prover_configs.json # Prover configurations
+    ├── run_metadata.json  # Run-level metadata
+    └── round-XXXX/        # Per-round data
+        ├── prover-XX.*.* # Prover inputs/outputs
+        ├── verifier.*    # Verifier inputs/outputs
+        ├── summarizer.*  # Summarizer inputs/outputs
+        └── timings.json  # Execution timing
+```
 
-### Status Tracking
-- **live_status.json**: Current phase, round number, timestamp, models used
-- **run_metadata.json**: Original run configuration (rounds, preset, parameters)
-- **timings.json**: Cumulative performance data across agents
-
-### Output Files
-- **progress.md**: Chronological progress across all rounds
-- **summary.md**: Final summary of results
-- **notes.md**: Research notes (updated by verifier)
-- **output.md**: Current findings and conclusions (updated by verifier)
+### Agent File Naming Convention
+- `.pre.prompt.txt`: System prompt before variable substitution
+- `.prompt.txt`: Final prompt sent to the model
+- `.raw.json`: Raw API response
+- `.out.json`: Parsed structured output
+- `.text.txt`: Raw text response
+- `.response.full.json`: Complete response metadata
+- `.pre.meta.json`: Pre-execution metadata
 
 ## 🎯 Usage Modes
 
@@ -198,10 +275,114 @@ Focus on writing and improving academic papers:
 
 ## 🏃‍♂️ Getting Started
 
-1. **Setup**: Install dependencies and configure environment variables
-2. **Create Task**: Use web interface to create problem or writing task
-3. **Run Rounds**: Specify number of rounds and model preset
-4. **Monitor Progress**: Watch real-time updates in the web interface
-5. **Review Results**: Access all outputs, conversations, and generated files
+### Prerequisites
+- Python 3.8+
+- Node.js 18+ (required for Vite and other frontend dependencies)
+- OpenAI API key with access to GPT models
 
-The system is designed for autonomous operation while providing full transparency into the AI reasoning process through structured outputs and comprehensive logging.
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone [repository-url]
+cd automatic-researcher
+```
+
+2. **Set up Python environment**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+3. **Set up frontend**
+```bash
+cd frontend
+npm install
+```
+
+4. **Configure environment**
+```bash
+# Create ~/.openai.env file
+echo "OPENAI_API_KEY=your-api-key-here" > ~/.openai.env
+```
+
+### Running the System
+
+#### Option 1: CLI (Direct Orchestrator)
+```bash
+# Run research rounds
+python orchestrator.py problems/[problem-name] --rounds 3 --mode research
+
+# Generate paper
+python orchestrator.py problems/[problem-name] --rounds 1 --mode paper
+```
+
+#### Option 2: Web Interface
+```bash
+# Terminal 1: Start backend
+python -m backend.main
+# Or: uvicorn backend.main:app --reload --port 8001
+
+# Terminal 2: Start frontend
+cd frontend
+npm run dev
+# Access at http://localhost:5173
+```
+
+### Creating a Problem
+
+1. Via Web Interface:
+   - Navigate to Overview page
+   - Click "New Problem"
+   - Enter problem statement
+   - Optionally attach research papers
+
+2. Via CLI:
+   - Create directory: `problems/your-problem/`
+   - Add `problem.md` with problem statement
+   - Optionally add PDFs to `papers/` directory
+
+## 🔍 How It Works
+
+### Research Round Execution
+
+1. **Initialization**: Load problem statement, papers, and previous round summaries
+2. **Prover Phase**:
+   - Each prover receives full context (problem, papers, previous work)
+   - Provers work independently in parallel
+   - Output structured JSON with reasoning
+3. **Verification Phase**:
+   - Verifier reviews all prover outputs
+   - Provides feedback and scores
+   - Updates persistent notes.md and proofs.md files
+4. **Summarization Phase**:
+   - Creates concise summary of round progress
+   - Highlights key developments
+   - Generates one-line summary for UI
+5. **Loop**: Continue for specified number of rounds or until solved
+
+### Key Design Decisions
+
+- **Stateless Agents**: Each agent call is independent, context built fresh
+- **Structured Output**: Using OpenAI's JSON mode for reliable parsing
+- **Parallel Execution**: Multiple provers can work simultaneously
+- **Persistent State**: notes.md and proofs.md accumulate knowledge
+- **Modular Architecture**: Clean separation of concerns for maintainability
+
+## 📝 Development Notes
+
+This is an active research project focused on automating mathematical problem-solving. The system demonstrates multi-agent LLM collaboration for complex reasoning tasks.
+
+### Current Limitations
+- Basic authentication (placeholder implementation)
+- Limited to OpenAI models (GPT-5, GPT-5-mini)
+- No distributed execution support
+- Web interface requires manual refresh for some updates
+
+### Future Improvements
+- Support for other LLM providers (Anthropic, Google, etc.)
+- Distributed prover execution
+- Advanced authentication and user management
+- Real-time WebSocket updates
+- Enhanced paper processing with vector search

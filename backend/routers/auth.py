@@ -1,144 +1,169 @@
 """
-Authentication router for the backend API.
-
-This module handles all authentication-related endpoints including
-user management, API keys, and authenticated problem operations.
+Authentication router with Google OAuth support.
 """
 
-import os
-import json
-import subprocess
-import uuid
-from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import Optional
 
-from ..models import RunParams
-from ..config import DATA_ROOT, user_dir
+# Temporarily comment out imports to test
+# from ..database import get_db
+# from ..auth import (
+#     verify_google_token,
+#     get_or_create_user,
+#     create_access_token,
+#     get_current_user,
+#     GOOGLE_CLIENT_ID
+# )
+# from ..db_models import User
 
-router = APIRouter(tags=["auth"])
-
-
-def require_user(token: str) -> str:
-    """Require valid user token and return user ID."""
-    if not token:
-        raise HTTPException(400, "token required")
-    
-    # Simple implementation - treat token as user_id directly
-    uid = token
-    if not (user_dir(uid) / "_user.json").exists():
-        raise HTTPException(403, "invalid token")
-    
-    return uid
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
-class CreateProblemPayload(BaseModel):
-    name: str
-    task_text: str
-    task_ext: str = "md"  # md|txt|tex
+class GoogleAuthPayload(BaseModel):
+    id_token: str
 
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: Optional[str]
+    picture_url: Optional[str]
+    credits_balance: float
+    is_admin: bool
 
-@router.post("/problems")
-def create_problem(p: CreateProblemPayload, token: str):
-    """Create a new problem for authenticated user."""
-    uid = require_user(token)
-    pdir = user_dir(uid) / "problems" / p.name
-    pdir.mkdir(parents=True, exist_ok=True)
-    task_name = f"task.{p.task_ext.strip().lower()}"
-    (pdir / task_name).write_text(p.task_text, encoding="utf-8")
-    return {"ok": True}
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
 
+@router.get("/test")
+def test_endpoint():
+    """Simple test endpoint with no dependencies."""
+    return {"status": "auth router working"}
 
-@router.post("/problems/{problem}/run-round")
-def run_round(problem: str, params: RunParams, token: str):
-    """Run research rounds for authenticated user's problem."""
-    uid = require_user(token)
-    root = user_dir(uid)
-    problems_dir = root / "problems"
-    problem_dir = problems_dir / problem
-    if not problem_dir.exists():
-        raise HTTPException(404, "problem not found")
+# @router.get("/google/config")
+# def get_google_config():
+#     """Get Google OAuth configuration for frontend."""
+#     return {
+#         "client_id": GOOGLE_CLIENT_ID,
+#         "redirect_uri": "/auth/google/callback"
+#     }
 
-    key_path = root / "_key.txt"
-    if not key_path.exists():
-        raise HTTPException(400, "no API key uploaded for this user")
-    api_key = key_path.read_text(encoding="utf-8").strip()
+@router.post("/google/login", response_model=AuthResponse)
+async def google_login(payload: GoogleAuthPayload, db: Session = Depends(get_db)):
+    """
+    Authenticate user with Google ID token.
 
-    env = os.environ.copy()
-    env["OPENAI_API_KEY"] = api_key
-    env["AR_NUM_PROVERS"] = str(params.provers)
-    env["AR_PROVER_TEMPERATURE"] = str(params.temperature)
+    Frontend should:
+    1. Use Google Sign-In JavaScript library
+    2. Get ID token from Google
+    3. Send it to this endpoint
+    """
+    # Verify Google ID token
+    google_user_info = await verify_google_token(payload.id_token)
+    if not google_user_info:
+        raise HTTPException(400, "Invalid Google token")
 
-    cmd = [
-        "python3", "orchestrator.py", str(problem_dir.resolve()),
-        "--rounds", str(params.rounds)
-    ]
-    proc = subprocess.Popen(cmd, cwd=str(Path(__file__).resolve().parent.parent.parent), env=env)
-    return {"ok": True, "pid": proc.pid}
-
-
-@router.get("/problems/{problem}/runs")
-def list_runs(problem: str, token: str):
-    """List runs for authenticated user's problem."""
-    uid = require_user(token)
-    rd = user_dir(uid) / "problems" / problem / "runs"
-    if not rd.exists():
-        return []
-    return sorted([x.name for x in rd.iterdir() if x.is_dir()])
-
-
-@router.get("/problems/{problem}/status")
-def problem_status(problem: str, token: str):
-    """Get status for authenticated user's problem."""
-    uid = require_user(token)
-    status_path = user_dir(uid) / "problems" / problem / "runs" / "live_status.json"
-    if not status_path.exists():
-        return {"phase": "idle"}
+    # Get or create user
     try:
-        return json.loads(status_path.read_text(encoding="utf-8"))
-    except Exception:
-        return {"phase": "idle"}
+        user = get_or_create_user(db, google_user_info)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to create/update user: {str(e)}")
 
+    # Create JWT token
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
 
-@router.get("/files")
-def get_file(path: str, token: str):
-    """Get file content for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists():
-        raise HTTPException(404, "not found")
-    return {"path": path, "content": full.read_text(encoding="utf-8")}
+    # Return user info and token
+    user_response = UserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        picture_url=user.picture_url,
+        credits_balance=float(user.credits_balance),
+        is_admin=user.is_admin
+    )
 
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response
+    )
 
-@router.get("/ls")
-def list_dir(path: str, token: str):
-    """List directory contents for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists() or not full.is_dir():
-        raise HTTPException(404, "not found")
-    items = []
-    for it in sorted(full.iterdir()):
-        items.append({
-            "name": it.name,
-            "is_dir": it.is_dir(),
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current authenticated user information."""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        picture_url=current_user.picture_url,
+        credits_balance=float(current_user.credits_balance),
+        is_admin=current_user.is_admin
+    )
+
+@router.get("/credits")
+def get_user_credits(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get user's credit balance and recent transactions."""
+    from ..db_models import CreditTransaction
+
+    # Get recent transactions
+    recent_transactions = (
+        db.query(CreditTransaction)
+        .filter(CreditTransaction.user_id == current_user.id)
+        .order_by(CreditTransaction.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    transactions = []
+    for tx in recent_transactions:
+        transactions.append({
+            "id": tx.id,
+            "amount": float(tx.amount),
+            "type": tx.transaction_type,
+            "description": tx.description,
+            "created_at": tx.created_at.isoformat(),
+            "tokens_used": tx.tokens_used,
+            "model_used": tx.model_used
         })
-    return {"path": path, "items": items}
 
+    return {
+        "balance": float(current_user.credits_balance),
+        "spent": float(current_user.credits_spent),
+        "transactions": transactions
+    }
 
-@router.get("/download")
-def download(path: str, token: str):
-    """Download file for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists():
-        raise HTTPException(404, "not found")
-    return FileResponse(str(full))
+@router.post("/logout")
+def logout():
+    """
+    Logout endpoint (mainly for consistency).
+    JWT tokens are stateless, so logout is handled client-side by removing the token.
+    """
+    return {"message": "Logged out successfully"}
+
+# Development/testing endpoints (remove in production)
+@router.post("/dev/create-test-user")
+def create_test_user(db: Session = Depends(get_db)):
+    """Create a test user for development (remove in production)."""
+    test_user_info = {
+        "sub": "test_user_123",
+        "email": "test@example.com",
+        "name": "Test User",
+        "picture": "https://via.placeholder.com/150"
+    }
+
+    user = get_or_create_user(db, test_user_info)
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "credits_balance": float(user.credits_balance)
+        }
+    }

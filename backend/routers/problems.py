@@ -18,16 +18,161 @@ from pydantic import BaseModel
 from ..models import RunParams
 from ..config import REPO_PROBLEMS_ROOT
 from ..services.tasks import TaskService
+from ..database import get_db
+from ..auth import get_current_user, check_user_credits, deduct_user_credits
+from ..db_models import User, Problem, ResearchRound, ProblemFile
+from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/problems_public", tags=["problems"])
+router = APIRouter(prefix="/problems", tags=["problems"])
 
 
 class FileUpdatePayload(BaseModel):
     content: str
     description: Optional[str] = None
 
+class CreateProblemPayload(BaseModel):
+    name: str
+    task_description: str
+    task_type: str = "txt"  # txt, md, tex
+
+# =================== AUTHENTICATED USER ENDPOINTS ===================
 
 @router.get("")
+def list_user_problems(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all problems for the authenticated user."""
+    problems = (
+        db.query(Problem)
+        .filter(Problem.user_id == current_user.id)
+        .order_by(Problem.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "status": p.status,
+            "current_round": p.current_round,
+            "total_rounds": p.total_rounds,
+            "total_cost": float(p.total_cost),
+            "created_at": p.created_at.isoformat(),
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None
+        }
+        for p in problems
+    ]
+
+@router.post("")
+def create_problem(
+    payload: CreateProblemPayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new problem for the authenticated user."""
+    # Check if problem name already exists for this user
+    existing = (
+        db.query(Problem)
+        .filter(Problem.user_id == current_user.id, Problem.name == payload.name)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, f"Problem '{payload.name}' already exists")
+
+    # Create new problem
+    problem = Problem(
+        user_id=current_user.id,
+        name=payload.name,
+        task_description=payload.task_description,
+        task_type=payload.task_type,
+        status="idle"
+    )
+
+    db.add(problem)
+    db.commit()
+    db.refresh(problem)
+
+    return {
+        "id": problem.id,
+        "name": problem.name,
+        "message": "Problem created successfully"
+    }
+
+@router.get("/{problem_id}")
+def get_problem(
+    problem_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific problem for the authenticated user."""
+    problem = (
+        db.query(Problem)
+        .filter(Problem.id == problem_id, Problem.user_id == current_user.id)
+        .first()
+    )
+
+    if not problem:
+        raise HTTPException(404, "Problem not found")
+
+    return {
+        "id": problem.id,
+        "name": problem.name,
+        "task_description": problem.task_description,
+        "task_type": problem.task_type,
+        "status": problem.status,
+        "current_round": problem.current_round,
+        "total_rounds": problem.total_rounds,
+        "total_cost": float(problem.total_cost),
+        "created_at": problem.created_at.isoformat(),
+        "updated_at": problem.updated_at.isoformat() if problem.updated_at else None
+    }
+
+@router.post("/{problem_id}/run")
+def run_problem(
+    problem_id: int,
+    params: RunParams,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Start research rounds for a user's problem."""
+    # Get problem
+    problem = (
+        db.query(Problem)
+        .filter(Problem.id == problem_id, Problem.user_id == current_user.id)
+        .first()
+    )
+
+    if not problem:
+        raise HTTPException(404, "Problem not found")
+
+    if problem.status == "running":
+        raise HTTPException(400, "Problem is already running")
+
+    # Estimate cost (rough estimate: $0.50 per round)
+    estimated_cost = params.rounds * 0.50
+
+    # Check user credits
+    if not check_user_credits(current_user, estimated_cost):
+        raise HTTPException(400, f"Insufficient credits. Need ${estimated_cost:.2f}, have ${float(current_user.credits_balance):.2f}")
+
+    # Update problem status
+    problem.status = "running"
+    problem.total_rounds = params.rounds
+    problem.estimated_cost = estimated_cost
+
+    # For now, return success - actual orchestrator integration would go here
+    db.commit()
+
+    return {
+        "ok": True,
+        "message": f"Started {params.rounds} research rounds",
+        "estimated_cost": estimated_cost
+    }
+
+# =================== PUBLIC REPOSITORY ENDPOINTS ===================
+
+@router.get("/public")
 def list_problems_public():
     """List all problems in the public repository without auth (dev convenience)."""
     problems = []

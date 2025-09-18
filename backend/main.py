@@ -15,10 +15,16 @@ from pathlib import Path
 import os
 import json
 
+# Import database
+try:
+    from .database import init_db
+except ImportError:
+    from backend.database import init_db
+
 # Import modular routers
 try:
     from .routers.problems import router as problems_router
-    from .routers.drafts import router as drafts_router  
+    from .routers.drafts import router as drafts_router
     from .routers.auth import router as auth_router
     from .routers.tasks import router as tasks_router
 except ImportError:
@@ -28,6 +34,15 @@ except ImportError:
     from backend.routers.tasks import router as tasks_router
 
 app = FastAPI(title="Automatic Researcher Backend")
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    print("🔄 Initializing database...")
+    if init_db():
+        print("✅ Database initialized successfully")
+    else:
+        print("❌ Database initialization failed")
 
 # CORS middleware
 app.add_middleware(

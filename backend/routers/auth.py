@@ -8,16 +8,15 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
-# Temporarily comment out imports to test
-# from ..database import get_db
-# from ..auth import (
-#     verify_google_token,
-#     get_or_create_user,
-#     create_access_token,
-#     get_current_user,
-#     GOOGLE_CLIENT_ID
-# )
-# from ..db_models import User
+from ..database import get_db
+from ..auth import (
+    verify_google_token,
+    get_or_create_user,
+    create_access_token,
+    get_current_user,
+    GOOGLE_CLIENT_ID
+)
+from ..db_models import User
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -43,13 +42,13 @@ def test_endpoint():
     """Simple test endpoint with no dependencies."""
     return {"status": "auth router working"}
 
-# @router.get("/google/config")
-# def get_google_config():
-#     """Get Google OAuth configuration for frontend."""
-#     return {
-#         "client_id": GOOGLE_CLIENT_ID,
-#         "redirect_uri": "/auth/google/callback"
-#     }
+@router.get("/google/config")
+def get_google_config():
+    """Get Google OAuth configuration for frontend."""
+    return {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": "/auth/google/callback"
+    }
 
 @router.post("/google/login", response_model=AuthResponse)
 async def google_login(payload: GoogleAuthPayload, db: Session = Depends(get_db)):

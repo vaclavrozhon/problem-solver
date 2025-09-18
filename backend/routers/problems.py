@@ -10,7 +10,7 @@ import json
 import time
 import subprocess
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, File, UploadFile
+from fastapi import APIRouter, HTTPException, File, UploadFile, Depends
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from pydantic import BaseModel

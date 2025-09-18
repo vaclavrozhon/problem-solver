@@ -1,7 +1,16 @@
+import { supabase } from './lib/supabase'
+
 const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function req(path: string, opts: RequestInit = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  
+  // Get the current session and add JWT token to headers
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
   return fetch(`${BASE}${path}`, { ...opts, headers });
 }
 
@@ -179,9 +188,17 @@ export async function uploadProblemPaper(problemName: string, file: File, descri
   formData.append('file', file);
   formData.append('description', description);
   
+  // Get the current session and add JWT token to headers
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
   const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
     method: "POST",
     body: formData,
+    headers,
   });
   return r.json();
 }
@@ -190,9 +207,17 @@ export async function uploadDraftPaper(draftName: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
   
+  // Get the current session and add JWT token to headers
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
   const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts_public/${encodeURIComponent(draftName)}/papers/upload`, {
     method: "POST",
     body: formData,
+    headers,
   });
   return r.json();
 }
@@ -225,9 +250,17 @@ export async function uploadProblemTextContent(problemName: string, content: str
     formData.append('description', description);
   }
   
+  // Get the current session and add JWT token to headers
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
   const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
     method: "POST",
     body: formData,
+    headers,
   });
   return r.json();
 }
@@ -243,9 +276,17 @@ export async function uploadDraftTextContent(draftName: string, content: string,
     formData.append('description', description);
   }
   
+  // Get the current session and add JWT token to headers
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
   const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts_public/${encodeURIComponent(draftName)}/papers/upload`, {
     method: "POST",
     body: formData,
+    headers,
   });
   return r.json();
 }

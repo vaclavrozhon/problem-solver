@@ -37,15 +37,10 @@ def build_frontend():
 
 def main():
     print("🚀 Starting Automatic Researcher in Railway production mode...")
-    print("🔄 Starting with pre-built frontend")
+    print("🔄 Backend API only mode")
 
-    # Check if frontend was built by Nixpacks
-    frontend_dist = Path("frontend/dist")
-    if frontend_dist.exists():
-        print("✅ Frontend build found")
-    else:
-        print("⚠️  Frontend build not found, building now...")
-        build_frontend()
+    # Skip frontend build for now - deploy backend only
+    print("⚠️  Skipping frontend build - deploying API only")
 
     # Set up data directory
     data_root = Path(os.environ.get("AR_DATA_ROOT", "./data")).resolve()

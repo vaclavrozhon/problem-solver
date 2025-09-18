@@ -1,4 +1,4 @@
-# Automatic Researcher
+# Jaroslav Cimrman
 
 An AI-powered research system that automates mathematical problem-solving and proof generation using large language models (LLMs). The system orchestrates multiple AI agents in a collaborative research process, with a web interface for monitoring and control.
 

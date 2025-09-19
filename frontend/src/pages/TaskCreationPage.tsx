@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createProblem, createDraft, uploadProblemPaper, uploadDraftPaper, addProblemPaperFromUrl, addDraftPaperFromUrl, uploadProblemTextContent, uploadDraftTextContent } from '../api'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 interface Message {
   type: 'success' | 'error' | 'info'
@@ -9,7 +9,8 @@ interface Message {
 
 export default function TaskCreationPage() {
   const navigate = useNavigate()
-  
+  const [searchParams] = useSearchParams()
+
   // Form state
   const [taskType, setTaskType] = useState<'solving' | 'writing'>('solving')
   const [taskName, setTaskName] = useState('')
@@ -37,6 +38,14 @@ export default function TaskCreationPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<Message | null>(null)
   const [createdTaskName, setCreatedTaskName] = useState<string | null>(null)
+
+  // Set initial task type based on URL parameter
+  useEffect(() => {
+    const typeParam = searchParams.get('type')
+    if (typeParam === 'writing') {
+      setTaskType('writing')
+    }
+  }, [searchParams])
 
   function handleAddSinglePaper() {
     if (newPaperText.trim()) {

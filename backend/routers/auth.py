@@ -1,144 +1,176 @@
 """
-Authentication router for the backend API.
+Authentication router for the database-only backend API.
 
-This module handles all authentication-related endpoints including
-user management, API keys, and authenticated problem operations.
+This module handles Supabase authentication using JWT tokens.
+All filesystem-based authentication has been removed.
 """
 
-import os
-import json
-import subprocess
-import uuid
-from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
-from typing import List
+from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
+from typing import Optional
 
-from ..models import RunParams
-from ..config import DATA_ROOT, user_dir
+from ..db import get_current_user_id, is_database_configured
 
-router = APIRouter(tags=["auth"])
-
-
-def require_user(token: str) -> str:
-    """Require valid user token and return user ID."""
-    if not token:
-        raise HTTPException(400, "token required")
-    
-    # Simple implementation - treat token as user_id directly
-    uid = token
-    if not (user_dir(uid) / "_user.json").exists():
-        raise HTTPException(403, "invalid token")
-    
-    return uid
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class CreateProblemPayload(BaseModel):
-    name: str
-    task_text: str
-    task_ext: str = "md"  # md|txt|tex
+async def get_authenticated_user(authorization: str = Header(...)) -> str:
+    """
+    Dependency to get authenticated user ID from Authorization header.
+
+    Args:
+        authorization: Bearer token from Authorization header
+
+    Returns:
+        User ID
+
+    Raises:
+        HTTPException: If not authenticated or database not configured
+    """
+    if not is_database_configured():
+        raise HTTPException(503, "Database not configured")
+
+    # Extract token from "Bearer <token>" format
+    token = None
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]  # Remove "Bearer " prefix
+
+    user_id = await get_current_user_id(token)
+    if not user_id:
+        raise HTTPException(401, "Authentication required")
+
+    return user_id
 
 
-@router.post("/problems")
-def create_problem(p: CreateProblemPayload, token: str):
-    """Create a new problem for authenticated user."""
-    uid = require_user(token)
-    pdir = user_dir(uid) / "problems" / p.name
-    pdir.mkdir(parents=True, exist_ok=True)
-    task_name = f"task.{p.task_ext.strip().lower()}"
-    (pdir / task_name).write_text(p.task_text, encoding="utf-8")
-    return {"ok": True}
+class SignupRequest(BaseModel):
+    email: str
+    password: str
 
 
-@router.post("/problems/{problem}/run-round")
-def run_round(problem: str, params: RunParams, token: str):
-    """Run research rounds for authenticated user's problem."""
-    uid = require_user(token)
-    root = user_dir(uid)
-    problems_dir = root / "problems"
-    problem_dir = problems_dir / problem
-    if not problem_dir.exists():
-        raise HTTPException(404, "problem not found")
-
-    key_path = root / "_key.txt"
-    if not key_path.exists():
-        raise HTTPException(400, "no API key uploaded for this user")
-    api_key = key_path.read_text(encoding="utf-8").strip()
-
-    env = os.environ.copy()
-    env["OPENAI_API_KEY"] = api_key
-    env["AR_NUM_PROVERS"] = str(params.provers)
-    env["AR_PROVER_TEMPERATURE"] = str(params.temperature)
-
-    cmd = [
-        "python3", "orchestrator.py", str(problem_dir.resolve()),
-        "--rounds", str(params.rounds)
-    ]
-    proc = subprocess.Popen(cmd, cwd=str(Path(__file__).resolve().parent.parent.parent), env=env)
-    return {"ok": True, "pid": proc.pid}
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
-@router.get("/problems/{problem}/runs")
-def list_runs(problem: str, token: str):
-    """List runs for authenticated user's problem."""
-    uid = require_user(token)
-    rd = user_dir(uid) / "problems" / problem / "runs"
-    if not rd.exists():
-        return []
-    return sorted([x.name for x in rd.iterdir() if x.is_dir()])
+@router.post("/signup")
+async def signup(request: SignupRequest):
+    """
+    User signup endpoint using Supabase authentication.
+    """
+    if not is_database_configured():
+        raise HTTPException(503, "Database not configured")
 
-
-@router.get("/problems/{problem}/status")
-def problem_status(problem: str, token: str):
-    """Get status for authenticated user's problem."""
-    uid = require_user(token)
-    status_path = user_dir(uid) / "problems" / problem / "runs" / "live_status.json"
-    if not status_path.exists():
-        return {"phase": "idle"}
     try:
-        return json.loads(status_path.read_text(encoding="utf-8"))
-    except Exception:
-        return {"phase": "idle"}
+        from ..db import supabase
+        if not supabase:
+            raise HTTPException(503, "Database client not available")
 
-
-@router.get("/files")
-def get_file(path: str, token: str):
-    """Get file content for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists():
-        raise HTTPException(404, "not found")
-    return {"path": path, "content": full.read_text(encoding="utf-8")}
-
-
-@router.get("/ls")
-def list_dir(path: str, token: str):
-    """List directory contents for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists() or not full.is_dir():
-        raise HTTPException(404, "not found")
-    items = []
-    for it in sorted(full.iterdir()):
-        items.append({
-            "name": it.name,
-            "is_dir": it.is_dir(),
+        # Create user account with Supabase Auth
+        response = supabase.auth.sign_up({
+            "email": request.email,
+            "password": request.password
         })
-    return {"path": path, "items": items}
+
+        if response.user:
+            return {
+                "message": "Account created successfully. Please check your email for verification.",
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email,
+                    "email_confirmed": response.user.email_confirmed_at is not None
+                }
+            }
+        else:
+            raise HTTPException(400, "Failed to create account")
+
+    except Exception as e:
+        print(f"Signup error: {e}")
+        # Handle common Supabase errors
+        error_msg = str(e)
+        if "already registered" in error_msg.lower():
+            raise HTTPException(400, "Email already registered")
+        elif "password" in error_msg.lower():
+            raise HTTPException(400, "Password does not meet requirements")
+        else:
+            raise HTTPException(500, f"Signup failed: {str(e)}")
 
 
-@router.get("/download")
-def download(path: str, token: str):
-    """Download file for authenticated user."""
-    uid = require_user(token)
-    full = (user_dir(uid) / path).resolve()
-    if not str(full).startswith(str(user_dir(uid).resolve())):
-        raise HTTPException(403, "invalid path")
-    if not full.exists():
-        raise HTTPException(404, "not found")
-    return FileResponse(str(full))
+@router.post("/login")
+async def login(request: LoginRequest):
+    """
+    User login endpoint using Supabase authentication.
+    """
+    if not is_database_configured():
+        raise HTTPException(503, "Database not configured")
+
+    try:
+        from ..db import supabase
+        if not supabase:
+            raise HTTPException(503, "Database client not available")
+
+        # Authenticate with Supabase
+        response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password
+        })
+
+        if response.user and response.session:
+            return {
+                "message": "Login successful",
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email,
+                    "email_confirmed": response.user.email_confirmed_at is not None
+                },
+                "session": {
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token,
+                    "expires_at": response.session.expires_at
+                }
+            }
+        else:
+            raise HTTPException(401, "Invalid email or password")
+
+    except Exception as e:
+        print(f"Login error: {e}")
+        error_msg = str(e)
+        if "invalid" in error_msg.lower() or "credentials" in error_msg.lower():
+            raise HTTPException(401, "Invalid email or password")
+        else:
+            raise HTTPException(500, f"Login failed: {str(e)}")
+
+
+@router.post("/logout")
+async def logout():
+    """
+    Logout endpoint - client should handle token removal.
+    """
+    if not is_database_configured():
+        raise HTTPException(503, "Database not configured")
+
+    # Note: Supabase logout is typically handled client-side by removing tokens
+    # The backend doesn't need to maintain session state since we use JWTs
+    return {
+        "message": "Logout successful. Please remove tokens from client storage."
+    }
+
+
+@router.get("/me")
+async def get_current_user(user_id: str = Depends(get_authenticated_user)):
+    """
+    Get current authenticated user information.
+    """
+    return {
+        "user_id": user_id,
+        "authenticated": True
+    }
+
+
+# Health check endpoint
+@router.get("/health")
+async def health_check():
+    """Check if authentication endpoints are available."""
+    return {
+        "status": "healthy" if is_database_configured() else "database_unavailable",
+        "database_configured": is_database_configured()
+    }

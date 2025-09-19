@@ -1,2 +1,0 @@
-High-level assessment
-- All four reports converge on a coherent strategy: (i) construct exponentially many vertex-context types via a uniform, radius-1 per-bit probe family {Q_j}; (ii) gate colors at S to canonical vertex blocks; (iii) implement a seam tableau that computes D(u,v) and enforces inequality on edges; (iv) neutralize (F2) by a global ⊥-plumbing. Prover 02 additionally proposes an Eq(u,v) gate to force consistency across left/right copies of the same vertex.

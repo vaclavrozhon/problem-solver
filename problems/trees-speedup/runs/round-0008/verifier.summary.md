@@ -1,1 +1,0 @@
-Thank you for the two detailed reports. Here is a consolidated audit and guidance.

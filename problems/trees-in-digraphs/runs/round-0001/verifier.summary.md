@@ -1,5 +1,0 @@
-- Strong improvement: Outstar-with-δ+-common-leaves holds with additive S_{k,ℓ}=Θ(ℓ^k) via level-dependent thresholds (replacing 2kℓ^k). Proof checked.
-- Improved ray packing: h ≥ kℓ^{k+1}+2ℓ^k+ℓ suffices (vs 3kℓ^{k+1}).
-- Corollary: δ^+(G) ≥ f(k,h)+S_{k,ℓ) forces T(k,ℓ).
-- k=2 spiders: new bound δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2 via 2-walks and a maximum matching; fixes a gap in the paper.
-- Next: pursue global selection (nibble/matching) to get (1+o(1))ℓ^k and improve f(k,h).

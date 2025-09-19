@@ -1,1 +1,0 @@
-Correct uniform certificate and K≥4 counterexample; exact K=3 augmentation formula; refined holdout counting M_c. Fix needed: holdout Hoeffding constant should be 8/ε^2, not 2/ε^2. Exponential-in-K holdout remains; propose VC-dimension analysis of top-of-set indicators to target O((K log K)/ε^2). K=3 separation corollary remains sound with strict margins.

@@ -1,1 +1,0 @@
-Overall, both reports are useful and largely on target, but there are a couple of concrete correctness issues in the counterexamples used to refute the “block-expansion” brainstorm claim. I consolidate what is right, flag what is wrong, and propose next steps that build directly on the sound parts.

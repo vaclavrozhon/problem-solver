@@ -1,5 +1,0 @@
-Round X summary — progress and open pivot.
-- Established core building blocks: reachable allocations are individually rational (IR); reachability to any fixed target on a tree is decidable in O(n^2) (good-edge scheduler) and produces a witness; global Pareto-efficiency (PO) of a given allocation is testable in O(n^2) via the improvement-digraph (PO ⇔ no directed cycle). Hence TREE-REACHABLE-PE ∈ NP (certificate = target allocation).
-- TTC (Top Trading Cycles) is globally PO, so TTC reachability gives a one-sided polynomial certificate (if reachable, return TTC and swaps). However a provided counterexample shows PO does not imply membership in the core, so TTC is not automatically the unique globally-PO IR outcome; the key claim “IR+PO ⇒ TTC” remains unproven and is the decisive open pivot. Until it is proved or refuted, polynomial-time decidability on trees is unresolved.
-Next steps: attempt an inductive proof or search small instances (n≤6) for counterexamples; explore an FPT DP by treewidth.
-Sources: papers/paper1.txt; research notes (round X).

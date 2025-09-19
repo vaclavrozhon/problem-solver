@@ -1,4 +1,0 @@
-High-level assessment and triage
-- Both reports correctly identify the model as PBT (parallel adjacent block transpositions). That alignment with Jelínek–Opler–Pekárek (JOP) is valuable and gives context (O(log^2 n) upper bound, only Ω(log n) general LB known).
-- The end-point calibration is solid: for n=2^d and bit-reversal A0, B_j(A0)=2^{j+1} and for sorted A*, B_j(A*)=2^{d−j}. The potential Φ(A)=Σ_j |log_2 B_j(A)−(d−j)| is Θ(d^2) at A0.
-- The most useful rigor you can bank now is a clean, general per-level multiplicative cap: in any single PBT step, B_j can change by only a constant factor. We can prove B_j(A′)≤4 B_j(A) and B_j(A)≤4 B_j(A′) for every j. This is stronger (and cleaner) than the c=7 claim in Report 02 and does not rely on the flawed “useful boundary” refinement in Report 01.

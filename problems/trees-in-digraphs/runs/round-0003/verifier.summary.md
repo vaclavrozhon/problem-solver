@@ -1,4 +1,0 @@
-- Verified: variable-threshold outstar lemma with S_{k,ℓ}=Θ_ℓ(ℓ^k); explicit constants provided.
-- Refined ray packing: exact h ≥ |V(B)| + kℓ·|L| + ℓ, i.e., h = kℓ^{k+1} + (ℓ^{k+1}−1)/(ℓ−1) + ℓ.
-- k=2: matching-based repair yields δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2; stronger claims omit a necessary +d term.
-- Next: global matching/nibble for children and rays; improve f(k,h).

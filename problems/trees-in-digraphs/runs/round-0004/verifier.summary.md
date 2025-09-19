@@ -1,4 +1,0 @@
-- Variable-threshold outstar lemma verified; S_{k,ℓ}=Θ_ℓ(ℓ^k). Correct ℓ=2 sum: S_{k,2}=4·2^k−k−5.
-- Ray packing sharpened: h ≥ (|V(B)|−1)+(|L|−1)kℓ+ℓ = kℓ^{k+1}−kℓ+(ℓ^{k+1}−1)/(ℓ−1)+ℓ.
-- k=2 spiders: rigorous threshold δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2; stronger ≈3ℓ or (1+√3)ℓ claims invalid.
-- Next: global matching/nibble for children and rays; improve f(k,h).

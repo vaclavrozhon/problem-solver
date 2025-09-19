@@ -1,1 +1,0 @@
-Overall, this is a high‑quality, focused report that advances the program along three fronts: (i) fixing conventions, (ii) settling |A|=3 constructively, and (iii) providing concrete, auditable test vectors and a nontrivial solvable subclass for |A|=4. I summarize the audit and next steps.

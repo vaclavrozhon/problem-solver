@@ -1,1 +1,0 @@
-Sealed finite-bubble forcing works for odd D (both ≤D and =D) and fails for even D (parity). Two‑way bridges are dense meagre; thus bridgeless is comeagre in even D‑regular under local/strongly‑local metrics. Strongly‑local metrics preserve these typicality results. Even D in ≤D remains open; Prover 2’s fix is invalid by parity.

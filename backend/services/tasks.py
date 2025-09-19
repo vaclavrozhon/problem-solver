@@ -5,8 +5,8 @@ This service provides task management using Supabase database storage.
 All filesystem references have been removed.
 """
 
-from typing import Optional
 from fastapi import HTTPException
+from supabase import Client
 
 from ..services.database import DatabaseService
 
@@ -16,21 +16,21 @@ class TaskService:
 
     @staticmethod
     async def create_problem(
+        db: Client,
         name: str,
         task_description: str,
         user_id: str,
-        task_type: str = "txt",
-        auth_token: Optional[str] = None
+        task_type: str = "txt"
     ) -> str:
         """
         Create a new problem/solving task using database storage.
 
         Args:
+            db: Authenticated Supabase client
             name: Problem name
             task_description: Problem description
             user_id: User ID (required)
             task_type: File type (stored in config)
-            auth_token: JWT token for authenticated requests
 
         Returns:
             Problem ID as string
@@ -41,6 +41,7 @@ class TaskService:
 
         try:
             problem = await DatabaseService.create_problem(
+                db=db,
                 user_id=user_id,
                 name=name,
                 task_description=task_description,
@@ -54,6 +55,7 @@ class TaskService:
 
     @staticmethod
     async def create_draft(
+        db: Client,
         name: str,
         task_description: str,
         user_id: str
@@ -103,6 +105,7 @@ TODO: Write introduction
 
             # Create problem with draft configuration
             problem = await DatabaseService.create_problem(
+                db=db,
                 user_id=user_id,
                 name=name,
                 task_description=task_description,
@@ -111,6 +114,7 @@ TODO: Write introduction
 
             # Add the LaTeX file
             await DatabaseService.update_problem_file(
+                db=db,
                 problem_id=problem['id'],
                 file_type='draft_tex',
                 content=tex_content,
@@ -124,11 +128,12 @@ TODO: Write introduction
             raise HTTPException(500, f"Failed to create draft: {str(e)}")
 
     @staticmethod
-    async def delete_problem(name: str, user_id: str) -> bool:
+    async def delete_problem(db: Client, name: str, user_id: str) -> bool:
         """
         Delete a problem and all its associated data using database storage.
 
         Args:
+            db: Authenticated Supabase client
             name: Problem name or ID
             user_id: User ID (required)
 
@@ -143,13 +148,13 @@ TODO: Write introduction
             # Try to parse name as problem ID first
             try:
                 problem_id = int(name)
-                return await DatabaseService.delete_problem(problem_id, user_id)
+                return await DatabaseService.delete_problem(db, problem_id)
             except ValueError:
                 # If not a valid integer, treat as name and find by name
-                problems = await DatabaseService.get_user_problems(user_id)
+                problems = await DatabaseService.get_user_problems(db)
                 for problem in problems:
                     if problem['name'] == name:
-                        return await DatabaseService.delete_problem(problem['id'], user_id)
+                        return await DatabaseService.delete_problem(db, problem['id'])
 
                 raise HTTPException(404, f"Problem '{name}' not found")
 
@@ -160,11 +165,12 @@ TODO: Write introduction
             raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
     @staticmethod
-    async def reset_problem(problem_id: int, user_id: str) -> bool:
+    async def reset_problem(db: Client, problem_id: int, user_id: str) -> bool:
         """
         Reset a problem - keep task description, delete all round data.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             user_id: User ID for ownership verification
 
@@ -177,12 +183,12 @@ TODO: Write introduction
 
         try:
             # Verify ownership
-            problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+            problem = await DatabaseService.get_problem_by_id(db, problem_id)
             if not problem:
                 raise HTTPException(404, "Problem not found")
 
             # Get all files to identify what to delete/reset
-            files = await DatabaseService.get_problem_files(problem_id)
+            files = await DatabaseService.get_problem_files(db, problem_id)
 
             # Reset base files to initial state
             base_files_to_reset = ['notes', 'proofs', 'output']
@@ -194,6 +200,7 @@ TODO: Write introduction
                 }.get(file_type, '')
 
                 await DatabaseService.update_problem_file(
+                    db=db,
                     problem_id=problem_id,
                     file_type=file_type,
                     content=initial_content,

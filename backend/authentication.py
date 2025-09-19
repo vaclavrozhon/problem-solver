@@ -95,8 +95,15 @@ def get_current_user(
         sb = get_supabase_client()
 
         # Verifies signature & expiry via the project's JWKS, then returns claims
-        claims = sb.auth.get_claims(jwt=token)
-        logger.info(f"Claims: {claims} from Token: {token}")
+        claims_response = sb.auth.get_claims(jwt=token)
+        logger.info(f"Claims response: {claims_response} from Token: {token}")
+
+        # Extract the actual claims from the nested structure
+        claims = claims_response.get("claims", {})
+        if not claims:
+            raise HTTPException(
+                status_code=401, detail="Invalid token: no claims found"
+            )
 
         # Extract user information from claims
         user_id = claims.get("sub")
@@ -156,7 +163,12 @@ def get_optional_user(request: Request) -> Optional[AuthedUser]:
     try:
         token = auth_header.split(" ")[1]
         sb = get_supabase_client()
-        claims = sb.auth.get_claims(jwt=token)
+        claims_response = sb.auth.get_claims(jwt=token)
+        
+        # Extract the actual claims from the nested structure
+        claims = claims_response.get("claims", {})
+        if not claims:
+            return None
 
         user_id = claims.get("sub")
         if not user_id:

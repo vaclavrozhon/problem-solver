@@ -1,7 +1,7 @@
 import React from 'react'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../config/supabase'
 
 export default function LoginPage() {
   return (

@@ -1,0 +1,305 @@
+"""
+Problem execution router.
+
+Handles running and stopping problems:
+- Get problem status
+- Start research runs
+- Stop running problems
+- Background execution management
+"""
+
+import sys
+import os
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, Header, Depends
+
+from ...services.database import DatabaseService
+from ...db import get_current_user_id, is_database_configured
+
+router = APIRouter()
+
+
+async def get_authenticated_user(authorization: str = Header(..., alias="Authorization")) -> str:
+    """
+    Dependency to get authenticated user ID from Authorization header.
+    """
+    if not is_database_configured():
+        raise HTTPException(503, "Database not configured")
+
+    token = None
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]
+
+    user_id = await get_current_user_id(token)
+    if not user_id:
+        raise HTTPException(401, "Authentication required")
+
+    return user_id
+
+
+@router.get("/{problem_name}/status")
+async def get_problem_status(
+    problem_name: str,
+    authorization: str = Header(..., alias="Authorization"),
+    user_id: str = Depends(get_authenticated_user)
+):
+    """
+    Get detailed status for a problem including rounds and files.
+
+    Args:
+        problem_name: Problem name
+        user_id: Authenticated user ID
+
+    Returns:
+        Problem status with rounds and recent activity
+    """
+    try:
+        # Extract token for authenticated database queries
+        token = None
+        if authorization.startswith("Bearer "):
+            token = authorization[7:]  # Remove "Bearer " prefix
+
+        # Get problem by name first
+        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        if not problem:
+            raise HTTPException(404, "Problem not found")
+
+        problem_id = problem['id']
+
+        # Get all files to analyze rounds
+        files = await DatabaseService.get_problem_files(problem_id)
+
+        # Group files by round
+        rounds_data = {}
+        base_files = {}
+
+        for file in files:
+            if file['round'] == 0:
+                base_files[file['file_type']] = file
+            else:
+                round_num = file['round']
+                if round_num not in rounds_data:
+                    rounds_data[round_num] = {
+                        "number": round_num,
+                        "files": {},
+                        "status": "completed",
+                        "created_at": None
+                    }
+
+                rounds_data[round_num]['files'][file['file_type']] = file
+                if not rounds_data[round_num]['created_at'] or file['created_at'] > rounds_data[round_num]['created_at']:
+                    rounds_data[round_num]['created_at'] = file['created_at']
+
+        # Sort rounds by number
+        rounds = [rounds_data[num] for num in sorted(rounds_data.keys())]
+
+        # Add round summaries and verdicts from files
+        for round_info in rounds:
+            round_files = round_info['files']
+
+            # Extract verdict from verifier output
+            if 'verifier_output' in round_files:
+                try:
+                    import json
+                    verifier_data = json.loads(round_files['verifier_output']['content'])
+                    round_info['verdict'] = verifier_data.get('verdict')
+                except:
+                    pass
+
+            # Extract one-line summary from summarizer output
+            if 'summarizer_output' in round_files:
+                try:
+                    import json
+                    summarizer_data = json.loads(round_files['summarizer_output']['content'])
+                    round_info['one_line_summary'] = summarizer_data.get('one_line_summary')
+                    round_info['summary'] = summarizer_data.get('summary', '')
+                except:
+                    pass
+
+        # Determine if currently running
+        is_running = problem['status'] == 'running'
+
+        return {
+            "problem": problem,
+            "overall": {
+                "phase": problem['status'],
+                "current_round": problem['current_round'],
+                "is_running": is_running,
+                "total_rounds": len(rounds),
+                "last_updated": problem['updated_at']
+            },
+            "rounds": rounds,
+            "base_files": base_files
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting problem status: {e}")
+        raise HTTPException(500, f"Failed to get problem status: {str(e)}")
+
+
+@router.post("/{problem_name}/run")
+async def run_problem(
+    problem_name: str,
+    request: dict,
+    authorization: str = Header(..., alias="Authorization"),
+    user_id: str = Depends(get_authenticated_user)
+):
+    """
+    Start a research run for a problem.
+
+    Args:
+        problem_name: Problem name
+        request: Run configuration (rounds, provers, etc.)
+        user_id: Authenticated user ID
+
+    Returns:
+        Run start confirmation
+    """
+    try:
+        # Extract token for authenticated database queries
+        token = None
+        if authorization.startswith("Bearer "):
+            token = authorization[7:]  # Remove "Bearer " prefix
+
+        # Get problem by name first
+        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        if not problem:
+            raise HTTPException(404, "Problem not found")
+
+        problem_id = problem['id']
+
+        # Update problem status to "running"
+        status_updated = await DatabaseService.update_problem_status(problem_id, "running", token)
+        if not status_updated:
+            raise HTTPException(500, "Failed to update problem status")
+
+        print(f"🚀 Starting research run for problem '{problem_name}' (ID: {problem_id})")
+        print(f"📋 Run configuration: {request}")
+
+        # Start the research run using the orchestrator
+        import asyncio
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user_id, token))
+
+        return {
+            "message": f"Research run started for problem '{problem_name}'",
+            "problem_id": problem_id,
+            "status": "running",
+            "config": request
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error starting run: {e}")
+        raise HTTPException(500, f"Failed to start run: {str(e)}")
+
+
+@router.post("/{problem_name}/stop")
+async def stop_problem(
+    problem_name: str,
+    authorization: str = Header(..., alias="Authorization"),
+    user_id: str = Depends(get_authenticated_user)
+):
+    """
+    Stop a running problem.
+
+    Args:
+        problem_name: Problem name
+        user_id: Authenticated user ID
+
+    Returns:
+        Success message
+    """
+    try:
+        # Extract token for authenticated database queries
+        token = None
+        if authorization.startswith("Bearer "):
+            token = authorization[7:]  # Remove "Bearer " prefix
+
+        # Get problem by name first
+        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        if not problem:
+            raise HTTPException(404, "Problem not found")
+
+        problem_id = problem['id']
+
+        # Update problem status to "idle"
+        success = await DatabaseService.update_problem_status(problem_id, "idle", token)
+        if not success:
+            raise HTTPException(500, "Failed to stop problem")
+
+        return {
+            "message": f"Problem '{problem_name}' stopped successfully",
+            "problem_id": problem_id,
+            "status": "idle"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error stopping problem: {e}")
+        raise HTTPException(500, f"Failed to stop problem: {str(e)}")
+
+
+async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, auth_token: str):
+    """
+    Start a research run using the orchestrator.
+    This runs in the background as an async task.
+    """
+    try:
+        # Add orchestrator to path
+        orchestrator_path = Path(__file__).parent.parent.parent.parent / "orchestrator"
+        sys.path.insert(0, str(orchestrator_path))
+
+        from orchestrator.runner import run_round
+        from orchestrator.utils import write_status
+
+        # Create problem directory structure
+        data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
+        user_dir = data_root / user_id / "problems" / problem_name
+        user_dir.mkdir(parents=True, exist_ok=True)
+
+        # Extract configuration
+        rounds = config.get('rounds', 1)
+        provers = config.get('provers', 1)
+        temperature = config.get('temperature', 0.7)
+        preset = config.get('preset', 'gpt5')
+        prover_configs = config.get('prover_configs', [])
+        focus_description = config.get('focus_description')
+
+        print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
+
+        # Run the research rounds
+        for round_idx in range(1, rounds + 1):
+            print(f"🔍 Starting round {round_idx}/{rounds}")
+            write_status(user_dir, "running", round_idx)
+
+            # Run the round using orchestrator
+            run_round(
+                problem_dir=user_dir,
+                round_idx=round_idx,
+                num_provers=provers,
+                prover_configs=prover_configs,
+                focus_description=focus_description
+            )
+
+            print(f"✅ Completed round {round_idx}/{rounds}")
+
+        # Update status to completed
+        await DatabaseService.update_problem_status(problem_id, "completed", auth_token)
+        write_status(user_dir, "completed", rounds)
+        print(f"🎉 Research run completed for problem '{problem_name}'")
+
+    except Exception as e:
+        print(f"❌ Error in research run for problem '{problem_name}': {e}")
+        # Update status to failed
+        await DatabaseService.update_problem_status(problem_id, "failed", auth_token)
+
+        # Write error status to file system
+        try:
+            user_dir = data_root / user_id / "problems" / problem_name
+            write_status(user_dir, "failed", 0)
+        except:
+            pass

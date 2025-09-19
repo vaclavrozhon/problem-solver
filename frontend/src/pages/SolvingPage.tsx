@@ -56,8 +56,8 @@ export default function SolvingPage() {
   // =============================================================================
   
   /** List of all available problems */
-  const [problems, setProblems] = useState<string[]>([])
-  
+  const [problems, setProblems] = useState<{id: number, name: string}[]>([])
+
   /** Currently selected problem name */
   const [selectedProblem, setSelectedProblem] = useState<string | null>(null)
   
@@ -109,7 +109,8 @@ export default function SolvingPage() {
   /** Handle URL parameter-based problem selection */
   useEffect(() => {
     const problemFromUrl = searchParams.get('problem')
-    if (problemFromUrl && problems.includes(problemFromUrl) && selectedProblem !== problemFromUrl) {
+    const problemNames = problems.map(p => p.name)
+    if (problemFromUrl && problemNames.includes(problemFromUrl) && selectedProblem !== problemFromUrl) {
       setSelectedProblem(problemFromUrl)
     }
   }, [problems, searchParams, selectedProblem])
@@ -164,23 +165,23 @@ export default function SolvingPage() {
   /**
    * Refreshes status for all problems (or provided list)
    */
-  const refreshAllStatuses = async (problemList: string[] = problems) => {
+  const refreshAllStatuses = async (problemList: {id: number, name: string}[] = problems) => {
     if (problemList.length === 0) return
 
     try {
       // Fetch status for all problems in parallel
       const statusPromises = problemList.map(async (problem) => {
         try {
-          const status = await getStatus(problem)
-          return { problem, status }
+          const status = await getStatus(problem.name)
+          return { problem: problem.name, status }
         } catch (error) {
-          console.error(`Failed to get status for ${problem}:`, error)
-          return { problem, status: null }
+          console.error(`Failed to get status for ${problem.name}:`, error)
+          return { problem: problem.name, status: null }
         }
       })
 
       const results = await Promise.all(statusPromises)
-      
+
       // Update status map with results
       const newStatusMap: Record<string, ProblemStatus> = {}
       results.forEach(({ problem, status }) => {
@@ -445,12 +446,12 @@ export default function SolvingPage() {
    */
   const renderMetrics = () => {
     const runningCount = problems.filter(p => {
-      const status = statusMap[p]
+      const status = statusMap[p.name]
       return status?.overall.is_running && status.overall.phase !== 'idle'
     }).length
 
     const totalRounds = problems.reduce((sum, p) => {
-      const status = statusMap[p]
+      const status = statusMap[p.name]
       return sum + (status?.overall.current_round || 0)
     }, 0)
 
@@ -597,7 +598,7 @@ export default function SolvingPage() {
       }}>
         {/* Problem sidebar */}
         <ProblemSidebar
-          problems={problems}
+          problems={problems.map(p => p.name)}
           selectedProblem={selectedProblem}
           statusMap={statusMap}
           onProblemSelect={selectProblem}

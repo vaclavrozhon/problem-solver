@@ -72,6 +72,10 @@ async def signup(request: SignupRequest):
         })
 
         if response.user:
+            # Create user record in our users table with initial last_login
+            from ..services.database import DatabaseService
+            await DatabaseService.update_user_last_login(response.user.id)
+
             return {
                 "message": "Account created successfully. Please check your email for verification.",
                 "user": {
@@ -115,6 +119,10 @@ async def login(request: LoginRequest):
         })
 
         if response.user and response.session:
+            # Update last_login timestamp in our users table
+            from ..services.database import DatabaseService
+            await DatabaseService.update_user_last_login(response.user.id)
+
             return {
                 "message": "Login successful",
                 "user": {
@@ -158,12 +166,39 @@ async def logout():
 @router.get("/me")
 async def get_current_user(user_id: str = Depends(get_authenticated_user)):
     """
-    Get current authenticated user information.
+    Get current authenticated user information including last_login.
     """
-    return {
-        "user_id": user_id,
-        "authenticated": True
-    }
+    try:
+        from ..db import get_db
+        db = get_db()
+        if db:
+            # Get user details from our users table
+            user_data = db.table('users')\
+                .select('*')\
+                .eq('id', user_id)\
+                .execute()
+
+            if user_data.data:
+                user_info = user_data.data[0]
+                return {
+                    "user_id": user_id,
+                    "authenticated": True,
+                    "last_login": user_info.get('last_login'),
+                    "credits_used": user_info.get('credits_used', 0),
+                    "credits_limit": user_info.get('credits_limit', 100),
+                    "is_active": user_info.get('is_active', True)
+                }
+
+        return {
+            "user_id": user_id,
+            "authenticated": True
+        }
+    except Exception as e:
+        print(f"Error getting user info: {e}")
+        return {
+            "user_id": user_id,
+            "authenticated": True
+        }
 
 
 # Health check endpoint

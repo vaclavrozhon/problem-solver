@@ -6,6 +6,7 @@ import OverviewPage from './pages/OverviewPage'
 import SolvingPage from './pages/SolvingPage'
 import WritingPage from './pages/WritingPage'
 import TaskCreationPage from './pages/TaskCreationPage'
+import AuthCallback from './pages/AuthCallback'
 
 function AppContent() {
   const { user, signOut } = useAuth()
@@ -61,9 +62,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ProtectedRoute>
-          <AppContent />
-        </ProtectedRoute>
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <AppContent />
+            </ProtectedRoute>
+          } />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   )

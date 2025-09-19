@@ -52,15 +52,22 @@ class CreateTaskRequest(BaseModel):
 @router.post("/problems/create")
 async def create_problem(
     request: CreateTaskRequest,
+    authorization: str = Header(...),
     user_id: str = Depends(get_authenticated_user)
 ):
     """Create a new problem/solving task."""
     try:
+        # Extract token from "Bearer <token>" format
+        auth_token = None
+        if authorization.startswith("Bearer "):
+            auth_token = authorization[7:]
+
         problem_id = await TaskService.create_problem(
             name=request.name,
             task_description=request.task_description,
             user_id=user_id,
-            task_type=request.task_type
+            task_type=request.task_type,
+            auth_token=auth_token
         )
         return {
             "message": f"Problem '{request.name}' created successfully",

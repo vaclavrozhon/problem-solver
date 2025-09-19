@@ -87,8 +87,16 @@ export async function deleteRound(problemName: string, roundName: string) {
 }
 
 export async function listFiles(name: string) {
-  const r = await req(`/problems/${encodeURIComponent(name)}/files`);
-  return r.json();
+  try {
+    const r = await req(`/problems/${encodeURIComponent(name)}/files`);
+    const data = await r.json();
+    // Backend returns {files: [...], total: N, filters: {...}}
+    // Frontend expects just the files array
+    return Array.isArray(data) ? data : (data.files || []);
+  } catch (error) {
+    console.error('Failed to list files:', error);
+    return [];
+  }
 }
 
 export async function getFileContent(name: string, filePath: string, version?: string) {

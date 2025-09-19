@@ -252,8 +252,12 @@ export default function OverviewPage() {
 
         {problems.length === 0 && !isInitialLoad && (
           <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '50px' }}>
-            <p>No problems found in the problems/ directory.</p>
-            <p>Create a new problem directory with a task.md file to get started.</p>
+            <p>No research problems found.</p>
+            <p>
+              <Link to="/create" style={{ color: '#2563eb', textDecoration: 'none' }}>
+                <strong>Create a new research problem</strong>
+              </Link> to get started with problem solving.
+            </p>
           </div>
         )}
       </div>
@@ -308,8 +312,12 @@ export default function OverviewPage() {
 
         {drafts.length === 0 && !isInitialLoad && (
           <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '50px' }}>
-            <p>No drafts found in the drafts/ directory.</p>
-            <p>Create a new draft directory to get started with paper writing.</p>
+            <p>No writing projects found.</p>
+            <p>
+              <Link to="/create?type=writing" style={{ color: '#2563eb', textDecoration: 'none' }}>
+                <strong>Create a new writing project</strong>
+              </Link> to get started with paper writing.
+            </p>
           </div>
         )}
       </div>

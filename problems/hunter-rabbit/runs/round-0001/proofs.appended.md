@@ -1,2 +1,0 @@
-# Rigorous Proofs
-

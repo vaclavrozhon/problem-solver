@@ -1,1 +1,0 @@
-Overall, both reports make valuable contributions. There is one critical technical flaw that we must fix in output.md, and several additions we can safely incorporate.

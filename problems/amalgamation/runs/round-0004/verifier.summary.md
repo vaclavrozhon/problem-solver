@@ -1,1 +1,0 @@
-High-level: This round brings a useful structural idea (the 2+2 vertex-sign ansatz) and an attempt to reduce |A|=4 to a tiny number of local membership checks. The combinatorial core (Lemma 11 in your report) is sound and valuable. However, there are two key rigor issues that need correction before we can rely on the proposed reduction.

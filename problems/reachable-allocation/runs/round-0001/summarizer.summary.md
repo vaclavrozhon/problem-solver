@@ -1,7 +1,0 @@
-Round summary — main progress and open pivot.
-- Problem: TREE-REACHABLE-PE (given a tree, initial endowment and strict preferences, decide/produce a reachable allocation that is globally Pareto-efficient).
-- Proven/implemented: reachable allocations are individually rational; reachability to any fixed target on a tree is decidable in O(n^2) via good-edge scheduling; global Pareto-efficiency (PO) can be checked in O(n^2) by the improvement-digraph (no directed cycle). Hence TREE-REACHABLE-PE ∈ NP (certificate = target allocation). TTC (Top Trading Cycles) is globally PO and thus serves as a one-sided polynomial-time certificate: compute TTC and test tree-reachability.
-- Algorithmic/complexity landscape recorded: Reachable Object and PE on paths (O(n^2)), PE on generalized stars (O(n^2 log n) in the agent-moving model), reachable matching on trees (O(n^2)). NP-completeness / NP-hardness: Reachable Object on cliques NP-complete; Reachable Matching on cliques NP-complete; PE on cliques NP-hard (reductions from 2P1N-SAT).
-- Crucial open pivot: whether every IR + global-PO allocation must equal the TTC outcome. If true, TREE-REACHABLE-PE reduces to checking TTC reachability (polytime); if false, the general tree case remains open.
-
-Citations: papers/paper1.txt (Li, Plaxton, Sinha, arXiv:2103.01394); Research notes (round X).

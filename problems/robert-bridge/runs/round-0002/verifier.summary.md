@@ -1,3 +1,0 @@
-Settled: Nowhere density is root‑invariant for all unrooted properties P. Key lemma: closure and interior of a saturated set are saturated, so Int(cl S_P)=∅ is independent of rooting. Prover 2’s alternative cylinder formulation is consistent.
-Not settled: Full meagre root‑invariance via quotient; P1’s proof uses a faulty openness step. Prover 2’s route (saturation of nowhere‑dense sets is meagre) is promising but needs complete “marker” gadgets and a rigorous comeagre domain of re‑root homeomorphisms, especially for Δ= D.
-Next: finalize the saturated‑closure lemma in proofs.md (done here), and develop the marker/selector machinery to resolve the meagre part.

@@ -1,9 +1,0 @@
-The core improvements are now rigorous and consistent. The variable-threshold Γ-scheme with t_{k−i}=ℓ^{i+1}+⌈(ℓ^{i+1}−1)/(ℓ−1)⌉ (and t_k=ℓ) is correct; the lexicographic argument and the depth-greedy extension both check out. This removes the linear-in-k factor, giving S_{k,ℓ}=Θ_ℓ(ℓ^k), and the constants have been standardized (notably S_{k,2}=4·2^k−k−5). Please keep this exact ℓ=2 formula; earlier “−4−k” was off by 1.
-
-Ray packing: the exact, tight greedy threshold is h ≥ (|V(B)|−1)+(|L|−1)·kℓ+ℓ with |V(B)|=(ℓ^{k+1}−1)/(ℓ−1), |L|=ℓ^k. This improves both 3kℓ^{k+1} and the coarser kℓ^{k+1}+2ℓ^k+ℓ; it also refines the previously stated kℓ^{k+1} + (ℓ^{k+1}−1)/(ℓ−1) + ℓ by an additive kℓ and an exact −1. Greedy tightness examples (blocking rays one-by-one) justify that no further improvement is available under one-by-one selection.
-
-k=2 spiders: the maximum-matching repair must subtract 2-walks starting at a (deg^+_B(a)≤d) when turning |V→B→{a}| into |E(H)|. The resulting rigorous bound s ≥ d(d−2ℓ+1)/(d+2ℓ−1) (or the close (d−1)-variant) yields the threshold δ^+ > ((3ℓ−1)+√(17ℓ^2−10ℓ+1))/2. Claims near 3ℓ or (1+√3)ℓ omit the +d correction and should be discarded.
-
-Useful formalization: the robust δ+-commonness with forbidden sets lemma (P_F at threshold d(P)+|F|) is correct and streamlines avoidance in Γ- and packing steps.
-
-Next steps: (i) Develop a per-depth global b-matching/nibble to cut the |V(B_i)| overhead to o(ℓ^{i+1}), targeting S_{k,ℓ}=(1+o(1))·C(ℓ)·ℓ^k. (ii) Globalize ray packing via hypergraph matching/flow to approach h=(1+o(1))kℓ^{k+1}. (iii) Pursue improved bounds for f(k,h) (preferably polynomial in h for fixed k) to convert the structural advances into substantially smaller δ^+ thresholds.

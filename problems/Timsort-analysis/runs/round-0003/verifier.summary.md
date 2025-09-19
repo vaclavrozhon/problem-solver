@@ -1,1 +1,0 @@
-We validated a complete, self-contained proof that Python’s TimSort (with the repaired guard) uses O(n + nH) comparisons for run-length entropy H, and clarified that “O(nH)” without an additive n term is impossible (H can be 0) and that the tight worst-case constant for TimSort is 3/2. Next, finalize the potential-function proof for (3/2) nH + O(n).

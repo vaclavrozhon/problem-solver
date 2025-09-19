@@ -1,1 +1,0 @@
-We validated a complete, self-contained proof that Python’s TimSort (with the repaired guard) uses O(n + nH) comparisons for run-length entropy H, and recorded it as the main result. The stricter “O(nH)” claim is false for TimSort; and the tight leading constant is 3/2. We propose finishing the potential-function proof for the exact (3/2) nH + O(n) bound in a subsequent round.

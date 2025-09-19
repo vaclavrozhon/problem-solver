@@ -1,1 +1,0 @@
-We finalized a rigorous, self-contained resolution: (1) In L∞, MST_log ≤ Reg_log via Kruskal’s integral and a sparse H(t). (2) For any norm, MST_log^N ≤ (1+(log b_N)/log 3)·Reg_log. (3) No constant reverse bound: parity/mod-m families yield Reg/MST = Θ(log n). (4) Universal reverse bound Reg ≤ (log(1+n)/c_N)·MST_log^N. The Θ(log n) gap is tight. Output.md contains full proofs.

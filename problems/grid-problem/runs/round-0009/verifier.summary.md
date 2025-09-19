@@ -1,2 +1,0 @@
-Summary of audit and integration
-- Editorial checks. Both provers flagged the same cosmetic issue in Theorem 11 (the ambiguous “v(β)=1”). Agreed: it should be “v_α(β)=1 for the unique contributing α” (equivalently T_3(β)=1). We retain the proof as correct and add an editorial correction.

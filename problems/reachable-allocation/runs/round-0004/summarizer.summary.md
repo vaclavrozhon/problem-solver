@@ -1,4 +1,0 @@
-Round summary (last round):
-- Established robust verification primitives: any reachable allocation is individually rational (IR); reachability to a fixed target on a tree can be decided in O(n^2) (good-edge scheduler) and yields a witness; global Pareto-efficiency (PO) of a given allocation is testable in O(n^2) via the improvement-digraph (PO ⇔ no directed cycle). Consequently, TREE-REACHABLE-PE ∈ NP (certificate = target allocation).
-- TTC (Top Trading Cycles) remains a useful one-sided polynomial certificate: if µ_TTC is reachable on the tree, return it and the swap sequence. However, a simple 3-agent counterexample shows PO ≠ core, so TTC need not be the unique IR+PO outcome; the crucial claim “IR+PO ⇒ TTC” is unresolved. 
-- Parameter/algorithmic observations: enumerating ≤k movers gives an XP algorithm (n^{O(k)}); promising directions include FPT-by-treewidth DP and focused small-instance search (n≤6) for counterexamples or structural patterns. 

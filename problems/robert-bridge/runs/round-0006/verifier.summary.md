@@ -1,1 +1,0 @@
-ND root‑invariance established via cylinder refinements (root‑free). Quotient‑openness claims rejected. For D≥3, “has a 2‑way infinite bridge” is meagre (not ND) via k‑local ND decomposition and Δ= D completion; this is root‑invariant as a saturated union. Theorem 4 is false as stated; needs correction. Gadgets for bridges/cuts require explicit degree/parity accounting.

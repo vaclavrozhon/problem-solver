@@ -1,1 +1,0 @@
-Overall assessment: We have solid incremental advances and one clear, rigorous new tool (the union‑bound feasibility lemma) plus a correct global parity invariant. There are, however, a couple of incorrect or unjustified claims that we must not carry forward.

@@ -1,5 +1,0 @@
-High-level assessment and triage
-- Both provers delivered clear and useful multiplicity formulas for types 3 and 4 that match the already-standard exact formulas for types 1 and 2. These are correct and valuable: they turn informal uniqueness triggers into precise, checkable conditions.
-- Several small structural lemmas are sound and broadly applicable (single-row/column uniqueness; Lemma E/F; the type-2 “clean gap” criterion between consecutive maxima). These should be curated.
-- Two items need correction:
-  1) Prover 02’s Proposition P2 (“three-or-more on a line ⇒ a unique type-4 (or type-3) color”) is false as a global statement. Counterexample: U = {(1,1),(2,1),(3,1),(2,2),(4,2)}. Row y=1 has three points; the color (4,2) occurs on (2,1)-(3,1) and also on (2,2)-(4,2), so it is not unique. What is true is the within-row uniqueness; to conclude global uniqueness one must use the global type-4 multiplicity formula to ensure the same left x does not also occur with a right-neighbor in 

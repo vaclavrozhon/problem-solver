@@ -1,1 +1,0 @@
-High-level assessment: This is a solid step toward closing the two major gaps. The insistence on staying at the Ext-level (and never using the previously broken R-composition) is correct, and the Stage-1 and Stage-2 specifications are shaped to be checkable in 2^{poly(N)} time. The faster O(β^6) concatenation is also correct and aligns with our existing Ext-concatenation rule.

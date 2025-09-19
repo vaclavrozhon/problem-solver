@@ -1,2 +1,0 @@
-High-level assessment
-Both reports make solid progress by (i) recasting 4‑hypertournaments via an orientation function f:[V]^4→{±1}, (ii) reducing AP to one‑point amalgamation, and (iii) formulating the one‑point step for |A|=4 as a finite CSP with six cross variables and four 5‑set constraints. This is the right reduction and gives an auditable path to a definitive decision.

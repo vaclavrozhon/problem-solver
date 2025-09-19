@@ -1,1 +1,0 @@
-We finalized a self-contained proof: (1) MST_log ≤ Reg_log in L∞ via Kruskal’s integral and a sparse H(t); (2) for any norm, MST_log^N ≤ (1 + (log b_N)/log 3)·Reg_log; (3) no reverse constant: parity blocks give Reg/MST = Θ(log n); (4) universal reverse bound Reg_log ≤ (log(1+n)/c_N)·MST_log^N. This resolves the dominance questions and shows the Θ(log n) worst-case gap is tight.

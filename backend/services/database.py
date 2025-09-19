@@ -59,19 +59,111 @@ class DatabaseService:
             return False
 
     @staticmethod
-    async def get_user_problems(user_id: str) -> List[Dict[str, Any]]:
+    async def get_problem_by_name(user_id: str, problem_name: str, auth_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Get a specific problem by name for a user.
+
+        Args:
+            user_id: UUID of the user
+            problem_name: Name of the problem
+            auth_token: JWT token for authenticated requests
+
+        Returns:
+            Problem dictionary or None if not found
+        """
+        from supabase import create_client
+        import os
+
+        # Create an authenticated client for this request
+        if auth_token:
+            db = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            db.auth.set_session(access_token=auth_token, refresh_token="")
+        else:
+            db = get_db()
+            if not db:
+                return None
+
+        try:
+            response = db.table('problems')\
+                .select('*')\
+                .eq('owner_id', user_id)\
+                .eq('name', problem_name)\
+                .execute()
+
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Database error getting problem by name: {e}")
+            return None
+
+    @staticmethod
+    async def update_problem_status(problem_id: int, status: str, auth_token: Optional[str] = None) -> bool:
+        """
+        Update the status of a problem.
+
+        Args:
+            problem_id: Problem ID
+            status: New status (idle, running, completed, failed)
+            auth_token: JWT token for authenticated requests
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from supabase import create_client
+        import os
+
+        # Create an authenticated client for this request
+        if auth_token:
+            db = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            db.auth.set_session(access_token=auth_token, refresh_token="")
+        else:
+            db = get_db()
+            if not db:
+                return False
+
+        try:
+            response = db.table('problems')\
+                .update({'status': status})\
+                .eq('id', problem_id)\
+                .execute()
+
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Database error updating problem status: {e}")
+            return False
+
+    @staticmethod
+    async def get_user_problems(user_id: str, auth_token: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get all problems for a specific user.
 
         Args:
             user_id: UUID of the user
+            auth_token: JWT token for authenticated requests
 
         Returns:
             List of problem dictionaries
         """
-        db = get_db()
-        if not db:
-            return []
+        from supabase import create_client
+        import os
+
+        # Create an authenticated client for this request
+        if auth_token:
+            # Use authenticated client with user's token
+            db = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            db.auth.set_session(access_token=auth_token, refresh_token="")
+        else:
+            db = get_db()
+            if not db:
+                return []
 
         try:
             response = db.table('problems')\

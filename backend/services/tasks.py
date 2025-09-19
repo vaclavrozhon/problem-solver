@@ -8,7 +8,6 @@ All filesystem references have been removed.
 from typing import Optional
 from fastapi import HTTPException
 
-from ..config import is_database_configured
 from ..services.database import DatabaseService
 
 
@@ -36,8 +35,6 @@ class TaskService:
         Returns:
             Problem ID as string
         """
-        if not is_database_configured():
-            raise HTTPException(503, "Database not configured")
 
         if not user_id:
             raise HTTPException(400, "User ID required")
@@ -48,7 +45,6 @@ class TaskService:
                 name=name,
                 task_description=task_description,
                 config={"task_type": task_type},
-                auth_token=auth_token
             )
             return str(problem['id'])  # Return problem ID as string
 
@@ -73,8 +69,6 @@ class TaskService:
         Returns:
             Problem ID as string (drafts are stored as problems with type 'draft')
         """
-        if not is_database_configured():
-            raise HTTPException(503, "Database not configured")
 
         if not user_id:
             raise HTTPException(400, "User ID required")
@@ -141,8 +135,6 @@ TODO: Write introduction
         Returns:
             True if successful
         """
-        if not is_database_configured():
-            raise HTTPException(503, "Database not configured")
 
         if not user_id:
             raise HTTPException(400, "User ID required")
@@ -179,8 +171,6 @@ TODO: Write introduction
         Returns:
             True if successful
         """
-        if not is_database_configured():
-            raise HTTPException(503, "Database not configured")
 
         if not user_id:
             raise HTTPException(400, "User ID required")

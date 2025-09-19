@@ -8,28 +8,28 @@ the underlying Supabase queries and handle data transformations.
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
-from ..db import get_db, get_admin_db, is_database_configured
+from supabase import Client
+from ..logging_config import get_logger
 from fastapi import HTTPException
+
+logger = get_logger("database")
 
 
 class DatabaseService:
     """Service for database operations on problems, files, and runs"""
 
     @staticmethod
-    async def update_user_last_login(user_id: str) -> bool:
+    async def update_user_last_login(db: Client, user_id: str) -> bool:
         """
         Update the last_login timestamp for a user.
 
         Args:
+            db: Authenticated Supabase client
             user_id: UUID of the user
 
         Returns:
             True if successful, False otherwise
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
             # First check if user exists in our users table
             existing_user = db.table('users')\
@@ -55,37 +55,30 @@ class DatabaseService:
 
             return True
         except Exception as e:
-            print(f"Error updating last_login: {e}")
+            logger.error(
+                f"Error updating last_login: {str(e)}",
+                extra={
+                    "event_type": "update_last_login_error",
+                    "user_id": user_id,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e)
+                },
+                exc_info=True
+            )
             return False
 
     @staticmethod
-    async def get_problem_by_name(user_id: str, problem_name: str, auth_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def get_problem_by_name(db: Client, problem_name: str) -> Optional[Dict[str, Any]]:
         """
         Get a specific problem by name for a user.
 
         Args:
-            user_id: UUID of the user
+            db: Authenticated Supabase client
             problem_name: Name of the problem
-            auth_token: JWT token for authenticated requests
 
         Returns:
             Problem dictionary or None if not found
         """
-        from supabase import create_client
-        import os
-
-        # Create an authenticated client for this request
-        if auth_token:
-            db = create_client(
-                os.getenv("SUPABASE_URL"),
-                os.getenv("SUPABASE_ANON_KEY")
-            )
-            db.auth.set_session(access_token=auth_token, refresh_token="")
-        else:
-            db = get_db()
-            if not db:
-                return None
-
         try:
             # Let RLS handle the filtering automatically via auth.uid()
             response = db.table('problems')\
@@ -95,37 +88,31 @@ class DatabaseService:
 
             return response.data[0] if response.data else None
         except Exception as e:
-            print(f"Database error getting problem by name: {e}")
+            logger.error(
+                f"Database error getting problem by name: {str(e)}",
+                extra={
+                    "event_type": "get_problem_by_name_error",
+                    "problem_name": problem_name,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e)
+                },
+                exc_info=True
+            )
             return None
 
     @staticmethod
-    async def update_problem_status(problem_id: int, status: str, auth_token: Optional[str] = None) -> bool:
+    async def update_problem_status(db: Client, problem_id: int, status: str) -> bool:
         """
         Update the status of a problem.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             status: New status (idle, running, completed, failed)
-            auth_token: JWT token for authenticated requests
 
         Returns:
             True if successful, False otherwise
         """
-        from supabase import create_client
-        import os
-
-        # Create an authenticated client for this request
-        if auth_token:
-            db = create_client(
-                os.getenv("SUPABASE_URL"),
-                os.getenv("SUPABASE_ANON_KEY")
-            )
-            db.auth.set_session(access_token=auth_token, refresh_token="")
-        else:
-            db = get_db()
-            if not db:
-                return False
-
         try:
             response = db.table('problems')\
                 .update({'status': status})\
@@ -134,37 +121,30 @@ class DatabaseService:
 
             return len(response.data) > 0
         except Exception as e:
-            print(f"Database error updating problem status: {e}")
+            logger.error(
+                f"Database error updating problem status: {str(e)}",
+                extra={
+                    "event_type": "update_problem_status_error",
+                    "problem_id": problem_id,
+                    "status": status,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e)
+                },
+                exc_info=True
+            )
             return False
 
     @staticmethod
-    async def get_user_problems(user_id: str, auth_token: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_user_problems(db: Client) -> List[Dict[str, Any]]:
         """
         Get all problems for a specific user.
 
         Args:
-            user_id: UUID of the user
-            auth_token: JWT token for authenticated requests
+            db: Authenticated Supabase client
 
         Returns:
             List of problem dictionaries
         """
-        from supabase import create_client
-        import os
-
-        # Create an authenticated client for this request
-        if auth_token:
-            # Use authenticated client with user's token
-            db = create_client(
-                os.getenv("SUPABASE_URL"),
-                os.getenv("SUPABASE_ANON_KEY")
-            )
-            db.auth.set_session(access_token=auth_token, refresh_token="")
-        else:
-            db = get_db()
-            if not db:
-                return []
-
         try:
             # Let RLS handle the filtering automatically via auth.uid()
             response = db.table('problems')\
@@ -174,46 +154,30 @@ class DatabaseService:
 
             return response.data
         except Exception as e:
-            print(f"Database error getting user problems: {e}")
+            logger.error(f"Database error getting user problems: {e}")
             return []
 
     @staticmethod
     async def create_problem(
+        db: Client,
         user_id: str,
         name: str,
         task_description: str,
-        config: Optional[Dict] = None,
-        auth_token: Optional[str] = None
+        config: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
         Create a new problem with initial task file.
 
         Args:
+            db: Authenticated Supabase client
             user_id: UUID of the problem owner
             name: Problem name/identifier
             task_description: Problem description text
             config: Optional configuration settings
-            auth_token: JWT token for authenticated requests
 
         Returns:
             Created problem record
         """
-        from supabase import create_client
-        import os
-
-        # Create an authenticated client for this request
-        if auth_token:
-            # Use authenticated client with user's token
-            db = create_client(
-                os.getenv("SUPABASE_URL"),
-                os.getenv("SUPABASE_ANON_KEY")
-            )
-            db.auth.set_session(access_token=auth_token, refresh_token="")
-        else:
-            db = get_db()
-            if not db:
-                raise HTTPException(500, "Database not configured")
-
         try:
             # Create the problem record
             problem_data = {
@@ -232,7 +196,7 @@ class DatabaseService:
                 raise HTTPException(500, "Failed to create problem")
 
             problem = problem_response.data[0]
-            print(f"✅ Created problem: {problem['id']} - {problem['name']}")
+            logger.info(f"Created problem: {problem['id']} - {problem['name']}")
 
             # Create initial files
             initial_files = [
@@ -276,39 +240,35 @@ class DatabaseService:
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Database error: {e}")
+            logger.error(f"Database error creating problem: {e}")
             raise HTTPException(500, f"Database error: {str(e)}")
 
     @staticmethod
-    async def get_problem_by_id(problem_id: int, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_problem_by_id(db: Client, problem_id: int) -> Optional[Dict[str, Any]]:
         """
         Get a specific problem by ID, ensuring user owns it.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
-            user_id: User ID for ownership check
 
         Returns:
             Problem record or None
         """
-        db = get_db()
-        if not db:
-            return None
-
         try:
             response = db.table('problems')\
                 .select('*')\
                 .eq('id', problem_id)\
-                .eq('owner_id', user_id)\
                 .single()\
                 .execute()
             return response.data
         except Exception as e:
-            print(f"Database error: {e}")
+            logger.error(f"Database error getting problem by ID: {e}")
             return None
 
     @staticmethod
     async def get_problem_files(
+        db: Client,
         problem_id: int,
         round: Optional[int] = None,
         file_type: Optional[str] = None
@@ -317,6 +277,7 @@ class DatabaseService:
         Get files for a problem, optionally filtered by round and type.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             round: Optional round number filter
             file_type: Optional file type filter
@@ -324,10 +285,6 @@ class DatabaseService:
         Returns:
             List of file records
         """
-        db = get_db()
-        if not db:
-            return []
-
         try:
             query = db.table('problem_files')\
                 .select('*')\
@@ -342,11 +299,12 @@ class DatabaseService:
             response = query.order('created_at').execute()
             return response.data
         except Exception as e:
-            print(f"Database error: {e}")
+            logger.error(f"Database error getting problem files: {e}")
             return []
 
     @staticmethod
     async def save_round_output(
+        db: Client,
         problem_id: int,
         round: int,
         prover_outputs: List[Dict],
@@ -358,6 +316,7 @@ class DatabaseService:
         Save all outputs from a research round.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             round: Round number
             prover_outputs: List of prover outputs
@@ -368,10 +327,6 @@ class DatabaseService:
         Returns:
             True if successful
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
             files_to_insert = []
 
@@ -424,11 +379,12 @@ class DatabaseService:
             return True
 
         except Exception as e:
-            print(f"Database error saving round output: {e}")
+            logger.error(f"Database error saving round output: {e}")
             return False
 
     @staticmethod
     async def create_run(
+        db: Client,
         problem_id: int,
         parameters: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
@@ -436,16 +392,13 @@ class DatabaseService:
         Create a new run record for tracking execution.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             parameters: Run configuration parameters
 
         Returns:
             Created run record or None
         """
-        db = get_db()
-        if not db:
-            return None
-
         try:
             run_data = {
                 'problem_id': problem_id,
@@ -460,11 +413,12 @@ class DatabaseService:
             return response.data[0] if response.data else None
 
         except Exception as e:
-            print(f"Database error creating run: {e}")
+            logger.error(f"Database error creating run: {e}")
             return None
 
     @staticmethod
     async def update_run(
+        db: Client,
         run_id: int,
         status: Optional[str] = None,
         total_cost: Optional[float] = None,
@@ -474,6 +428,7 @@ class DatabaseService:
         Update a run record.
 
         Args:
+            db: Authenticated Supabase client
             run_id: Run ID
             status: New status
             total_cost: Total cost if completed
@@ -482,10 +437,6 @@ class DatabaseService:
         Returns:
             True if successful
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
             update_data = {}
 
@@ -509,11 +460,12 @@ class DatabaseService:
             return True
 
         except Exception as e:
-            print(f"Database error updating run: {e}")
+            logger.error(f"Database error updating run: {e}")
             return False
 
     @staticmethod
     async def log_usage(
+        db: Client,
         user_id: str,
         problem_id: Optional[int],
         run_id: Optional[int],
@@ -527,6 +479,7 @@ class DatabaseService:
         Log API usage for billing.
 
         Args:
+            db: Authenticated Supabase client
             user_id: User ID
             problem_id: Optional problem ID
             run_id: Optional run ID
@@ -539,10 +492,6 @@ class DatabaseService:
         Returns:
             True if successful
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
             usage_data = {
                 'user_id': user_id,
@@ -568,28 +517,24 @@ class DatabaseService:
             return True
 
         except Exception as e:
-            print(f"Database error logging usage: {e}")
+            logger.error(f"Database error logging usage: {e}")
             return False
 
     @staticmethod
-    async def delete_problem(problem_id: int, user_id: str) -> bool:
+    async def delete_problem(db: Client, problem_id: int) -> bool:
         """
         Delete a problem and all associated data.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
-            user_id: User ID for ownership verification
 
         Returns:
             True if successful
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
-            # Verify ownership before deletion
-            problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+            # Verify ownership before deletion (RLS will handle this)
+            problem = await DatabaseService.get_problem_by_id(db, problem_id)
             if not problem:
                 return False
 
@@ -597,17 +542,17 @@ class DatabaseService:
             db.table('problems')\
                 .delete()\
                 .eq('id', problem_id)\
-                .eq('owner_id', user_id)\
                 .execute()
 
             return True
 
         except Exception as e:
-            print(f"Database error deleting problem: {e}")
+            logger.error(f"Database error deleting problem: {e}")
             return False
 
     @staticmethod
     async def update_problem_file(
+        db: Client,
         problem_id: int,
         file_type: str,
         content: str,
@@ -617,6 +562,7 @@ class DatabaseService:
         Update or create a problem file.
 
         Args:
+            db: Authenticated Supabase client
             problem_id: Problem ID
             file_type: Type of file
             content: New content
@@ -625,10 +571,6 @@ class DatabaseService:
         Returns:
             True if successful
         """
-        db = get_db()
-        if not db:
-            return False
-
         try:
             # Check if file exists
             existing = db.table('problem_files')\
@@ -659,7 +601,7 @@ class DatabaseService:
             return True
 
         except Exception as e:
-            print(f"Database error updating file: {e}")
+            logger.error(f"Database error updating file: {e}")
             return False
 
 

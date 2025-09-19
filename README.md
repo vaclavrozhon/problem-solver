@@ -120,8 +120,7 @@ See **[DATABASE.md](DATABASE.md)** for complete schema documentation, setup inst
 ### Environment Variables:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-key  # For admin operations
+SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 ## 🚀 Railway Deployment
@@ -138,7 +137,7 @@ To deploy this application on Railway for public internet access:
    OPENAI_API_KEY=your_openai_api_key_here
    AR_DATA_ROOT=/app/data
    SUPABASE_URL=your_supabase_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
    ```
 5. **Deploy** - Railway will automatically detect the configuration
 

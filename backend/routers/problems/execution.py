@@ -11,37 +11,18 @@ Handles running and stopping problems:
 import sys
 import os
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Header, Depends
+from fastapi import APIRouter, HTTPException, Depends
 
 from ...services.database import DatabaseService
-from ...db import get_current_user_id, is_database_configured
+from ...authentication import get_current_user, get_db_client, AuthedUser
 
 router = APIRouter()
-
-
-async def get_authenticated_user(authorization: str = Header(..., alias="Authorization")) -> str:
-    """
-    Dependency to get authenticated user ID from Authorization header.
-    """
-    if not is_database_configured():
-        raise HTTPException(503, "Database not configured")
-
-    token = None
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]
-
-    user_id = await get_current_user_id(token)
-    if not user_id:
-        raise HTTPException(401, "Authentication required")
-
-    return user_id
 
 
 @router.get("/{problem_name}/status")
 async def get_problem_status(
     problem_name: str,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get detailed status for a problem including rounds and files.
@@ -60,14 +41,14 @@ async def get_problem_status(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Get all files to analyze rounds
-        files = await DatabaseService.get_problem_files(problem_id)
+        files = await DatabaseService.get_problem_files(db, problem_id)
 
         # Group files by round
         rounds_data = {}
@@ -143,8 +124,7 @@ async def get_problem_status(
 async def run_problem(
     problem_name: str,
     request: dict,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Start a research run for a problem.
@@ -164,14 +144,14 @@ async def run_problem(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Update problem status to "running"
-        status_updated = await DatabaseService.update_problem_status(problem_id, "running", token)
+        status_updated = await DatabaseService.update_problem_status(db, problem_id, "running", token)
         if not status_updated:
             raise HTTPException(500, "Failed to update problem status")
 
@@ -180,7 +160,7 @@ async def run_problem(
 
         # Start the research run using the orchestrator
         import asyncio
-        asyncio.create_task(start_research_run(problem_id, problem_name, request, user_id, token))
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, token))
 
         return {
             "message": f"Research run started for problem '{problem_name}'",
@@ -199,8 +179,7 @@ async def run_problem(
 @router.post("/{problem_name}/stop")
 async def stop_problem(
     problem_name: str,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Stop a running problem.
@@ -219,14 +198,14 @@ async def stop_problem(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Update problem status to "idle"
-        success = await DatabaseService.update_problem_status(problem_id, "idle", token)
+        success = await DatabaseService.update_problem_status(db, problem_id, "idle", token)
         if not success:
             raise HTTPException(500, "Failed to stop problem")
 
@@ -288,14 +267,14 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             print(f"✅ Completed round {round_idx}/{rounds}")
 
         # Update status to completed
-        await DatabaseService.update_problem_status(problem_id, "completed", auth_token)
+        await DatabaseService.update_problem_status(db, problem_id, "completed", auth_token)
         write_status(user_dir, "completed", rounds)
         print(f"🎉 Research run completed for problem '{problem_name}'")
 
     except Exception as e:
         print(f"❌ Error in research run for problem '{problem_name}': {e}")
         # Update status to failed
-        await DatabaseService.update_problem_status(problem_id, "failed", auth_token)
+        await DatabaseService.update_problem_status(db, problem_id, "failed", auth_token)
 
         # Write error status to file system
         try:

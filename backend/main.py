@@ -5,32 +5,45 @@ This module sets up the FastAPI application with CORS middleware and includes
 all the modular routers for different functionality areas.
 """
 
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pathlib import Path
-import os
+from fastapi.staticfiles import StaticFiles
+
+# Import logging configuration
+from .logging_config import setup_logging
+from .middleware import RequestLoggingMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Setup logging
+logger = setup_logging()
 
 # Import modular routers
 try:
-    from .routers.problems import router as problems_router
+    from .authentication import is_database_configured
     from .routers.drafts import router as drafts_router
-    from .routers.auth import router as auth_router
+    from .routers.problems import router as problems_router
     from .routers.tasks import router as tasks_router
-    from .config import is_database_configured
 except ImportError:
-    from backend.routers.problems import router as problems_router
+    from backend.authentication import is_database_configured
     from backend.routers.drafts import router as drafts_router
-    from backend.routers.auth import router as auth_router
+    from backend.routers.problems import router as problems_router
     from backend.routers.tasks import router as tasks_router
-    from backend.config import is_database_configured
 
-app = FastAPI(title="Automatic Researcher Backend")
+app = FastAPI(title="Automatic Researcher Jara Cimrman Backend")
+
+# Add custom middleware (order matters - first added is outermost)
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS middleware
-import os
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +56,6 @@ app.add_middleware(
 # Include modular routers
 app.include_router(problems_router)
 app.include_router(drafts_router)
-app.include_router(auth_router)
 app.include_router(tasks_router)
 
 
@@ -51,48 +63,89 @@ app.include_router(tasks_router)
 @app.get("/healthz")
 def healthz():
     """Liveness probe."""
+    logger.info("Health check requested", extra={"event_type": "health_check"})
     return {"status": "ok"}
+
 
 @app.get("/readyz")
 def readyz():
     """Readiness probe (basic)."""
-    return {"ready": True}
+    db_configured = is_database_configured()
+    logger.info(
+        "Readiness check requested",
+        extra={"event_type": "readiness_check", "database_configured": db_configured},
+    )
+    return {"ready": True, "database_configured": db_configured}
+
 
 @app.get("/")
 def root():
     """API information and storage mode."""
     db_configured = is_database_configured()
+    logger.info(
+        "Root endpoint accessed",
+        extra={"event_type": "root_access", "database_configured": db_configured},
+    )
     return {
         "service": "Automatic Researcher Backend",
         "storage_mode": "database" if db_configured else "database_not_configured",
         "endpoints": {
-            "problems": "/problems (auth required)" if db_configured else "unavailable (database not configured)",
-            "drafts": "/drafts (auth required)" if db_configured else "unavailable (database not configured)",
+            "problems": "/problems (auth required)"
+            if db_configured
+            else "unavailable (database not configured)",
+            "drafts": "/drafts (auth required)"
+            if db_configured
+            else "unavailable (database not configured)",
             "docs": "/docs",
-            "health": "/healthz"
+            "health": "/healthz",
         },
         "database_configured": db_configured,
-        "note": "All operations require database configuration and authentication"
+        "note": "All operations require database configuration and authentication",
     }
+
 
 # Serve React frontend static files
 FRONTEND_BUILD_DIR = Path("frontend/dist")
 if FRONTEND_BUILD_DIR.exists():
-    print("✅ Frontend build found, serving static files")
+    logger.info(
+        "Frontend build found, serving static files",
+        extra={"event_type": "frontend_mount"},
+    )
     # Mount static files
-    app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR / "assets"), name="assets")
+    app.mount(
+        "/assets", StaticFiles(directory=FRONTEND_BUILD_DIR / "assets"), name="assets"
+    )
 
     # Serve index.html for all non-API routes (SPA routing)
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # Don't serve frontend for API routes
-        if full_path.startswith(("api/", "problems/", "drafts/", "auth/", "tasks/", "docs", "redoc", "openapi.json", "healthz")):
+        if full_path.startswith(
+            (
+                "api/",
+                "problems/",
+                "drafts/",
+                "auth/",
+                "tasks/",
+                "docs",
+                "redoc",
+                "openapi.json",
+                "healthz",
+            )
+        ):
             raise HTTPException(404, "Not found")
 
         index_file = FRONTEND_BUILD_DIR / "index.html"
         if index_file.exists():
+            logger.info(
+                f"Serving frontend for path: {full_path}",
+                extra={"event_type": "frontend_serve", "path": full_path},
+            )
             return FileResponse(index_file)
         else:
             raise HTTPException(404, "Frontend not built")
 else:
-    print("⚠️  Frontend build directory not found, serving API only")
+    logger.warning(
+        "Frontend build directory not found, serving API only",
+        extra={"event_type": "frontend_missing"},
+    )

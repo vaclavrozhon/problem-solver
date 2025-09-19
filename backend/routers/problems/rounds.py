@@ -8,37 +8,18 @@ Handles round-specific operations:
 - Delete specific rounds
 """
 
-from fastapi import APIRouter, HTTPException, Header, Depends
+from fastapi import APIRouter, HTTPException, Depends
 
 from ...services.database import DatabaseService
-from ...db import get_current_user_id, is_database_configured
+from ...authentication import get_current_user, get_db_client, AuthedUser
 
 router = APIRouter()
-
-
-async def get_authenticated_user(authorization: str = Header(..., alias="Authorization")) -> str:
-    """
-    Dependency to get authenticated user ID from Authorization header.
-    """
-    if not is_database_configured():
-        raise HTTPException(503, "Database not configured")
-
-    token = None
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]
-
-    user_id = await get_current_user_id(token)
-    if not user_id:
-        raise HTTPException(401, "Authentication required")
-
-    return user_id
 
 
 @router.get("/{problem_name}/rounds")
 async def get_problem_rounds(
     problem_name: str,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get rounds for a problem.
@@ -57,14 +38,14 @@ async def get_problem_rounds(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Get all files to analyze rounds
-        files = await DatabaseService.get_problem_files(problem_id)
+        files = await DatabaseService.get_problem_files(db, problem_id)
 
         # Group files by round
         rounds_data = {}
@@ -98,8 +79,7 @@ async def get_problem_rounds(
 async def delete_problem_rounds(
     problem_name: str,
     delete_count: int,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Delete recent rounds from a problem.
@@ -119,14 +99,14 @@ async def delete_problem_rounds(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Get all files to find rounds to delete
-        files = await DatabaseService.get_problem_files(problem_id)
+        files = await DatabaseService.get_problem_files(db, problem_id)
 
         # Find unique rounds (excluding round 0 which is base files)
         rounds = set(file['round'] for file in files if file['round'] > 0)
@@ -164,8 +144,7 @@ async def delete_problem_rounds(
 async def delete_specific_round(
     problem_name: str,
     round_name: str,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Delete a specific round from a problem.
@@ -185,7 +164,7 @@ async def delete_specific_round(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -220,7 +199,7 @@ async def delete_specific_round(
 async def get_round_details(
     problem_id: int,
     round_num: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get detailed information about a specific round.
@@ -235,12 +214,12 @@ async def get_round_details(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id, user_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         # Get files for this specific round
-        round_files = await DatabaseService.get_problem_files(problem_id, round_num)
+        round_files = await DatabaseService.get_problem_files(db, problem_id, round_num)
 
         if not round_files:
             raise HTTPException(404, f"Round {round_num} not found")

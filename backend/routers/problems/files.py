@@ -9,11 +9,11 @@ Handles file operations for problems:
 """
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ...services.database import DatabaseService
-from ...db import get_current_user_id, is_database_configured
+from ...authentication import get_current_user, get_db_client, AuthedUser
 
 router = APIRouter()
 
@@ -23,31 +23,12 @@ class UpdateFileRequest(BaseModel):
     description: Optional[str] = None
 
 
-async def get_authenticated_user(authorization: str = Header(..., alias="Authorization")) -> str:
-    """
-    Dependency to get authenticated user ID from Authorization header.
-    """
-    if not is_database_configured():
-        raise HTTPException(503, "Database not configured")
-
-    token = None
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]
-
-    user_id = await get_current_user_id(token)
-    if not user_id:
-        raise HTTPException(401, "Authentication required")
-
-    return user_id
-
-
 @router.get("/{problem_name}/files")
 async def get_problem_files(
     problem_name: str,
     round: Optional[int] = None,
     file_type: Optional[str] = None,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get files for a problem, optionally filtered by round and type.
@@ -68,12 +49,12 @@ async def get_problem_files(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
-        files = await DatabaseService.get_problem_files(problem_id, round, file_type)
+        files = await DatabaseService.get_problem_files(db, problem_id, round, file_type)
         return {
             "files": files,
             "total": len(files),
@@ -95,8 +76,7 @@ async def get_problem_file_content(
     problem_name: str,
     file_path: str,
     version: Optional[str] = None,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get content of a specific file from a problem.
@@ -117,7 +97,7 @@ async def get_problem_file_content(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -125,7 +105,7 @@ async def get_problem_file_content(
 
         # For now, we'll treat file_path as file_type and return the most recent version
         # In a full implementation, this would handle actual file paths and versions
-        files = await DatabaseService.get_problem_files(problem_id, file_type=file_path)
+        files = await DatabaseService.get_problem_files(db, problem_id, file_type=file_path)
 
         if not files:
             raise HTTPException(404, f"File '{file_path}' not found")
@@ -152,8 +132,7 @@ async def get_problem_file_content(
 async def get_problem_file_versions(
     problem_name: str,
     file_path: str,
-    authorization: str = Header(..., alias="Authorization"),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get all versions of a specific file from a problem.
@@ -173,14 +152,14 @@ async def get_problem_file_versions(
             token = authorization[7:]  # Remove "Bearer " prefix
 
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Get all versions of this file (different rounds)
-        files = await DatabaseService.get_problem_files(problem_id, file_type=file_path)
+        files = await DatabaseService.get_problem_files(db, problem_id, file_type=file_path)
 
         if not files:
             raise HTTPException(404, f"File '{file_path}' not found")
@@ -213,7 +192,7 @@ async def update_problem_file(
     file_type: str,
     request: UpdateFileRequest,
     round: int = 0,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Update or create a problem file.
@@ -230,11 +209,11 @@ async def update_problem_file(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id, user_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
-        success = await DatabaseService.update_problem_file(
+        success = await DatabaseService.update_problem_file(db, 
             problem_id=problem_id,
             file_type=file_type,
             content=request.content,

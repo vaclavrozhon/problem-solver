@@ -45,11 +45,11 @@ async def create_problem(
     
     try:
         problem_id = await TaskService.create_problem(
+            db=db,
             name=request.name,
             task_description=request.task_description,
             user_id=user.sub,
-            task_type=request.task_type,
-            db=db
+            task_type=request.task_type
         )
         
         logger.info(
@@ -110,6 +110,7 @@ async def create_draft(
     
     try:
         draft_id = await TaskService.create_draft(
+            db=db,
             name=request.name,
             task_description=request.task_description,
             user_id=user.sub
@@ -173,7 +174,7 @@ async def delete_problem(
     )
     
     try:
-        success = await TaskService.delete_problem(problem_id, user.sub)
+        success = await TaskService.delete_problem(db, problem_id, user.sub)
         if not success:
             logger.warning(
                 f"Problem not found for deletion: {problem_id}",
@@ -239,7 +240,7 @@ async def reset_problem(
     )
     
     try:
-        success = await TaskService.reset_problem(problem_id, user.sub)
+        success = await TaskService.reset_problem(db, problem_id, user.sub)
         if not success:
             logger.warning(
                 f"Problem not found for reset: {problem_id}",

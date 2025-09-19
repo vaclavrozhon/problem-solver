@@ -89,7 +89,8 @@ class DatabaseService:
         user_id: str,
         name: str,
         task_description: str,
-        config: Optional[Dict] = None
+        config: Optional[Dict] = None,
+        auth_token: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create a new problem with initial task file.
@@ -99,13 +100,26 @@ class DatabaseService:
             name: Problem name/identifier
             task_description: Problem description text
             config: Optional configuration settings
+            auth_token: JWT token for authenticated requests
 
         Returns:
             Created problem record
         """
-        db = get_db()
-        if not db:
-            raise HTTPException(500, "Database not configured")
+        from supabase import create_client
+        import os
+
+        # Create an authenticated client for this request
+        if auth_token:
+            # Use authenticated client with user's token
+            db = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            db.auth.set_session(access_token=auth_token, refresh_token="")
+        else:
+            db = get_db()
+            if not db:
+                raise HTTPException(500, "Database not configured")
 
         try:
             # Create the problem record
@@ -125,6 +139,7 @@ class DatabaseService:
                 raise HTTPException(500, "Failed to create problem")
 
             problem = problem_response.data[0]
+            print(f"✅ Created problem: {problem['id']} - {problem['name']}")
 
             # Create initial files
             initial_files = [

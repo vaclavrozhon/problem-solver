@@ -23,9 +23,16 @@ async function req(path: string, opts: RequestInit = {}) {
 
 export async function listProblems() {
   try {
+    console.log('🔍 API DEBUG: Making request to /problems')
     const r = await req(`/problems`);
+    console.log('🔍 API DEBUG: Response status:', r.status)
     const data = await r.json();
-    return Array.isArray(data) ? data : [];
+    console.log('🔍 API DEBUG: Raw response data:', data)
+    console.log('🔍 API DEBUG: Data type:', typeof data)
+    console.log('🔍 API DEBUG: Is array:', Array.isArray(data))
+    const result = Array.isArray(data) ? data : [];
+    console.log('🔍 API DEBUG: Returning:', result)
+    return result;
   } catch (error) {
     console.error('Failed to list problems:', error);
     return [];

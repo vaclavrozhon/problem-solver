@@ -28,15 +28,17 @@ export default function OverviewPage() {
     }
     try {
       // Load problems (solving tasks)
-      const problemsResponse = await listProblems()
-      const problemsList = problemsResponse.problems || []
+      const problemsList = await listProblems() || []
+      console.log('🔍 FRONTEND DEBUG: problemsList =', problemsList)
+      console.log('🔍 FRONTEND DEBUG: problemsList type =', typeof problemsList)
+      console.log('🔍 FRONTEND DEBUG: problemsList length =', problemsList.length)
       const problemSummaries: ProblemSummary[] = []
 
       for (const problem of problemsList) {
         const name = problem.name || problem.id
         const problemId = problem.id
         try {
-          const status = await getStatus(problemId)
+          const status = await getStatus(name)
           const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
           const hasError = status.overall?.error || status.error
           const roundCount = status.rounds?.length || 0
@@ -62,15 +64,14 @@ export default function OverviewPage() {
       }
       
       // Load drafts (writing tasks)
-      const draftsResponse = await listDrafts()
-      const draftsList = draftsResponse.drafts || []
+      const draftsList = await listDrafts() || []
       const draftSummaries: ProblemSummary[] = []
 
       for (const draft of draftsList) {
         const name = draft.name || draft.id
         const draftId = draft.id
         try {
-          const status = await getDraftStatus(draftId)
+          const status = await getDraftStatus(name)
           const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
           const hasError = status.overall?.error || status.error
           const roundCount = status.rounds?.length || 0

@@ -20,7 +20,8 @@ class TaskService:
         name: str,
         task_description: str,
         user_id: str,
-        task_type: str = "txt"
+        task_type: str = "txt",
+        auth_token: Optional[str] = None
     ) -> str:
         """
         Create a new problem/solving task using database storage.
@@ -30,6 +31,7 @@ class TaskService:
             task_description: Problem description
             user_id: User ID (required)
             task_type: File type (stored in config)
+            auth_token: JWT token for authenticated requests
 
         Returns:
             Problem ID as string
@@ -45,7 +47,8 @@ class TaskService:
                 user_id=user_id,
                 name=name,
                 task_description=task_description,
-                config={"task_type": task_type}
+                config={"task_type": task_type},
+                auth_token=auth_token
             )
             return str(problem['id'])  # Return problem ID as string
 

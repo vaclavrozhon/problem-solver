@@ -104,6 +104,8 @@ The system uses **Supabase** (PostgreSQL) for data storage, providing multi-user
 
 ### Key Features:
 - **Multi-user support** with Row Level Security (RLS)
+- **JWT-based authentication** with Supabase Auth integration
+- **Per-request database clients** for secure data access
 - **Usage tracking** and billing support
 - **Structured storage** for problems, files, and run history
 - **Real-time capabilities** via Supabase subscriptions
@@ -116,6 +118,14 @@ The system uses **Supabase** (PostgreSQL) for data storage, providing multi-user
 - `usage_log` - API usage tracking for billing
 
 See **[DATABASE.md](DATABASE.md)** for complete schema documentation, setup instructions, and migration guide from file-based storage.
+
+### Authentication System:
+The backend uses a centralized authentication system built on Supabase Auth:
+
+- **JWT Token Verification**: Each request validates JWT tokens offline using Supabase's `get_claims()` method
+- **Per-Request Database Clients**: Authenticated Supabase clients are created for each request with user context
+- **Row Level Security**: All database operations automatically respect user ownership through RLS policies
+- **Dependency Injection**: FastAPI dependencies provide consistent authentication across all endpoints
 
 ### Environment Variables:
 ```bash
@@ -178,13 +188,15 @@ The app will be available at `https://your-app-name.up.railway.app`
 
 **Backend API** (FastAPI)
 - **backend/main.py**: FastAPI application setup with CORS middleware
+- **backend/authentication.py**: Centralized JWT authentication and Supabase client management
 - **backend/routers/problems.py**: Problem CRUD operations, status tracking, round execution
 - **backend/routers/tasks.py**: Background task execution for running rounds
 - **backend/routers/drafts.py**: Draft paper management endpoints
-- **backend/routers/auth.py**: Basic authentication endpoints (placeholder)
+- **backend/routers/auth.py**: User profile and health check endpoints
+- **backend/services/database.py**: Database operations with authenticated Supabase clients
 - **backend/services/tasks.py**: Task queue implementation for async operations
 - **backend/models.py**: API request/response models
-- **backend/config.py**: Environment and path configuration
+- **backend/middleware.py**: Request logging and middleware components
 
 **Frontend Interface** (React + TypeScript)
 - **pages/SolvingPage.tsx**: Main research interface with problem list and details
@@ -447,14 +459,14 @@ npm run dev
 This is an active research project focused on automating mathematical problem-solving. The system demonstrates multi-agent LLM collaboration for complex reasoning tasks.
 
 ### Current Limitations
-- Basic authentication (placeholder implementation)
 - Limited to OpenAI models (GPT-5, GPT-5-mini)
 - No distributed execution support
 - Web interface requires manual refresh for some updates
+- Frontend authentication handled separately (Supabase Auth UI)
 
 ### Future Improvements
 - Support for other LLM providers (Anthropic, Google, etc.)
 - Distributed prover execution
-- Advanced authentication and user management
-- Real-time WebSocket updates
+- Real-time WebSocket updates for live status
 - Enhanced paper processing with vector search
+- Advanced user management and team collaboration features

@@ -1,4 +1,4 @@
-import { supabase } from './lib/supabase'
+import { supabase } from './config/supabase'
 
 const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 

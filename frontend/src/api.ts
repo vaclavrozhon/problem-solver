@@ -4,19 +4,32 @@ const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function req(path: string, opts: RequestInit = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
+
   // Get the current session and add JWT token to headers
   const { data: { session } } = await supabase.auth.getSession()
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`
   }
-  
-  return fetch(`${BASE}${path}`, { ...opts, headers });
+
+  const response = await fetch(`${BASE}${path}`, { ...opts, headers });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response;
 }
 
 export async function listProblems() {
-  const r = await req(`/problems`);
-  return r.json();
+  try {
+    const r = await req(`/problems`);
+    const data = await r.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Failed to list problems:', error);
+    return [];
+  }
 }
 
 export async function getRounds(name: string) {
@@ -94,8 +107,14 @@ export async function getFileVersions(name: string, filePath: string) {
 
 // Draft API functions
 export async function listDrafts() {
-  const r = await req(`/drafts`);
-  return r.json();
+  try {
+    const r = await req(`/drafts`);
+    const data = await r.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Failed to list drafts:', error);
+    return [];
+  }
 }
 
 export async function getDraftStatus(draftId: string) {

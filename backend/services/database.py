@@ -166,14 +166,21 @@ class DatabaseService:
                 return []
 
         try:
+            print(f"🔍 DB DEBUG: querying for authenticated user (not filtering by user_id manually)")
+            print(f"🔍 DB DEBUG: using auth_token = {bool(auth_token)}")
+            print(f"🔍 DB DEBUG: user_id for reference = {user_id}")
+
+            # Let RLS handle the filtering automatically via auth.uid()
             response = db.table('problems')\
                 .select('*')\
-                .eq('owner_id', user_id)\
                 .order('created_at', desc=True)\
                 .execute()
+
+            print(f"🔍 DB DEBUG: raw response = {response.data}")
+            print(f"🔍 DB DEBUG: response count = {len(response.data) if response.data else 0}")
             return response.data
         except Exception as e:
-            print(f"Database error: {e}")
+            print(f"Database error getting user problems: {e}")
             return []
 
     @staticmethod

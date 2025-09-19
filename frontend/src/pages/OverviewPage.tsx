@@ -15,9 +15,17 @@ export default function OverviewPage() {
   const [problems, setProblems] = useState<ProblemSummary[]>([])
   const [drafts, setDrafts] = useState<ProblemSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [showQuickStart, setShowQuickStart] = useState(() => {
+    // Check localStorage for user's preference
+    const saved = localStorage.getItem('hideQuickStartGuide')
+    return saved !== 'true' // Show by default, hide if explicitly set to 'true'
+  })
 
   async function refresh() {
-    setLoading(true)
+    if (isInitialLoad) {
+      setLoading(true)
+    }
     try {
       // Load problems (solving tasks)
       const problemsResponse = await listProblems()
@@ -92,15 +100,23 @@ export default function OverviewPage() {
     } catch (err) {
       console.error('Failed to load problems and drafts:', err)
     } finally {
-      setLoading(false)
+      if (isInitialLoad) {
+        setLoading(false)
+        setIsInitialLoad(false)
+      }
     }
   }
 
-  useEffect(() => { 
+  useEffect(() => {
     refresh()
     const interval = setInterval(refresh, 5000) // Auto-refresh every 5 seconds
     return () => clearInterval(interval)
   }, [])
+
+  const hideQuickStartGuide = () => {
+    setShowQuickStart(false)
+    localStorage.setItem('hideQuickStartGuide', 'true')
+  }
 
   // Metrics for solving tasks (problems)
   const problemRunningCount = problems.filter(p => p.status === 'running').length
@@ -116,6 +132,54 @@ export default function OverviewPage() {
 
   return (
     <div>
+      {/* Quick Start Guide */}
+      {showQuickStart && (
+        <div className="problem-card" style={{ marginBottom: '30px', position: 'relative' }}>
+          <button
+            onClick={hideQuickStartGuide}
+            style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              cursor: 'pointer',
+              color: '#6b7280',
+              padding: '5px',
+              borderRadius: '4px',
+              lineHeight: '1'
+            }}
+            title="Hide Quick Start Guide permanently"
+          >
+            ×
+          </button>
+          <h3>🚀 Quick Start Guide</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginTop: '20px' }}>
+            <div>
+              <h4 style={{ color: '#2563eb', marginBottom: '15px' }}>🧠 Problem Solving</h4>
+              <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                <li>Go to <strong>Create Task</strong> page and create a new research problem</li>
+                <li>Add a detailed description of the research problem</li>
+                <li>Click <strong>"Solve"</strong> to run automated research rounds</li>
+                <li>Monitor progress and review outputs in real-time</li>
+                <li>Access results in <code>output.md</code> and <code>progress.md</code></li>
+              </ol>
+            </div>
+            <div>
+              <h4 style={{ color: '#059669', marginBottom: '15px' }}>📝 Paper Writing</h4>
+              <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                <li>Go to <strong>Create Task</strong> page and create a new paper writing project</li>
+                <li>Add your research materials or draft content</li>
+                <li>Go to <strong>Paper Writing</strong> tab to access your project</li>
+                <li>Click <strong>"Write Paper"</strong> to generate formal academic papers</li>
+                <li>Review and iterate on generated drafts</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dashboard metrics */}
       <div className="metrics-grid">
         <div className="metric-card">
@@ -140,7 +204,7 @@ export default function OverviewPage() {
       <div style={{ marginTop: '30px' }}>
         <h3>🧠 Problem Solving Tasks ({problems.length})</h3>
         
-        {loading && problems.length === 0 ? (
+        {loading && isInitialLoad && problems.length === 0 ? (
           <div className="spinner" style={{ marginTop: '20px' }}></div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -186,7 +250,7 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {problems.length === 0 && !loading && (
+        {problems.length === 0 && !isInitialLoad && (
           <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '50px' }}>
             <p>No problems found in the problems/ directory.</p>
             <p>Create a new problem directory with a task.md file to get started.</p>
@@ -198,7 +262,7 @@ export default function OverviewPage() {
       <div style={{ marginTop: '40px' }}>
         <h3>📝 Paper Writing Tasks ({drafts.length})</h3>
         
-        {loading && drafts.length === 0 ? (
+        {loading && isInitialLoad && drafts.length === 0 ? (
           <div className="spinner" style={{ marginTop: '20px' }}></div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -242,7 +306,7 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {drafts.length === 0 && !loading && (
+        {drafts.length === 0 && !isInitialLoad && (
           <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '50px' }}>
             <p>No drafts found in the drafts/ directory.</p>
             <p>Create a new draft directory to get started with paper writing.</p>
@@ -250,18 +314,6 @@ export default function OverviewPage() {
         )}
       </div>
 
-      {/* Quick start guide */}
-      <div className="problem-card" style={{ marginTop: '40px' }}>
-        <h4>Quick Start Guide</h4>
-        <ol style={{ marginLeft: '20px', marginTop: '10px' }}>
-          <li><strong>Problem Solving:</strong> Create a directory in <code>problems/</code> with your problem name</li>
-          <li>Add a <code>task.md</code> file describing the research problem</li>
-          <li>Click "Solve" to run research rounds with prover and verifier agents</li>
-          <li>Review outputs in <code>output.md</code> and <code>progress.md</code></li>
-          <li><strong>Paper Writing:</strong> Create a directory in <code>drafts/</code> for paper projects</li>
-          <li>Click "Write Paper" to generate formal papers from research or drafts</li>
-        </ol>
-      </div>
     </div>
   )
 }

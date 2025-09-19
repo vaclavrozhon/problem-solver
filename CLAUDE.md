@@ -1,0 +1,1 @@
+- README contains relevant info for the project. Read it regularly, and if we add a new feature, update it.

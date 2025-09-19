@@ -18,14 +18,16 @@ import json
 # Import modular routers
 try:
     from .routers.problems import router as problems_router
-    from .routers.drafts import router as drafts_router  
+    from .routers.drafts import router as drafts_router
     from .routers.auth import router as auth_router
     from .routers.tasks import router as tasks_router
+    from .config import is_database_configured
 except ImportError:
     from backend.routers.problems import router as problems_router
     from backend.routers.drafts import router as drafts_router
     from backend.routers.auth import router as auth_router
     from backend.routers.tasks import router as tasks_router
+    from backend.config import is_database_configured
 
 app = FastAPI(title="Automatic Researcher Backend")
 
@@ -58,6 +60,23 @@ def healthz():
 def readyz():
     """Readiness probe (basic)."""
     return {"ready": DATA_ROOT.exists()}
+
+@app.get("/")
+def root():
+    """API information and storage mode."""
+    db_configured = is_database_configured()
+    return {
+        "service": "Automatic Researcher Backend",
+        "storage_mode": "database" if db_configured else "database_not_configured",
+        "endpoints": {
+            "problems": "/problems (auth required)" if db_configured else "unavailable (database not configured)",
+            "drafts": "/drafts (auth required)" if db_configured else "unavailable (database not configured)",
+            "docs": "/docs",
+            "health": "/healthz"
+        },
+        "database_configured": db_configured,
+        "note": "All operations require database configuration and authentication"
+    }
 
 # Serve React frontend static files
 FRONTEND_BUILD_DIR = Path("frontend/dist")

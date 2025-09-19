@@ -15,12 +15,12 @@ async function req(path: string, opts: RequestInit = {}) {
 }
 
 export async function listProblems() {
-  const r = await req(`/problems_public`);
+  const r = await req(`/problems`);
   return r.json();
 }
 
 export async function getRounds(name: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/rounds`);
+  const r = await req(`/problems/${encodeURIComponent(name)}/rounds`);
   return r.json();
 }
 
@@ -40,46 +40,46 @@ export async function runRound(name: string, rounds: number, provers: number, te
     params.verifier_config = verifierConfig;
   }
   
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/run`, {
+  const r = await req(`/problems/${encodeURIComponent(name)}/run`, {
     method: "POST",
     body: JSON.stringify(params),
   });
   return r.json();
 }
 
-export async function getStatus(name: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/status`);
+export async function getStatus(problemId: string) {
+  const r = await req(`/problems/${encodeURIComponent(problemId)}/status`);
   return r.json();
 }
 
 export async function stopProblem(name: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/stop`, {
+  const r = await req(`/problems/${encodeURIComponent(name)}/stop`, {
     method: "POST"
   });
   return r.json();
 }
 
 export async function deleteRounds(name: string, deleteCount: number) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
+  const r = await req(`/problems/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
     method: "DELETE"
   });
   return r.json();
 }
 
 export async function deleteRound(problemName: string, roundName: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(problemName)}/rounds/${encodeURIComponent(roundName)}`, {
+  const r = await req(`/problems/${encodeURIComponent(problemName)}/rounds/${encodeURIComponent(roundName)}`, {
     method: "DELETE"
   });
   return r.json();
 }
 
 export async function listFiles(name: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/files`);
+  const r = await req(`/problems/${encodeURIComponent(name)}/files`);
   return r.json();
 }
 
 export async function getFileContent(name: string, filePath: string, version?: string) {
-  let url = `/problems_public/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`;
+  let url = `/problems/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`;
   if (version) {
     url += `&version=${encodeURIComponent(version)}`;
   }
@@ -88,28 +88,28 @@ export async function getFileContent(name: string, filePath: string, version?: s
 }
 
 export async function getFileVersions(name: string, filePath: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(name)}/file-versions?file_path=${encodeURIComponent(filePath)}`);
+  const r = await req(`/problems/${encodeURIComponent(name)}/file-versions?file_path=${encodeURIComponent(filePath)}`);
   return r.json();
 }
 
 // Draft API functions
 export async function listDrafts() {
-  const r = await req(`/drafts_public`);
+  const r = await req(`/drafts`);
   return r.json();
 }
 
-export async function getDraftStatus(name: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/status`);
+export async function getDraftStatus(draftId: string) {
+  const r = await req(`/drafts/${encodeURIComponent(draftId)}/status`);
   return r.json();
 }
 
 export async function getDraftDrafts(name: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/drafts`);
+  const r = await req(`/drafts/${encodeURIComponent(name)}/drafts`);
   return r.json();
 }
 
 export async function runDraftWriting(name: string, rounds: number, preset: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/start-writing`, {
+  const r = await req(`/drafts/${encodeURIComponent(name)}/start-writing`, {
     method: "POST",
     body: JSON.stringify({ rounds, preset }),
   });
@@ -117,22 +117,22 @@ export async function runDraftWriting(name: string, rounds: number, preset: stri
 }
 
 export async function getDraftRounds(name: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/rounds`);
+  const r = await req(`/drafts/${encodeURIComponent(name)}/rounds`);
   return r.json();
 }
 
 export async function getDraftFiles(name: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/files`);
+  const r = await req(`/drafts/${encodeURIComponent(name)}/files`);
   return r.json();
 }
 
 export async function getDraftFileContent(name: string, filePath: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`);
+  const r = await req(`/drafts/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`);
   return r.json();
 }
 
 export async function deleteDraftRounds(name: string, deleteCount: number) {
-  const r = await req(`/drafts_public/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
+  const r = await req(`/drafts/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
     method: "DELETE"
   });
   return r.json();
@@ -140,21 +140,21 @@ export async function deleteDraftRounds(name: string, deleteCount: number) {
 
 // Task deletion API functions
 export async function deleteProblem(problemName: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(problemName)}`, {
+  const r = await req(`/problems/${encodeURIComponent(problemName)}`, {
     method: "DELETE",
   });
   return r.json();
 }
 
 export async function resetProblem(problemName: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(problemName)}/reset`, {
+  const r = await req(`/problems/${encodeURIComponent(problemName)}/reset`, {
     method: "POST",
   });
   return r.json();
 }
 
 export async function deleteDraft(draftName: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(draftName)}`, {
+  const r = await req(`/drafts/${encodeURIComponent(draftName)}`, {
     method: "DELETE",
   });
   return r.json();
@@ -162,7 +162,7 @@ export async function deleteDraft(draftName: string) {
 
 // Task creation API functions
 export async function createProblem(name: string, taskDescription: string, taskType: string = "txt") {
-  const r = await req(`/problems_public/create`, {
+  const r = await req(`/tasks/problems/create`, {
     method: "POST",
     body: JSON.stringify({ name, task_description: taskDescription, task_type: taskType }),
   });
@@ -170,13 +170,12 @@ export async function createProblem(name: string, taskDescription: string, taskT
 }
 
 export async function createDraft(name: string, taskDescription: string, initialDraft: string) {
-  const r = await req(`/drafts_public/create`, {
+  const r = await req(`/tasks/drafts/create`, {
     method: "POST",
-    body: JSON.stringify({ 
-      name, 
-      task_description: taskDescription, 
-      initial_draft: initialDraft,
-      task_type: "tex" 
+    body: JSON.stringify({
+      name,
+      task_description: taskDescription,
+      initial_draft: initialDraft
     }),
   });
   return r.json();
@@ -195,7 +194,7 @@ export async function uploadProblemPaper(problemName: string, file: File, descri
     headers.Authorization = `Bearer ${session.access_token}`
   }
   
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems/${encodeURIComponent(problemName)}/papers/upload`, {
     method: "POST",
     body: formData,
     headers,
@@ -214,7 +213,7 @@ export async function uploadDraftPaper(draftName: string, file: File) {
     headers.Authorization = `Bearer ${session.access_token}`
   }
   
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts_public/${encodeURIComponent(draftName)}/papers/upload`, {
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts/${encodeURIComponent(draftName)}/papers/upload`, {
     method: "POST",
     body: formData,
     headers,
@@ -223,7 +222,7 @@ export async function uploadDraftPaper(draftName: string, file: File) {
 }
 
 export async function addProblemPaperFromUrl(problemName: string, url: string) {
-  const r = await req(`/problems_public/${encodeURIComponent(problemName)}/papers/from-url`, {
+  const r = await req(`/problems/${encodeURIComponent(problemName)}/papers/from-url`, {
     method: "POST",
     body: JSON.stringify({ url }),
   });
@@ -231,7 +230,7 @@ export async function addProblemPaperFromUrl(problemName: string, url: string) {
 }
 
 export async function addDraftPaperFromUrl(draftName: string, url: string) {
-  const r = await req(`/drafts_public/${encodeURIComponent(draftName)}/papers/from-url`, {
+  const r = await req(`/drafts/${encodeURIComponent(draftName)}/papers/from-url`, {
     method: "POST",
     body: JSON.stringify({ url }),
   });
@@ -257,7 +256,7 @@ export async function uploadProblemTextContent(problemName: string, content: str
     headers.Authorization = `Bearer ${session.access_token}`
   }
   
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/papers/upload`, {
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems/${encodeURIComponent(problemName)}/papers/upload`, {
     method: "POST",
     body: formData,
     headers,
@@ -283,7 +282,7 @@ export async function uploadDraftTextContent(draftName: string, content: string,
     headers.Authorization = `Bearer ${session.access_token}`
   }
   
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts_public/${encodeURIComponent(draftName)}/papers/upload`, {
+  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts/${encodeURIComponent(draftName)}/papers/upload`, {
     method: "POST",
     body: formData,
     headers,

@@ -20,12 +20,15 @@ export default function OverviewPage() {
     setLoading(true)
     try {
       // Load problems (solving tasks)
-      const problemNames = await listProblems()
+      const problemsResponse = await listProblems()
+      const problemsList = problemsResponse.problems || []
       const problemSummaries: ProblemSummary[] = []
-      
-      for (const name of problemNames) {
+
+      for (const problem of problemsList) {
+        const name = problem.name || problem.id
+        const problemId = problem.id
         try {
-          const status = await getStatus(name)
+          const status = await getStatus(problemId)
           const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
           const hasError = status.overall?.error || status.error
           const roundCount = status.rounds?.length || 0
@@ -51,12 +54,15 @@ export default function OverviewPage() {
       }
       
       // Load drafts (writing tasks)
-      const draftNames = await listDrafts()
+      const draftsResponse = await listDrafts()
+      const draftsList = draftsResponse.drafts || []
       const draftSummaries: ProblemSummary[] = []
-      
-      for (const name of draftNames) {
+
+      for (const draft of draftsList) {
+        const name = draft.name || draft.id
+        const draftId = draft.id
         try {
-          const status = await getDraftStatus(name)
+          const status = await getDraftStatus(draftId)
           const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
           const hasError = status.overall?.error || status.error
           const roundCount = status.rounds?.length || 0

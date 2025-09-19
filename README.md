@@ -98,6 +98,32 @@ automatic-researcher/
                 └── timings.json          # Performance metrics
 ```
 
+## 💾 Database Setup
+
+The system uses **Supabase** (PostgreSQL) for data storage, providing multi-user support, authentication, and scalable data management.
+
+### Key Features:
+- **Multi-user support** with Row Level Security (RLS)
+- **Usage tracking** and billing support
+- **Structured storage** for problems, files, and run history
+- **Real-time capabilities** via Supabase subscriptions
+
+### Database Tables:
+- `users` - User accounts and settings
+- `problems` - Research problems/tasks
+- `problem_files` - All text files (tasks, outputs, papers)
+- `runs` - Execution sessions with parameters
+- `usage_log` - API usage tracking for billing
+
+See **[DATABASE.md](DATABASE.md)** for complete schema documentation, setup instructions, and migration guide from file-based storage.
+
+### Environment Variables:
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key  # For admin operations
+```
+
 ## 🚀 Railway Deployment
 
 To deploy this application on Railway for public internet access:
@@ -111,6 +137,8 @@ To deploy this application on Railway for public internet access:
    ```
    OPENAI_API_KEY=your_openai_api_key_here
    AR_DATA_ROOT=/app/data
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 5. **Deploy** - Railway will automatically detect the configuration
 
@@ -131,7 +159,7 @@ The app will be available at `https://your-app-name.up.railway.app`
 
 - Frontend is not included in Railway deployment (backend API only)
 - Consider deploying frontend separately on Netlify/Vercel
-- Data persists across deployments using Railway's persistent volumes
+- Database connection via Supabase (no local storage in production)
 - OpenAI API key is required for AI functionality
 
 ## 🧩 Architecture Overview

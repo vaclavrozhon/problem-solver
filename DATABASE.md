@@ -163,8 +163,7 @@ To recreate this schema in a new Supabase project, run the SQL script in the Sup
 Required for application:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-key  # For admin operations
+SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 ## Query Examples

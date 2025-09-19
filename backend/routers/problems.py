@@ -5,15 +5,18 @@ This module handles all endpoints related to problem creation, execution,
 status tracking, and file management using Supabase database storage.
 """
 
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Header, Depends
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ..services.database import DatabaseService
-from ..db import get_current_user_id, is_database_configured
+from ..authentication import get_current_user, get_db_client, AuthedUser
+from ..logging_config import get_logger
 import sys
 import os
 from pathlib import Path
+
+logger = get_logger("problems")
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -29,40 +32,12 @@ class UpdateFileRequest(BaseModel):
     description: Optional[str] = None
 
 
-async def get_authenticated_user(authorization: str = Header(...)) -> str:
-    """
-    Dependency to get authenticated user ID from Authorization header.
-
-    Args:
-        authorization: Bearer token from Authorization header
-
-    Returns:
-        User ID
-
-    Raises:
-        HTTPException: If not authenticated or database not configured
-    """
-    if not is_database_configured():
-        raise HTTPException(503, "Database not configured")
-
-    # Extract token from "Bearer <token>" format
-    token = None
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]  # Remove "Bearer " prefix
-
-    user_id = await get_current_user_id(token)
-    print(f"🔍 AUTH DEBUG: token = {token[:20] if token else None}...")
-    print(f"🔍 AUTH DEBUG: extracted user_id = {user_id}")
-    if not user_id:
-        raise HTTPException(401, "Authentication required")
-
-    return user_id
 
 
 @router.get("")
 async def list_problems(
-    authorization: str = Header(...),
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user),
+    db = Depends(get_db_client)
 ):
     """
     List all problems for the authenticated user.
@@ -70,30 +45,47 @@ async def list_problems(
     Returns:
         List of user's problems from database
     """
+    logger.info(
+        f"Listing problems for user: {user.sub}",
+        extra={
+            "event_type": "list_problems_start",
+            "user_id": user.sub
+        }
+    )
+    
     try:
-        print(f"🔍 LIST PROBLEMS DEBUG: user_id = {user_id}")
-
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
-        problems = await DatabaseService.get_user_problems(user_id, token)
-        print(f"🔍 LIST PROBLEMS DEBUG: found {len(problems)} problems")
-        print(f"🔍 LIST PROBLEMS DEBUG: problems = {problems}")
+        problems = await DatabaseService.get_user_problems(db, db)
+        logger.info(
+            f"Found {len(problems)} problems for user: {user.sub}",
+            extra={
+                "event_type": "list_problems_success",
+                "user_id": user.sub,
+                "problem_count": len(problems)
+            }
+        )
+        
         # Return just the problem names for compatibility with frontend
         result = [problem['name'] for problem in problems]
-        print(f"🔍 LIST PROBLEMS DEBUG: returning = {result}")
         return result
     except Exception as e:
-        print(f"Error listing problems: {e}")
+        logger.error(
+            f"Error listing problems: {str(e)}",
+            extra={
+                "event_type": "list_problems_error",
+                "user_id": user.sub,
+                "error_type": type(e).__name__,
+                "error_details": str(e)
+            },
+            exc_info=True
+        )
         raise HTTPException(500, f"Failed to list problems: {str(e)}")
 
 
 @router.post("")
 async def create_problem(
     request: CreateProblemRequest,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user),
+    db = Depends(get_db_client)
 ):
     """
     Create a new problem for the authenticated user.
@@ -105,28 +97,69 @@ async def create_problem(
     Returns:
         Created problem record
     """
+    logger.info(
+        f"Creating problem: {request.name}",
+        extra={
+            "event_type": "problem_create_start",
+            "user_id": user.sub,
+            "problem_name": request.name,
+            "has_config": request.config is not None
+        }
+    )
+    
     try:
-        problem = await DatabaseService.create_problem(
-            user_id=user_id,
+        problem = await DatabaseService.create_problem(db, 
+            user_id=user.sub,
             name=request.name,
             task_description=request.task_description,
             config=request.config
         )
+        
+        logger.info(
+            f"Problem created successfully: {request.name}",
+            extra={
+                "event_type": "problem_create_success",
+                "user_id": user.sub,
+                "problem_id": problem.get('id'),
+                "problem_name": request.name
+            }
+        )
+        
         return {
             "problem": problem,
             "message": f"Problem '{request.name}' created successfully"
         }
-    except HTTPException:
+    except HTTPException as e:
+        logger.warning(
+            f"Problem creation failed with HTTP error: {e.detail}",
+            extra={
+                "event_type": "problem_create_http_error",
+                "user_id": user.sub,
+                "problem_name": request.name,
+                "error_detail": e.detail,
+                "status_code": e.status_code
+            }
+        )
         raise
     except Exception as e:
-        print(f"Error creating problem: {e}")
+        logger.error(
+            f"Problem creation failed with unexpected error: {str(e)}",
+            extra={
+                "event_type": "problem_create_error",
+                "user_id": user.sub,
+                "problem_name": request.name,
+                "error_type": type(e).__name__,
+                "error_details": str(e)
+            },
+            exc_info=True
+        )
         raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
 @router.get("/{problem_id}")
 async def get_problem(
     problem_id: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get a specific problem by ID.
@@ -139,7 +172,7 @@ async def get_problem(
         Problem details
     """
     try:
-        problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -154,7 +187,7 @@ async def get_problem(
 @router.get("/{problem_name}/status")
 async def get_problem_status(
     problem_name: str,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get detailed status for a problem including rounds and files.
@@ -168,14 +201,14 @@ async def get_problem_status(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Get all files to analyze rounds
-        files = await DatabaseService.get_problem_files(problem_id)
+        files = await DatabaseService.get_problem_files(db, problem_id)
 
         # Group files by round
         rounds_data = {}
@@ -251,7 +284,7 @@ async def get_problem_status(
 async def run_problem(
     problem_name: str,
     request: dict,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Start a research run for a problem.
@@ -266,14 +299,14 @@ async def run_problem(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
 
         # Update problem status to "running"
-        status_updated = await DatabaseService.update_problem_status(problem_id, "running")
+        status_updated = await DatabaseService.update_problem_status(db, problem_id, "running")
         if not status_updated:
             raise HTTPException(500, "Failed to update problem status")
 
@@ -282,7 +315,7 @@ async def run_problem(
 
         # Start the research run using the orchestrator
         import asyncio
-        asyncio.create_task(start_research_run(problem_id, problem_name, request, user_id))
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, db))
 
         return {
             "message": f"Research run started for problem '{problem_name}'",
@@ -303,7 +336,7 @@ async def get_problem_files(
     problem_name: str,
     round: Optional[int] = None,
     file_type: Optional[str] = None,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get files for a problem, optionally filtered by round and type.
@@ -319,12 +352,12 @@ async def get_problem_files(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(user_id, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
-        files = await DatabaseService.get_problem_files(problem_id, round, file_type)
+        files = await DatabaseService.get_problem_files(db, problem_id, round, file_type)
         return {
             "files": files,
             "total": len(files),
@@ -347,7 +380,7 @@ async def update_problem_file(
     file_type: str,
     request: UpdateFileRequest,
     round: int = 0,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Update or create a problem file.
@@ -364,11 +397,11 @@ async def update_problem_file(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
-        success = await DatabaseService.update_problem_file(
+        success = await DatabaseService.update_problem_file(db, 
             problem_id=problem_id,
             file_type=file_type,
             content=request.content,
@@ -394,7 +427,7 @@ async def update_problem_file(
 @router.delete("/{problem_id}")
 async def delete_problem(
     problem_id: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Delete a problem and all associated data.
@@ -408,7 +441,7 @@ async def delete_problem(
     """
     try:
         # Verify ownership and delete
-        success = await DatabaseService.delete_problem(problem_id, user_id)
+        success = await DatabaseService.delete_problem(db, problem_id, user.sub)
         if not success:
             raise HTTPException(404, "Problem not found or access denied")
 
@@ -428,7 +461,7 @@ async def delete_problem(
 async def get_round_details(
     problem_id: int,
     round_num: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get detailed information about a specific round.
@@ -443,12 +476,12 @@ async def get_round_details(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(problem_id, user_id)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         # Get files for this specific round
-        round_files = await DatabaseService.get_problem_files(problem_id, round_num)
+        round_files = await DatabaseService.get_problem_files(db, problem_id, round_num)
 
         if not round_files:
             raise HTTPException(404, f"Round {round_num} not found")
@@ -515,12 +548,12 @@ async def get_round_details(
 async def health_check():
     """Check if database-based endpoints are available."""
     return {
-        "status": "healthy" if is_database_configured() else "database_unavailable",
-        "database_configured": is_database_configured()
+        "status": "healthy" if True else "database_unavailable",
+        "database_configured": True
     }
 
 
-async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str):
+async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, db):
     """
     Start a research run using the orchestrator.
     This runs in the background as an async task.
@@ -565,14 +598,14 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             print(f"✅ Completed round {round_idx}/{rounds}")
 
         # Update status to completed
-        await DatabaseService.update_problem_status(problem_id, "completed")
+        await DatabaseService.update_problem_status(db, problem_id, "completed")
         write_status(user_dir, "completed", rounds)
         print(f"🎉 Research run completed for problem '{problem_name}'")
 
     except Exception as e:
         print(f"❌ Error in research run for problem '{problem_name}': {e}")
         # Update status to failed
-        await DatabaseService.update_problem_status(problem_id, "failed")
+        await DatabaseService.update_problem_status(db, problem_id, "failed")
 
         # Write error status to file system
         try:

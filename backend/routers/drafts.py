@@ -8,12 +8,12 @@ Drafts are stored as problems with type='draft' in the config.
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Header, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ..services.database import DatabaseService
 from ..services.tasks import TaskService
-from ..db import get_current_user_id, is_database_configured
+from ..authentication import get_current_user, get_db_client, AuthedUser
 
 router = APIRouter(prefix="/drafts", tags=["drafts"])
 
@@ -29,36 +29,10 @@ class UpdateDraftRequest(BaseModel):
     description: Optional[str] = None
 
 
-async def get_authenticated_user(authorization: str = Header(...)) -> str:
-    """
-    Dependency to get authenticated user ID from Authorization header.
-
-    Args:
-        authorization: Bearer token from Authorization header
-
-    Returns:
-        User ID
-
-    Raises:
-        HTTPException: If not authenticated or database not configured
-    """
-    if not is_database_configured():
-        raise HTTPException(503, "Database not configured")
-
-    # Extract token from "Bearer <token>" format
-    token = None
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]  # Remove "Bearer " prefix
-
-    user_id = await get_current_user_id(token)
-    if not user_id:
-        raise HTTPException(401, "Authentication required")
-
-    return user_id
 
 
 @router.get("")
-async def list_drafts(user_id: str = Depends(get_authenticated_user)):
+async def list_drafts(user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)):
     """
     List all drafts for the authenticated user.
 
@@ -67,7 +41,7 @@ async def list_drafts(user_id: str = Depends(get_authenticated_user)):
     """
     try:
         # Get all problems and filter for drafts
-        all_problems = await DatabaseService.get_user_problems(user_id)
+        all_problems = await DatabaseService.get_user_problems(db, user_id)
         drafts = [
             problem for problem in all_problems
             if problem.get('config', {}).get('type') == 'draft'
@@ -85,7 +59,7 @@ async def list_drafts(user_id: str = Depends(get_authenticated_user)):
 @router.post("")
 async def create_draft(
     request: CreateDraftRequest,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Create a new draft for the authenticated user.
@@ -101,12 +75,12 @@ async def create_draft(
         draft_id = await TaskService.create_draft(
             name=request.name,
             task_description=request.task_description,
-            user_id=user_id
+            user_id=user.sub
         )
 
         # If initial draft content provided, update the tex file
         if request.initial_draft:
-            await DatabaseService.update_problem_file(
+            await DatabaseService.update_problem_file(db, 
                 problem_id=int(draft_id),
                 file_type='draft_tex',
                 content=request.initial_draft,
@@ -114,7 +88,7 @@ async def create_draft(
             )
 
         # Get the created draft
-        draft = await DatabaseService.get_problem_by_id(int(draft_id), user_id)
+        draft = await DatabaseService.get_problem_by_id(db, int(draft_id), user_id)
 
         return {
             "draft": draft,
@@ -130,7 +104,7 @@ async def create_draft(
 @router.get("/{draft_id}")
 async def get_draft(
     draft_id: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get a specific draft by ID.
@@ -143,7 +117,7 @@ async def get_draft(
         Draft details with files
     """
     try:
-        draft = await DatabaseService.get_problem_by_id(draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
@@ -152,7 +126,7 @@ async def get_draft(
             raise HTTPException(404, "Not a draft")
 
         # Get all files for this draft
-        files = await DatabaseService.get_problem_files(draft_id)
+        files = await DatabaseService.get_problem_files(db, draft_id)
 
         return {
             "draft": draft,
@@ -168,7 +142,7 @@ async def get_draft(
 @router.get("/{draft_id}/status")
 async def get_draft_status(
     draft_id: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get detailed status for a draft including writing rounds.
@@ -182,7 +156,7 @@ async def get_draft_status(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
@@ -190,7 +164,7 @@ async def get_draft_status(
             raise HTTPException(404, "Not a draft")
 
         # Get all files to analyze writing rounds
-        files = await DatabaseService.get_problem_files(draft_id)
+        files = await DatabaseService.get_problem_files(db, draft_id)
 
         # Group files by round
         rounds_data = {}
@@ -243,7 +217,7 @@ async def get_draft_status(
 async def update_draft_content(
     draft_id: int,
     request: UpdateDraftRequest,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Update the main draft content (LaTeX).
@@ -258,14 +232,14 @@ async def update_draft_content(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
         if draft.get('config', {}).get('type') != 'draft':
             raise HTTPException(404, "Not a draft")
 
-        success = await DatabaseService.update_problem_file(
+        success = await DatabaseService.update_problem_file(db, 
             problem_id=draft_id,
             file_type='draft_tex',
             content=request.content,
@@ -289,7 +263,7 @@ async def update_draft_content(
 @router.delete("/{draft_id}")
 async def delete_draft(
     draft_id: int,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Delete a draft and all associated data.
@@ -303,14 +277,14 @@ async def delete_draft(
     """
     try:
         # Verify it's a draft before deleting
-        draft = await DatabaseService.get_problem_by_id(draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
         if draft.get('config', {}).get('type') != 'draft':
             raise HTTPException(404, "Not a draft")
 
-        success = await DatabaseService.delete_problem(draft_id, user_id)
+        success = await DatabaseService.delete_problem(db, draft_id, user_id)
         if not success:
             raise HTTPException(404, "Draft not found or access denied")
 
@@ -330,7 +304,7 @@ async def delete_draft(
 async def get_draft_file(
     draft_id: int,
     file_type: str,
-    user_id: str = Depends(get_authenticated_user)
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get a specific file from a draft.
@@ -345,14 +319,14 @@ async def get_draft_file(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
         if draft.get('config', {}).get('type') != 'draft':
             raise HTTPException(404, "Not a draft")
 
-        files = await DatabaseService.get_problem_files(draft_id, round=0, file_type=file_type)
+        files = await DatabaseService.get_problem_files(db, draft_id, round=0, file_type=file_type)
 
         if not files:
             raise HTTPException(404, f"File '{file_type}' not found")

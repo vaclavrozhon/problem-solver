@@ -61,6 +61,7 @@ async def get_authenticated_user(authorization: str = Header(...)) -> str:
 
 @router.get("")
 async def list_problems(
+    authorization: str = Header(...),
     user_id: str = Depends(get_authenticated_user)
 ):
     """
@@ -71,7 +72,13 @@ async def list_problems(
     """
     try:
         print(f"🔍 LIST PROBLEMS DEBUG: user_id = {user_id}")
-        problems = await DatabaseService.get_user_problems(user_id)
+
+        # Extract token for authenticated database queries
+        token = None
+        if authorization.startswith("Bearer "):
+            token = authorization[7:]  # Remove "Bearer " prefix
+
+        problems = await DatabaseService.get_user_problems(user_id, token)
         print(f"🔍 LIST PROBLEMS DEBUG: found {len(problems)} problems")
         print(f"🔍 LIST PROBLEMS DEBUG: problems = {problems}")
         # Return just the problem names for compatibility with frontend

@@ -27,7 +27,6 @@ export default function LoginPage() {
               }
             }}
             providers={['google', 'email']}
-            redirectTo={window.location.origin}
           />
         </div>
       </div>

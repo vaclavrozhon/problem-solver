@@ -16,6 +16,49 @@ class DatabaseService:
     """Service for database operations on problems, files, and runs"""
 
     @staticmethod
+    async def update_user_last_login(user_id: str) -> bool:
+        """
+        Update the last_login timestamp for a user.
+
+        Args:
+            user_id: UUID of the user
+
+        Returns:
+            True if successful, False otherwise
+        """
+        db = get_db()
+        if not db:
+            return False
+
+        try:
+            # First check if user exists in our users table
+            existing_user = db.table('users')\
+                .select('id')\
+                .eq('id', user_id)\
+                .execute()
+
+            if not existing_user.data:
+                # User doesn't exist in our table, create a minimal record
+                db.table('users').insert({
+                    'id': user_id,
+                    'last_login': datetime.utcnow().isoformat(),
+                    'credits_used': 0.0,
+                    'credits_limit': 100.0,
+                    'is_active': True
+                }).execute()
+            else:
+                # Update existing user's last_login
+                db.table('users')\
+                    .update({'last_login': datetime.utcnow().isoformat()})\
+                    .eq('id', user_id)\
+                    .execute()
+
+            return True
+        except Exception as e:
+            print(f"Error updating last_login: {e}")
+            return False
+
+    @staticmethod
     async def get_user_problems(user_id: str) -> List[Dict[str, Any]]:
         """
         Get all problems for a specific user.

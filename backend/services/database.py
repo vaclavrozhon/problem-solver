@@ -21,7 +21,7 @@ class DatabaseService:
     @staticmethod
     async def update_user_last_login(db: Client, user_id: str) -> bool:
         """
-        Update the last_login timestamp for a user.
+        Update the last_login timestamp for a user profile.
 
         Args:
             db: Authenticated Supabase client
@@ -31,40 +31,103 @@ class DatabaseService:
             True if successful, False otherwise
         """
         try:
-            # First check if user exists in our users table
-            existing_user = db.table('users')\
+            # First check if profile exists
+            existing_profile = db.table('profiles')\
                 .select('id')\
                 .eq('id', user_id)\
                 .execute()
 
-            if not existing_user.data:
-                # User doesn't exist in our table, create a minimal record
-                db.table('users').insert({
+            if not existing_profile.data:
+                # Profile doesn't exist, create a minimal record
+                db.table('profiles').insert({
                     'id': user_id,
-                    'last_login': datetime.utcnow().isoformat(),
                     'credits_used': 0.0,
                     'credits_limit': 100.0,
-                    'is_active': True
+                    'settings': {}
                 }).execute()
             else:
-                # Update existing user's last_login
-                db.table('users')\
-                    .update({'last_login': datetime.utcnow().isoformat()})\
+                # Update existing profile's updated_at timestamp
+                db.table('profiles')\
+                    .update({'updated_at': datetime.utcnow().isoformat()})\
                     .eq('id', user_id)\
                     .execute()
 
             return True
         except Exception as e:
             logger.error(
-                f"Error updating last_login: {str(e)}",
+                f"Error updating profile: {str(e)}",
                 extra={
-                    "event_type": "update_last_login_error",
+                    "event_type": "update_profile_error",
                     "user_id": user_id,
                     "error_type": type(e).__name__,
                     "error_details": str(e)
                 },
                 exc_info=True
             )
+            return False
+
+    @staticmethod
+    async def get_user_profile(db: Client, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get user profile information.
+
+        Args:
+            db: Authenticated Supabase client
+            user_id: UUID of the user
+
+        Returns:
+            Profile dictionary or None if not found
+        """
+        try:
+            response = db.table('profiles')\
+                .select('*')\
+                .eq('id', user_id)\
+                .single()\
+                .execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Database error getting user profile: {e}")
+            return None
+
+    @staticmethod
+    async def update_user_profile(
+        db: Client, 
+        user_id: str, 
+        credits_used: Optional[float] = None,
+        credits_limit: Optional[float] = None,
+        settings: Optional[Dict] = None
+    ) -> bool:
+        """
+        Update user profile information.
+
+        Args:
+            db: Authenticated Supabase client
+            user_id: UUID of the user
+            credits_used: New credits used amount
+            credits_limit: New credits limit
+            settings: New settings dictionary
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            update_data = {'updated_at': datetime.utcnow().isoformat()}
+            
+            if credits_used is not None:
+                update_data['credits_used'] = credits_used
+            if credits_limit is not None:
+                update_data['credits_limit'] = credits_limit
+            if settings is not None:
+                update_data['settings'] = settings
+
+            response = db.table('profiles')\
+                .update(update_data)\
+                .eq('id', user_id)\
+                .execute()
+
+            return len(response.data) > 0
+        except Exception as e:
+            logger.error(f"Database error updating user profile: {e}")
             return False
 
     @staticmethod
@@ -508,8 +571,8 @@ class DatabaseService:
                 .insert(usage_data)\
                 .execute()
 
-            # Update user's credits_used
-            db.table('users')\
+            # Update user's credits_used in profiles table
+            db.table('profiles')\
                 .update({'credits_used': db.raw(f'credits_used + {cost}')})\
                 .eq('id', user_id)\
                 .execute()

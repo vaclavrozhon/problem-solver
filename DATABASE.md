@@ -1,23 +1,23 @@
 # Database Schema Documentation
 
 ## Overview
-The Automatic Researcher application uses Supabase (PostgreSQL) for data persistence, moving from a file-based storage system to a relational database for better scalability, multi-user support, and structured querying.
+The Automatic Researcher application uses Supabase (PostgreSQL) for data persistence, moving from a file-based storage system to a relational database for better scalability, multi-user support, and structured querying. The system implements a centralized authentication architecture with JWT-based user verification and per-request database client creation for secure data access.
 
 ## Database Tables
 
-### 1. **users**
-Stores user accounts and settings.
+### 1. **profiles**
+Stores user profile information and settings. References Supabase's `auth.users` table.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | UUID | Primary key, auto-generated |
-| `email` | VARCHAR | Unique email address |
-| `created_at` | TIMESTAMP | Account creation time |
+| `id` | UUID | Primary key, references auth.users(id) |
 | `credits_used` | DECIMAL(10,4) | Total credits consumed |
 | `credits_limit` | DECIMAL(10,4) | Maximum credit allowance (default: 100) |
-| `is_active` | BOOLEAN | Account status |
-| `last_login` | TIMESTAMP | Most recent login |
 | `settings` | JSONB | User preferences, API keys, etc. |
+| `created_at` | TIMESTAMP | Profile creation time |
+| `updated_at` | TIMESTAMP | Last profile update time |
+
+**Note:** User authentication is handled by Supabase's `auth.users` table. The `profiles` table only stores application-specific data like credits and settings.
 
 ### 2. **problems**
 Core table for research problems/tasks.
@@ -25,7 +25,7 @@ Core table for research problems/tasks.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | SERIAL | Primary key |
-| `owner_id` | UUID | References users.id |
+| `owner_id` | UUID | References profiles.id |
 | `name` | VARCHAR(255) | Problem identifier/name |
 | `status` | VARCHAR(50) | 'idle', 'running', 'completed' |
 | `current_round` | INT | Current research round (0 = not started) |
@@ -94,7 +94,7 @@ Detailed API usage tracking for billing.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | SERIAL | Primary key |
-| `user_id` | UUID | References users.id |
+| `user_id` | UUID | References profiles.id |
 | `problem_id` | INT | References problems.id (nullable) |
 | `run_id` | INT | References runs.id (nullable) |
 | `operation` | VARCHAR(50) | Operation type |
@@ -128,15 +128,35 @@ Detailed API usage tracking for billing.
 
 ### Row Level Security (RLS)
 All tables have RLS enabled to ensure users can only access their own data:
-- Users see only their profile
+- Users see only their own profile
 - Problems filtered by owner_id
 - Problem files accessible only to problem owner
 - Runs and usage logs restricted to owner
 
-### Authentication
-- Integrates with Supabase Auth
+### Authentication Architecture
+The system uses a centralized authentication approach:
+
+**JWT Token Verification:**
+- Each API request includes a JWT token in the Authorization header
+- Tokens are verified offline using Supabase's `get_claims()` method
+- User information is extracted from token claims (user ID, email, etc.)
+
+**Per-Request Database Clients:**
+- Authenticated Supabase clients are created for each request
+- Clients are configured with the user's JWT token for RLS enforcement
+- All database operations automatically respect user ownership
+
+**FastAPI Dependencies:**
+- `get_current_user()`: Extracts and validates user from JWT token
+- `get_optional_user()`: Optional authentication for public endpoints
+- `get_db_client()`: Creates authenticated Supabase client for database operations
+- `supabase_as_user()`: Creates user-specific Supabase client
+
+**Integration:**
+- Integrates with Supabase Auth for user management
 - User profiles auto-created on signup via trigger
 - JWT tokens used for API authentication
+- All service methods accept authenticated database clients as parameters
 
 ## Indexes
 Strategic indexes for common queries:
@@ -164,6 +184,36 @@ Required for application:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+## Backend Architecture
+
+### Service Layer Pattern
+All database operations are handled through service classes that accept authenticated Supabase clients:
+
+**DatabaseService:**
+- All methods accept `db: Client` as first parameter
+- Methods include: `create_problem()`, `get_user_problems()`, `update_problem_file()`, etc.
+- Automatic RLS enforcement through authenticated client
+
+**TaskService:**
+- Updated to use centralized authentication
+- Methods include: `create_problem()`, `create_draft()`, `delete_problem()`, `reset_problem()`
+- All methods accept `db: Client` parameter for database operations
+
+### Router Dependencies
+All API endpoints use FastAPI dependency injection:
+
+```python
+@router.post("/problems")
+async def create_problem(
+    request: CreateProblemRequest,
+    user: AuthedUser = Depends(get_current_user),
+    db = Depends(get_db_client)
+):
+    # user.sub contains the user ID
+    # db is an authenticated Supabase client
+    problem = await DatabaseService.create_problem(db, ...)
 ```
 
 ## Query Examples

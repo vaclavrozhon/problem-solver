@@ -18,7 +18,7 @@ from .utils import (
     load_prompt, write_status, dump_io, normalize_schema_strict,
     pre_dump_io, dump_failure, enhanced_write_status
 )
-from .database_integration import get_database_integration
+from .database_integration import get_database_integration, get_current_problem_id
 from .papers import read_problem_context, get_paper_text_from_database
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
@@ -60,7 +60,6 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
         system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
     
     # Append all papers (description first, then text) at end of prompt
-    from .database_integration import get_current_problem_id
     problem_id = get_current_problem_id()
     papers_block = get_paper_text_from_database(problem_id)
     
@@ -162,9 +161,11 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     (round_dir / f"{agent}.text.txt").write_text(response_obj.content or "", encoding="utf-8")
 
     # Save to database if integration is available
+    print(f"🔍 PROVER: Checking database integration...")
     db_integration = get_database_integration()
     if db_integration:
-        db_integration.save_prover_output(
+        print(f"✅ PROVER: Database integration found, saving prover {prover_idx} output...")
+        success = db_integration.save_prover_output(
             round_num=round_idx,
             prover_idx=prover_idx,
             content=response_obj.content or "",
@@ -172,6 +173,9 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
             tokens_in=getattr(response_obj, 'usage', {}).get('prompt_tokens'),
             tokens_out=getattr(response_obj, 'usage', {}).get('completion_tokens')
         )
+        print(f"📊 PROVER: Database save result: {success}")
+    else:
+        print(f"❌ PROVER: No database integration available!")
 
     return response_obj.content or "", True
 
@@ -268,20 +272,25 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
     )
 
     # Save to database if integration is available
+    print(f"🔍 VERIFIER: Checking database integration...")
     db_integration = get_database_integration()
     if db_integration:
+        print(f"✅ VERIFIER: Database integration found, saving verifier output...")
         verdict_data = {
             'verdict': response_obj.verdict,
             'feedback_md': response_obj.feedback_md,
             'summary_md': response_obj.summary_md
         }
-        db_integration.save_verifier_output(
+        success = db_integration.save_verifier_output(
             round_num=round_idx,
             feedback=response_obj.feedback_md,
             summary=response_obj.summary_md,
             verdict_data=verdict_data,
             model=MODEL_VERIFIER
         )
+        print(f"📊 VERIFIER: Database save result: {success}")
+    else:
+        print(f"❌ VERIFIER: No database integration available!")
     
     # Apply file updates from verifier
     if response_obj.notes_update:
@@ -398,14 +407,19 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     )
 
     # Save to database if integration is available
+    print(f"🔍 SUMMARIZER: Checking database integration...")
     db_integration = get_database_integration()
     if db_integration:
-        db_integration.save_summarizer_output(
+        print(f"✅ SUMMARIZER: Database integration found, saving summarizer output...")
+        success = db_integration.save_summarizer_output(
             round_num=round_idx,
             summary=response_obj.summary_md,
             one_line_summary=response_obj.one_line_summary,
             model=MODEL_SUMMARIZER
         )
+        print(f"📊 SUMMARIZER: Database save result: {success}")
+    else:
+        print(f"❌ SUMMARIZER: No database integration available!")
 
     print(f"  [summarizer] Complete ({duration:.1f}s)")
     return response_obj

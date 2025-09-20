@@ -130,8 +130,8 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
         setSelectedVersion('current')
       }
       
-      // Load versions for versioned files
-      if (['notes.md', 'proofs.md', 'output.md'].includes(filePath) && selectedFile !== filePath) {
+      // Load versions for versioned files (check by file_type instead of filename)
+      if (['prover_output', 'verifier_output', 'summarizer_output'].includes(filePath) && selectedFile !== filePath) {
         try {
           setVersionsLoading(true)
           const versionsResult = await getFileVersions(problemName, filePath)
@@ -407,9 +407,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
       <div key={file?.id || `${file?.file_type}-${file?.round}`} style={{ marginBottom: '6px' }}>
         {/* Original File */}
         <button
-          onClick={() => loadFileContent(file?.file_name || file?.file_type, 'current', file)}
+          onClick={() => loadFileContent(file?.file_type, 'current', file)}
           style={{
-            background: selectedFile === (file?.file_name || file?.file_type) ? '#e3f2fd' : 'transparent',
+            background: selectedFile === file?.file_type ? '#e3f2fd' : 'transparent',
             border: '1px solid #ddd',
             padding: '8px 12px',
             width: '100%',

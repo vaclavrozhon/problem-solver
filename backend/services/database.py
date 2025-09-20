@@ -164,21 +164,26 @@ class DatabaseService:
             return None
 
     @staticmethod
-    async def update_problem_status(db: Client, problem_id: int, status: str) -> bool:
+    async def update_problem_status(db: Client, problem_id: int, status: str, current_round: Optional[int] = None) -> bool:
         """
-        Update the status of a problem.
+        Update the status of a problem and optionally the current round.
 
         Args:
             db: Authenticated Supabase client
             problem_id: Problem ID
             status: New status (idle, running, completed, failed)
+            current_round: Current round number (optional)
 
         Returns:
             True if successful, False otherwise
         """
         try:
+            update_data = {'status': status}
+            if current_round is not None:
+                update_data['current_round'] = current_round
+
             response = db.table('problems')\
-                .update({'status': status})\
+                .update(update_data)\
                 .eq('id', problem_id)\
                 .execute()
 
@@ -190,6 +195,7 @@ class DatabaseService:
                     "event_type": "update_problem_status_error",
                     "problem_id": problem_id,
                     "status": status,
+                    "current_round": current_round,
                     "error_type": type(e).__name__,
                     "error_details": str(e)
                 },

@@ -241,6 +241,47 @@ def get_db_client(user: AuthedUser = Depends(get_current_user)) -> Client:
     return supabase_as_user(user)
 
 
+def get_db_client_sync(user_id: str) -> Client:
+    """
+    Create an authenticated Supabase client for background tasks.
+
+    This creates a client using the service role key for background operations
+    that need database access but don't have a user context.
+
+    Args:
+        user_id: User ID for context (used in logging)
+
+    Returns:
+        Client: Supabase client with service role permissions
+    """
+    try:
+        # Use service role key for background tasks
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        if not service_key:
+            raise Exception("SUPABASE_SERVICE_ROLE_KEY not configured")
+
+        client = create_client(SUPABASE_URL, service_key)
+
+        logger.debug(
+            f"Created service role Supabase client for background task (user: {user_id})",
+            extra={"event_type": "db_client_created_service", "user_id": user_id},
+        )
+
+        return client
+
+    except Exception as e:
+        logger.error(
+            f"Failed to create service role Supabase client: {str(e)}",
+            extra={
+                "event_type": "db_client_service_error",
+                "user_id": user_id,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
+        raise Exception(f"Failed to create database client: {str(e)}")
+
+
 # Export key functions and objects
 __all__ = [
     "AuthedUser",
@@ -248,5 +289,6 @@ __all__ = [
     "get_optional_user",
     "supabase_as_user",
     "get_db_client",
+    "get_db_client_sync",
     "security",
 ]

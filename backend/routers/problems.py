@@ -201,7 +201,7 @@ async def get_problem_status(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -299,7 +299,7 @@ async def run_problem(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -352,7 +352,7 @@ async def get_problem_files(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

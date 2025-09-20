@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..services.database import DatabaseService
 from ..services.tasks import TaskService
-from ..authentication import get_current_user, get_db_client, AuthedUser
+from ..authentication import get_current_user, get_db_client, AuthedUser, is_database_configured
 
 router = APIRouter(prefix="/drafts", tags=["drafts"])
 
@@ -41,7 +41,7 @@ async def list_drafts(user: AuthedUser = Depends(get_current_user), db = Depends
     """
     try:
         # Get all problems and filter for drafts
-        all_problems = await DatabaseService.get_user_problems(db, user_id)
+        all_problems = await DatabaseService.get_user_problems(db)
         drafts = [
             problem for problem in all_problems
             if problem.get('config', {}).get('type') == 'draft'
@@ -88,7 +88,7 @@ async def create_draft(
             )
 
         # Get the created draft
-        draft = await DatabaseService.get_problem_by_id(db, int(draft_id), user_id)
+        draft = await DatabaseService.get_problem_by_id(db, int(draft_id), user.sub)
 
         return {
             "draft": draft,
@@ -117,7 +117,7 @@ async def get_draft(
         Draft details with files
     """
     try:
-        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user.sub)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
@@ -156,7 +156,7 @@ async def get_draft_status(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user.sub)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
@@ -232,7 +232,7 @@ async def update_draft_content(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user.sub)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
@@ -277,14 +277,14 @@ async def delete_draft(
     """
     try:
         # Verify it's a draft before deleting
-        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user.sub)
         if not draft:
             raise HTTPException(404, "Draft not found")
 
         if draft.get('config', {}).get('type') != 'draft':
             raise HTTPException(404, "Not a draft")
 
-        success = await DatabaseService.delete_problem(db, draft_id, user_id)
+        success = await DatabaseService.delete_problem(db, draft_id, user.sub)
         if not success:
             raise HTTPException(404, "Draft not found or access denied")
 
@@ -319,7 +319,7 @@ async def get_draft_file(
     """
     try:
         # Verify ownership and that it's a draft
-        draft = await DatabaseService.get_problem_by_id(db, draft_id, user_id)
+        draft = await DatabaseService.get_problem_by_id(db, draft_id, user.sub)
         if not draft:
             raise HTTPException(404, "Draft not found")
 

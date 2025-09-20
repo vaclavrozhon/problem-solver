@@ -35,13 +35,8 @@ async def get_problem_status(
         Problem status with rounds and recent activity
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -138,13 +133,8 @@ async def run_problem(
         Run start confirmation
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -192,13 +182,8 @@ async def stop_problem(
         Success message
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

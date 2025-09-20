@@ -96,9 +96,11 @@ export function isProblemRunning(status?: ProblemStatus): boolean {
 export function getStatusDescription(info: ProblemInfo, status?: ProblemStatus): string {
   switch (info.status) {
     case 'running':
-      // Show batch context if available, otherwise show "?"
+      // Show batch context if available, otherwise use current round
       if (status?.overall.current_batch_round && status?.overall.batch_size) {
         return `Running (Round ${status.overall.current_batch_round} of batch of ${status.overall.batch_size} rounds)`
+      } else if (status?.overall.current_round) {
+        return `Running (Round ${status.overall.current_round})`
       }
       return `Running (Round ?)`
     case 'error':

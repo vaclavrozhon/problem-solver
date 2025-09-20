@@ -243,7 +243,9 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
         print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
 
         # Initialize database integration for orchestrator
+        print(f"🔗 About to initialize database integration for problem {problem_id}")
         initialize_database_integration(problem_id, user_token, user_id)
+        print(f"📊 Database integration step completed")
 
         # Run the research rounds asynchronously
         for round_idx in range(1, rounds + 1):
@@ -265,6 +267,8 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
                 import asyncio
                 loop = asyncio.get_event_loop()
 
+                print(f"🤖 About to call orchestrator run_round for round {round_idx}")
+
                 # Run the synchronous orchestrator function in a thread pool
                 await loop.run_in_executor(
                     None,
@@ -276,7 +280,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
                     focus_description
                 )
 
-                print(f"✅ Completed round {round_idx}/{rounds}")
+                print(f"✅ Completed round {round_idx}/{rounds} - orchestrator returned successfully")
 
             except StopSignalException:
                 print(f"🛑 Stop signal detected during round {round_idx}, halting research")

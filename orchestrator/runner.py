@@ -23,10 +23,12 @@ def run_round(problem_dir: Path, round_idx: int, num_provers: int = 1, prover_co
     """Run a single research round with specified number of provers."""
     import time
     round_start_time = time.time()
-    
-    print(f"\n=== Round {round_idx} ===")
+
+    print(f"\n🚀 ORCHESTRATOR: Starting Round {round_idx} with {num_provers} provers")
+    print(f"🗂️  ORCHESTRATOR: Problem dir: {problem_dir}")
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
+    print(f"📁 ORCHESTRATOR: Created round directory: {round_dir}")
     
     
     # Ensure 3-tier file system exists

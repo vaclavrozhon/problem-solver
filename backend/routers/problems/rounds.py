@@ -32,13 +32,8 @@ async def get_problem_rounds(
         List of rounds with their data
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -93,13 +88,8 @@ async def delete_problem_rounds(
         Success message
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -158,13 +148,8 @@ async def delete_specific_round(
         Success message
     """
     try:
-        # Extract token for authenticated database queries
-        token = None
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]  # Remove "Bearer " prefix
-
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, user.sub, problem_name, token)
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

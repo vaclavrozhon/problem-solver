@@ -673,6 +673,63 @@ class DatabaseService:
             logger.error(f"Database error updating file: {e}")
             return False
 
+    @staticmethod
+    async def create_problem_file(
+        db: Client,
+        problem_id: int,
+        round_num: int,
+        file_type: str,
+        filename: str,
+        content: str,
+        metadata: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Create a new problem file (used by orchestrator).
+
+        Args:
+            db: Authenticated Supabase client
+            problem_id: Problem ID
+            round_num: Round number
+            file_type: Type of file (prover_output, verifier_output, etc.)
+            filename: Original filename
+            content: File content
+            metadata: Additional metadata (model, tokens, etc.)
+
+        Returns:
+            True if successful
+        """
+        try:
+            file_data = {
+                'problem_id': problem_id,
+                'round': round_num,
+                'file_type': file_type,
+                'file_name': filename,
+                'content': content,
+                'metadata': metadata or {}
+            }
+
+            response = db.table('problem_files')\
+                .insert(file_data)\
+                .execute()
+
+            return len(response.data) > 0
+
+        except Exception as e:
+            logger.error(
+                f"Database error creating problem file: {str(e)}",
+                extra={
+                    "event_type": "create_problem_file_error",
+                    "problem_id": problem_id,
+                    "file_type": file_type,
+                    "round": round_num,
+                    "filename": filename,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e)
+                },
+                exc_info=True
+            )
+            return False
+
 
 # Export the service class
 __all__ = ['DatabaseService']

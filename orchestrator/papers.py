@@ -1,14 +1,22 @@
 """
 Paper handling simplified to text-only.
 
-We no longer parse PDFs/HTML. Papers are plain text files alongside optional
-`.description.txt` sidecars. Use file_manager.get_paper_text_with_descriptions
-to include papers in prompts.
+Papers are loaded from the database instead of filesystem.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
+
+# Add backend to path to import database service
+backend_path = Path(__file__).parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
+try:
+    from services.database import DatabaseService
+except ImportError:
+    DatabaseService = None
 
 
 def extract_pdf_text(pdf_path: Path) -> str:
@@ -65,6 +73,72 @@ def read_problem_context(problem_dir: Path, include_pdfs: bool = True, file_desc
     return "\n".join(context_parts)
 
 
+def get_paper_text_from_database(problem_id: int = None) -> str:
+    """
+    Load paper content from database instead of filesystem.
+
+    Args:
+        problem_id: Problem ID to load papers for (if None, returns empty string)
+
+    Returns:
+        Concatenated paper content with descriptions
+    """
+    if not problem_id or not DatabaseService:
+        return ""
+
+    # Get database integration instance
+    from .database_integration import get_database_integration
+    db_integration = get_database_integration()
+
+    if not db_integration or not db_integration.db_client:
+        return ""
+
+    try:
+        import asyncio
+
+        # Run async function in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Get all paper files from database (round 0 = base files, file_type = 'paper')
+            files = loop.run_until_complete(
+                DatabaseService.get_problem_files(db_integration.db_client, problem_id)
+            )
+
+            if not files:
+                return ""
+
+            # Filter for paper files
+            paper_files = [f for f in files if f.get('file_type') == 'paper' and f.get('round', 0) == 0]
+
+            if not paper_files:
+                return ""
+
+            parts = []
+            for paper_file in paper_files:
+                filename = paper_file.get('file_name', 'unknown')
+                content = paper_file.get('content', '')
+                metadata = paper_file.get('metadata', {})
+
+                # Add description if available in metadata
+                description = metadata.get('description', '')
+                if description:
+                    parts.append(f"=== Paper Description ({filename}) ===\n{description}\n")
+
+                # Add paper content
+                parts.append(f"=== Paper ({filename}) ===\n{content}\n")
+
+            return "\n".join(parts)
+
+        finally:
+            loop.close()
+
+    except Exception as e:
+        print(f"Warning: Could not load papers from database: {e}")
+        return ""
+
+
 def read_problem_context_legacy(problem_dir: Path, include_pdfs: bool = True) -> str:
     """
     Legacy version that includes full paper content in the prompt.
@@ -95,3 +169,69 @@ def read_problem_context_legacy(problem_dir: Path, include_pdfs: bool = True) ->
         context_parts.append(output_file.read_text(encoding="utf-8"))
     
     return "\n".join(context_parts)
+
+
+def get_paper_text_from_database(problem_id: int = None) -> str:
+    """
+    Load paper content from database instead of filesystem.
+
+    Args:
+        problem_id: Problem ID to load papers for (if None, returns empty string)
+
+    Returns:
+        Concatenated paper content with descriptions
+    """
+    if not problem_id or not DatabaseService:
+        return ""
+
+    # Get database integration instance
+    from .database_integration import get_database_integration
+    db_integration = get_database_integration()
+
+    if not db_integration or not db_integration.db_client:
+        return ""
+
+    try:
+        import asyncio
+
+        # Run async function in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Get all paper files from database (round 0 = base files, file_type = 'paper')
+            files = loop.run_until_complete(
+                DatabaseService.get_problem_files(db_integration.db_client, problem_id)
+            )
+
+            if not files:
+                return ""
+
+            # Filter for paper files
+            paper_files = [f for f in files if f.get('file_type') == 'paper' and f.get('round', 0) == 0]
+
+            if not paper_files:
+                return ""
+
+            parts = []
+            for paper_file in paper_files:
+                filename = paper_file.get('file_name', 'unknown')
+                content = paper_file.get('content', '')
+                metadata = paper_file.get('metadata', {})
+
+                # Add description if available in metadata
+                description = metadata.get('description', '')
+                if description:
+                    parts.append(f"=== Paper Description ({filename}) ===\n{description}\n")
+
+                # Add paper content
+                parts.append(f"=== Paper ({filename}) ===\n{content}\n")
+
+            return "\n".join(parts)
+
+        finally:
+            loop.close()
+
+    except Exception as e:
+        print(f"Warning: Could not load papers from database: {e}")
+        return ""

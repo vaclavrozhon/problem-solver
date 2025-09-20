@@ -241,8 +241,8 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
       }
       
       // Update files list if description changed
-      const updatedFiles = files.map(file => 
-        file.path === selectedFile 
+      const updatedFiles = files.map(file =>
+        (file?.file_name || file?.file_type) === selectedFile
           ? { ...file, description: editedDescription }
           : file
       )
@@ -328,10 +328,15 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    * Gets appropriate icon for file type
    */
   const getFileIcon = (file: FileInfo): string => {
-    switch (file.type) {
-      case 'markdown': return '📝'
+    switch (file?.file_type) {
+      case 'task': return '📋'
+      case 'notes': return '📝'
+      case 'proofs': return '🔬'
+      case 'output': return '📊'
       case 'paper': return '📄'
-      case 'pdf': return '📋'
+      case 'prover_output': return '🤖'
+      case 'verifier_output': return '✅'
+      case 'summarizer_output': return '📝'
       default: return '📄'
     }
   }
@@ -355,41 +360,39 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    * Categorizes files into input, output, and metadata groups
    */
   const categorizeFiles = () => {
-    const inputFiles = files.filter(file => 
-      file.path.startsWith('task.') || 
-      file.path.startsWith('papers/')
+    const inputFiles = files.filter(file =>
+      file?.file_type === 'task' ||
+      file?.file_type === 'paper'
     )
-    
-    const outputFiles = files.filter(file => 
-      file.name === 'notes.md' || 
-      file.name === 'proofs.md' || 
-      file.name === 'output.md'
+
+    const outputFiles = files.filter(file =>
+      file?.file_type === 'notes' ||
+      file?.file_type === 'proofs' ||
+      file?.file_type === 'output'
     )
-    
-    // Get all rounds from runs/ directory
+
+    // Get all rounds from database (round > 0)
     const allRounds = [...new Set(
       files
-        .filter(file => file.path.startsWith('runs/'))
-        .map(file => {
-          const roundMatch = file.path.match(/runs\/(round-\d+)\//)
-          return roundMatch ? roundMatch[1] : null
-        })
-        .filter(Boolean)
+        .filter(file => file?.round > 0)
+        .map(file => `round-${String(file.round).padStart(4, '0')}`)
     )].sort().reverse() // Most recent first
-    
+
     // Filter metadata files based on selected round
-    let metadataFiles = files.filter(file => file.path.startsWith('runs/'))
+    let metadataFiles = files.filter(file => file?.round > 0)
     
     if (selectedRound !== 'all' && selectedRound !== 'latest') {
-      // Filter to specific round
-      metadataFiles = metadataFiles.filter(file => 
-        file.path.startsWith(`runs/${selectedRound}/`)
+      // Filter to specific round - extract round number from selectedRound (e.g., "round-0001" -> 1)
+      const roundNum = parseInt(selectedRound.replace('round-', ''))
+      metadataFiles = metadataFiles.filter(file =>
+        file?.round === roundNum
       )
     } else if (selectedRound === 'latest' && allRounds.length > 0) {
       // Show only the latest round
-      const latestRound = allRounds[0]
-      metadataFiles = metadataFiles.filter(file => 
-        file.path.startsWith(`runs/${latestRound}/`)
+      const latestRoundStr = allRounds[0] // e.g., "round-0001"
+      const latestRoundNum = parseInt(latestRoundStr.replace('round-', ''))
+      metadataFiles = metadataFiles.filter(file =>
+        file?.round === latestRoundNum
       )
     }
     
@@ -401,12 +404,12 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    */
   const renderFileButton = (file, isFirst = true) => {
     return (
-      <div key={file.path} style={{ marginBottom: '6px' }}>
+      <div key={file?.id || `${file?.file_type}-${file?.round}`} style={{ marginBottom: '6px' }}>
         {/* Original File */}
         <button
-          onClick={() => loadFileContent(file.path, 'current', file)}
+          onClick={() => loadFileContent(file?.file_name || file?.file_type, 'current', file)}
           style={{
-            background: selectedFile === file.path ? '#e3f2fd' : 'transparent',
+            background: selectedFile === (file?.file_name || file?.file_type) ? '#e3f2fd' : 'transparent',
             border: '1px solid #ddd',
             padding: '8px 12px',
             width: '100%',
@@ -418,12 +421,12 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
         >
           <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {getFileIcon(file)}
-            {file.name}
+            {file?.file_name || file?.file_type || 'Unknown file'}
           </div>
           <div style={{ fontSize: '10px', color: '#666' }}>
-            {file.type === 'paper' && file.name.toLowerCase().endsWith('.pdf') ? 'Original PDF' : formatFileSize(file.size)} • {file.modified}
+            {file?.file_type === 'paper' && file?.file_name?.toLowerCase().endsWith('.pdf') ? 'Original PDF' : formatFileSize(file?.size)} • {file?.created_at}
           </div>
-          {file.description && (
+          {file?.description && (
             <div style={{ 
               fontSize: '11px', 
               color: '#555', 
@@ -434,7 +437,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
               borderRadius: '2px',
               border: '1px solid #e9ecef'
             }}>
-              {file.description}
+              {file?.description}
             </div>
           )}
         </button>

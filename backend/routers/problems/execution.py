@@ -141,7 +141,7 @@ async def run_problem(
         problem_id = problem['id']
 
         # Update problem status to "running"
-        status_updated = await DatabaseService.update_problem_status(db, problem_id, "running", token)
+        status_updated = await DatabaseService.update_problem_status(db, problem_id, "running")
         if not status_updated:
             raise HTTPException(500, "Failed to update problem status")
 
@@ -150,7 +150,7 @@ async def run_problem(
 
         # Start the research run using the orchestrator
         import asyncio
-        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, token))
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub))
 
         return {
             "message": f"Research run started for problem '{problem_name}'",
@@ -190,7 +190,7 @@ async def stop_problem(
         problem_id = problem['id']
 
         # Update problem status to "idle"
-        success = await DatabaseService.update_problem_status(db, problem_id, "idle", token)
+        success = await DatabaseService.update_problem_status(db, problem_id, "idle")
         if not success:
             raise HTTPException(500, "Failed to stop problem")
 
@@ -207,7 +207,7 @@ async def stop_problem(
         raise HTTPException(500, f"Failed to stop problem: {str(e)}")
 
 
-async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, auth_token: str):
+async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str):
     """
     Start a research run using the orchestrator.
     This runs in the background as an async task.
@@ -252,14 +252,14 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             print(f"✅ Completed round {round_idx}/{rounds}")
 
         # Update status to completed
-        await DatabaseService.update_problem_status(db, problem_id, "completed", auth_token)
+        await DatabaseService.update_problem_status(db, problem_id, "completed")
         write_status(user_dir, "completed", rounds)
         print(f"🎉 Research run completed for problem '{problem_name}'")
 
     except Exception as e:
         print(f"❌ Error in research run for problem '{problem_name}': {e}")
         # Update status to failed
-        await DatabaseService.update_problem_status(db, problem_id, "failed", auth_token)
+        await DatabaseService.update_problem_status(db, problem_id, "failed")
 
         # Write error status to file system
         try:

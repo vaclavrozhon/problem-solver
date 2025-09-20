@@ -150,6 +150,7 @@ The system uses a centralized authentication approach:
 - `get_current_user()`: Extracts and validates user from JWT token
 - `get_optional_user()`: Optional authentication for public endpoints
 - `get_db_client()`: Creates authenticated Supabase client for database operations
+- `get_db_client_with_token()`: Creates user-authenticated client for background tasks
 - `supabase_as_user()`: Creates user-specific Supabase client
 
 **Integration:**
@@ -193,7 +194,8 @@ All database operations are handled through service classes that accept authenti
 
 **DatabaseService:**
 - All methods accept `db: Client` as first parameter
-- Methods include: `create_problem()`, `get_user_problems()`, `update_problem_file()`, etc.
+- Methods include: `create_problem()`, `get_user_problems()`, `update_problem_file()`, `update_problem_status()`, etc.
+- `update_problem_status()` now accepts optional `current_round` parameter for progress tracking
 - Automatic RLS enforcement through authenticated client
 
 **TaskService:**
@@ -215,6 +217,35 @@ async def create_problem(
     # db is an authenticated Supabase client
     problem = await DatabaseService.create_problem(db, ...)
 ```
+
+### Asynchronous Research Execution
+The system now supports fully asynchronous research execution with real-time progress tracking:
+
+**Background Task Architecture:**
+- Research runs are executed as background asyncio tasks
+- Each research round runs in a thread pool executor to avoid blocking the event loop
+- Database is updated after each round completion with current progress
+- Stop signals are checked between rounds for responsive cancellation
+
+**Progress Tracking:**
+- `problems.current_round` field tracks active round number
+- `problems.status` indicates overall execution state ('idle', 'running', 'completed', 'failed')
+- Frontend polling receives real-time updates every 2 seconds
+- Users can stop research mid-execution with immediate response
+
+**Database Updates During Execution:**
+```python
+# Update status and round progress
+await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
+
+# Each round completion triggers database update
+await DatabaseService.update_problem_status(db, problem_id, "running", round_idx + 1)
+```
+
+**Background Task Database Access:**
+- Uses `get_db_client_with_token()` with user's JWT token
+- Maintains RLS enforcement in background operations
+- User context preserved for secure data access
 
 ## Query Examples
 

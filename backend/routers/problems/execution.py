@@ -210,15 +210,21 @@ async def stop_problem(
 async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str):
     """
     Start a research run using the orchestrator.
-    This runs in the background as an async task.
+    This runs in the background as an async task with progress updates.
     """
+    from ...authentication import get_db_client_sync
+
+    db = None
     try:
+        # Get database client for updates
+        db = get_db_client_sync(user_id)
+
         # Add orchestrator to path
         orchestrator_path = Path(__file__).parent.parent.parent.parent / "orchestrator"
         sys.path.insert(0, str(orchestrator_path))
 
         from orchestrator.runner import run_round
-        from orchestrator.utils import write_status
+        from orchestrator.utils import write_status, check_stop_signal, StopSignalException
 
         # Create problem directory structure
         data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
@@ -235,34 +241,67 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
 
         print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
 
-        # Run the research rounds
+        # Run the research rounds asynchronously
         for round_idx in range(1, rounds + 1):
+            # Check for stop signal before each round
+            if check_stop_signal(user_dir):
+                print(f"🛑 Stop signal detected, halting research for '{problem_name}'")
+                await DatabaseService.update_problem_status(db, problem_id, "idle", round_idx - 1)
+                write_status(user_dir, "idle", round_idx - 1)
+                return
+
             print(f"🔍 Starting round {round_idx}/{rounds}")
+
+            # Update database with current round progress
+            await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
             write_status(user_dir, "running", round_idx)
 
-            # Run the round using orchestrator
-            run_round(
-                problem_dir=user_dir,
-                round_idx=round_idx,
-                num_provers=provers,
-                prover_configs=prover_configs,
-                focus_description=focus_description
-            )
+            try:
+                # Run the round in an executor to avoid blocking the event loop
+                import asyncio
+                loop = asyncio.get_event_loop()
 
-            print(f"✅ Completed round {round_idx}/{rounds}")
+                # Run the synchronous orchestrator function in a thread pool
+                await loop.run_in_executor(
+                    None,
+                    run_round,
+                    user_dir,
+                    round_idx,
+                    provers,
+                    prover_configs,
+                    focus_description
+                )
+
+                print(f"✅ Completed round {round_idx}/{rounds}")
+
+            except StopSignalException:
+                print(f"🛑 Stop signal detected during round {round_idx}, halting research")
+                await DatabaseService.update_problem_status(db, problem_id, "idle", round_idx - 1)
+                write_status(user_dir, "idle", round_idx - 1)
+                return
+            except Exception as e:
+                print(f"❌ Error in round {round_idx} for problem '{problem_name}': {e}")
+                await DatabaseService.update_problem_status(db, problem_id, "failed", round_idx)
+                write_status(user_dir, "failed", round_idx)
+                raise
 
         # Update status to completed
-        await DatabaseService.update_problem_status(db, problem_id, "completed")
+        await DatabaseService.update_problem_status(db, problem_id, "completed", rounds)
         write_status(user_dir, "completed", rounds)
         print(f"🎉 Research run completed for problem '{problem_name}'")
 
     except Exception as e:
         print(f"❌ Error in research run for problem '{problem_name}': {e}")
         # Update status to failed
-        await DatabaseService.update_problem_status(db, problem_id, "failed")
+        if db:
+            try:
+                await DatabaseService.update_problem_status(db, problem_id, "failed")
+            except:
+                pass
 
         # Write error status to file system
         try:
+            data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
             user_dir = data_root / user_id / "problems" / problem_name
             write_status(user_dir, "failed", 0)
         except:

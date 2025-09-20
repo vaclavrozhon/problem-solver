@@ -18,8 +18,8 @@ from .utils import (
     load_prompt, write_status, dump_io, normalize_schema_strict,
     pre_dump_io, dump_failure, enhanced_write_status
 )
-from .papers import read_problem_context
-from .file_manager import FileManager, get_paper_text_with_descriptions
+from .database_integration import get_database_integration
+from .papers import read_problem_context, get_paper_text_from_database
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
     load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
@@ -60,7 +60,9 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
         system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
     
     # Append all papers (description first, then text) at end of prompt
-    papers_block = get_paper_text_with_descriptions(problem_dir)
+    from .database_integration import get_current_problem_id
+    problem_id = get_current_problem_id()
+    papers_block = get_paper_text_from_database(problem_id)
     
     # Prepare tools if calculator access is enabled or retrieval is available
     tools = []
@@ -158,6 +160,19 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     
     # Save prover output as text for verifier/UI (from JSON content) and return it
     (round_dir / f"{agent}.text.txt").write_text(response_obj.content or "", encoding="utf-8")
+
+    # Save to database if integration is available
+    db_integration = get_database_integration()
+    if db_integration:
+        db_integration.save_prover_output(
+            round_num=round_idx,
+            prover_idx=prover_idx,
+            content=response_obj.content or "",
+            model=MODEL_PROVER,
+            tokens_in=getattr(response_obj, 'usage', {}).get('prompt_tokens'),
+            tokens_out=getattr(response_obj, 'usage', {}).get('completion_tokens')
+        )
+
     return response_obj.content or "", True
 
 
@@ -188,7 +203,8 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
             user_parts.append(prover_file.read_text(encoding="utf-8"))
     
     # Append all papers (text + descriptions)
-    papers_block = get_paper_text_with_descriptions(problem_dir)
+    problem_id = get_current_problem_id()
+    papers_block = get_paper_text_from_database(problem_id)
     user_message = "\n".join(user_parts + (["\n\n=== Papers (text) ===\n", papers_block] if papers_block else []))
     
     # Prepare response format
@@ -250,6 +266,22 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
     (round_dir / "verifier.summary.md").write_text(
         response_obj.summary_md, encoding="utf-8"
     )
+
+    # Save to database if integration is available
+    db_integration = get_database_integration()
+    if db_integration:
+        verdict_data = {
+            'verdict': response_obj.verdict,
+            'feedback_md': response_obj.feedback_md,
+            'summary_md': response_obj.summary_md
+        }
+        db_integration.save_verifier_output(
+            round_num=round_idx,
+            feedback=response_obj.feedback_md,
+            summary=response_obj.summary_md,
+            verdict_data=verdict_data,
+            model=MODEL_VERIFIER
+        )
     
     # Apply file updates from verifier
     if response_obj.notes_update:
@@ -304,7 +336,8 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
         user_parts.append("\n\n=== Current Output ===\n")
         user_parts.append(output_file.read_text(encoding="utf-8"))
     
-    papers_block = get_paper_text_with_descriptions(problem_dir)
+    problem_id = get_current_problem_id()
+    papers_block = get_paper_text_from_database(problem_id)
     user_message = "\n".join(user_parts + (["\n\n=== Papers (text) ===\n", papers_block] if papers_block else []))
     
     # Prepare response format
@@ -363,6 +396,16 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     (round_dir / "summarizer.summary.md").write_text(
         response_obj.summary_md, encoding="utf-8"
     )
-    
+
+    # Save to database if integration is available
+    db_integration = get_database_integration()
+    if db_integration:
+        db_integration.save_summarizer_output(
+            round_num=round_idx,
+            summary=response_obj.summary_md,
+            one_line_summary=response_obj.one_line_summary,
+            model=MODEL_SUMMARIZER
+        )
+
     print(f"  [summarizer] Complete ({duration:.1f}s)")
     return response_obj

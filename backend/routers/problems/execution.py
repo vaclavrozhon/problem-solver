@@ -225,6 +225,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
 
         from orchestrator.runner import run_round
         from orchestrator.utils import write_status, check_stop_signal, StopSignalException
+        from orchestrator.database_integration import initialize_database_integration
 
         # Create problem directory structure
         data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
@@ -240,6 +241,9 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
         focus_description = config.get('focus_description')
 
         print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
+
+        # Initialize database integration for orchestrator
+        initialize_database_integration(problem_id, user_token, user_id)
 
         # Run the research rounds asynchronously
         for round_idx in range(1, rounds + 1):

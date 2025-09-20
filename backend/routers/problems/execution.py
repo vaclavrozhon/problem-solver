@@ -150,7 +150,7 @@ async def run_problem(
 
         # Start the research run using the orchestrator
         import asyncio
-        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub))
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, user.token))
 
         return {
             "message": f"Research run started for problem '{problem_name}'",
@@ -207,17 +207,17 @@ async def stop_problem(
         raise HTTPException(500, f"Failed to stop problem: {str(e)}")
 
 
-async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str):
+async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, user_token: str):
     """
     Start a research run using the orchestrator.
     This runs in the background as an async task with progress updates.
     """
-    from ...authentication import get_db_client_sync
+    from ...authentication import get_db_client_with_token
 
     db = None
     try:
-        # Get database client for updates
-        db = get_db_client_sync(user_id)
+        # Get database client for updates using user's JWT token
+        db = get_db_client_with_token(user_token, user_id)
 
         # Add orchestrator to path
         orchestrator_path = Path(__file__).parent.parent.parent.parent / "orchestrator"

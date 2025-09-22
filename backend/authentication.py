@@ -94,37 +94,29 @@ def get_current_user(
         # Get the global client for JWT verification
         sb = get_supabase_client()
 
-        # Verifies signature & expiry via the project's JWKS, then returns claims
-        claims_response = sb.auth.get_claims(jwt=token)
-        logger.info(f"Claims response: {claims_response} from Token: {token}")
+        # Verify signature & expiry via project's JWKS and load user
+        user_resp = sb.auth.get_user(jwt=token)
+        logger.info("User validated", extra={"event_type": "auth_user_validated"})
 
-        # Extract the actual claims from the nested structure
-        claims = claims_response.get("claims", {})
-        if not claims:
-            raise HTTPException(
-                status_code=401, detail="Invalid token: no claims found"
-            )
+        user_obj = getattr(user_resp, "user", None)
+        if not user_obj or not getattr(user_obj, "id", None):
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-        # Extract user information from claims
-        user_id = claims.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=401, detail="Invalid token: missing user ID"
-            )
+        user_id = user_obj.id
 
         logger.debug(
             f"User authenticated successfully: {user_id}",
             extra={
                 "event_type": "auth_success",
                 "user_id": user_id,
-                "email": claims.get("email"),
+                "email": getattr(user_obj, "email", None),
             },
         )
 
         r = AuthedUser(
             sub=user_id,
-            email=claims.get("email"),
-            role=claims.get("role"),
+            email=getattr(user_obj, "email", None),
+            role=getattr(user_obj, "role", None),
             token=token,
         )
         logger.info(f"User authenticated successfully: {r}")
@@ -163,21 +155,15 @@ def get_optional_user(request: Request) -> Optional[AuthedUser]:
     try:
         token = auth_header.split(" ")[1]
         sb = get_supabase_client()
-        claims_response = sb.auth.get_claims(jwt=token)
-        
-        # Extract the actual claims from the nested structure
-        claims = claims_response.get("claims", {})
-        if not claims:
-            return None
-
-        user_id = claims.get("sub")
-        if not user_id:
+        user_resp = sb.auth.get_user(jwt=token)
+        user_obj = getattr(user_resp, "user", None)
+        if not user_obj or not getattr(user_obj, "id", None):
             return None
 
         return AuthedUser(
-            sub=user_id,
-            email=claims.get("email"),
-            role=claims.get("role"),
+            sub=user_obj.id,
+            email=getattr(user_obj, "email", None),
+            role=getattr(user_obj, "role", None),
             token=token,
         )
     except Exception:

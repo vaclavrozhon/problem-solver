@@ -29,6 +29,7 @@ import { ProblemStatus, AppMessage } from '../components/solving/types'
 import {
   listProblems,
   getStatus,
+  getAllProblemsStatus,
   runRound,
   stopProblem,
   deleteRound,
@@ -163,37 +164,55 @@ export default function SolvingPage() {
   }
 
   /**
-   * Refreshes status for all problems (or provided list)
+   * Refreshes status for all problems using a single batch request
    */
   const refreshAllStatuses = async (problemList: {id: number, name: string}[] = problems) => {
     if (problemList.length === 0) return
 
     try {
-      // Fetch status for all problems in parallel
-      const statusPromises = problemList.map(async (problem) => {
-        try {
-          const status = await getStatus(problem.name)
-          return { problem: problem.name, status }
-        } catch (error) {
-          console.error(`Failed to get status for ${problem.name}:`, error)
-          return { problem: problem.name, status: null }
+      // Use batch status endpoint to get all statuses at once
+      const allStatuses = await getAllProblemsStatus()
+
+      // Filter to only include problems in the provided list
+      const problemNames = new Set(problemList.map(p => p.name))
+      const filteredStatuses: Record<string, ProblemStatus> = {}
+
+      Object.entries(allStatuses).forEach(([problemName, status]) => {
+        if (problemNames.has(problemName)) {
+          filteredStatuses[problemName] = status as ProblemStatus
         }
       })
 
-      const results = await Promise.all(statusPromises)
-
-      // Update status map with results
-      const newStatusMap: Record<string, ProblemStatus> = {}
-      results.forEach(({ problem, status }) => {
-        if (status) {
-          newStatusMap[problem] = status
-        }
-      })
-
-      setStatusMap(prev => ({ ...prev, ...newStatusMap }))
+      setStatusMap(prev => ({ ...prev, ...filteredStatuses }))
 
     } catch (error) {
       console.error('Failed to refresh statuses:', error)
+      // Fallback to individual requests if batch fails
+      try {
+        const statusPromises = problemList.map(async (problem) => {
+          try {
+            const status = await getStatus(problem.name)
+            return { problem: problem.name, status }
+          } catch (error) {
+            console.error(`Failed to get status for ${problem.name}:`, error)
+            return { problem: problem.name, status: null }
+          }
+        })
+
+        const results = await Promise.all(statusPromises)
+
+        // Update status map with results
+        const newStatusMap: Record<string, ProblemStatus> = {}
+        results.forEach(({ problem, status }) => {
+          if (status) {
+            newStatusMap[problem] = status
+          }
+        })
+
+        setStatusMap(prev => ({ ...prev, ...newStatusMap }))
+      } catch (fallbackError) {
+        console.error('Fallback status refresh also failed:', fallbackError)
+      }
     }
   }
 

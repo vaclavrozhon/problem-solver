@@ -93,69 +93,6 @@ async def create_problem(
         raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
-@router.post("/drafts/create")
-async def create_draft(
-    request: CreateTaskRequest,
-    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
-):
-    """Create a new draft/writing task."""
-    logger.info(
-        f"Creating draft: {request.name}",
-        extra={
-            "event_type": "draft_create_start",
-            "user_id": user.sub,
-            "draft_name": request.name
-        }
-    )
-    
-    try:
-        draft_id = await TaskService.create_draft(
-            db=db,
-            name=request.name,
-            task_description=request.task_description,
-            user_id=user.sub
-        )
-        
-        logger.info(
-            f"Draft created successfully: {request.name}",
-            extra={
-                "event_type": "draft_create_success",
-                "user_id": user.sub,
-                "draft_id": draft_id,
-                "draft_name": request.name
-            }
-        )
-        
-        return {
-            "message": f"Draft '{request.name}' created successfully",
-            "draft_id": draft_id
-        }
-    except HTTPException as e:
-        logger.warning(
-            f"Draft creation failed with HTTP error: {e.detail}",
-            extra={
-                "event_type": "draft_create_http_error",
-                "user_id": user.sub,
-                "draft_name": request.name,
-                "error_detail": e.detail,
-                "status_code": e.status_code
-            }
-        )
-        raise
-    except Exception as e:
-        logger.error(
-            f"Draft creation failed with unexpected error: {str(e)}",
-            extra={
-                "event_type": "draft_create_error",
-                "user_id": user.sub,
-                "draft_name": request.name,
-                "error_type": type(e).__name__,
-                "error_details": str(e)
-            },
-            exc_info=True
-        )
-        raise HTTPException(500, f"Failed to create draft: {str(e)}")
-
 
 # Task deletion endpoints
 @router.delete("/problems/{problem_id}")

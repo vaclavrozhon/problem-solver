@@ -23,17 +23,8 @@ class RunParams(BaseModel):
     prover_configs: Optional[List[Dict[str, Any]]] = None
     focus_description: Optional[str] = None
 
-class WritingParams(BaseModel):
-    """Parameters for running paper writing tasks"""
-    rounds: int = 3
-    preset: str = "gpt5"
-
 class NewTaskPayload(BaseModel):
-    """Payload for creating new tasks (problems or drafts)"""
+    """Payload for creating new tasks (problems only)"""
     name: str
     task_description: str
-    task_type: str = "txt"  # txt, tex, md
-
-class PaperUrlPayload(BaseModel):
-    """Payload for adding papers from URLs"""
-    url: str
+    task_type: str = "txt"

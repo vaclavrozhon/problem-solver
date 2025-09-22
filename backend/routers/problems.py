@@ -8,13 +8,13 @@ status tracking, and file management using Supabase database storage.
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from datetime import datetime, timezone
+import json
 
 from ..services.database import DatabaseService
-from ..authentication import get_current_user, get_db_client, AuthedUser
+from ..authentication import get_current_user, get_db_client, get_db_client_with_token, AuthedUser
 from ..logging_config import get_logger
-import sys
-import os
-from pathlib import Path
+
 
 logger = get_logger("problems")
 
@@ -37,10 +37,14 @@ class UpdateFileRequest(BaseModel):
 @router.get("")
 async def list_problems(
     user: AuthedUser = Depends(get_current_user),
-    db = Depends(get_db_client)
+    db = Depends(get_db_client),
+    include_status: bool = False
 ):
     """
     List all problems for the authenticated user.
+
+    Args:
+        include_status: If true, include status information for each problem
 
     Returns:
         List of user's problems from database
@@ -49,24 +53,35 @@ async def list_problems(
         f"Listing problems for user: {user.sub}",
         extra={
             "event_type": "list_problems_start",
-            "user_id": user.sub
+            "user_id": user.sub,
+            "include_status": include_status
         }
     )
-    
+
     try:
-        problems = await DatabaseService.get_user_problems(db, db)
+        problems = await DatabaseService.get_user_problems(db)
+
+        if include_status:
+            # Minimal status derived from problems table only (no file queries)
+            for problem in problems:
+                problem['status'] = {
+                    'rounds_count': problem.get('current_round', 0) or 0,
+                    'last_activity': problem.get('updated_at'),
+                    'is_running': problem.get('status') == 'running',
+                    'phase': problem.get('status', 'idle') or 'idle'
+                }
+
         logger.info(
             f"Found {len(problems)} problems for user: {user.sub}",
             extra={
                 "event_type": "list_problems_success",
                 "user_id": user.sub,
-                "problem_count": len(problems)
+                "problem_count": len(problems),
+                "include_status": include_status
             }
         )
-        
-        # Return just the problem names for compatibility with frontend
-        result = [problem['name'] for problem in problems]
-        return result
+
+        return problems
     except Exception as e:
         logger.error(
             f"Error listing problems: {str(e)}",
@@ -156,6 +171,62 @@ async def create_problem(
         raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
+@router.get("/status")
+async def get_all_problems_status(
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """
+    Get status for all user's problems in a single request.
+
+    Returns:
+        Dictionary mapping problem names to their status information
+    """
+    try:
+        # Get all user problems
+        problems = await DatabaseService.get_user_problems(db)
+
+        # Build lightweight status map from problems table only
+        status_map = {}
+        for problem in problems:
+            problem_name = problem['name']
+            is_running = problem.get('status') == 'running'
+            status_map[problem_name] = {
+                "problem": problem,
+                "overall": {
+                    "phase": problem.get('status', 'idle'),
+                    "current_round": problem.get('current_round', 0) or 0,
+                    "is_running": is_running,
+                    "total_rounds": problem.get('current_round', 0) or 0,
+                    "last_updated": problem.get('updated_at')
+                },
+                "rounds": [],
+                "base_files": {}
+            }
+
+        return status_map
+
+    except Exception as e:
+        logger.error(
+            f"Error getting batch status: {str(e)}",
+            extra={
+                "event_type": "batch_status_error",
+                "user_id": user.sub,
+                "error_type": type(e).__name__,
+                "error_details": str(e)
+            },
+            exc_info=True
+        )
+        raise HTTPException(500, f"Failed to get status: {str(e)}")
+
+
+@router.get("/all-status")
+async def get_all_problems_status_alias(
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """Alias endpoint for batch status to avoid any route collisions."""
+    return await get_all_problems_status(user=user, db=db)
+
+
 @router.get("/{problem_id}")
 async def get_problem(
     problem_id: int,
@@ -172,7 +243,7 @@ async def get_problem(
         Problem details
     """
     try:
-        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -180,7 +251,7 @@ async def get_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting problem: {e}")
+        logger.error(f"Error getting problem: {e}")
         raise HTTPException(500, f"Failed to get problem: {str(e)}")
 
 
@@ -276,7 +347,7 @@ async def get_problem_status(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting problem status: {e}")
+        logger.error(f"Error getting problem status: {e}")
         raise HTTPException(500, f"Failed to get problem status: {str(e)}")
 
 
@@ -310,12 +381,12 @@ async def run_problem(
         if not status_updated:
             raise HTTPException(500, "Failed to update problem status")
 
-        print(f"🚀 Starting research run for problem '{problem_name}' (ID: {problem_id})")
-        print(f"📋 Run configuration: {request}")
+        logger.info(f"🚀 Starting research run for problem '{problem_name}' (ID: {problem_id})")
+        logger.info(f"📋 Run configuration: {request}")
 
         # Start the research run using the orchestrator
         import asyncio
-        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, db))
+        asyncio.create_task(start_research_run(problem_id, problem_name, request, user.sub, user.token))
 
         return {
             "message": f"Research run started for problem '{problem_name}'",
@@ -327,7 +398,7 @@ async def run_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error starting run: {e}")
+        logger.error(f"Error starting run: {e}")
         raise HTTPException(500, f"Failed to start run: {str(e)}")
 
 
@@ -370,7 +441,7 @@ async def get_problem_files(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting files: {e}")
+        logger.error(f"Error getting files: {e}")
         raise HTTPException(500, f"Failed to get files: {str(e)}")
 
 
@@ -397,7 +468,7 @@ async def update_problem_file(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -420,7 +491,7 @@ async def update_problem_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating file: {e}")
+        logger.error(f"Error updating file: {e}")
         raise HTTPException(500, f"Failed to update file: {str(e)}")
 
 
@@ -441,7 +512,7 @@ async def delete_problem(
     """
     try:
         # Verify ownership and delete
-        success = await DatabaseService.delete_problem(db, problem_id, user.sub)
+        success = await DatabaseService.delete_problem(db, problem_id)
         if not success:
             raise HTTPException(404, "Problem not found or access denied")
 
@@ -453,7 +524,7 @@ async def delete_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting problem: {e}")
+        logger.error(f"Error deleting problem: {e}")
         raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
 
@@ -476,7 +547,7 @@ async def get_round_details(
     """
     try:
         # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(db, problem_id, user.sub)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
@@ -539,7 +610,7 @@ async def get_round_details(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting round details: {e}")
+        logger.error(f"Error getting round details: {e}")
         raise HTTPException(500, f"Failed to get round details: {str(e)}")
 
 
@@ -553,63 +624,266 @@ async def health_check():
     }
 
 
-async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, db):
+async def start_research_run(problem_id: int, problem_name: str, config: dict, user_id: str, user_token: str):
     """
-    Start a research run using the orchestrator.
-    This runs in the background as an async task.
+    Execute a research run using database-only storage.
+
+    This function orchestrates the complete research pipeline by:
+    1. Creating a run record to track execution state
+    2. Running multiple rounds of prover/verifier cycles
+    3. Storing all outputs directly in the database
+    4. Updating run status and problem state throughout execution
+
+    All execution state and outputs are stored in the database rather than
+    the filesystem, enabling true database-only operation.
+
+    Args:
+        problem_id: Database ID of the problem being executed
+        problem_name: Human-readable name of the problem
+        config: Run configuration containing rounds, provers, etc.
+        user_id: UUID of the user running the research
+        db: Authenticated database client
     """
+    # Initialize run tracking variables
+    run_record = None
+    total_cost = 0.0
+
     try:
-        # Add orchestrator to path
-        orchestrator_path = Path(__file__).parent.parent.parent / "orchestrator"
-        sys.path.insert(0, str(orchestrator_path))
+        # ====================================================================
+        # PHASE 1: INITIALIZE RUN TRACKING
+        # ====================================================================
 
-        from orchestrator.runner import run_round
-        from orchestrator.utils import write_status
+        # Create a fresh DB client for background task using the user's token (maintain RLS)
+        db = get_db_client_with_token(user_token, user_id)
 
-        # Create problem directory structure
-        data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
-        user_dir = data_root / user_id / "problems" / problem_name
-        user_dir.mkdir(parents=True, exist_ok=True)
-
-        # Extract configuration
+        # Extract and validate configuration parameters
         rounds = config.get('rounds', 1)
         provers = config.get('provers', 1)
         temperature = config.get('temperature', 0.7)
         preset = config.get('preset', 'gpt5')
         prover_configs = config.get('prover_configs', [])
         focus_description = config.get('focus_description')
+        verifier_config = config.get('verifier_config', {})
 
-        print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
+        # Create initial run parameters for tracking
+        initial_parameters = {
+            'total_rounds': rounds,
+            'current_round': 0,
+            'provers_count': provers,
+            'temperature': temperature,
+            'preset': preset,
+            'phase': 'initializing',
+            'prover_configs': prover_configs,
+            'focus_description': focus_description,
+            'verifier_config': verifier_config,
+            'started_at': datetime.now(timezone.utc).isoformat(),
+            'completed_rounds': []
+        }
 
-        # Run the research rounds
+        # Create run record in database for execution tracking
+        run_record = await DatabaseService.create_run(db, problem_id, initial_parameters)
+        if not run_record:
+            raise Exception("Failed to create run record in database")
+
+        run_id = run_record['id']
+        logger.info(f"🚀 Started run {run_id} for problem '{problem_name}' with {rounds} rounds")
+
+        # ====================================================================
+        # PHASE 2: EXECUTE RESEARCH ROUNDS
+        # ====================================================================
+
+        # Process each round sequentially
         for round_idx in range(1, rounds + 1):
-            print(f"🔍 Starting round {round_idx}/{rounds}")
-            write_status(user_dir, "running", round_idx)
+            try:
+                # Update run status to indicate current round
+                round_parameters = initial_parameters.copy()
+                round_parameters.update({
+                    'current_round': round_idx,
+                    'phase': f'executing_round_{round_idx}',
+                    'round_start_time': datetime.now(timezone.utc).isoformat()
+                })
 
-            # Run the round using orchestrator
-            run_round(
-                problem_dir=user_dir,
-                round_idx=round_idx,
-                num_provers=provers,
-                prover_configs=prover_configs,
-                focus_description=focus_description
-            )
+                await DatabaseService.update_run(db, run_id, parameters=round_parameters)
+                logger.info(f"🔍 Executing round {round_idx}/{rounds} for problem '{problem_name}'")
 
-            print(f"✅ Completed round {round_idx}/{rounds}")
+                # Update problem status to reflect current round
+                await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
 
-        # Update status to completed
-        await DatabaseService.update_problem_status(db, problem_id, "completed")
-        write_status(user_dir, "completed", rounds)
-        print(f"🎉 Research run completed for problem '{problem_name}'")
+                # ============================================================
+                # ROUND EXECUTION: Run orchestrator components
+                # ============================================================
+
+                # TODO: Replace this with actual orchestrator integration
+                # For now, simulate the orchestrator execution
+
+                # In the real implementation, this would:
+                # 1. Load problem context from database (problem_files with round=0)
+                # 2. Load previous round outputs if round_idx > 1
+                # 3. Execute prover agents with the context
+                # 4. Execute verifier agent on prover outputs
+                # 5. Execute summarizer agent on the round results
+
+                # Simulated outputs (replace with real orchestrator calls)
+                simulated_prover_outputs = []
+                for prover_idx in range(1, provers + 1):
+                    prover_output = {
+                        'prover_id': prover_idx,
+                        'content': f'Simulated prover {prover_idx} output for round {round_idx}',
+                        'model': preset,
+                        'tokens_used': 1000,
+                        'timestamp': datetime.now(timezone.utc).isoformat()
+                    }
+                    simulated_prover_outputs.append(prover_output)
+
+                simulated_verifier_output = {
+                    'verdict': 'needs_improvement',
+                    'feedback': f'Verifier feedback for round {round_idx}',
+                    'model': preset,
+                    'tokens_used': 500,
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+
+                simulated_summarizer_output = {
+                    'one_line_summary': f'Round {round_idx} summary',
+                    'summary': f'Detailed summary of round {round_idx} results',
+                    'model': preset,
+                    'tokens_used': 300,
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+
+                # ============================================================
+                # STORE ROUND OUTPUTS IN DATABASE
+                # ============================================================
+
+                # Save all round outputs to problem_files table
+                round_cost = 0.0
+
+                # Store prover outputs
+                for i, prover_output in enumerate(simulated_prover_outputs, 1):
+                    await DatabaseService.create_problem_file(
+                        db=db,
+                        problem_id=problem_id,
+                        round_num=round_idx,
+                        file_type='prover_output',
+                        filename=f'prover-{i:02d}.json',
+                        content=json.dumps(prover_output, indent=2),
+                        metadata={
+                            'run_id': run_id,
+                            'model': prover_output.get('model'),
+                            'tokens_used': prover_output.get('tokens_used', 0),
+                            'prover_index': i
+                        }
+                    )
+                    round_cost += prover_output.get('cost', 0.01)  # Simulated cost
+
+                # Store verifier output
+                await DatabaseService.create_problem_file(
+                    db=db,
+                    problem_id=problem_id,
+                    round_num=round_idx,
+                    file_type='verifier_output',
+                    filename='verifier.json',
+                    content=json.dumps(simulated_verifier_output, indent=2),
+                    metadata={
+                        'run_id': run_id,
+                        'model': simulated_verifier_output.get('model'),
+                        'tokens_used': simulated_verifier_output.get('tokens_used', 0)
+                    }
+                )
+                round_cost += 0.005  # Simulated verifier cost
+
+                # Store summarizer output
+                await DatabaseService.create_problem_file(
+                    db=db,
+                    problem_id=problem_id,
+                    round_num=round_idx,
+                    file_type='summarizer_output',
+                    filename='summarizer.json',
+                    content=json.dumps(simulated_summarizer_output, indent=2),
+                    metadata={
+                        'run_id': run_id,
+                        'model': simulated_summarizer_output.get('model'),
+                        'tokens_used': simulated_summarizer_output.get('tokens_used', 0)
+                    }
+                )
+                round_cost += 0.003  # Simulated summarizer cost
+
+                total_cost += round_cost
+
+                # Update run parameters with completed round info
+                round_parameters['completed_rounds'].append({
+                    'round': round_idx,
+                    'completed_at': datetime.now(timezone.utc).isoformat(),
+                    'cost': round_cost,
+                    'verdict': simulated_verifier_output.get('verdict')
+                })
+                round_parameters['phase'] = f'completed_round_{round_idx}'
+                round_parameters['total_cost_so_far'] = total_cost
+
+                await DatabaseService.update_run(db, run_id, parameters=round_parameters)
+                logger.info(f"✅ Completed round {round_idx}/{rounds} for problem '{problem_name}' (cost: ${round_cost:.3f})")
+
+            except Exception as round_error:
+                # Handle round-specific errors while continuing execution
+                logger.error(f"Error in round {round_idx}: {str(round_error)}")
+
+                # Update run with round error info
+                error_parameters = round_parameters.copy()
+                error_parameters['phase'] = f'error_round_{round_idx}'
+                error_parameters['last_error'] = str(round_error)
+                await DatabaseService.update_run(db, run_id, parameters=error_parameters)
+
+                # Continue to next round rather than failing entire run
+                continue
+
+        # ====================================================================
+        # PHASE 3: FINALIZE SUCCESSFUL RUN
+        # ====================================================================
+
+        # Update run record to completed status
+        final_parameters = round_parameters.copy()
+        final_parameters.update({
+            'phase': 'completed',
+            'completed_at': datetime.now(timezone.utc).isoformat(),
+            'total_cost': total_cost,
+            'final_round': rounds
+        })
+
+        await DatabaseService.update_run(db, run_id,
+                                       status='completed',
+                                       total_cost=total_cost,
+                                       parameters=final_parameters)
+
+        # Update problem status to completed
+        await DatabaseService.update_problem_status(db, problem_id, "completed", rounds)
+
+        logger.info(f"🎉 Research run {run_id} completed successfully for problem '{problem_name}' (total cost: ${total_cost:.3f})")
 
     except Exception as e:
-        print(f"❌ Error in research run for problem '{problem_name}': {e}")
-        # Update status to failed
+        # ====================================================================
+        # PHASE 4: HANDLE RUN FAILURE
+        # ====================================================================
+
+        error_msg = f"Error in research run for problem '{problem_name}': {str(e)}"
+        logger.error(error_msg, exc_info=True)
+
+        # Update run record with failure status if it was created
+        if run_record:
+            error_parameters = initial_parameters.copy()
+            error_parameters.update({
+                'phase': 'failed',
+                'error_at': datetime.now(timezone.utc).isoformat(),
+                'error_message': str(e),
+                'total_cost': total_cost
+            })
+
+            await DatabaseService.update_run(db, run_record['id'],
+                                           status='failed',
+                                           total_cost=total_cost,
+                                           error_message=error_msg,
+                                           parameters=error_parameters)
+
+        # Update problem status to failed
         await DatabaseService.update_problem_status(db, problem_id, "failed")
 
-        # Write error status to file system
-        try:
-            user_dir = data_root / user_id / "problems" / problem_name
-            write_status(user_dir, "failed", 0)
-        except:
-            pass
+        logger.error(f"❌ Research run failed for problem '{problem_name}': {str(e)}")

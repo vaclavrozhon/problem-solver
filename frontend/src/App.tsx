@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import OverviewPage from './pages/OverviewPage'
 import SolvingPage from './pages/SolvingPage'
-import WritingPage from './pages/WritingPage'
 import TaskCreationPage from './pages/TaskCreationPage'
 import AuthCallback from './pages/AuthCallback'
 
@@ -23,13 +22,10 @@ function AppContent() {
             Overview
           </NavLink>
           <NavLink to="/solve" className={({ isActive }) => isActive ? 'active' : ''}>
-            Problem Solving
-          </NavLink>
-          <NavLink to="/write" className={({ isActive }) => isActive ? 'active' : ''}>
-            Paper Writing
+            Problems
           </NavLink>
           <NavLink to="/create" className={({ isActive }) => isActive ? 'active' : ''}>
-            Create Task
+            Create Problem
           </NavLink>
         </nav>
         <div className="user-info">
@@ -43,7 +39,6 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<OverviewPage />} />
         <Route path="/solve" element={<SolvingPage />} />
-        <Route path="/write" element={<WritingPage />} />
         <Route path="/create" element={<TaskCreationPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

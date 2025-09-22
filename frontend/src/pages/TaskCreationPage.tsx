@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { createProblem, createDraft, uploadProblemPaper, uploadDraftPaper, addProblemPaperFromUrl, addDraftPaperFromUrl, uploadProblemTextContent, uploadDraftTextContent } from '../api'
+import { createProblem, uploadProblemPaper, addProblemPaperFromUrl, uploadProblemTextContent } from '../api'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 interface Message {
@@ -12,11 +12,9 @@ export default function TaskCreationPage() {
   const [searchParams] = useSearchParams()
 
   // Form state
-  const [taskType, setTaskType] = useState<'solving' | 'writing'>('solving')
   const [taskName, setTaskName] = useState('')
   const [taskDescription, setTaskDescription] = useState('')
   const [taskFormat, setTaskFormat] = useState<'txt' | 'tex' | 'md'>('txt')
-  const [initialDraft, setInitialDraft] = useState('') // For paper writing tasks
   
   // Paper management state
   interface PaperEntry {
@@ -39,13 +37,6 @@ export default function TaskCreationPage() {
   const [message, setMessage] = useState<Message | null>(null)
   const [createdTaskName, setCreatedTaskName] = useState<string | null>(null)
 
-  // Set initial task type based on URL parameter
-  useEffect(() => {
-    const typeParam = searchParams.get('type')
-    if (typeParam === 'writing') {
-      setTaskType('writing')
-    }
-  }, [searchParams])
 
   function handleAddSinglePaper() {
     if (newPaperText.trim()) {
@@ -99,32 +90,21 @@ export default function TaskCreationPage() {
       return
     }
 
-    // For writing tasks, require an initial draft
-    if (taskType === 'writing' && !initialDraft.trim()) {
-      setMessage({ type: 'error', text: 'Please provide an initial draft for the paper writing task' })
-      return
-    }
-
     setLoading(true)
     setMessage(null)
 
     try {
       // Create the task
-      let result
-      if (taskType === 'solving') {
-        result = await createProblem(taskName, taskDescription, taskFormat)
-      } else {
-        result = await createDraft(taskName, taskDescription, initialDraft)
-      }
-      
+      const result = await createProblem(taskName, taskDescription, taskFormat)
+
       const actualTaskName = result.name // Server may sanitize the name
       setCreatedTaskName(actualTaskName)
-      
+
       // Upload papers
       await uploadPapers(actualTaskName)
-      
-      setMessage({ type: 'success', text: `${taskType === 'solving' ? 'Problem' : 'Draft'} created successfully!` })
-      
+
+      setMessage({ type: 'success', text: 'Problem created successfully!' })
+
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create task' })
     } finally {
@@ -140,11 +120,7 @@ export default function TaskCreationPage() {
         // Only text content is supported in this version
         const content = entry.data
         const filename = entry.filename || 'text-paper.txt'
-        if (taskType === 'solving') {
-          await uploadProblemTextContent(taskName, content, filename, entry.description)
-        } else {
-          await uploadDraftTextContent(taskName, content, filename, entry.description)
-        }
+        await uploadProblemTextContent(taskName, content, filename, entry.description)
       } catch (err: any) {
         const identifier = entry.filename || 'text content'
         errors.push(`Failed to upload ${identifier}: ${err.message}`)
@@ -170,22 +146,12 @@ export default function TaskCreationPage() {
 
   function goToTask() {
     if (createdTaskName) {
-      if (taskType === 'solving') {
-        navigate(`/solve?problem=${encodeURIComponent(createdTaskName)}`)
-      } else {
-        navigate(`/write?draft=${encodeURIComponent(createdTaskName)}`)
-      }
+      navigate(`/solve?problem=${encodeURIComponent(createdTaskName)}`)
     }
   }
 
   return (
     <div className="app-container">
-      <div className="app-header">
-        <div className="app-title">
-          🚀 Create New Task
-        </div>
-      </div>
-
       {message && (
         <div className={`alert alert-${message.type}`}>
           {message.text}
@@ -194,14 +160,6 @@ export default function TaskCreationPage() {
 
       {!createdTaskName ? (
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          {/* Task Type Selection */}
-          <div className="input-group">
-            <label>Task Type:</label>
-            <select value={taskType} onChange={e => setTaskType(e.target.value as 'solving' | 'writing')}>
-              <option value="solving">Problem Solving</option>
-              <option value="writing">Paper Writing</option>
-            </select>
-          </div>
 
           {/* Task Details */}
           <div className="input-group">
@@ -218,16 +176,12 @@ export default function TaskCreationPage() {
 
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              {taskType === 'solving' ? 'Task Description:' : 'Paper Writing Instructions:'}
+              Task Description:
             </label>
             <textarea
               value={taskDescription}
               onChange={e => setTaskDescription(e.target.value)}
-              placeholder={
-                taskType === 'solving'
-                  ? "Describe the problem you want to solve. Be specific about the goals, constraints, and expected outcomes."
-                  : "Describe the paper writing task. Include the research question, key contributions, target venue, and any specific requirements. This will be given to the AI in every round."
-              }
+              placeholder="Describe the problem you want to solve. Be specific about the goals, constraints, and expected outcomes."
               rows={6}
               data-gramm="false"
               data-gramm_editor="false"
@@ -243,32 +197,6 @@ export default function TaskCreationPage() {
             />
           </div>
 
-          {/* Initial Draft - Only for writing tasks */}
-          {taskType === 'writing' && (
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                Initial Draft (LaTeX/Markdown):
-              </label>
-              <textarea
-                value={initialDraft}
-                onChange={e => setInitialDraft(e.target.value)}
-                placeholder="Paste your initial draft here (LaTeX or Markdown). This will be the starting point for iterative improvements."
-                rows={12}
-                data-gramm="false"
-                data-gramm_editor="false"
-                data-enable-grammarly="false"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontFamily: 'monospace',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-          )}
 
           {/* Simplified Paper Management Section */}
           <div style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
@@ -414,7 +342,7 @@ export default function TaskCreationPage() {
               onClick={createTask}
               disabled={loading}
             >
-              {loading ? 'Creating...' : `Create ${taskType === 'solving' ? 'Problem' : 'Draft'}`}
+              {loading ? 'Creating...' : 'Create Problem'}
             </button>
             <button
               className="btn btn-secondary"
@@ -431,12 +359,12 @@ export default function TaskCreationPage() {
           <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎉</div>
           <h2>Task Created Successfully!</h2>
           <p style={{ marginBottom: '30px', color: '#6c757d' }}>
-            Your {taskType === 'solving' ? 'problem' : 'writing task'} "{createdTaskName}" has been created.
+            Your problem "{createdTaskName}" has been created.
           </p>
-          
+
           <div className="control-buttons" style={{ justifyContent: 'center' }}>
             <button className="btn btn-primary" onClick={goToTask}>
-              Open {taskType === 'solving' ? 'Problem' : 'Draft'}
+              Open Problem
             </button>
             <button className="btn btn-secondary" onClick={resetForm}>
               Create Another Task

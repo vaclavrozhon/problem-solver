@@ -26,12 +26,10 @@ logger = setup_logging()
 # Import modular routers
 try:
     from .authentication import is_database_configured
-    from .routers.drafts import router as drafts_router
     from .routers.problems import router as problems_router
     from .routers.tasks import router as tasks_router
 except ImportError:
     from backend.authentication import is_database_configured
-    from backend.routers.drafts import router as drafts_router
     from backend.routers.problems import router as problems_router
     from backend.routers.tasks import router as tasks_router
 
@@ -55,7 +53,6 @@ app.add_middleware(
 
 # Include modular routers
 app.include_router(problems_router)
-app.include_router(drafts_router)
 app.include_router(tasks_router)
 
 

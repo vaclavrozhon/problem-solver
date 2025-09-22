@@ -6,7 +6,7 @@ the underlying Supabase queries and handle data transformations.
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from supabase import Client
 from ..logging_config import get_logger
@@ -48,7 +48,7 @@ class DatabaseService:
             else:
                 # Update existing profile's updated_at timestamp
                 db.table('profiles')\
-                    .update({'updated_at': datetime.utcnow().isoformat()})\
+                    .update({'updated_at': datetime.now(timezone.utc).isoformat()})\
                     .eq('id', user_id)\
                     .execute()
 
@@ -111,7 +111,7 @@ class DatabaseService:
             True if successful, False otherwise
         """
         try:
-            update_data = {'updated_at': datetime.utcnow().isoformat()}
+            update_data = {'updated_at': datetime.now(timezone.utc).isoformat()}
             
             if credits_used is not None:
                 update_data['credits_used'] = credits_used
@@ -181,6 +181,10 @@ class DatabaseService:
             update_data = {'status': status}
             if current_round is not None:
                 update_data['current_round'] = current_round
+
+            # Maintain invariant: active_run_id is only set while running
+            if status != 'running':
+                update_data['active_run_id'] = None
 
             response = db.table('problems')\
                 .update(update_data)\
@@ -440,7 +444,7 @@ class DatabaseService:
                 .update({
                     'current_round': round,
                     'status': 'running',
-                    'updated_at': datetime.utcnow().isoformat()
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 })\
                 .eq('id', problem_id)\
                 .execute()
@@ -479,7 +483,20 @@ class DatabaseService:
                 .insert(run_data)\
                 .execute()
 
-            return response.data[0] if response.data else None
+            run_row = response.data[0] if response.data else None
+            if not run_row:
+                return None
+
+            # Link the active run to the problem
+            try:
+                db.table('problems')\
+                    .update({'active_run_id': run_row['id']})\
+                    .eq('id', problem_id)\
+                    .execute()
+            except Exception as link_err:
+                logger.error(f"Failed to link active run to problem {problem_id}: {link_err}")
+
+            return run_row
 
         except Exception as e:
             logger.error(f"Database error creating run: {e}")
@@ -491,7 +508,8 @@ class DatabaseService:
         run_id: int,
         status: Optional[str] = None,
         total_cost: Optional[float] = None,
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Update a run record.
@@ -502,6 +520,7 @@ class DatabaseService:
             status: New status
             total_cost: Total cost if completed
             error_message: Error message if failed
+            parameters: Updated parameters dict
 
         Returns:
             True if successful
@@ -518,13 +537,28 @@ class DatabaseService:
             if error_message:
                 update_data['error_message'] = error_message
 
-            if status in ['completed', 'failed', 'stopped']:
-                update_data['completed_at'] = datetime.utcnow().isoformat()
+            if parameters is not None:
+                update_data['parameters'] = parameters
+
+            terminal = status in ['completed', 'failed', 'stopped'] if status else False
+            if terminal:
+                update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
 
             db.table('runs')\
                 .update(update_data)\
                 .eq('id', run_id)\
                 .execute()
+
+            # If the run just transitioned to terminal, clear active_run_id on its problem
+            if terminal:
+                try:
+                    # Get the run to fetch problem_id
+                    run_resp = db.table('runs').select('problem_id').eq('id', run_id).single().execute()
+                    problem_id = run_resp.data.get('problem_id') if run_resp and run_resp.data else None
+                    if problem_id is not None:
+                        db.table('problems').update({'active_run_id': None, 'status': status or 'completed'}).eq('id', problem_id).execute()
+                except Exception as clear_err:
+                    logger.error(f"Failed clearing active_run_id for run {run_id}: {clear_err}")
 
             return True
 
@@ -577,11 +611,16 @@ class DatabaseService:
                 .insert(usage_data)\
                 .execute()
 
-            # Update user's credits_used in profiles table
-            db.table('profiles')\
-                .update({'credits_used': db.raw(f'credits_used + {cost}')})\
-                .eq('id', user_id)\
-                .execute()
+            # Update user's credits_used in profiles table (atomic via RPC if available)
+            try:
+                db.rpc('increment_credits', {'p_user_id': user_id, 'p_delta': cost}).execute()
+            except Exception:
+                # Fallback (non-atomic): read-modify-write
+                profile_resp = db.table('profiles').select('credits_used').eq('id', user_id).single().execute()
+                profile = getattr(profile_resp, 'data', None)
+                if profile is not None:
+                    new_credits = float(profile.get('credits_used', 0) or 0) + float(cost)
+                    db.table('profiles').update({'credits_used': new_credits}).eq('id', user_id).execute()
 
             return True
 

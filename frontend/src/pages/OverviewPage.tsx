@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { listProblems, getStatus, listDrafts, getDraftStatus } from '../api'
+import { listProblems, getStatus } from '../api'
 import { Link } from 'react-router-dom'
 
 interface ProblemSummary {
@@ -13,7 +13,6 @@ interface ProblemSummary {
 
 export default function OverviewPage() {
   const [problems, setProblems] = useState<ProblemSummary[]>([])
-  const [drafts, setDrafts] = useState<ProblemSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [showQuickStart, setShowQuickStart] = useState(() => {
@@ -27,31 +26,38 @@ export default function OverviewPage() {
       setLoading(true)
     }
     try {
-      // Load problems (solving tasks)
-      const problemsList = await listProblems() || []
-      console.log('🔍 FRONTEND DEBUG: problemsList =', problemsList)
-      console.log('🔍 FRONTEND DEBUG: problemsList type =', typeof problemsList)
-      console.log('🔍 FRONTEND DEBUG: problemsList length =', problemsList.length)
+      // Load problems with status in a single API call
+      const problemsList = await listProblems(true) || []
       const problemSummaries: ProblemSummary[] = []
 
+      // Process problems with their included status
       for (const problem of problemsList) {
         const name = problem.name || problem.id
-        const problemId = problem.id
-        try {
-          const status = await getStatus(name)
-          const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
-          const hasError = status.overall?.error || status.error
-          const roundCount = status.rounds?.length || 0
-          
+        if (!name) {
+          console.error('Problem has no name:', problem)
+          continue
+        }
+
+        // Use the status included in the response
+        const status = problem.status
+        if (status) {
+          const isRunning = status.is_running || false
+          const hasError = false // Not available in simplified status
+          const roundCount = status.rounds_count || 0
+          const lastActivity = status.last_activity
+            ? new Date(status.last_activity).toLocaleString()
+            : 'Never'
+
           problemSummaries.push({
             name,
             hasTask: true, // Assume all have tasks for now
             hasOutput: false, // Would need to check files
             totalRounds: roundCount,
-            lastActivity: status.overall?.timestamp ? new Date(status.overall.timestamp * 1000).toLocaleString() : (status.ts ? new Date(status.ts * 1000).toLocaleString() : 'Never'),
+            lastActivity,
             status: hasError ? 'error' : (isRunning ? 'running' : 'idle')
           })
-        } catch {
+        } else {
+          // No status info - use defaults
           problemSummaries.push({
             name,
             hasTask: true,
@@ -62,44 +68,10 @@ export default function OverviewPage() {
           })
         }
       }
-      
-      // Load drafts (writing tasks)
-      const draftsList = await listDrafts() || []
-      const draftSummaries: ProblemSummary[] = []
 
-      for (const draft of draftsList) {
-        const name = draft.name || draft.id
-        const draftId = draft.id
-        try {
-          const status = await getDraftStatus(name)
-          const isRunning = status.overall?.is_running || (status.phase !== 'idle' && Date.now() - (status.ts * 1000) < 600000)
-          const hasError = status.overall?.error || status.error
-          const roundCount = status.rounds?.length || 0
-          
-          draftSummaries.push({
-            name,
-            hasTask: true, // Assume all have drafts
-            hasOutput: false, // Would need to check files
-            totalRounds: roundCount,
-            lastActivity: status.overall?.timestamp ? new Date(status.overall.timestamp * 1000).toLocaleString() : (status.ts ? new Date(status.ts * 1000).toLocaleString() : 'Never'),
-            status: hasError ? 'error' : (isRunning ? 'running' : 'idle')
-          })
-        } catch {
-          draftSummaries.push({
-            name,
-            hasTask: true,
-            hasOutput: false,
-            totalRounds: 0,
-            lastActivity: 'Never',
-            status: 'idle'
-          })
-        }
-      }
-      
       setProblems(problemSummaries)
-      setDrafts(draftSummaries)
     } catch (err) {
-      console.error('Failed to load problems and drafts:', err)
+      console.error('Failed to load problems:', err)
     } finally {
       if (isInitialLoad) {
         setLoading(false)
@@ -122,14 +94,6 @@ export default function OverviewPage() {
   // Metrics for solving tasks (problems)
   const problemRunningCount = problems.filter(p => p.status === 'running').length
   const problemTotalRounds = problems.reduce((sum, p) => sum + p.totalRounds, 0)
-  
-  // Metrics for writing tasks (drafts)
-  const draftRunningCount = drafts.filter(d => d.status === 'running').length
-  const draftTotalRounds = drafts.reduce((sum, d) => sum + d.totalRounds, 0)
-  
-  // Combined metrics
-  const totalRunning = problemRunningCount + draftRunningCount
-  const totalRounds = problemTotalRounds + draftTotalRounds
 
   return (
     <div>
@@ -156,27 +120,15 @@ export default function OverviewPage() {
             ×
           </button>
           <h3>🚀 Quick Start Guide</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginTop: '20px' }}>
-            <div>
-              <h4 style={{ color: '#2563eb', marginBottom: '15px' }}>🧠 Problem Solving</h4>
-              <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
-                <li>Go to <strong>Create Task</strong> page and create a new research problem</li>
-                <li>Add a detailed description of the research problem</li>
-                <li>Click <strong>"Solve"</strong> to run automated research rounds</li>
-                <li>Monitor progress and review outputs in real-time</li>
-                <li>Access results in <code>output.md</code> and <code>progress.md</code></li>
-              </ol>
-            </div>
-            <div>
-              <h4 style={{ color: '#059669', marginBottom: '15px' }}>📝 Paper Writing</h4>
-              <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
-                <li>Go to <strong>Create Task</strong> page and create a new paper writing project</li>
-                <li>Add your research materials or draft content</li>
-                <li>Go to <strong>Paper Writing</strong> tab to access your project</li>
-                <li>Click <strong>"Write Paper"</strong> to generate formal academic papers</li>
-                <li>Review and iterate on generated drafts</li>
-              </ol>
-            </div>
+          <div style={{ marginTop: '20px' }}>
+            <h4 style={{ color: '#2563eb', marginBottom: '15px' }}>🧠 Problem Solving</h4>
+            <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+              <li>Go to <strong>Create Task</strong> page and create a new research problem</li>
+              <li>Add a detailed description of the research problem</li>
+              <li>Click <strong>"Solve"</strong> to run automated research rounds</li>
+              <li>Monitor progress and review outputs in real-time</li>
+              <li>Access results in <code>output.md</code> and <code>progress.md</code></li>
+            </ol>
           </div>
         </div>
       )}
@@ -184,20 +136,16 @@ export default function OverviewPage() {
       {/* Dashboard metrics */}
       <div className="metrics-grid">
         <div className="metric-card">
-          <div className="metric-label">Solving Tasks</div>
+          <div className="metric-label">Total Problems</div>
           <div className="metric-value">{problems.length}</div>
         </div>
         <div className="metric-card">
-          <div className="metric-label">Writing Tasks</div>
-          <div className="metric-value">{drafts.length}</div>
-        </div>
-        <div className="metric-card">
           <div className="metric-label">Currently Running</div>
-          <div className="metric-value">{totalRunning}</div>
+          <div className="metric-value">{problemRunningCount}</div>
         </div>
         <div className="metric-card">
           <div className="metric-label">Total Rounds</div>
-          <div className="metric-value">{totalRounds}</div>
+          <div className="metric-value">{problemTotalRounds}</div>
         </div>
       </div>
 
@@ -263,65 +211,6 @@ export default function OverviewPage() {
         )}
       </div>
 
-      {/* Writing Tasks table */}
-      <div style={{ marginTop: '40px' }}>
-        <h3>📝 Paper Writing Tasks ({drafts.length})</h3>
-        
-        {loading && isInitialLoad && drafts.length === 0 ? (
-          <div className="spinner" style={{ marginTop: '20px' }}></div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #dee2e6', textAlign: 'left' }}>
-                  <th style={{ padding: '12px' }}>Draft Project</th>
-                  <th style={{ padding: '12px' }}>Status</th>
-                  <th style={{ padding: '12px' }}>Rounds</th>
-                  <th style={{ padding: '12px' }}>Last Activity</th>
-                  <th style={{ padding: '12px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {drafts.map(d => (
-                  <tr key={d.name} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ padding: '12px' }}>
-                      <strong>{d.name}</strong>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <div className="status-indicator">
-                        <span className={`status-dot ${d.status === 'running' ? 'running' : 'stopped'}`}></span>
-                        <span>{d.status === 'running' ? 'Running' : 'Idle'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {d.totalRounds}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span className="small-font">{d.lastActivity}</span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <Link to={`/write?problem=${d.name}`}>
-                        <button className="btn btn-sm btn-primary">Write Paper</button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {drafts.length === 0 && !isInitialLoad && (
-          <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '50px' }}>
-            <p>No writing projects found.</p>
-            <p>
-              <Link to="/create?type=writing" style={{ color: '#2563eb', textDecoration: 'none' }}>
-                <strong>Create a new writing project</strong>
-              </Link> to get started with paper writing.
-            </p>
-          </div>
-        )}
-      </div>
 
     </div>
   )

@@ -21,17 +21,12 @@ async function req(path: string, opts: RequestInit = {}) {
   return response;
 }
 
-export async function listProblems() {
+export async function listProblems(includeStatus: boolean = false) {
   try {
-    console.log('🔍 API DEBUG: Making request to /problems')
-    const r = await req(`/problems`);
-    console.log('🔍 API DEBUG: Response status:', r.status)
+    const url = includeStatus ? `/problems?include_status=true` : `/problems`;
+    const r = await req(url);
     const data = await r.json();
-    console.log('🔍 API DEBUG: Raw response data:', data)
-    console.log('🔍 API DEBUG: Data type:', typeof data)
-    console.log('🔍 API DEBUG: Is array:', Array.isArray(data))
     const result = Array.isArray(data) ? data : [];
-    console.log('🔍 API DEBUG: Returning:', result)
     return result;
   } catch (error) {
     console.error('Failed to list problems:', error);
@@ -69,6 +64,11 @@ export async function runRound(name: string, rounds: number, provers: number, te
 
 export async function getStatus(problemId: string) {
   const r = await req(`/problems/${encodeURIComponent(problemId)}/status`);
+  return r.json();
+}
+
+export async function getAllProblemsStatus() {
+  const r = await req(`/problems/all-status`);
   return r.json();
 }
 
@@ -120,57 +120,6 @@ export async function getFileVersions(name: string, filePath: string) {
   return r.json();
 }
 
-// Draft API functions
-export async function listDrafts() {
-  try {
-    const r = await req(`/drafts`);
-    const data = await r.json();
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Failed to list drafts:', error);
-    return [];
-  }
-}
-
-export async function getDraftStatus(draftId: string) {
-  const r = await req(`/drafts/${encodeURIComponent(draftId)}/status`);
-  return r.json();
-}
-
-export async function getDraftDrafts(name: string) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/drafts`);
-  return r.json();
-}
-
-export async function runDraftWriting(name: string, rounds: number, preset: string) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/start-writing`, {
-    method: "POST",
-    body: JSON.stringify({ rounds, preset }),
-  });
-  return r.json();
-}
-
-export async function getDraftRounds(name: string) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/rounds`);
-  return r.json();
-}
-
-export async function getDraftFiles(name: string) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/files`);
-  return r.json();
-}
-
-export async function getDraftFileContent(name: string, filePath: string) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`);
-  return r.json();
-}
-
-export async function deleteDraftRounds(name: string, deleteCount: number) {
-  const r = await req(`/drafts/${encodeURIComponent(name)}/rounds?delete_count=${deleteCount}`, {
-    method: "DELETE"
-  });
-  return r.json();
-}
 
 // Task deletion API functions
 export async function deleteProblem(problemName: string) {
@@ -187,30 +136,11 @@ export async function resetProblem(problemName: string) {
   return r.json();
 }
 
-export async function deleteDraft(draftName: string) {
-  const r = await req(`/drafts/${encodeURIComponent(draftName)}`, {
-    method: "DELETE",
-  });
-  return r.json();
-}
-
 // Task creation API functions
 export async function createProblem(name: string, taskDescription: string, taskType: string = "txt") {
   const r = await req(`/tasks/problems/create`, {
     method: "POST",
     body: JSON.stringify({ name, task_description: taskDescription, task_type: taskType }),
-  });
-  return r.json();
-}
-
-export async function createDraft(name: string, taskDescription: string, initialDraft: string) {
-  const r = await req(`/tasks/drafts/create`, {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      task_description: taskDescription,
-      initial_draft: initialDraft
-    }),
   });
   return r.json();
 }

@@ -182,6 +182,10 @@ async def get_all_problems_status(
         Dictionary mapping problem names to their status information
     """
     try:
+        logger.info(
+            "Batch status: fetching problems",
+            extra={"event_type": "batch_status_fetch", "user_id": user.sub}
+        )
         # Get all user problems
         problems = await DatabaseService.get_user_problems(db)
 
@@ -203,6 +207,14 @@ async def get_all_problems_status(
                 "base_files": {}
             }
 
+        logger.info(
+            "Batch status: success",
+            extra={
+                "event_type": "batch_status_success",
+                "user_id": user.sub,
+                "problem_count": len(problems)
+            }
+        )
         return status_map
 
     except Exception as e:
@@ -224,10 +236,17 @@ async def get_all_problems_status_alias(
     user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """Alias endpoint for batch status to avoid any route collisions."""
+    logger.info(
+        "Fetching all problems status",
+        extra={
+            "event_type": "problems_all_status_start",
+            "user_id": user.sub
+        }
+    )
     return await get_all_problems_status(user=user, db=db)
 
 
-@router.get("/{problem_id}")
+@router.get("/id/{problem_id}")
 async def get_problem(
     problem_id: int,
     user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
@@ -445,7 +464,7 @@ async def get_problem_files(
         raise HTTPException(500, f"Failed to get files: {str(e)}")
 
 
-@router.put("/{problem_id}/files/{file_type}")
+@router.put("/id/{problem_id}/files/{file_type}")
 async def update_problem_file(
     problem_id: int,
     file_type: str,
@@ -495,7 +514,7 @@ async def update_problem_file(
         raise HTTPException(500, f"Failed to update file: {str(e)}")
 
 
-@router.delete("/{problem_id}")
+@router.delete("/id/{problem_id}")
 async def delete_problem(
     problem_id: int,
     user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
@@ -528,7 +547,7 @@ async def delete_problem(
         raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
 
-@router.get("/{problem_id}/rounds/{round_num}")
+@router.get("/id/{problem_id}/rounds/{round_num}")
 async def get_round_details(
     problem_id: int,
     round_num: int,

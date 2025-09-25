@@ -1,10 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Frontend port configuration - change this value to use a different port
+const FRONTEND_PORT = 6000
+
 export default defineConfig({
   plugins: [react()],
   envDir: '../', // Look for .env files in the parent directory
   server: {
+    port: FRONTEND_PORT,
     proxy: {
       // Proxy API requests to the backend
       '/auth': {

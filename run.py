@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 """
 Start the FastAPI backend and the new React UI (Vite dev server),
 then open the browser to the new UI.
@@ -17,6 +16,10 @@ from pathlib import Path
 
 REPO = Path(__file__).parent.resolve()
 VENV = REPO / "venv"
+
+# Port configuration - change these values to use different ports
+FRONTEND_PORT = 6000
+BACKEND_PORT = 8000
 
 # Detect Railway environment
 RAILWAY_ENV = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT_NAME")
@@ -42,12 +45,12 @@ def ensure_env():
 
 def start_backend() -> subprocess.Popen:
     """Start FastAPI backend via uvicorn inside repo venv."""
-    print("🚀 Starting backend (FastAPI + Uvicorn) on http://localhost:8000 ...")
+    print(f"🚀 Starting backend (FastAPI + Uvicorn) on http://localhost:{BACKEND_PORT} ...")
     py = str((VENV / ("Scripts" if os.name == "nt" else "bin") / "python"))
     log_path = REPO / "backend.log"
     log_fp = open(log_path, "a", buffering=1)
     proc = subprocess.Popen(
-        [py, "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"],
+        [py, "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", str(BACKEND_PORT)],
         cwd=str(REPO),
         env=os.environ.copy(),
         stdout=log_fp,
@@ -68,9 +71,9 @@ def start_frontend() -> subprocess.Popen:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"❌ Failed to install frontend dependencies: {e}\n   Please run 'cd frontend && npm install' manually and try again.")
 
-    print("🧩 Starting Vite dev server (new UI) on http://localhost:5173 ...")
+    print(f"🧩 Starting Vite dev server (new UI) on http://localhost:{FRONTEND_PORT} ...")
     env = os.environ.copy()
-    env.setdefault("VITE_API_BASE", "http://localhost:8000")
+    env.setdefault("VITE_API_BASE", f"http://localhost:{BACKEND_PORT}")
     log_path = REPO / "frontend" / "vite.log"
     log_fp = open(log_path, "a", buffering=1)
     proc = subprocess.Popen(
@@ -119,10 +122,10 @@ def main():
         # Give vite a moment to start
         time.sleep(2.5)
         try:
-            webbrowser.open("http://localhost:5173")
-            print("🌐 Opened http://localhost:5173 in your browser")
+            webbrowser.open(f"http://localhost:{FRONTEND_PORT}")
+            print(f"🌐 Opened http://localhost:{FRONTEND_PORT} in your browser")
         except Exception:
-            print("📖 Please open http://localhost:5173 in your browser")
+            print(f"📖 Please open http://localhost:{FRONTEND_PORT} in your browser")
 
         print("🎉 New UI running. Press Ctrl+C to stop.")
         # Wait on frontend; it runs until interrupted

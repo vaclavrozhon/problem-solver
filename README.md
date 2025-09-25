@@ -411,7 +411,7 @@ python -m backend.main
 # Terminal 2: Start frontend
 cd frontend
 npm run dev
-# Access at http://localhost:5173
+# Access at http://localhost:6000
 ```
 
 ### Creating a Problem

@@ -231,21 +231,6 @@ async def get_all_problems_status(
         raise HTTPException(500, f"Failed to get status: {str(e)}")
 
 
-@router.get("/all-status")
-async def get_all_problems_status_alias(
-    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
-):
-    """Alias endpoint for batch status to avoid any route collisions."""
-    logger.info(
-        "Fetching all problems status",
-        extra={
-            "event_type": "problems_all_status_start",
-            "user_id": user.sub
-        }
-    )
-    return await get_all_problems_status(user=user, db=db)
-
-
 @router.get("/id/{problem_id}")
 async def get_problem(
     problem_id: int,
@@ -272,6 +257,21 @@ async def get_problem(
     except Exception as e:
         logger.error(f"Error getting problem: {e}")
         raise HTTPException(500, f"Failed to get problem: {str(e)}")
+
+
+@router.get("/all-status")
+async def get_all_problems_status_alias(
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """Alias endpoint for batch status to avoid any route collisions."""
+    logger.info(
+        "Fetching all problems status",
+        extra={
+            "event_type": "problems_all_status_start",
+            "user_id": user.sub
+        }
+    )
+    return await get_all_problems_status(user=user, db=db)
 
 
 @router.get("/{problem_name}/status")

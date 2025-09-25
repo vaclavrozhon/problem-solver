@@ -45,6 +45,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "url": url,
                 "client_ip": client_ip,
                 "user_agent": user_agent,
+                "has_auth_header": bool(request.headers.get("authorization")),
                 "event_type": "request_start"
             }
         )

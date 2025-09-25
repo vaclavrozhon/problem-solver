@@ -40,7 +40,7 @@ def is_database_configured() -> bool:
 
 
 logger.info(
-    f"Database configured: {is_database_configured()} with URL: {SUPABASE_URL} and publishable key: {SUPABASE_PUBLISHABLE_KEY}"
+    f"Database configured: {is_database_configured()} with URL: {SUPABASE_URL} and publishable key present: {bool(SUPABASE_PUBLISHABLE_KEY)}"
 )
 
 

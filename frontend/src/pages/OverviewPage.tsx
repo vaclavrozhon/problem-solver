@@ -82,7 +82,7 @@ export default function OverviewPage() {
 
   useEffect(() => {
     refresh()
-    const interval = setInterval(refresh, 5000) // Auto-refresh every 5 seconds
+    const interval = setInterval(refresh, 30000) // Auto-refresh every 30 seconds
     return () => clearInterval(interval)
   }, [])
 

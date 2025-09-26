@@ -119,9 +119,9 @@ def get_current_user(
             role=getattr(user_obj, "role", None),
             token=token,
         )
-        # Succinct, no sensitive fields in message
-        logger.info(
-            f"Auth OK: email='{r.email}' role='{r.role}'",
+        # Succinct, no sensitive fields in message (DEBUG to avoid INFO clutter)
+        logger.debug(
+            f"AUTH OK: email='{r.email}' role='{r.role}'",
             extra={"event_type": "auth_ok"}
         )
         return r

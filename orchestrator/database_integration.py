@@ -16,14 +16,26 @@ import sys
 
 # Add backend to path for DatabaseService and authentication helpers
 backend_path = Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
 
+# Try both import styles to be resilient
+DatabaseService = None  # type: ignore
+get_db_client_with_token = None  # type: ignore
+_import_error: Optional[Exception] = None
 try:
-    from services.database import DatabaseService
-    from authentication import get_db_client_with_token
-except Exception:
-    DatabaseService = None  # type: ignore
-    get_db_client_with_token = None  # type: ignore
+    from services.database import DatabaseService as _DS  # type: ignore
+    from authentication import get_db_client_with_token as _get_client  # type: ignore
+    DatabaseService = _DS
+    get_db_client_with_token = _get_client
+except Exception as e1:  # pragma: no cover
+    try:
+        from backend.services.database import DatabaseService as _DS2  # type: ignore
+        from backend.authentication import get_db_client_with_token as _get_client2  # type: ignore
+        DatabaseService = _DS2
+        get_db_client_with_token = _get_client2
+    except Exception as e2:  # pragma: no cover
+        _import_error = e2
 
 
 @dataclass
@@ -38,7 +50,12 @@ class _DbIntegration:
         Works in both sync and async contexts.
         """
         if not self.db_client or not DatabaseService or self.problem_id is None:
-            print("[DBI] save_prover_prompt: missing db_client/DatabaseService/problem_id; skipping")
+            print(
+                f"[DBI] save_prover_prompt: missing components: "
+                f"db_client={bool(self.db_client)}, DatabaseService={bool(DatabaseService)}, problem_id_set={self.problem_id is not None}"
+            )
+            if _import_error:
+                print(f"[DBI] Import error detail: {_import_error}")
             return False
         metadata = {"phase": "prompt", "prover_index": prover_idx}
         if model:
@@ -88,6 +105,7 @@ def initialize_database_integration(problem_id: int, user_token: str, user_id: s
     """Create a Supabase client authenticated as the user and set context."""
     global _integration
     if get_db_client_with_token is None:
+        print("[DBI] get_db_client_with_token not available; integration disabled")
         _integration = _DbIntegration(db_client=None, problem_id=None)
         return
     db_client = get_db_client_with_token(user_token, user_id)

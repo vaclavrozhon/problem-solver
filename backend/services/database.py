@@ -111,7 +111,7 @@ class DatabaseService:
             True if successful, False otherwise
         """
         try:
-            update_data = {'updated_at': datetime.now(timezone.utc).isoformat()}
+            update_data: Dict[str, Any] = {'updated_at': datetime.now(timezone.utc).isoformat()}
             
             if credits_used is not None:
                 update_data['credits_used'] = credits_used
@@ -178,13 +178,18 @@ class DatabaseService:
             True if successful, False otherwise
         """
         try:
-            update_data = {'status': status}
+            update_data: Dict[str, Any] = {'status': status}
             if current_round is not None:
                 update_data['current_round'] = current_round
 
             # Maintain invariant: active_run_id is only set while running
             if status != 'running':
-                update_data['active_run_id'] = None
+                try:
+                    # Clear active_run_id when leaving running state (column must exist)
+                    update_data['active_run_id'] = None
+                except Exception:
+                    # Be tolerant if column is missing in some deployments
+                    pass
 
             response = db.table('problems')\
                 .update(update_data)\
@@ -473,7 +478,7 @@ class DatabaseService:
             Created run record or None
         """
         try:
-            run_data = {
+            run_data: Dict[str, Any] = {
                 'problem_id': problem_id,
                 'status': 'running',
                 'parameters': parameters
@@ -487,7 +492,7 @@ class DatabaseService:
             if not run_row:
                 return None
 
-            # Link the active run to the problem
+            # Link the active run to the problem (if column exists)
             try:
                 db.table('problems')\
                     .update({'active_run_id': run_row['id']})\
@@ -720,7 +725,7 @@ class DatabaseService:
         file_type: str,
         filename: str,
         content: str,
-        metadata: Dict[str, Any] = None
+        metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Create a new problem file (used by orchestrator).
@@ -738,7 +743,7 @@ class DatabaseService:
             True if successful
         """
         try:
-            file_data = {
+            file_data: Dict[str, Any] = {
                 'problem_id': problem_id,
                 'round': round_num,
                 'file_type': file_type,

@@ -59,7 +59,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             
             # Log response
             logger.info(
-                f"Request completed: {method} {path} - {response.status_code}",
+                f"HTTP {method} {path} -> {response.status_code}",
                 extra={
                     "request_id": request_id,
                     "method": method,

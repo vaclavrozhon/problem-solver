@@ -89,12 +89,13 @@ def setup_logging() -> logging.Logger:
     # Prevent duplicate lines from root/uvicorn propagation
     logger.propagate = False
     
-    # Add file handler for persistent logging
-    log_file = os.getenv("LOG_FILE", "backend.log")
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    # Optional file handler. By default, we rely on stdout redirection (run.py)
+    if os.getenv("ENABLE_FILE_LOG", "false").lower() in ("1", "true", "yes"): 
+        log_file = os.getenv("LOG_FILE", "backend.log")
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
     
     # Set specific loggers to appropriate levels
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)

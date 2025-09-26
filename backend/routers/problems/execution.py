@@ -178,6 +178,15 @@ async def run_problem(
 
         problem_id = problem['id']
 
+        # Create run row and set active_run_id
+        run_record = await DatabaseService.create_run(db, problem_id, {
+            'phase': 'initializing',
+            'total_rounds': request.get('rounds', 1),
+            'provers_count': request.get('provers', 1)
+        })
+        if not run_record:
+            raise HTTPException(500, "Failed to create run record")
+
         # Update problem status to "running"
         status_updated = await DatabaseService.update_problem_status(db, problem_id, "running")
         if not status_updated:
@@ -226,8 +235,28 @@ async def stop_problem(
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
+        active_run_id = problem.get('active_run_id')
 
-        # Update problem status to "idle"
+        # Emit a stop signal file so any background loop can halt gracefully
+        try:
+            data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
+            user_dir = data_root / user.sub / "problems" / problem_name
+            stop_file = user_dir / "runs" / "stop_signal"
+            stop_file.parent.mkdir(parents=True, exist_ok=True)
+            stop_file.write_text("stop", encoding="utf-8")
+        except Exception:
+            # Non-fatal for DB-based runs
+            pass
+
+        # If there's an active run, mark it stopped (terminal)
+        if active_run_id:
+            try:
+                await DatabaseService.update_run(db, int(active_run_id), status='stopped')
+            except Exception:
+                # Continue to set problem idle even if run update fails
+                pass
+
+        # Update problem status to "idle" and clear active_run_id via service logic
         success = await DatabaseService.update_problem_status(db, problem_id, "idle")
         if not success:
             raise HTTPException(500, "Failed to stop problem")
@@ -235,7 +264,8 @@ async def stop_problem(
         return {
             "message": f"Problem '{problem_name}' stopped successfully",
             "problem_id": problem_id,
-            "status": "idle"
+            "status": "idle",
+            "run_id": active_run_id
         }
 
     except HTTPException:

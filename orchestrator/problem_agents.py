@@ -19,7 +19,7 @@ from .utils import (
     pre_dump_io, dump_failure, enhanced_write_status
 )
 from .database_integration import get_database_integration, get_current_problem_id
-from .papers import read_problem_context, get_paper_text_from_database
+from .papers import read_problem_context, get_paper_text_from_database, read_problem_context_from_database
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
     load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
@@ -56,13 +56,10 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     if focus_type in focus_prompts and focus_prompts[focus_type]["prompt"]:
         system_prompt += "\n\n### Focus Instructions\n" + focus_prompts[focus_type]["prompt"].strip() + "\n"
     
-    # Add round-specific focus description if provided
-    if focus_description:
-        system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
+    # Do not add user's request into system prompt; we'll include it in USER section
     
-    # Append all papers (description first, then text) at end of prompt
+    # Resolve problem id for DB-backed context
     problem_id = get_current_problem_id()
-    papers_block = get_paper_text_from_database(problem_id)
     
     # Prepare tools if calculator access is enabled or retrieval is available
     tools = []
@@ -71,26 +68,14 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     if not tools:
         tools = None
             
-    problem_context = read_problem_context(problem_dir, include_pdfs=False, file_descriptions="")
-    
-    # Build user message
-    user_parts = [problem_context]
-    
-    # Add previous rounds' summaries
-    for prev_idx in range(1, round_idx):
-        summary_file = problem_dir / "runs" / f"round-{prev_idx:04d}" / "summarizer.summary.md"
-        if summary_file.exists():
-            user_parts.append(f"\n\n=== Round {prev_idx} Summary ===\n")
-            user_parts.append(summary_file.read_text(encoding="utf-8"))
-    
-    # Add verifier feedback from previous round
-    if round_idx > 1:
-        prev_feedback = problem_dir / "runs" / f"round-{round_idx-1:04d}" / "verifier.feedback.md"
-        if prev_feedback.exists():
-            user_parts.append(f"\n\n=== Previous Round Feedback ===\n")
-            user_parts.append(prev_feedback.read_text(encoding="utf-8"))
-    
-    user_message = "\n".join(user_parts + (["\n\n=== Papers (text) ===\n", papers_block] if papers_block else []))
+    # Build USER message entirely from DB context; include user's focus text first
+    db_context = read_problem_context_from_database(problem_id, round_idx) if problem_id else ""
+    user_parts: list[str] = []
+    if focus_description and focus_description.strip():
+        user_parts.append(focus_description.strip())
+    if db_context:
+        user_parts.append(db_context)
+    user_message = "\n\n".join(user_parts).strip()
     
     # Prover: structured JSON output
     response_format = {

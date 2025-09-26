@@ -25,17 +25,17 @@ import { getProblemInfo, getStatusClassName, getVerdictColor } from './utils'
 // =============================================================================
 
 interface ProblemSidebarProps {
-  /** List of available problem names */
-  problems: string[]
+  /** List of available problems with ids */
+  problems: { id: number, name: string }[]
   
-  /** Currently selected problem name */
-  selectedProblem: string | null
+  /** Currently selected problem id */
+  selectedProblemId: number | null
   
   /** Map of problem names to their status data */
   statusMap: Record<string, ProblemStatus>
   
   /** Callback when a problem is selected */
-  onProblemSelect: (problemName: string | null) => void
+  onProblemSelect: (problemId: number | null) => void
   
   /** Loading state for operations */
   loading?: boolean
@@ -45,25 +45,13 @@ interface ProblemSidebarProps {
 }
 
 interface ProblemItemProps {
-  /** Problem name */
+  problemId: number
   problemName: string
-  
-  /** Problem information derived from status */
   problemInfo: ProblemInfo
-  
-  /** Raw status data for accessing verdict */
   status?: ProblemStatus
-  
-  /** Whether this problem is currently selected */
   isSelected: boolean
-  
-  /** Click handler for problem selection */
   onClick: () => void
-  
-  /** Optional delete handler */
   onDelete?: (problemName: string) => void
-  
-  /** Loading state */
   loading?: boolean
 }
 
@@ -73,7 +61,7 @@ interface ProblemItemProps {
 
 export default function ProblemSidebar({
   problems,
-  selectedProblem,
+  selectedProblemId,
   statusMap,
   onProblemSelect,
   loading = false,
@@ -86,11 +74,11 @@ export default function ProblemSidebar({
   
   /** Calculate summary statistics */
   const runningCount = problems.filter(p => 
-    getProblemInfo(p, statusMap[p]).status === 'running'
+    getProblemInfo(p.name, statusMap[p.name]).status === 'running'
   ).length
   
   const totalRounds = problems.reduce((sum, p) => 
-    sum + getProblemInfo(p, statusMap[p]).currentRound, 0
+    sum + getProblemInfo(p.name, statusMap[p.name]).currentRound, 0
   )
 
   // =============================================================================
@@ -100,9 +88,9 @@ export default function ProblemSidebar({
   /**
    * Handles problem selection
    */
-  const handleProblemSelect = (problemName: string) => {
+  const handleProblemSelect = (problemId: number) => {
     if (!loading) {
-      onProblemSelect(problemName)
+      onProblemSelect(problemId)
     }
   }
 
@@ -110,7 +98,7 @@ export default function ProblemSidebar({
    * Handles clicking outside problems to clear selection
    */
   const handleClearSelection = () => {
-    if (!loading && selectedProblem) {
+    if (!loading && selectedProblemId) {
       onProblemSelect(null)
     }
   }
@@ -158,18 +146,19 @@ export default function ProblemSidebar({
         margin: 0
       }}
     >
-      {problems.map(problemName => {
-        const problemInfo = getProblemInfo(problemName, statusMap[problemName])
-        const isSelected = selectedProblem === problemName
+      {problems.map(({ id, name }) => {
+        const problemInfo = getProblemInfo(name, statusMap[name])
+        const isSelected = selectedProblemId === id
         
         return (
           <ProblemItem
-            key={problemName}
-            problemName={problemName}
+            key={id}
+            problemId={id}
+            problemName={name}
             problemInfo={problemInfo}
-            status={statusMap[problemName]}
+            status={statusMap[name]}
             isSelected={isSelected}
-            onClick={() => handleProblemSelect(problemName)}
+            onClick={() => handleProblemSelect(id)}
             onDelete={onProblemDelete}
             loading={loading}
           />
@@ -199,6 +188,7 @@ export default function ProblemSidebar({
  * Displays a single problem with its status and selection state
  */
 function ProblemItem({
+  problemId,
   problemName,
   problemInfo,
   status,
@@ -263,7 +253,7 @@ function ProblemItem({
 
   return (
     <li 
-      key={problemName}
+      key={problemId}
       className={`problem-item ${isSelected ? 'selected' : ''}`}
     >
       <div onClick={handleClick} style={{ flex: 1 }}>

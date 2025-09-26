@@ -191,6 +191,93 @@ def get_paper_text_from_database(problem_id: int = None) -> str:
     if not db_integration or not db_integration.db_client:
         return ""
 
+
+def read_problem_context_from_database(problem_id: int, round_idx: int) -> str:
+    """
+    Build problem context entirely from the database (problem_files),
+    including base files and previous verifier feedback. Sections are
+    always present with '=== HEADER ===' and 'not applicable' if empty.
+    """
+    if not problem_id:
+        return ""
+
+    from .database_integration import get_database_integration
+    dbi = get_database_integration()
+    if not dbi or not dbi.db_client:
+        return ""
+
+    try:
+        import asyncio, json
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            files = loop.run_until_complete(
+                DatabaseService.get_problem_files(dbi.db_client, problem_id)  # type: ignore
+            )
+
+            # Base files (round 0)
+            def get_base(ftype: str) -> str:
+                for f in files:
+                    if (f.get('round') or 0) == 0 and f.get('file_type') == ftype:
+                        return f.get('content') or ""
+                return ""
+
+            task = get_base('task')
+            notes = get_base('notes')
+            proofs = get_base('proofs')
+            output = get_base('output')
+
+            # Previous round feedback (latest round < round_idx)
+            prev_feedback_text = ""
+            if round_idx and round_idx > 1:
+                prev_rounds = sorted({f.get('round') for f in files if (f.get('round') or 0) > 0 and (f.get('round') or 0) < round_idx}, reverse=True)
+                if prev_rounds:
+                    r = prev_rounds[0]
+                    vf = next((f for f in files if f.get('round') == r and f.get('file_type') == 'verifier_output'), None)
+                    if vf and vf.get('content'):
+                        try:
+                            vj = json.loads(vf['content'])
+                            prev_feedback_text = vj.get('feedback_md') or vj.get('feedback') or json.dumps(vj, indent=2)
+                        except Exception:
+                            prev_feedback_text = vf['content']
+
+            # Build sections with headings (simple === HEADER ===)
+            parts: list[str] = []
+            parts.append("=== TASK ===")
+            parts.append(task if task.strip() else "not applicable")
+            parts.append("")
+
+            parts.append("=== NOTES ===")
+            parts.append(notes if notes.strip() else "not applicable")
+            parts.append("")
+
+            parts.append("=== PROOFS ===")
+            parts.append(proofs if proofs.strip() else "not applicable")
+            parts.append("")
+
+            parts.append("=== OUTPUT ===")
+            parts.append(output if output.strip() else "not applicable")
+            parts.append("")
+
+            parts.append("=== PREVIOUS ROUND FEEDBACK ===")
+            parts.append(prev_feedback_text if prev_feedback_text.strip() else "not applicable")
+
+            # Papers section from database
+            papers_text = get_paper_text_from_database(problem_id)
+            parts.append("")
+            parts.append("=== PAPERS ===")
+            parts.append(papers_text.strip() if papers_text and papers_text.strip() else "not applicable")
+
+            return "\n".join(parts)
+        finally:
+            loop.close()
+
+    except Exception as e:
+        print(f"Warning: Could not build DB context: {e}")
+        return ""
+
     try:
         import asyncio
 

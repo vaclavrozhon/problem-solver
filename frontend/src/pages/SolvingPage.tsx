@@ -109,6 +109,18 @@ export default function SolvingPage() {
 
   /** Handle URL parameter-based problem selection */
   useEffect(() => {
+    // Prefer numeric pid if present
+    const pidParam = searchParams.get('pid') || searchParams.get('problemId')
+    if (pidParam) {
+      const pid = parseInt(pidParam, 10)
+      const byId = problems.find(p => p.id === pid)
+      if (byId && byId.name !== selectedProblem) {
+        setSelectedProblem(byId.name)
+        return
+      }
+    }
+
+    // Fallback to name-based param for backward compatibility
     const problemFromUrl = searchParams.get('problem')
     const problemNames = problems.map(p => p.name)
     if (problemFromUrl && problemNames.includes(problemFromUrl) && selectedProblem !== problemFromUrl) {
@@ -373,12 +385,12 @@ export default function SolvingPage() {
   /**
    * Handles problem selection and URL updates
    */
-  const selectProblem = (problemName: string | null) => {
-    setSelectedProblem(problemName)
-    
-    // Update URL to reflect selection
-    if (problemName) {
-      navigate(`/solve?problem=${encodeURIComponent(problemName)}`)
+  // Sidebar now selects by problem id; keep internal state by name
+  const selectProblem = (problemId: number | null) => {
+    const name = problemId != null ? (problems.find(p => p.id === problemId)?.name || null) : null
+    setSelectedProblem(name)
+    if (problemId != null) {
+      navigate(`/solve?pid=${encodeURIComponent(String(problemId))}`)
     } else {
       navigate('/solve')
     }
@@ -617,8 +629,8 @@ export default function SolvingPage() {
       }}>
         {/* Problem sidebar */}
         <ProblemSidebar
-          problems={problems.map(p => p.name)}
-          selectedProblem={selectedProblem}
+          problems={problems}
+          selectedProblemId={selectedProblem ? (problems.find(p => p.name === selectedProblem)?.id ?? null) : null}
           statusMap={statusMap}
           onProblemSelect={selectProblem}
           loading={loading}

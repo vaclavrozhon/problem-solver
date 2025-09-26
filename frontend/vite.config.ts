@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Frontend port configuration - change this value to use a different port
-const FRONTEND_PORT = 6000
+// Note: Avoid ports like 6000 (X11), 6665-6669 (IRC) as browsers block them
+const FRONTEND_PORT = 5173
 
 export default defineConfig({
   plugins: [react()],

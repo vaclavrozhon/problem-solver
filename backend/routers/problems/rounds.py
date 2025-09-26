@@ -198,8 +198,8 @@ async def get_round_details(
         Round details with all files and outputs
     """
     try:
-        # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(db, problem_id, user_id)
+        # Verify ownership (RLS enforced)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

@@ -19,6 +19,44 @@ from ...authentication import get_current_user, get_db_client, AuthedUser
 router = APIRouter()
 
 
+@router.get("/all-status")
+async def get_all_problems_status(
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """
+    Get status for all user's problems in a single request.
+
+    Returns:
+        Dictionary mapping problem names to their status information
+    """
+    try:
+        # Get all user problems
+        problems = await DatabaseService.get_user_problems(db)
+
+        # Build lightweight status map from problems table only
+        status_map = {}
+        for problem in problems:
+            problem_name = problem['name']
+            is_running = problem.get('status') == 'running'
+            status_map[problem_name] = {
+                "problem": problem,
+                "overall": {
+                    "phase": problem.get('status', 'idle'),
+                    "current_round": problem.get('current_round', 0) or 0,
+                    "is_running": is_running,
+                    "total_rounds": problem.get('current_round', 0) or 0,
+                    "last_updated": problem.get('updated_at')
+                },
+                "rounds": [],
+                "base_files": {}
+            }
+
+        return status_map
+
+    except Exception as e:
+        print(f"Error getting batch status: {e}")
+        raise HTTPException(500, f"Failed to get status: {str(e)}")
+
 @router.get("/{problem_name}/status")
 async def get_problem_status(
     problem_name: str,
@@ -247,56 +285,40 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
         initialize_database_integration(problem_id, user_token, user_id)
         print(f"📊 Database integration step completed")
 
-        # Run the research rounds asynchronously
-        for round_idx in range(1, rounds + 1):
-            # Check for stop signal before each round
-            if check_stop_signal(user_dir):
-                print(f"🛑 Stop signal detected, halting research for '{problem_name}'")
-                await DatabaseService.update_problem_status(db, problem_id, "idle", round_idx - 1)
-                write_status(user_dir, "idle", round_idx - 1)
-                return
+        # PROMPT-ONLY MODE: Build and save prompts for all provers for round 1, then end
+        round_idx = 1
+        import asyncio
+        loop = asyncio.get_event_loop()
+        from orchestrator.problem_agents import call_prover_one
 
-            print(f"🔍 Starting round {round_idx}/{rounds}")
+        print(f"📝 Prompt-only mode: saving prompts for {provers} provers (round {round_idx})")
+        print(f"🧩 Context: problem_id={problem_id}, user={user_id}, has_db={(db is not None)}")
 
-            # Update database with current round progress
-            await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
-            write_status(user_dir, "running", round_idx)
+        # Ensure status reflects activity briefly
+        await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
+        write_status(user_dir, "running", round_idx)
 
+        # Generate and persist prompts without calling models
+        for prover_idx in range(1, provers + 1):
             try:
-                # Run the round in an executor to avoid blocking the event loop
-                import asyncio
-                loop = asyncio.get_event_loop()
-
-                print(f"🤖 About to call orchestrator run_round for round {round_idx}")
-
-                # Run the synchronous orchestrator function in a thread pool
-                await loop.run_in_executor(
-                    None,
-                    run_round,
+                print(f"➡️  Building prompt for prover {prover_idx} (focus: {focus_description})")
+                _content, _ok = call_prover_one(
                     user_dir,
                     round_idx,
+                    prover_idx,
                     provers,
-                    prover_configs,
-                    focus_description
+                    prover_configs[prover_idx-1] if prover_configs and prover_idx-1 < len(prover_configs) else {},
+                    focus_description,
+                    prompt_only=True,
                 )
-
-                print(f"✅ Completed round {round_idx}/{rounds} - orchestrator returned successfully")
-
-            except StopSignalException:
-                print(f"🛑 Stop signal detected during round {round_idx}, halting research")
-                await DatabaseService.update_problem_status(db, problem_id, "idle", round_idx - 1)
-                write_status(user_dir, "idle", round_idx - 1)
-                return
+                print(f"⬅️  Prover {prover_idx} prompt saved flag: {_ok}")
             except Exception as e:
-                print(f"❌ Error in round {round_idx} for problem '{problem_name}': {e}")
-                await DatabaseService.update_problem_status(db, problem_id, "failed", round_idx)
-                write_status(user_dir, "failed", round_idx)
-                raise
+                print(f"⚠️  Failed to save prompt for prover {prover_idx}: {e}")
 
-        # Update status to completed
-        await DatabaseService.update_problem_status(db, problem_id, "completed", rounds)
-        write_status(user_dir, "completed", rounds)
-        print(f"🎉 Research run completed for problem '{problem_name}'")
+        # Return to idle immediately
+        await DatabaseService.update_problem_status(db, problem_id, "idle", 0)
+        write_status(user_dir, "idle", 0)
+        print(f"✅ Prompt-only run finished for problem '{problem_name}'")
 
     except Exception as e:
         print(f"❌ Error in research run for problem '{problem_name}': {e}")

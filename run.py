@@ -18,7 +18,8 @@ REPO = Path(__file__).parent.resolve()
 VENV = REPO / "venv"
 
 # Port configuration - change these values to use different ports
-FRONTEND_PORT = 6000
+# Note: Avoid ports like 6000 (X11), 6665-6669 (IRC) as browsers block them
+FRONTEND_PORT = 5173
 BACKEND_PORT = 8000
 
 # Detect Railway environment

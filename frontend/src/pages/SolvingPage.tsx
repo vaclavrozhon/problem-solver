@@ -122,7 +122,7 @@ export default function SolvingPage() {
 
     const interval = setInterval(() => {
       refreshAllStatuses()
-    }, 2000) // Refresh every 2 seconds
+    }, 30000) // Refresh every 30 seconds
 
     return () => clearInterval(interval)
   }, [autoRefresh, problems])

@@ -11,11 +11,18 @@ async function req(path: string, opts: RequestInit = {}) {
     headers.Authorization = `Bearer ${session.access_token}`
   }
 
-  const response = await fetch(`${BASE}${path}`, { ...opts, headers });
+  const response = await fetch(`${BASE}${path}`, {
+    ...opts,
+    headers: {
+      ...(opts.headers as Record<string, string> || {}),
+      ...headers
+    }
+  });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    const detail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail ?? errorData);
+    throw new Error(detail || `HTTP ${response.status}: ${response.statusText}`);
   }
 
   return response;
@@ -23,7 +30,7 @@ async function req(path: string, opts: RequestInit = {}) {
 
 export async function listProblems(includeStatus: boolean = false) {
   try {
-    const url = includeStatus ? `/problems?include_status=true` : `/problems`;
+    const url = includeStatus ? `/problems/?include_status=true` : `/problems/`;
     const r = await req(url);
     const data = await r.json();
     const result = Array.isArray(data) ? data : [];

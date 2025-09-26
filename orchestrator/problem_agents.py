@@ -34,7 +34,8 @@ TEMPERATURE_PROVER = float(os.environ.get("AR_PROVER_TEMPERATURE", "0.8"))
 
 
 def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: int, 
-                   prover_config: dict = None, focus_description: str = None) -> tuple[str, bool]:
+                   prover_config: dict = None, focus_description: str = None,
+                   prompt_only: bool = False) -> tuple[str, bool]:
     """Call a single prover agent and return free text."""
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     round_dir.mkdir(parents=True, exist_ok=True)
@@ -107,6 +108,27 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     
     # Pre-dump inputs for debugging failures
     pre_dump_io(round_dir, agent, system_prompt, user_message, MODEL_PROVER)
+
+    # Save prompt to database (prover_prompt) if integration available
+    try:
+        db_integration = get_database_integration()
+        print(f"[PROVER] DB integration present: {bool(db_integration)}")
+        if db_integration:
+            combined_prompt = f"=== SYSTEM ===\n{system_prompt}\n\n=== USER ===\n{user_message}"
+            print(f"[PROVER] Persisting prompt for prover {prover_idx}, round {round_idx} (len={len(combined_prompt)})")
+            saved = db_integration.save_prover_prompt(
+                round_num=round_idx,
+                prover_idx=prover_idx,
+                prompt_text=combined_prompt,
+                model=MODEL_PROVER
+            )
+            print(f"📥 PROVER: Prompt persisted to DB: {saved}")
+    except Exception as e:
+        print(f"⚠️  PROVER: Failed to persist prompt to DB: {e}")
+
+    # If only prompts should be saved, stop here
+    if prompt_only:
+        return "", True
     
     try:
         # Call the model (free-text)

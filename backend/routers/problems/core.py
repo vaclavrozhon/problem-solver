@@ -62,7 +62,8 @@ async def create_problem(
         Created problem record
     """
     try:
-        problem = await DatabaseService.create_problem(db, db, 
+        problem = await DatabaseService.create_problem(
+            db,
             user_id=user.sub,
             name=request.name,
             task_description=request.task_description,
@@ -79,7 +80,7 @@ async def create_problem(
         raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
-@router.get("/{problem_id}")
+@router.get("/id/{problem_id}")
 async def get_problem(
     problem_id: int,
     user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
@@ -95,7 +96,7 @@ async def get_problem(
         Problem details
     """
     try:
-        problem = await DatabaseService.get_problem_by_id(db, db, problem_id, user.sub)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

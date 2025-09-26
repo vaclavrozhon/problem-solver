@@ -40,7 +40,7 @@ def is_database_configured() -> bool:
 
 
 logger.info(
-    f"Database configured: {is_database_configured()} with URL: {SUPABASE_URL} and publishable key present: {bool(SUPABASE_PUBLISHABLE_KEY)}"
+    f"Database configured: {is_database_configured()} (publishable key present: {bool(SUPABASE_PUBLISHABLE_KEY)})"
 )
 
 
@@ -62,14 +62,14 @@ def get_supabase_client() -> Client:
 
         try:
             _supabase_client = create_client(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-            logger.info("Global Supabase client initialized for JWT verification")
+            logger.debug("Supabase client initialized for JWT verification")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {str(e)}")
             raise HTTPException(
                 status_code=500, detail="Database initialization failed"
             )
 
-    logger.info(f"Global Supabase client initialized for JWT verification: {_supabase_client}")
+    logger.debug("Supabase client ready for JWT verification")
     return _supabase_client
 
 
@@ -96,7 +96,7 @@ def get_current_user(
 
         # Verify signature & expiry via project's JWKS and load user
         user_resp = sb.auth.get_user(jwt=token)
-        logger.info("User validated", extra={"event_type": "auth_user_validated"})
+        logger.debug("User validated", extra={"event_type": "auth_user_validated"})
 
         user_obj = getattr(user_resp, "user", None)
         if not user_obj or not getattr(user_obj, "id", None):
@@ -105,7 +105,7 @@ def get_current_user(
         user_id = user_obj.id
 
         logger.debug(
-            f"User authenticated successfully: {user_id}",
+            "Auth OK",
             extra={
                 "event_type": "auth_success",
                 "user_id": user_id,
@@ -119,7 +119,11 @@ def get_current_user(
             role=getattr(user_obj, "role", None),
             token=token,
         )
-        logger.info(f"User authenticated successfully: {r}")
+        # Succinct, no sensitive fields in message
+        logger.info(
+            f"Auth OK: email='{r.email}' role='{r.role}'",
+            extra={"event_type": "auth_ok"}
+        )
         return r
 
     except HTTPException:
@@ -187,12 +191,9 @@ def supabase_as_user(user: AuthedUser) -> Client:
     try:
         # Create a new client instance for this request
         client = create_client(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-
-        # Attach the user's JWT token to ensure RLS runs as this user
         client.postgrest.auth(user.token)
-
         logger.debug(
-            f"Created authenticated Supabase client for user: {user.sub}",
+            "Created authenticated Supabase client",
             extra={"event_type": "db_client_created", "user_id": user.sub},
         )
 
@@ -244,12 +245,9 @@ def get_db_client_with_token(user_token: str, user_id: str) -> Client:
     try:
         # Create client with user's JWT token to maintain RLS
         client = create_client(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-
-        # Attach the user's JWT token to ensure RLS runs as this user
         client.postgrest.auth(user_token)
-
         logger.debug(
-            f"Created user-authenticated Supabase client for background task (user: {user_id})",
+            "Created user-authenticated Supabase client for background task",
             extra={"event_type": "db_client_created_background", "user_id": user_id},
         )
 

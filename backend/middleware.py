@@ -35,8 +35,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
         
-        # Log request
-        logger.info(
+        # Log request start at DEBUG (keep INFO for completion only)
+        logger.debug(
             f"Request started: {method} {path}",
             extra={
                 "request_id": request_id,

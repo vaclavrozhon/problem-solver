@@ -193,8 +193,8 @@ async def update_problem_file(
         Success message
     """
     try:
-        # Verify ownership
-        problem = await DatabaseService.get_problem_by_id(db, problem_id, user_id)
+        # Verify ownership (RLS enforces ownership on select)
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 

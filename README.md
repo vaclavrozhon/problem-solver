@@ -28,7 +28,7 @@ automatic-researcher/
 ├── README.md                   # This file
 ├── requirements.txt           # Python dependencies
 ├── venv/                     # Python virtual environment
-├── orchestrator.py           # Main orchestrator entry point (102 lines)
+├── orchestrator.py           # (deprecated) No-op; orchestration via backend background tasks
 ├── orchestrator_old.py       # Original monolithic orchestrator (backup)
 ├── web_app.py               # Web application server
 ├── backend/                 # FastAPI backend
@@ -53,7 +53,7 @@ automatic-researcher/
 │   ├── utils.py           # Utility functions for status, file I/O
 │   ├── papers.py          # PDF processing and context extraction
 │   ├── agents.py          # OpenAI API interactions, prompt handling
-│   ├── runner.py          # Round execution logic for research/paper modes
+│   ├── runner.py          # (deprecated) legacy runner (no-op)
 │   ├── problem_agents.py  # Prover, Verifier, Summarizer agents
 │   ├── paper_agents.py    # Paper Suggester and Fixer agents
 │   └── file_manager.py    # Research file and paper management
@@ -241,8 +241,8 @@ The app will be available at `https://your-app-name.up.railway.app`
 
 1. **Task Creation**: Users create problems or drafts through the web interface
 2. **Round Execution**: Orchestrator runs AI agents in sequence
-3. **Status Updates**: Real-time status updates via live_status.json
-4. **Result Storage**: All outputs saved in structured directories
+3. **Status Updates**: Real-time status updates via database fields (`problems`, `problem_files`)
+4. **Result Storage**: All outputs saved in database (`problem_files`)
 5. **Web Interface**: Frontend displays progress, conversations, and files
 
 ## 🚀 Key Features
@@ -311,26 +311,12 @@ The app will be available at `https://your-app-name.up.railway.app`
 
 ## 📊 File Organization
 
-### Problem Directory Structure
-```
-problems/[problem-name]/
-├── problem.md              # Problem statement (user-provided)
-├── notes.md               # Research notes (agent-maintained)
-├── proofs.md              # Accumulated proofs (agent-maintained)
-├── papers/                # Attached research papers
-│   ├── paper1.pdf
-│   └── paper1_description.txt
-└── runs/                  # Execution history
-    ├── live_status.json   # Current execution status
-    ├── batch_status.json  # Batch round tracking
-    ├── prover_configs.json # Prover configurations
-    ├── run_metadata.json  # Run-level metadata
-    └── round-XXXX/        # Per-round data
-        ├── prover-XX.*.* # Prover inputs/outputs
-        ├── verifier.*    # Verifier inputs/outputs
-        ├── summarizer.*  # Summarizer inputs/outputs
-        └── timings.json  # Execution timing
-```
+### Database-Only Storage (no filesystem)
+
+All problem artifacts are rows in `problem_files`:
+- Base files (`round=0`): `task`, `notes`, `proofs`, `output`, `paper`
+- Round files (`round>0`): `prover_output`, `verifier_output`, `summarizer_output`
+- Debug/metadata: `prover_raw`, `verifier_raw`, `summarizer_raw`, `response_ids`, `round_meta`
 
 ### Agent File Naming Convention
 - `.pre.prompt.txt`: System prompt before variable substitution
@@ -343,14 +329,14 @@ problems/[problem-name]/
 
 ## 🎯 Usage Modes
 
-### Research Mode (`--mode research`)
+### Research Mode (Web UI)
 Focus on problem-solving with iterative improvement:
 - Multiple provers can work in parallel
 - Verifier provides critical feedback
 - Summarizer highlights key developments
 - Early stopping when problem appears solved
 
-### Paper Mode (`--mode paper`)
+### Paper Mode (Web UI)
 Focus on writing and improving academic papers:
 - Paper suggester analyzes current draft
 - Paper fixer applies improvements
@@ -393,16 +379,7 @@ echo "OPENAI_API_KEY=your-api-key-here" > ~/.openai.env
 
 ### Running the System
 
-#### Option 1: CLI (Direct Orchestrator)
-```bash
-# Run research rounds
-python orchestrator.py problems/[problem-name] --rounds 3 --mode research
-
-# Generate paper
-python orchestrator.py problems/[problem-name] --rounds 1 --mode paper
-```
-
-#### Option 2: Web Interface
+#### Web Interface
 ```bash
 # Terminal 1: Start backend
 python -m backend.main
@@ -422,10 +399,13 @@ npm run dev
    - Enter problem statement
    - Optionally attach research papers
 
-2. Via CLI:
-   - Create directory: `problems/your-problem/`
-   - Add `problem.md` with problem statement
-   - Optionally add PDFs to `papers/` directory
+2. Via API (web UI uses these endpoints):
+   - POST `/tasks/problems/create` (create problem)
+   - POST `/problems/{name}/papers/upload` (upload papers)
+   - POST `/problems/{name}/papers/from-url` (add paper from URL)
+   - PUT `/problems/{name}/files/{file_type}?round=0` (update base files)
+   - POST `/problems/{name}/run` (start background orchestration)
+   - DELETE `/problems/{name}/rounds?delete_count=N` (delete latest N rounds)
 
 ## 🔍 How It Works
 

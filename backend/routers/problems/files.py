@@ -13,14 +13,66 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ...services.database import DatabaseService
+from ...logging_config import get_logger
 from ...authentication import get_current_user, get_db_client, AuthedUser
 
+logger = get_logger("automatic_researcher.routers.problems.files")
 router = APIRouter()
 
 
 class UpdateFileRequest(BaseModel):
     content: str
     description: Optional[str] = None
+@router.put("/{problem_name}/files/{file_type}")
+async def update_problem_file_by_name(
+    problem_name: str,
+    file_type: str,
+    request: UpdateFileRequest,
+    round: int = 0,
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """
+    Update or create a base file by problem name.
+
+    Resolves problem_id from name and delegates to DatabaseService.update_problem_file.
+    Stores description in metadata.description when provided.
+    """
+    try:
+        problem = await DatabaseService.get_problem_by_name(db, problem_name)
+        if not problem:
+            raise HTTPException(404, "Problem not found")
+
+        problem_id = int(problem['id'])
+
+        # Update content
+        ok = await DatabaseService.update_problem_file(db, problem_id, file_type, request.content, round)
+        if not ok:
+            raise HTTPException(500, "Failed to update file content")
+
+        # Optionally set description in metadata for round 0 only
+        if request.description is not None and round == 0:
+            try:
+                # Fetch row to find id
+                files = await DatabaseService.get_problem_files(db, problem_id, round, file_type)
+                if files:
+                    row_id = files[0].get('id')
+                    # Merge metadata
+                    current_meta = files[0].get('metadata') or {}
+                    current_meta['description'] = request.description
+                    db.table('problem_files').update({'metadata': current_meta}).eq('id', row_id).execute()  # type: ignore
+            except Exception:
+                pass
+
+        return {
+            "message": f"File '{file_type}' updated successfully",
+            "file_type": file_type,
+            "round": round
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Update file by name failed", extra={"event_type": "file_update_error", "problem_name": problem_name, "file_type": file_type, "error_type": type(e).__name__, "error_details": str(e)})
+        raise HTTPException(500, f"Failed to update file: {str(e)}")
 
 
 @router.get("/{problem_name}/files")

@@ -11,8 +11,10 @@ Handles round-specific operations:
 from fastapi import APIRouter, HTTPException, Depends
 
 from ...services.database import DatabaseService
+from ...logging_config import get_logger
 from ...authentication import get_current_user, get_db_client, AuthedUser
 
+logger = get_logger("automatic_researcher.routers.problems.rounds")
 router = APIRouter()
 
 
@@ -42,31 +44,65 @@ async def get_problem_rounds(
         # Get all files to analyze rounds
         files = await DatabaseService.get_problem_files(db, problem_id)
 
-        # Group files by round
-        rounds_data = {}
-        for file in files:
-            if file['round'] > 0:  # Skip base files (round 0)
-                round_num = file['round']
-                if round_num not in rounds_data:
-                    rounds_data[round_num] = {
-                        "number": round_num,
-                        "files": {},
-                        "status": "completed",
-                        "created_at": None
-                    }
+        # Group files by round and shape into frontend structure
+        rounds_index: dict[int, dict] = {}
+        for f in files:
+            try:
+                rnum = int(f.get('round') or 0)
+            except Exception:
+                rnum = 0
+            if rnum <= 0:
+                continue
+            if rnum not in rounds_index:
+                rounds_index[rnum] = {
+                    "name": f"round-{rnum:04d}",
+                    "number": rnum,
+                    "status": "completed",
+                    "provers": [],
+                    "verifier": "",
+                    "summary": "",
+                    "one_line_summary": None,
+                }
+            # Accumulate by file type
+            ftype = f.get('file_type')
+            content = f.get('content') or ""
+            if ftype == 'prover_output':
+                try:
+                    import json as _json
+                    data = _json.loads(content)
+                    text = data.get('content') or content
+                except Exception:
+                    text = content
+                rounds_index[rnum]['provers'].append({
+                    "name": f.get('file_name') or "prover",
+                    "content": text
+                })
+            elif ftype == 'verifier_output':
+                try:
+                    import json as _json
+                    data = _json.loads(content)
+                    rounds_index[rnum]['verifier'] = data.get('feedback_md') or data.get('feedback') or content
+                    if data.get('verdict'):
+                        rounds_index[rnum]['verdict'] = data.get('verdict')
+                except Exception:
+                    rounds_index[rnum]['verifier'] = content
+            elif ftype == 'summarizer_output':
+                try:
+                    import json as _json
+                    data = _json.loads(content)
+                    rounds_index[rnum]['summary'] = data.get('summary_md') or data.get('summary') or content
+                    rounds_index[rnum]['one_line_summary'] = data.get('one_line_summary')
+                except Exception:
+                    rounds_index[rnum]['summary'] = content
 
-                rounds_data[round_num]['files'][file['file_type']] = file
-                if not rounds_data[round_num]['created_at'] or file['created_at'] > rounds_data[round_num]['created_at']:
-                    rounds_data[round_num]['created_at'] = file['created_at']
-
-        # Sort rounds by number
-        rounds = [rounds_data[num] for num in sorted(rounds_data.keys())]
-        return rounds
+        # Return rounds sorted by number
+        rounds_list = [rounds_index[k] for k in sorted(rounds_index.keys())]
+        return rounds_list
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting rounds: {e}")
+        logger.error("Get rounds failed", extra={"event_type": "rounds_list_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get rounds: {str(e)}")
 
 
@@ -95,89 +131,44 @@ async def delete_problem_rounds(
 
         problem_id = problem['id']
 
+        # Enforce idle state per request
+        if (problem.get('status') or 'idle') != 'idle':
+            raise HTTPException(400, "Problem must be idle to delete rounds")
+
         # Get all files to find rounds to delete
         files = await DatabaseService.get_problem_files(db, problem_id)
 
         # Find unique rounds (excluding round 0 which is base files)
-        rounds = set(file['round'] for file in files if file['round'] > 0)
+        rounds = sorted({int(file['round']) for file in files if int(file['round']) > 0}, reverse=True)
 
         if len(rounds) == 0:
             return {"message": "No rounds to delete", "deleted_count": 0}
 
-        # Sort rounds in descending order and take the most recent ones to delete
-        sorted_rounds = sorted(rounds, reverse=True)
-        rounds_to_delete = sorted_rounds[:delete_count]
+        # Take the most recent ones to delete
+        rounds_to_delete = rounds[:max(0, int(delete_count))]
 
-        # Delete files for these rounds
-        deleted_count = 0
-        for round_num in rounds_to_delete:
-            round_files = [f for f in files if f['round'] == round_num]
-            for file in round_files:
-                # Delete file (this would need to be implemented in DatabaseService)
-                # For now, we'll just count what would be deleted
-                deleted_count += 1
+        # Delete in DB
+        deleted_count = await DatabaseService.delete_problem_rounds(db, problem_id, rounds_to_delete)
+
+        # Update current_round to new max
+        new_max = await DatabaseService.get_max_round(db, problem_id)
+        await DatabaseService.update_problem_status(db, problem_id, "idle", new_max)
 
         return {
-            "message": f"Deleted {len(rounds_to_delete)} rounds from problem '{problem_name}'",
+            "message": f"Deleted {len(rounds_to_delete)} round(s) from problem '{problem_name}'",
             "deleted_rounds": rounds_to_delete,
-            "deleted_files": deleted_count
+            "deleted_files": deleted_count,
+            "current_round": new_max
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting rounds: {e}")
+        logger.error("Delete rounds failed", extra={"event_type": "rounds_delete_error", "problem_name": problem_name, "delete_count": delete_count, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to delete rounds: {str(e)}")
 
 
-@router.delete("/{problem_name}/rounds/{round_name}")
-async def delete_specific_round(
-    problem_name: str,
-    round_name: str,
-    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
-):
-    """
-    Delete a specific round from a problem.
-
-    Args:
-        problem_name: Problem name
-        round_name: Round identifier
-        user_id: Authenticated user ID
-
-    Returns:
-        Success message
-    """
-    try:
-        # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, problem_name)
-        if not problem:
-            raise HTTPException(404, "Problem not found")
-
-        problem_id = problem['id']
-
-        # Parse round number from round_name (assuming format like "round-1", "round-2", etc.)
-        try:
-            if round_name.startswith("round-"):
-                round_num = int(round_name.split("-")[1])
-            else:
-                round_num = int(round_name)
-        except (ValueError, IndexError):
-            raise HTTPException(400, f"Invalid round name format: {round_name}")
-
-        # Delete files for this specific round
-        # This would need to be implemented in DatabaseService
-        # For now, return success
-
-        return {
-            "message": f"Round '{round_name}' deleted successfully from problem '{problem_name}'",
-            "deleted_round": round_num
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error deleting round: {e}")
-        raise HTTPException(500, f"Failed to delete round: {str(e)}")
+# Single-round delete endpoint removed; use latest-N delete endpoint instead.
 
 
 @router.get("/{problem_id}/rounds/{round_num}")
@@ -262,5 +253,5 @@ async def get_round_details(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting round details: {e}")
+        logger.error("Get round details failed", extra={"event_type": "round_details_error", "problem_id": problem_id, "round_num": round_num, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get round details: {str(e)}")

@@ -36,7 +36,7 @@ import {
   formatRelativeTime,
   getStatusDescription
 } from './utils'
-import { getStatus, runRound, stopProblem, listFiles } from '../../api'
+import { getStatus, runRound, stopProblem, listFiles, deleteRounds, getProblemFilesRaw } from '../../api'
 import ProverConfigComponent from './ProverConfig'
 
 // =============================================================================
@@ -91,7 +91,6 @@ export default function StatusPanel({
     rounds: 1,
     provers: 1,
     preset: 'gpt5',
-    temperature: 0.4, // Legacy - not used for GPT-5
     focusDescription: ''
   })
   
@@ -109,6 +108,9 @@ export default function StatusPanel({
   const [lastUpdate, setLastUpdate] = useState<number>(0)
   const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([])
 
+  // Round meta (timings, quick summary)
+  const [roundMeta, setRoundMeta] = useState<Array<{ round: number, one_line_summary?: string, durations: { provers_total?: number, per_prover?: Record<string, number>, verifier?: number, summarizer?: number } }>>([])
+
   // =============================================================================
   // COMPUTED VALUES
   // =============================================================================
@@ -118,6 +120,7 @@ export default function StatusPanel({
   const isRunning = isProblemRunning(status)
   const canStart = !loading && !localLoading && !isRunning
   const canStop = !loading && !localLoading && isRunning
+  const isIdle = !isRunning
 
   // =============================================================================
   // HANDLERS
@@ -147,14 +150,11 @@ export default function StatusPanel({
       setLocalLoading(true)
       onRunStart() // Notify parent component
 
-      // Prepare API parameters (exclude temperature for GPT-5)
-      const temperature = runConfig.preset === 'gpt5' ? 1.0 : runConfig.temperature
-
       const result = await runRound(
         problemName, 
         runConfig.rounds, 
         runConfig.provers, 
-        temperature, 
+        0, 
         runConfig.preset, 
         runConfig.proverConfigs,
         runConfig.focusDescription,
@@ -337,6 +337,51 @@ export default function StatusPanel({
     }
   }, [availableFiles])
 
+  // Load round meta files when status or problem changes
+  useEffect(() => {
+    const loadRoundMeta = async () => {
+      try {
+        if (!problemName) { setRoundMeta([]); return }
+        const files = await getProblemFilesRaw(problemName, { file_type: 'round_meta' })
+        const metas: Array<{ round: number, one_line_summary?: string, durations: { provers_total?: number, per_prover?: Record<string, number>, verifier?: number, summarizer?: number } }> = []
+        for (const f of (files || [])) {
+          try {
+            const data = JSON.parse(f.content || '{}')
+            const r = Number(data.round || 0)
+            if (!r || r <= 0) continue
+            const stages = data.stages || {}
+            const provers = stages.provers || {}
+            const perProver: Record<string, number> = {}
+            let proversTotal = 0
+            Object.keys(provers).forEach(k => {
+              const d = Number((provers[k]?.duration_s) || 0)
+              perProver[k] = d
+              proversTotal += d
+            })
+            const meta = {
+              round: r,
+              one_line_summary: data.one_line_summary,
+              durations: {
+                provers_total: proversTotal > 0 ? proversTotal : undefined,
+                per_prover: perProver,
+                verifier: Number(stages.verifier?.duration_s || 0) || undefined,
+                summarizer: Number(stages.summarizer?.duration_s || 0) || undefined,
+              }
+            }
+            metas.push(meta)
+          } catch (e) {
+            // ignore malformed meta
+          }
+        }
+        metas.sort((a,b) => b.round - a.round)
+        setRoundMeta(metas)
+      } catch (e) {
+        setRoundMeta([])
+      }
+    }
+    loadRoundMeta()
+  }, [problemName, status?.overall?.current_round])
+
   // =============================================================================
   // RENDER HELPERS
   // =============================================================================
@@ -365,7 +410,7 @@ export default function StatusPanel({
       return completedRoundsWithVerdicts.length > 0 ? completedRoundsWithVerdicts[0].verdict : undefined
     }
     
-    const verdictInfo = getVerdictDisplayInfo(getLatestVerdict())
+    const verdictInfo = getVerdictDisplayInfo(getLatestVerdict() as any)
     const progress = calculateProgress(problemInfo)
 
     return (
@@ -432,7 +477,7 @@ export default function StatusPanel({
         )}
 
         {/* Current running model */}
-        {status.overall.phase !== 'idle' && status.overall.phase !== 'completed' && (
+        {status.overall.phase !== 'idle' && (
           <div style={{ 
             marginBottom: '12px',
             padding: '8px',
@@ -445,8 +490,7 @@ export default function StatusPanel({
               {status.overall.phase === 'prover' && `Prover (${status.models?.prover || 'Unknown model'})`}
               {status.overall.phase === 'verifier' && `Verifier (${status.models?.verifier || 'Unknown model'})`}
               {status.overall.phase === 'summarizer' && `Summarizer (${status.models?.summarizer || 'Unknown model'})`}
-              {status.overall.phase === 'setup' && 'Setting up run...'}
-              {status.overall.phase === 'cleanup' && 'Cleaning up...'}
+              {/* setup/cleanup not part of typed phases; omit */}
             </div>
           </div>
         )}
@@ -496,7 +540,7 @@ export default function StatusPanel({
         <select 
           id="preset-select"
           value={runConfig.preset} 
-          onChange={e => updateRunConfig({ preset: e.target.value })}
+          onChange={e => updateRunConfig({ preset: e.target.value as any })}
           disabled={!canStart}
           style={{
             width: '100%',
@@ -591,34 +635,7 @@ export default function StatusPanel({
         </div>
       </div>
 
-      {/* Temperature (only for non-GPT-5) */}
-      {runConfig.preset !== 'gpt5' && (
-        <div style={{ marginBottom: '12px' }}>
-          <label htmlFor="temperature-input" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
-            Temperature
-          </label>
-          <input 
-            id="temperature-input"
-            type="number" 
-            min={0} 
-            max={2} 
-            step={0.1}
-            value={runConfig.temperature} 
-            onChange={e => updateRunConfig({ temperature: parseFloat(e.target.value || '0.4') })}
-            disabled={!canStart}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          />
-          <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-            Higher values make output more creative
-          </div>
-        </div>
-      )}
+      {/* Temperature removed for GPT-5 models */}
 
 
       {/* Prover Configurations */}
@@ -786,6 +803,8 @@ export default function StatusPanel({
         gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
         gap: '8px' 
       }}>
+        {/* Delete last N rounds (idle only) */}
+        <DeleteRoundsControl problemName={problemName} disabled={!isIdle || loading} setMessage={setMessage} />
         <button 
           className="btn btn-danger" 
           onClick={onResetProblem}
@@ -830,7 +849,39 @@ export default function StatusPanel({
       </div>
 
       {/* Runtime History */}
-      <RuntimeHistory status={status} />
+      {status && <RuntimeHistory status={status} />}
+
+      {/* Round Meta Timings */}
+      {roundMeta.length > 0 && (
+        <div style={{ 
+          background: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          border: '1px solid #dee2e6',
+          marginTop: '20px'
+        }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#333' }}>
+            ⏱ Round timings and summaries
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {roundMeta.map(meta => (
+              <div key={meta.round} style={{ padding: '8px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '6px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Round {meta.round}</div>
+                <div style={{ fontSize: '12px', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  <span>Provers: {meta.durations.provers_total ? `${meta.durations.provers_total.toFixed(1)}s` : '—'}</span>
+                  <span>Verifier: {meta.durations.verifier ? `${meta.durations.verifier.toFixed(1)}s` : '—'}</span>
+                  <span>Summarizer: {meta.durations.summarizer ? `${meta.durations.summarizer.toFixed(1)}s` : '—'}</span>
+                </div>
+                {meta.one_line_summary && (
+                  <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
+                    “{meta.one_line_summary}”
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Configuration form - only show when not running */}
       {!isRunning && renderRunConfiguration()}
@@ -863,6 +914,46 @@ export default function StatusPanel({
           ⏳ Processing...
         </div>
       )}
+    </div>
+  )
+}
+
+function DeleteRoundsControl({ problemName, disabled, setMessage }: { problemName: string | null, disabled: boolean, setMessage: (m: any) => void }) {
+  const [n, setN] = React.useState<number>(1)
+  const [busy, setBusy] = React.useState<boolean>(false)
+  const canDelete = !disabled && !busy && n > 0
+  const onDelete = async () => {
+    if (!problemName) return
+    try {
+      setBusy(true)
+      const res = await deleteRounds(problemName, n)
+      setMessage({ type: 'success', text: res?.message || `Deleted last ${n} round(s)` })
+    } catch (e: any) {
+      setMessage({ type: 'error', text: e?.message || 'Failed to delete rounds' })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+      <input
+        type="number"
+        min={1}
+        value={n}
+        onChange={e => setN(parseInt(e.target.value || '1', 10))}
+        disabled={disabled || busy}
+        style={{ width: '70px', padding: '6px', fontSize: '12px' }}
+        title="Number of latest rounds to delete"
+      />
+      <button
+        className="btn btn-warning"
+        onClick={onDelete}
+        disabled={!canDelete}
+        style={{ fontSize: '12px', padding: '6px 10px' }}
+        title={disabled ? 'Available only when idle' : 'Delete the most recent rounds'}
+      >
+        🗑️ Delete last N rounds
+      </button>
     </div>
   )
 }

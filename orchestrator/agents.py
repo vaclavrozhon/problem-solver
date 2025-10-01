@@ -19,7 +19,7 @@ from openai import OpenAI
 from .models import (
     NotesUpdate, ProofsUpdate, OutputUpdate
 )
-from .utils import extract_json_from_response
+# No longer importing extract_json_from_response (unused in DB-only flow)
 
 
 def parse_structured_output(model_class, response_text: str, model: str, system_prompt: str, 
@@ -78,61 +78,74 @@ def is_reasoning_model(name: str) -> bool:
 
 
 def save_response_id(problem_dir: Path, round_idx: int, agent: str, response_id: str, model: str = ""):
-    """Save response ID for reasoning state preservation, keyed by agent and model."""
+    """Persist response ID to database for reasoning state preservation."""
     if not response_id:
         return
-        
-    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-    round_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load existing response IDs
-    response_ids_file = round_dir / "response_ids.json"
-    store = {}
-    if response_ids_file.exists():
-        try:
-            store = json.loads(response_ids_file.read_text(encoding="utf-8"))
-        except Exception:
-            store = {}
-    
-    # Save this agent's response ID for this model
-    store.setdefault(agent, {})[model] = response_id
-    
-    # Atomic write to prevent corruption during parallel execution
     try:
-        response_ids_file.write_text(json.dumps(store, indent=2), encoding="utf-8")
+        from .database_integration import get_database_integration, DatabaseService as _DS
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return
+        import asyncio, json
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_DS.create_problem_file(  # type: ignore
+                db=dbi.db_client,
+                problem_id=dbi.problem_id,
+                round_num=round_idx,
+                file_type='response_ids',
+                filename=f'{agent}.json',
+                content=json.dumps({"agent": agent, "model": model, "response_id": response_id}, indent=2),
+                metadata={"model": model}
+            ))
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
     except Exception as e:
-        print(f"Warning: Failed to save response ID for {agent}/{model}: {e}")
+        print(f"Warning: Failed to save response ID to DB for {agent}/{model}: {e}")
 
 
 def load_previous_response_id(problem_dir: Path, round_idx: int, agent: str, model: str) -> Optional[str]:
-    """Load previous response ID for reasoning state preservation, matching agent and model."""
+    """Load previous response ID from database (prior round)."""
     if round_idx <= 1:
         return None
-    
-    prev_round_idx = round_idx - 1
-    response_ids_file = problem_dir / "runs" / f"round-{prev_round_idx:04d}" / "response_ids.json"
-    
-    if not response_ids_file.exists():
-        return None
-    
     try:
-        store = json.loads(response_ids_file.read_text(encoding="utf-8"))
-        return (store.get(agent) or {}).get(model)
+        from .database_integration import get_database_integration, DatabaseService as _DS
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return None
+        import asyncio, json
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        prev_round_idx = round_idx - 1
+        try:
+            files = loop.run_until_complete(_DS.get_problem_files(  # type: ignore
+                db=dbi.db_client,
+                problem_id=dbi.problem_id,
+                round=prev_round_idx,
+                file_type='response_ids'
+            ))
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+        for f in files or []:
+            try:
+                data = json.loads(f.get('content','') or '{}')
+                if data.get('agent') == agent and (data.get('model') == model or not data.get('model')):
+                    return data.get('response_id')
+            except Exception:
+                continue
+        return None
     except Exception:
         return None
 
 
-def _with_retries(call, max_retries=4):
-    """Execute a function with exponential backoff retries."""
-    delay = 0.5
-    for attempt in range(max_retries):
-        try:
-            return call()
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise
-            time.sleep(delay + random.random() * 0.25)
-            delay *= 2
+    
 
 
 def _normalize_tools(tools):
@@ -152,13 +165,10 @@ def _normalize_tools(tools):
 
 def load_prover_focus_prompts() -> dict:
     """Load prover focus mini-prompts from JSON file."""
-    focus_file = Path(__file__).parent.parent / "prompts" / "prover_focus.json"
-    if not focus_file.exists():
-        return {"default": {"name": "No special instructions", "prompt": ""}}
-    
     try:
+        focus_file = Path(__file__).parent.parent / "prompts" / "prover_focus.json"
         return json.loads(focus_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, FileNotFoundError):
+    except Exception:
         return {"default": {"name": "No special instructions", "prompt": ""}}
 
 
@@ -367,78 +377,92 @@ def _get_update_mode_and_content(u):
 
 
 def apply_notes_update(problem_dir: Path, update: NotesUpdate, round_idx: int = 0) -> None:
-    """Apply an update to the notes.md file and save versioned copy."""
-    notes_file = problem_dir / "notes.md"
-    
-    # Create versioned backup
-    if notes_file.exists() and round_idx > 0:
-        backup_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_file = backup_dir / "notes.appended.md"
-        backup_file.write_text(notes_file.read_text(encoding="utf-8"), encoding="utf-8")
-    
-    # Apply update with backward compatibility
+    """Apply an update to notes via database only (no local backups)."""
     mode, content = _get_update_mode_and_content(update)
-    if mode == "replace":
-        notes_file.write_text(str(content or ""), encoding="utf-8")
-    elif mode == "append":
-        existing = notes_file.read_text(encoding="utf-8") if notes_file.exists() else ""
-        notes_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
+    try:
+        from .database_integration import get_database_integration
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            from .services.database import DatabaseService  # type: ignore
+            existing = ""
+            if mode == "append":
+                files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='notes'))  # type: ignore
+                if files:
+                    existing = files[0].get('content','') or ""
+            new_content = str(content or "") if mode == "replace" else (existing + "\n\n" + str(content or ""))
+            loop.run_until_complete(DatabaseService.update_problem_file(dbi.db_client, dbi.problem_id, 'notes', new_content, round=0))  # type: ignore
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Warning: Failed to update notes in DB: {e}")
 
 
 def apply_proofs_update(problem_dir: Path, update: ProofsUpdate, round_idx: int = 0) -> None:
-    """Apply an update to the proofs.md file and save versioned copy."""
-    proofs_file = problem_dir / "proofs.md"
-    
-    # Create versioned backup
-    if proofs_file.exists() and round_idx > 0:
-        backup_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_file = backup_dir / "proofs.appended.md"
-        backup_file.write_text(proofs_file.read_text(encoding="utf-8"), encoding="utf-8")
-    
-    # Apply update with backward compatibility
+    """Apply an update to proofs via database only (no local backups)."""
     mode, content = _get_update_mode_and_content(update)
-    if mode == "replace":
-        proofs_file.write_text(str(content or ""), encoding="utf-8")
-    elif mode == "append":
-        existing = proofs_file.read_text(encoding="utf-8") if proofs_file.exists() else ""
-        proofs_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
+    try:
+        from .database_integration import get_database_integration
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            from .services.database import DatabaseService  # type: ignore
+            existing = ""
+            if mode == "append":
+                files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='proofs'))  # type: ignore
+                if files:
+                    existing = files[0].get('content','') or ""
+            new_content = str(content or "") if mode == "replace" else (existing + "\n\n" + str(content or ""))
+            loop.run_until_complete(DatabaseService.update_problem_file(dbi.db_client, dbi.problem_id, 'proofs', new_content, round=0))  # type: ignore
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Warning: Failed to update proofs in DB: {e}")
 
 
 def apply_output_update(problem_dir: Path, update: OutputUpdate, round_idx: int = 0) -> None:
-    """Apply an update to the output.md file and save versioned copy."""
-    output_file = problem_dir / "output.md"
-    
-    # Create versioned backup
-    if output_file.exists() and round_idx > 0:
-        backup_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_file = backup_dir / "output.appended.md"
-        backup_file.write_text(output_file.read_text(encoding="utf-8"), encoding="utf-8")
-    
-    # Apply update with backward compatibility
+    """Apply an update to output via database only (no local backups)."""
     mode, content = _get_update_mode_and_content(update)
-    if mode == "replace":
-        output_file.write_text(str(content or ""), encoding="utf-8")
-    elif mode == "append":
-        existing = output_file.read_text(encoding="utf-8") if output_file.exists() else ""
-        output_file.write_text(existing + "\n\n" + str(content or ""), encoding="utf-8")
+    try:
+        from .database_integration import get_database_integration
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            from .services.database import DatabaseService  # type: ignore
+            existing = ""
+            if mode == "append":
+                files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='output'))  # type: ignore
+                if files:
+                    existing = files[0].get('content','') or ""
+            new_content = str(content or "") if mode == "replace" else (existing + "\n\n" + str(content or ""))
+            loop.run_until_complete(DatabaseService.update_problem_file(dbi.db_client, dbi.problem_id, 'output', new_content, round=0))  # type: ignore
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Warning: Failed to update output in DB: {e}")
 
 
 def ensure_three_tier_files(problem_dir: Path) -> None:
-    """Ensure notes.md, proofs.md, and output.md exist in the problem directory."""
-    # Always ensure notes.md exists
-    notes_file = problem_dir / "notes.md"
-    if not notes_file.exists():
-        notes_file.write_text("# Research Notes\n\n", encoding="utf-8")
-    
-    # Always ensure proofs.md exists (start empty for existing problems)
-    proofs_file = problem_dir / "proofs.md"
-    if not proofs_file.exists():
-        proofs_file.write_text("# Rigorous Proofs\n\n", encoding="utf-8")
-    
-    # Always ensure output.md exists
-    output_file = problem_dir / "output.md"
-    if not output_file.exists():
-        output_file.write_text("# Main Results\n\n", encoding="utf-8")
+    """No-op in DB mode: base files are managed in the database."""
+    return

@@ -13,8 +13,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ...services.database import DatabaseService
+from ...logging_config import get_logger
 from ...authentication import get_current_user, get_db_client, AuthedUser
 
+logger = get_logger("automatic_researcher.routers.problems.core")
 router = APIRouter()
 
 
@@ -42,7 +44,7 @@ async def list_problems(
         result = [{"id": problem['id'], "name": problem['name']} for problem in problems]
         return result
     except Exception as e:
-        print(f"Error listing problems: {e}")
+        logger.error("List problems failed", extra={"event_type": "problems_list_error", "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to list problems: {str(e)}")
 
 
@@ -76,7 +78,7 @@ async def create_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating problem: {e}")
+        logger.error("Create problem failed", extra={"event_type": "problem_create_error", "name": request.name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
@@ -104,7 +106,7 @@ async def get_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting problem: {e}")
+        logger.error("Get problem failed", extra={"event_type": "problem_get_error", "problem_id": problem_id, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get problem: {str(e)}")
 
 
@@ -144,7 +146,7 @@ async def delete_problem_by_name(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting problem: {e}")
+        logger.error("Delete problem failed", extra={"event_type": "problem_delete_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
 
@@ -171,10 +173,10 @@ async def reset_problem_by_name(
 
         problem_id = problem['id']
 
-        # Delete all non-base files (rounds > 0)
-        files = await DatabaseService.get_problem_files(db, problem_id)
-        # In a full implementation, this would actually delete the round files
-        # For now, we'll just reset the status
+        # Reset files in database: clear notes/proofs/output and delete metadata
+        ok = await DatabaseService.reset_problem_files(db, problem_id)
+        if not ok:
+            raise HTTPException(500, "Failed to reset problem files")
 
         # Reset problem status
         success = await DatabaseService.update_problem_status(db, problem_id, "idle")
@@ -190,7 +192,7 @@ async def reset_problem_by_name(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error resetting problem: {e}")
+        logger.error("Reset problem failed", extra={"event_type": "problem_reset_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to reset problem: {str(e)}")
 
 

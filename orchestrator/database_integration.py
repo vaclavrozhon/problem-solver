@@ -42,6 +42,7 @@ except Exception as e1:  # pragma: no cover
 class _DbIntegration:
     db_client: object | None
     problem_id: int | None
+    run_id: int | None = None
 
     def save_prover_prompt(self, round_num: int, prover_idx: int, prompt_text: str, model: str | None = None) -> bool:
         """Persist a prover prompt as a round artifact in problem_files.
@@ -97,6 +98,144 @@ class _DbIntegration:
             result = asyncio.run(_save_async())
             return bool(result)
 
+    def save_prover_output(self, round_num: int, prover_idx: int, content: str,
+                           model: str | None = None, tokens_in: int | None = None,
+                           tokens_out: int | None = None, raw_response: dict | None = None) -> bool:
+        if not self.db_client or not DatabaseService or self.problem_id is None:
+            print("[DBI] save_prover_output: missing db/problem_id/DS")
+            return False
+        async def _save_async():
+            try:
+                meta = {"model": model, "tokens_in": tokens_in, "tokens_out": tokens_out, "prover_index": prover_idx}
+                ok_main = await DatabaseService.create_problem_file(  # type: ignore
+                    db=self.db_client,
+                    problem_id=self.problem_id,
+                    round_num=round_num,
+                    file_type="prover_output",
+                    filename=f"prover-{prover_idx:02d}.md",
+                    content=content,
+                    metadata=meta,
+                )
+                if raw_response is not None:
+                    import json
+                    await DatabaseService.create_problem_file(  # type: ignore
+                        db=self.db_client,
+                        problem_id=self.problem_id,
+                        round_num=round_num,
+                        file_type="prover_raw",
+                        filename=f"prover-{prover_idx:02d}.response.full.json",
+                        content=json.dumps(raw_response, indent=2),
+                        metadata={"model": model, "prover_index": prover_idx},
+                    )
+                return ok_main
+            except Exception as e:
+                print(f"[DBI] Error save_prover_output: {e}")
+                return False
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(_save_async())
+                return True
+            else:
+                return bool(loop.run_until_complete(_save_async()))
+        except RuntimeError:
+            import asyncio
+            return bool(asyncio.run(_save_async()))
+
+    def save_verifier_output(self, round_num: int, feedback: str, summary: str,
+                             verdict_data: dict | None, model: str | None = None,
+                             raw_response: dict | None = None) -> bool:
+        if not self.db_client or not DatabaseService or self.problem_id is None:
+            print("[DBI] save_verifier_output: missing db/problem_id/DS")
+            return False
+        async def _save_async():
+            try:
+                import json
+                payload = verdict_data or {}
+                payload.setdefault("feedback_md", feedback)
+                payload.setdefault("summary_md", summary)
+                ok = await DatabaseService.create_problem_file(  # type: ignore
+                    db=self.db_client,
+                    problem_id=self.problem_id,
+                    round_num=round_num,
+                    file_type="verifier_output",
+                    filename="verifier.json",
+                    content=json.dumps(payload, indent=2),
+                    metadata={"model": model},
+                )
+                if raw_response is not None:
+                    await DatabaseService.create_problem_file(  # type: ignore
+                        db=self.db_client,
+                        problem_id=self.problem_id,
+                        round_num=round_num,
+                        file_type="verifier_raw",
+                        filename="verifier.response.full.json",
+                        content=json.dumps(raw_response, indent=2),
+                        metadata={"model": model},
+                    )
+                return ok
+            except Exception as e:
+                print(f"[DBI] Error save_verifier_output: {e}")
+                return False
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(_save_async())
+                return True
+            else:
+                return bool(loop.run_until_complete(_save_async()))
+        except RuntimeError:
+            import asyncio
+            return bool(asyncio.run(_save_async()))
+
+    def save_summarizer_output(self, round_num: int, summary: str,
+                               one_line_summary: str | None = None,
+                               model: str | None = None,
+                               raw_response: dict | None = None) -> bool:
+        if not self.db_client or not DatabaseService or self.problem_id is None:
+            print("[DBI] save_summarizer_output: missing db/problem_id/DS")
+            return False
+        async def _save_async():
+            try:
+                import json
+                payload = {"summary": summary, "one_line_summary": one_line_summary}
+                ok = await DatabaseService.create_problem_file(  # type: ignore
+                    db=self.db_client,
+                    problem_id=self.problem_id,
+                    round_num=round_num,
+                    file_type="summarizer_output",
+                    filename="summarizer.json",
+                    content=json.dumps(payload, indent=2),
+                    metadata={"model": model},
+                )
+                if raw_response is not None:
+                    await DatabaseService.create_problem_file(  # type: ignore
+                        db=self.db_client,
+                        problem_id=self.problem_id,
+                        round_num=round_num,
+                        file_type="summarizer_raw",
+                        filename="summarizer.response.full.json",
+                        content=json.dumps(raw_response, indent=2),
+                        metadata={"model": model},
+                    )
+                return ok
+            except Exception as e:
+                print(f"[DBI] Error save_summarizer_output: {e}")
+                return False
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(_save_async())
+                return True
+            else:
+                return bool(loop.run_until_complete(_save_async()))
+        except RuntimeError:
+            import asyncio
+            return bool(asyncio.run(_save_async()))
+
 
 _integration: Optional[_DbIntegration] = None
 
@@ -118,5 +257,37 @@ def get_database_integration() -> Optional[_DbIntegration]:
 
 def get_current_problem_id() -> Optional[int]:
     return _integration.problem_id if _integration else None
+
+
+def set_current_run_id(run_id: int | None) -> None:
+    global _integration
+    if _integration:
+        _integration.run_id = run_id
+
+
+def get_current_run_id() -> Optional[int]:
+    return _integration.run_id if _integration else None
+
+
+def get_run_parameters() -> dict:
+    """Fetch current run parameters from DB, best-effort.
+    Returns a dict (possibly empty) with keys like 'user_specification' and 'prover_directives'.
+    """
+    try:
+        if not _integration or not _integration.db_client or not _integration.run_id or not DatabaseService:
+            return {}
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            run_row = loop.run_until_complete(DatabaseService.get_run_by_id(_integration.db_client, int(_integration.run_id)))  # type: ignore
+        finally:
+            loop.close()
+        if not run_row:
+            return {}
+        params = run_row.get('parameters') or {}
+        return params if isinstance(params, dict) else {}
+    except Exception:
+        return {}
 
 

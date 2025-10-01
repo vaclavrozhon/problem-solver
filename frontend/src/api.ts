@@ -46,17 +46,15 @@ export async function getRounds(name: string) {
   return r.json();
 }
 
-export async function runRound(name: string, rounds: number, provers: number, temperature: number, preset: string, proverConfigs?: any[], focusDescription?: string, verifierConfig?: any) {
-  // Don't send temperature for GPT-5 models (they only support default)
+export async function runRound(name: string, rounds: number, provers: number, _temperature: number, preset: string, proverConfigs?: any[], focusDescription?: string, verifierConfig?: any) {
+  // Temperature not used for GPT-5 models
   const params: any = { rounds, provers, preset };
-  if (preset !== 'gpt5') {
-    params.temperature = temperature;
-  }
+  // Send only DB-based fields. Missing fields are treated as empty server-side.
   if (proverConfigs && proverConfigs.length > 0) {
-    params.prover_configs = proverConfigs;
+    params.prover_directives = proverConfigs;
   }
   if (focusDescription && focusDescription.trim()) {
-    params.focus_description = focusDescription.trim();
+    params.user_specification = focusDescription.trim();
   }
   if (verifierConfig) {
     params.verifier_config = verifierConfig;
@@ -104,9 +102,24 @@ export async function listFiles(name: string) {
   try {
     const r = await req(`/problems/${encodeURIComponent(name)}/files`);
     const data = await r.json();
-    // Backend returns {files: [...], total: N, filters: {...}}
-    // Frontend expects just the files array
-    return Array.isArray(data) ? data : (data.files || []);
+    const files = Array.isArray(data) ? data : (data.files || []);
+    // Preserve original DB fields (file_type, round, file_name, created_at, metadata, content)
+    // and add UI helper fields used by components (name, path, type, size, modified, description)
+    const mapType = (ft: string, fn: string) => {
+      if (ft === 'paper') return 'paper';
+      if (fn.endsWith('.md')) return 'markdown';
+      return 'text';
+    };
+    return (files || []).map((f: any) => ({
+      ...f,
+      name: f.file_name || f.file_type || 'unknown',
+      // FilesPanel expects to pass file_type into the content API
+      path: f.file_type || f.file_name || 'unknown',
+      type: mapType(f.file_type, f.file_name || ''),
+      size: (f.content ? String(f.content).length : 0),
+      modified: f.created_at || '',
+      description: (f.metadata && f.metadata.description) || undefined,
+    }));
   } catch (error) {
     console.error('Failed to list files:', error);
     return [];
@@ -125,6 +138,36 @@ export async function getFileContent(name: string, filePath: string, version?: s
 export async function getFileVersions(name: string, filePath: string) {
   const r = await req(`/problems/${encodeURIComponent(name)}/file-versions?file_path=${encodeURIComponent(filePath)}`);
   return r.json();
+}
+
+export async function updateBaseFileByName(problemName: string, fileType: 'task'|'notes'|'proofs'|'output', content: string, description?: string) {
+  const params: any = { content };
+  if (description !== undefined) params.description = description;
+  const r = await req(`/problems/${encodeURIComponent(problemName)}/files/${encodeURIComponent(fileType)}?round=0`, {
+    method: 'PUT',
+    body: JSON.stringify(params)
+  });
+  return r.json();
+}
+
+// DB-only helpers
+export async function getProblemFilesRaw(name: string, filters?: { round?: number; file_type?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.round !== undefined) params.set('round', String(filters.round));
+  if (filters?.file_type) params.set('file_type', filters.file_type);
+  const path = `/problems/${encodeURIComponent(name)}/files${params.toString() ? `?${params.toString()}` : ''}`;
+  const r = await req(path);
+  const data = await r.json();
+  return Array.isArray(data) ? data : (data.files || []);
+}
+
+export async function getPromptForRound(problemName: string, roundNum: number, agentName: string) {
+  // Fetch prover prompts for the round from DB and return matching agent prompt content
+  const files = await getProblemFilesRaw(problemName, { round: roundNum, file_type: 'prover_prompt' });
+  const expected = `${agentName}.prompt.txt`;
+  const match = (files || []).find((f: any) => (f.file_name || '').toLowerCase() === expected.toLowerCase());
+  const chosen = match || (files && files[0]);
+  return chosen?.content || '';
 }
 
 
@@ -173,24 +216,7 @@ export async function uploadProblemPaper(problemName: string, file: File, descri
   return r.json();
 }
 
-export async function uploadDraftPaper(draftName: string, file: File) {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  // Get the current session and add JWT token to headers
-  const { data: { session } } = await supabase.auth.getSession()
-  const headers: Record<string, string> = {}
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`
-  }
-  
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts/${encodeURIComponent(draftName)}/papers/upload`, {
-    method: "POST",
-    body: formData,
-    headers,
-  });
-  return r.json();
-}
+// Drafts are no longer supported
 
 export async function addProblemPaperFromUrl(problemName: string, url: string) {
   const r = await req(`/problems/${encodeURIComponent(problemName)}/papers/from-url`, {
@@ -200,13 +226,7 @@ export async function addProblemPaperFromUrl(problemName: string, url: string) {
   return r.json();
 }
 
-export async function addDraftPaperFromUrl(draftName: string, url: string) {
-  const r = await req(`/drafts/${encodeURIComponent(draftName)}/papers/from-url`, {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  });
-  return r.json();
-}
+// Drafts are no longer supported
 
 // Text content upload functions
 export async function uploadProblemTextContent(problemName: string, content: string, filename: string, description?: string) {
@@ -235,29 +255,5 @@ export async function uploadProblemTextContent(problemName: string, content: str
   return r.json();
 }
 
-export async function uploadDraftTextContent(draftName: string, content: string, filename: string, description?: string) {
-  // Create a blob and file from text content to upload as file
-  const blob = new Blob([content], { type: 'text/plain' });
-  const file = new File([blob], filename, { type: 'text/plain' });
-  
-  const formData = new FormData();
-  formData.append('file', file);
-  if (description) {
-    formData.append('description', description);
-  }
-  
-  // Get the current session and add JWT token to headers
-  const { data: { session } } = await supabase.auth.getSession()
-  const headers: Record<string, string> = {}
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`
-  }
-  
-  const r = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/drafts/${encodeURIComponent(draftName)}/papers/upload`, {
-    method: "POST",
-    body: formData,
-    headers,
-  });
-  return r.json();
-}
+// Drafts are no longer supported
 

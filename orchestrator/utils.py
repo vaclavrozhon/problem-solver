@@ -23,18 +23,16 @@ def load_prompt(name: str) -> str:
 
 
 def write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | None = None):
-    """Write live status so the UI can show current phase + since when."""
-    # Get model configuration from environment
+    """Log status (no filesystem writes)."""
     model_prover = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
     model_verifier = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
     model_summarizer = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
     model_paper_suggester = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", model_prover)
     model_paper_fixer = os.environ.get("OPENAI_MODEL_PAPER_FIXER", model_prover)
-    
     status = {
-        "phase": phase,  # "prover" | "verifier" | "summarizer" | "paper_suggester" | "paper_fixer" | "idle"
+        "phase": phase,
         "round": round_idx,
-        "ts": int(time.time()),  # Unix timestamp for timezone-proof elapsed time
+        "ts": int(time.time()),
         "models": {
             "prover": model_prover,
             "verifier": model_verifier,
@@ -43,60 +41,19 @@ def write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | No
             "paper_fixer": model_paper_fixer,
         }
     }
-    
     if extra:
         status.update(extra)
-    
-    status_file = problem_dir / "runs" / "live_status.json"
-    status_file.parent.mkdir(exist_ok=True)
-    status_file.write_text(json.dumps(status, indent=2), encoding="utf-8")
+    print(f"[STATUS] {json.dumps(status)}")
 
 
 def gather_context_files(problem_dir: Path, round_idx: int) -> list[str]:
-    """Gather all relevant context files for this round."""
-    files = []
-    runs_dir = problem_dir / "runs"
-    
-    # Previous rounds' summaries
-    for prev_idx in range(1, round_idx):
-        summary_file = runs_dir / f"round-{prev_idx:04d}" / "summarizer.summary.md"
-        if summary_file.exists():
-            files.append(str(summary_file.relative_to(problem_dir)))
-    
-    # Current round's prover outputs
-    current_round_dir = runs_dir / f"round-{round_idx:04d}"
-    for prover_file in sorted(current_round_dir.glob("prover-*.text.txt")):
-        files.append(str(prover_file.relative_to(problem_dir)))
-    
-    # Notes and outputs
-    for name in ["notes.md", "output.md"]:
-        file = problem_dir / name
-        if file.exists():
-            files.append(name)
-    
-    return files
+    """DB-only mode: no filesystem context files to gather."""
+    return []
 
 
 def auto_commit_round(problem_dir: Path, round_idx: int, verdict: str):
-    """Auto-commit changes after each round if configured."""
-    if not os.environ.get("AR_GIT_AUTOCOMMIT"):
-        return
-    
-    try:
-        # Stage all changes
-        subprocess.run(["git", "add", "."], cwd=problem_dir, check=True, capture_output=True)
-        
-        # Commit with descriptive message
-        commit_msg = f"Round {round_idx} complete: {verdict}"
-        subprocess.run(
-            ["git", "commit", "-m", commit_msg],
-            cwd=problem_dir,
-            check=True,
-            capture_output=True
-        )
-        print(f"  [git] Committed round {round_idx}")
-    except subprocess.CalledProcessError:
-        pass  # Ignore git errors
+    """No-op: disabled filesystem git operations."""
+    print(f"[GIT] Auto-commit disabled (round {round_idx}, verdict={verdict})")
 
 
 def extract_json_from_response(text: str) -> Optional[dict]:
@@ -135,73 +92,17 @@ def dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str,
             response_text: str, response_obj: Any, duration_s: float,
             model: str, error: str | None = None, usage: dict | None = None, 
             raw_response: dict | None = None) -> None:
-    """Save all input/output for an agent interaction."""
-    print(f"[DEBUG] dump_io called for {agent}: response_text={len(response_text) if response_text else 0} chars, raw_response={'present' if raw_response else 'missing'}")
-    # Save prompts
-    (round_dir / f"{agent}.prompt.txt").write_text(
-        f"=== SYSTEM ===\n{system_prompt}\n\n=== USER ===\n{user_message}",
-        encoding="utf-8"
-    )
-    
-    # Save raw response
-    (round_dir / f"{agent}.text.txt").write_text(response_text, encoding="utf-8")
-    
-    # Save parsed output
-    if response_obj:
-        if hasattr(response_obj, 'model_dump'):
-            output_dict = response_obj.model_dump()
-        else:
-            output_dict = response_obj
-        (round_dir / f"{agent}.out.json").write_text(
-            json.dumps(output_dict, indent=2),
-            encoding="utf-8"
-        )
-    
-    # Save raw API response if available
-    raw_data = {
+    """Log-only; no filesystem writes."""
+    summary = {
+        "agent": agent,
         "model": model,
         "duration_s": duration_s,
-        "timestamp": datetime.now().isoformat(),
+        "response_text_len": len(response_text) if response_text else 0,
+        "has_raw_response": bool(raw_response),
+        "usage": usage or {},
+        "error": error or ""
     }
-    if error:
-        raw_data["error"] = error
-    if usage:
-        raw_data["usage"] = usage
-    
-    (round_dir / f"{agent}.raw.json").write_text(
-        json.dumps(raw_data, indent=2),
-        encoding="utf-8"
-    )
-    
-    # Save the complete raw response from the API for debugging
-    if raw_response:
-        raw_file = round_dir / f"{agent}.response.full.json"
-        raw_file.write_text(
-            json.dumps(raw_response, indent=2),
-            encoding="utf-8"
-        )
-        print(f"[DEBUG] Saved raw response to {raw_file}")
-    else:
-        print(f"[DEBUG] No raw response to save for {agent}")
-    
-    # Update timings file
-    timings_file = round_dir / "timings.json"
-    timings = {}
-    if timings_file.exists():
-        timings = json.loads(timings_file.read_text(encoding="utf-8"))
-    
-    timings_entry = {
-        "model": model,
-        "duration_s": duration_s,
-    }
-    
-    # Add usage information if available (from Responses API)
-    if usage:
-        timings_entry["usage"] = usage
-        
-    timings[agent] = timings_entry
-    
-    timings_file.write_text(json.dumps(timings, indent=2), encoding="utf-8")
+    print(f"[DEBUG] dump_io {json.dumps(summary)}")
 
 
 def enforce_no_additional_properties(schema_obj: dict) -> dict:
@@ -234,113 +135,28 @@ def normalize_schema_strict(schema_obj: dict) -> dict:
     schema_obj = enforce_required_all_properties(schema_obj)
     return schema_obj
 
-
-def compile_latex(problem_dir: Path, round_idx: int) -> tuple[bool, str]:
-    """Compile LaTeX in the problem directory."""
-    tex_file = problem_dir / "final_output.tex"
-    if not tex_file.exists():
-        return False, "No final_output.tex found"
     
-    return compile_tex_string(problem_dir, round_idx, tex_file.read_text(encoding="utf-8"))
-
-
-def compile_tex_string(problem_dir: Path, round_idx: int, tex_source: str, 
-                       basename: str = "final_output") -> tuple[bool, str, Path | None]:
-    """Compile a LaTeX string and return success status, log, and PDF path if successful."""
-    round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
-    round_dir.mkdir(exist_ok=True)
-    
-    # Write the tex source to round directory
-    tex_file = round_dir / f"{basename}.tex"
-    tex_file.write_text(tex_source, encoding="utf-8")
-    
-    # Also write to problem directory for final output
-    if basename == "final_output":
-        # Atomic write for main tex
-        main_tex = problem_dir / "final_output.tex"
-        tmp = problem_dir / "final_output.tex.tmp"
-        tmp.write_text(tex_source, encoding="utf-8")
-        os.replace(tmp, main_tex)
-    
-    # Try to compile
-    try:
-        result = subprocess.run(
-            ["pdflatex", "-no-shell-escape", "-interaction=nonstopmode", basename],
-            cwd=problem_dir if basename == "final_output" else round_dir,
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        # Save compile log
-        log_file = round_dir / f"{basename}.compile.log"
-        log_file.write_text(result.stdout + "\n" + result.stderr, encoding="utf-8")
-        
-        # Check if PDF was created
-        pdf_path = problem_dir / f"{basename}.pdf" if basename == "final_output" else round_dir / f"{basename}.pdf"
-        
-        if pdf_path.exists():
-            return True, result.stdout, pdf_path
-        else:
-            return False, result.stdout + "\n" + result.stderr, None
-            
-    except subprocess.TimeoutExpired:
-        return False, "LaTeX compilation timed out", None
-    except Exception as e:
-        return False, f"LaTeX compilation error: {str(e)}", None
 
 
 def pre_dump_io(round_dir: Path, agent: str, system_prompt: str, user_message: str, 
                 model: str) -> None:
-    """Save input data before API call for debugging failures."""
-    round_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save prompts with pre- prefix to distinguish from normal dumps
-    (round_dir / f"{agent}.pre.prompt.txt").write_text(
-        f"=== SYSTEM ===\n{system_prompt}\n\n=== USER ===\n{user_message}",
-        encoding="utf-8"
-    )
-    
-    # Save metadata
-    pre_data = {
-        "agent": agent,
-        "model": model,
-        "timestamp": time.time(),
-        "system_prompt_length": len(system_prompt),
-        "user_message_length": len(user_message),
-        "status": "pre_api_call"
-    }
-    
-    (round_dir / f"{agent}.pre.meta.json").write_text(
-        json.dumps(pre_data, indent=2),
-        encoding="utf-8"
-    )
-    
-    print(f"[DEBUG] Pre-dumped inputs for {agent} (system: {len(system_prompt)} chars, user: {len(user_message)} chars)")
+    """Log-only; no filesystem writes."""
+    print(f"[DEBUG] pre_dump_io agent={agent} model={model} sys_len={len(system_prompt)} user_len={len(user_message)}")
 
 
 def dump_failure(round_dir: Path, agent: str, system_prompt: str, user_message: str, 
                 error: str, model: str, stage: Optional[str] = None) -> None:
-    """Dump debug info when API calls or processing fails."""
-    round_dir.mkdir(parents=True, exist_ok=True)
-    
+    """Log-only; no filesystem writes."""
     failure_data = {
         "timestamp": time.time(),
         "agent": agent,
-        "model": model, 
+        "model": model,
         "stage": stage or "unknown",
         "error": error,
         "system_prompt_length": len(system_prompt),
-        "user_message_length": len(user_message),
-        "system_prompt": system_prompt,
-        "user_message": user_message
+        "user_message_length": len(user_message)
     }
-    
-    (round_dir / f"{agent}.failure.json").write_text(
-        json.dumps(failure_data, indent=2), encoding="utf-8"
-    )
-    
-    print(f"[DEBUG] Dumped failure data for {agent} at stage '{stage}': {error}")
+    print(f"[FAILURE] {json.dumps(failure_data)}")
 
 
 def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int, 
@@ -348,14 +164,12 @@ def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int,
                          error_phase: Optional[str] = None,
                          error: Optional[str] = None,
                          extra: dict | None = None):
-    """Enhanced status writing with detailed error context."""
-    # Get model configuration from environment
+    """Log status with error context (no filesystem writes)."""
     model_prover = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
     model_verifier = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
     model_summarizer = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
     model_paper_suggester = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", model_prover)
     model_paper_fixer = os.environ.get("OPENAI_MODEL_PAPER_FIXER", model_prover)
-    
     status = {
         "phase": phase,
         "round": round_idx,
@@ -368,31 +182,46 @@ def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int,
             "paper_fixer": model_paper_fixer,
         }
     }
-    
-    # Add enhanced error information
     if error:
         status["error"] = error
         if error_component:
             status["error_component"] = error_component
         if error_phase:
             status["error_phase"] = error_phase
-    
     if extra:
         status.update(extra)
-    
-    status_file = problem_dir / "runs" / "live_status.json"
-    status_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    try:
-        status_file.write_text(json.dumps(status, indent=2), encoding="utf-8")
-    except Exception as e:
-        print(f"Warning: Failed to write status: {e}")
+    print(f"[STATUS+ERR] {json.dumps(status)}")
 
 
 def check_stop_signal(problem_dir: Path) -> bool:
-    """Check if a stop signal file exists for this problem."""
-    stop_file = problem_dir / "runs" / "stop_signal"
-    return stop_file.exists()
+    """Check DB for stop request for the active run (no filesystem)."""
+    try:
+        from .database_integration import get_database_integration
+        dbi = get_database_integration()
+        if not dbi or not dbi.db_client or not dbi.problem_id:
+            return False
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            from ..backend.services.database import DatabaseService  # type: ignore
+            # Find the most recent run for this problem; if status is stopping, honor it.
+            # Minimal: read problem to get active_run_id
+            problem = loop.run_until_complete(DatabaseService.get_problem_by_id(dbi.db_client, dbi.problem_id))  # type: ignore
+            active_run_id = problem.get('active_run_id') if problem else None
+            if not active_run_id:
+                return False
+            # Query the run status instead of writing anything
+            run_row = loop.run_until_complete(DatabaseService.get_run_by_id(dbi.db_client, int(active_run_id)))  # type: ignore
+            status = (run_row or {}).get('status') if run_row else None
+            return status == 'stopping' or status == 'stopped'
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+    except Exception:
+        return False
 
 
 class StopSignalException(Exception):

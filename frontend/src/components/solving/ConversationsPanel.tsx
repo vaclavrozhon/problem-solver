@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { ProblemComponentProps, RoundData } from './types'
-import { getRounds, getFileContent } from '../../api'
+import { getRounds, getPromptForRound } from '../../api'
 import { getVerdictDisplayInfo, organizeTimings, formatDuration } from './utils'
 
 // =============================================================================
@@ -261,13 +261,17 @@ function RoundDisplay({ round, problemName, expanded = false, onSelect, isLatest
   // EVENT HANDLERS
   // =============================================================================
   
-  /** Download a prompt file for a given agent within this round */
+  /** Download a prompt file for a given agent within this round (DB-only) */
   const downloadAgentPrompt = async (agentName: string) => {
     try {
-      const path = `runs/${round.name}/${agentName}.prompt.txt`
-      const res = await getFileContent(problemName, path)
-      const content: string = res?.content ?? ''
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      const parseRoundNumber = (): number => {
+        if (typeof round.number === 'number') return round.number
+        const m = /^round-(\d+)/i.exec(round.name)
+        return m ? parseInt(m[1], 10) : 1
+      }
+      const roundNum = parseRoundNumber()
+      const content: string = await getPromptForRound(problemName, roundNum, agentName)
+      const blob = new Blob([content || ''], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

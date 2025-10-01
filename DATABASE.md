@@ -65,6 +65,11 @@ Stores all text files associated with problems (replaces file system).
 - `verifier_output` - Verifier feedback
 - `summarizer_output` - Round summaries
 - `paper` - Generated papers
+ - `prover_raw` - Full raw model response for prover calls (debug)
+ - `verifier_raw` - Full raw model response for verifier calls (debug)
+ - `summarizer_raw` - Full raw model response for summarizer calls (debug)
+ - `response_ids` - Reasoning/continuation IDs per agent/model (debug)
+ - `round_meta` - Per-round timing and stage metadata JSON (debug)
 
 ### 4. **runs**
 Tracks research run sessions (history). The current active run is linked from `problems.active_run_id`; a run row is never deleted when it completes (history is preserved).

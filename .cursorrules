@@ -1,0 +1,76 @@
+## Project AI Rules – Jaroslav Cimrman
+
+These rules guide assistant behavior and code changes in this repository. Prefer clarity over cleverness. Keep edits minimal, targeted, and reversible.
+
+### Core Principles
+- **Clean and crisp code**: favor readability and explicitness over abstraction or “smart” tricks.
+- **No hidden magic**: avoid background behaviors the user did not ask for.
+- **Small, isolated edits**: one logical change per edit; don’t refactor unrelated code.
+- **Ask before contracts change**: confirm before changing database schema, API contracts, auth flows, or public types.
+- **Keep data safe**: never commit secrets; don’t print PII; respect RLS constraints.
+
+### Failure and Error-Handling Policy (critical)
+- **No automatic fallback mechanisms.** If an operation (e.g., database query) fails, do not auto-retry, degrade, or write alternate paths without explicit instruction.
+- **Log clearly to backend** using `backend/logging_config.py` via `get_logger(...)`. Include relevant context in `extra` (e.g., `user_id`, `problem_id`, `run_id`, `event_type`, `error_type`).
+- **Surface to UI when applicable**: return structured error info so the frontend can show a visible error state/toast/banner. Do not hide failures.
+- **Avoid swallowing exceptions**: either handle and return a clear error response or re-raise with context. Prefer guard clauses and early returns.
+
+User intent (verbatim):
+> In general, I want the code to be clean and crisp. If e.g. querying a database fails, dont add automatic fallback mechanism. Instead, just clearly log that this failed, both into the backend log and to the UI (if applicable).
+
+### Tech Stack Conventions
+- **Backend (FastAPI, Python)**
+  - Use `backend/logging_config.py` and `get_logger` for all logging; no `print`.
+  - Prefer type annotations everywhere; explicit return types for public functions.
+  - Keep HTTP schemas in `backend/models.py`. If changing, update both backend and frontend types together.
+  - Access Supabase via authenticated clients; prefer `DatabaseService` methods in `backend/services/database.py` instead of ad‑hoc queries.
+  - For errors, return consistent HTTP errors (`HTTPException`) with safe, actionable messages; include a stable `code` when appropriate.
+
+- **Frontend (React + TypeScript)**
+  - Strict TypeScript; avoid `any`. Keep components small and pure.
+  - Centralize API calls in `frontend/src/api.ts`. Propagate errors to callers; show user feedback (toasts/banners/panels) rather than silent retries.
+  - Avoid hidden retries/backoffs by default. If needed, make them explicit and user-driven.
+
+- **Orchestrator**
+  - Keep orchestration logic in `orchestrator/` and file outputs under `data/`. Do not couple UI/backend to orchestrator internals beyond documented APIs.
+
+### Logging
+- Use logger name hierarchy `automatic_researcher[.component]`.
+- In production, logs may be JSON; keep messages short and informative.
+- Add `extra` context keys instead of concatenating into the message string.
+
+### Database and Auth
+- Supabase is the source of truth. Respect RLS and avoid bypassing policies.
+- Do not introduce alternate write paths or non-atomic client-side “fix-ups” unless explicitly requested.
+- Treat environment variables as mandatory configuration; fail fast with clear errors if missing.
+
+### UI Error Surfacing
+- Show clear error states where operations are initiated (e.g., panels, dialogs). Prefer concise messages with optional details.
+- Don’t mask backend error messages entirely; map them to user-friendly text but keep technical detail accessible (e.g., expandable details).
+
+### Commands and Runbook
+- Backend dev: `python -m backend.main` (or `uvicorn backend.main:app --reload --port 8001`).
+- Frontend dev: `npm run dev` in `frontend` (Node ≥ 18).
+- Env (frontend): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Env (backend): `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `OPENAI_API_KEY`, etc.
+
+### Code Style
+- Python: explicit types, guard clauses, shallow nesting, meaningful names. Avoid broad `except Exception` unless re‑raising with context.
+- TypeScript/React: typed props/state, no `any`, functional components, hooks with correct dependency arrays. Keep side effects localized.
+- Formatting: match existing style; do not reformat unrelated code.
+
+### PR/Commit Discipline
+- One logical change per PR/commit; descriptive messages.
+- If API or schema changes, include migrations and update docs (`README.md`, `DATABASE.md`) and the frontend types.
+
+### Assistant Behavior in Cursor
+- Propose the minimal diff necessary; avoid speculative refactors.
+- Before editing, scan and adapt to local conventions (naming, patterns).
+- When uncertain, ask concise clarification questions with suggested options.
+- After changes, check for linter/type errors and fix if trivial.
+
+### Out of Scope by Default
+- Adding background daemons, cron-like behaviors, silent retries, or auto fallbacks.
+- Introducing new external services without prior confirmation.
+
+

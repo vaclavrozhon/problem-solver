@@ -381,6 +381,58 @@ class DatabaseService:
             return []
 
     @staticmethod
+    async def delete_problem_rounds(
+        db: Client,
+        problem_id: int,
+        rounds: List[int]
+    ) -> int:
+        """Delete all files for the given rounds (round > 0) and return number of deleted rows.
+
+        We first fetch ids to delete, then delete by ids to get a reliable count.
+        """
+        try:
+            if not rounds:
+                return 0
+            # Fetch ids of rows to delete
+            sel = db.table('problem_files') \
+                .select('id,round') \
+                .eq('problem_id', problem_id) \
+                .in_('round', rounds) \
+                .execute()
+            ids = [row['id'] for row in (sel.data or [])]
+            if not ids:
+                return 0
+            # Delete rows by id
+            db.table('problem_files') \
+                .delete() \
+                .in_('id', ids) \
+                .execute()
+            return len(ids)
+        except Exception as e:
+            logger.error(f"Database error deleting rounds: {e}")
+            return 0
+
+    @staticmethod
+    async def get_max_round(db: Client, problem_id: int) -> int:
+        """Return the maximum round number (>0) for a problem, or 0 if none."""
+        try:
+            resp = db.table('problem_files') \
+                .select('round') \
+                .eq('problem_id', problem_id) \
+                .gt('round', 0) \
+                .order('round', desc=True) \
+                .limit(1) \
+                .execute()
+            rows = resp.data or []
+            if rows:
+                r = int(rows[0].get('round') or 0)
+                return r if r > 0 else 0
+            return 0
+        except Exception as e:
+            logger.error(f"Database error getting max round: {e}")
+            return 0
+
+    @staticmethod
     async def save_round_output(
         db: Client,
         problem_id: int,
@@ -572,6 +624,20 @@ class DatabaseService:
             return False
 
     @staticmethod
+    async def get_run_by_id(db: Client, run_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a run row by id to read stored parameters for prompt assembly."""
+        try:
+            response = db.table('runs')\
+                .select('*')\
+                .eq('id', run_id)\
+                .single()\
+                .execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Database error getting run by id: {e}")
+            return None
+
+    @staticmethod
     async def log_usage(
         db: Client,
         user_id: str,
@@ -661,6 +727,47 @@ class DatabaseService:
 
         except Exception as e:
             logger.error(f"Database error deleting problem: {e}")
+            return False
+
+    @staticmethod
+    async def reset_problem_files(db: Client, problem_id: int) -> bool:
+        """
+        Reset a problem to a clean state while keeping task and papers:
+        - Delete all non-base artifacts (all rows with round > 0)
+        - Delete any round 0 rows that are not in {task, notes, proofs, output, paper}
+        - Set base notes/proofs/output (round 0) content to empty strings
+        """
+        try:
+            # 1) Delete all round > 0 artifacts
+            db.table('problem_files') \
+                .delete() \
+                .eq('problem_id', problem_id) \
+                .neq('round', 0) \
+                .execute()
+
+            # 2) Delete round 0 rows that are not allowed base types
+            allowed_base = {'task', 'notes', 'proofs', 'output', 'paper'}
+            # Fetch round 0 rows to determine which to delete
+            base_rows = db.table('problem_files') \
+                .select('id,file_type') \
+                .eq('problem_id', problem_id) \
+                .eq('round', 0) \
+                .execute()
+            ids_to_delete = [row['id'] for row in (base_rows.data or []) if row.get('file_type') not in allowed_base]
+            if ids_to_delete:
+                db.table('problem_files') \
+                    .delete() \
+                    .in_('id', ids_to_delete) \
+                    .execute()
+
+            # 3) Clear base notes/proofs/output
+            await DatabaseService.update_problem_file(db, problem_id, 'notes', '', round=0)
+            await DatabaseService.update_problem_file(db, problem_id, 'proofs', '', round=0)
+            await DatabaseService.update_problem_file(db, problem_id, 'output', '', round=0)
+
+            return True
+        except Exception as e:
+            logger.error(f"Database error resetting problem files: {e}")
             return False
 
     @staticmethod

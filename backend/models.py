@@ -18,7 +18,6 @@ class RunParams(BaseModel):
     """Parameters for running problem-solving tasks"""
     rounds: int = 1
     provers: int = 2
-    temperature: float = 0.4
     preset: str = "gpt5"
     prover_configs: Optional[List[Dict[str, Any]]] = None
     focus_description: Optional[str] = None

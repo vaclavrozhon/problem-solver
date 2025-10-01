@@ -10,12 +10,16 @@ Handles running and stopping problems:
 
 import sys
 import os
+import time
+import json
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends
 
 from ...services.database import DatabaseService
+from ...logging_config import get_logger
 from ...authentication import get_current_user, get_db_client, AuthedUser
 
+logger = get_logger("automatic_researcher.routers.problems.execution")
 router = APIRouter()
 
 
@@ -54,7 +58,7 @@ async def get_all_problems_status(
         return status_map
 
     except Exception as e:
-        print(f"Error getting batch status: {e}")
+        logger.error("Batch status failed", extra={"event_type": "batch_status_error", "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get status: {str(e)}")
 
 @router.get("/{problem_name}/status")
@@ -149,7 +153,7 @@ async def get_problem_status(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting problem status: {e}")
+        logger.error("Problem status failed", extra={"event_type": "problem_status_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get problem status: {str(e)}")
 
 
@@ -179,10 +183,18 @@ async def run_problem(
         problem_id = problem['id']
 
         # Create run row and set active_run_id
+        # Capture user selection fields for focus
+        user_specification = request.get('focus_description') or request.get('user_specification')
+        # Per-prover directives can be named 'prover_configs' or 'focus_instructions'
+        prover_directives = request.get('prover_configs') or request.get('focus_instructions')
+
         run_record = await DatabaseService.create_run(db, problem_id, {
             'phase': 'initializing',
             'total_rounds': request.get('rounds', 1),
-            'provers_count': request.get('provers', 1)
+            'provers_count': request.get('provers', 1),
+            # New fields for prompt assembly
+            'user_specification': user_specification,
+            'prover_directives': prover_directives,
         })
         if not run_record:
             raise HTTPException(500, "Failed to create run record")
@@ -192,8 +204,7 @@ async def run_problem(
         if not status_updated:
             raise HTTPException(500, "Failed to update problem status")
 
-        print(f"🚀 Starting research run for problem '{problem_name}' (ID: {problem_id})")
-        print(f"📋 Run configuration: {request}")
+        logger.info("Research run start", extra={"event_type": "run_start", "problem_name": problem_name, "problem_id": problem_id})
 
         # Start the research run using the orchestrator
         import asyncio
@@ -209,7 +220,7 @@ async def run_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error starting run: {e}")
+        logger.error("Run start failed", extra={"event_type": "run_start_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to start run: {str(e)}")
 
 
@@ -238,14 +249,11 @@ async def stop_problem(
         active_run_id = problem.get('active_run_id')
 
         # Emit a stop signal file so any background loop can halt gracefully
+        # Signal stop via DB (set run status to 'stopping' if active)
         try:
-            data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
-            user_dir = data_root / user.sub / "problems" / problem_name
-            stop_file = user_dir / "runs" / "stop_signal"
-            stop_file.parent.mkdir(parents=True, exist_ok=True)
-            stop_file.write_text("stop", encoding="utf-8")
+            if active_run_id:
+                await DatabaseService.update_run(db, int(active_run_id), status='stopping')
         except Exception:
-            # Non-fatal for DB-based runs
             pass
 
         # If there's an active run, mark it stopped (terminal)
@@ -271,7 +279,7 @@ async def stop_problem(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error stopping problem: {e}")
+        logger.error("Stop problem failed", extra={"event_type": "stop_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to stop problem: {str(e)}")
 
 
@@ -291,67 +299,162 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
         orchestrator_path = Path(__file__).parent.parent.parent.parent / "orchestrator"
         sys.path.insert(0, str(orchestrator_path))
 
-        from orchestrator.runner import run_round
-        from orchestrator.utils import write_status, check_stop_signal, StopSignalException
-        from orchestrator.database_integration import initialize_database_integration
+        from orchestrator.utils import check_stop_signal, StopSignalException
+        from orchestrator.database_integration import initialize_database_integration, set_current_run_id
+        from orchestrator.problem_agents import call_prover_one, call_verifier_combined, call_summarizer
 
-        # Create problem directory structure
-        data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
-        user_dir = data_root / user_id / "problems" / problem_name
-        user_dir.mkdir(parents=True, exist_ok=True)
+        # Filesystem structure removed in DB-only mode
 
         # Extract configuration
         rounds = config.get('rounds', 1)
         provers = config.get('provers', 1)
-        temperature = config.get('temperature', 0.7)
+        # Temperature is not used for GPT-5
         preset = config.get('preset', 'gpt5')
-        prover_configs = config.get('prover_configs', [])
-        focus_description = config.get('focus_description')
+        # Harmonize naming: keep both for backward compatibility
+        prover_configs = config.get('prover_configs') or config.get('prover_directives') or []
+        focus_description = config.get('focus_description') or config.get('user_specification')
 
-        print(f"🔄 Running {rounds} rounds with {provers} provers for problem '{problem_name}'")
+        logger.info("Orchestration start", extra={"event_type": "orchestrator_start", "problem_id": problem_id, "rounds": rounds, "provers": provers})
 
         # Initialize database integration for orchestrator
-        print(f"🔗 About to initialize database integration for problem {problem_id}")
+        logger.info("DB integration init", extra={"event_type": "dbi_init", "problem_id": problem_id})
         initialize_database_integration(problem_id, user_token, user_id)
-        print(f"📊 Database integration step completed")
+        try:
+            # Set current run id in orchestrator context so provers can fetch parameters
+            from ...services.database import DatabaseService as _DS
+            # Best-effort: problem may have active_run_id set
+            problem_row = await _DS.get_problem_by_id(db, problem_id)  # type: ignore
+            set_current_run_id(problem_row.get('active_run_id') if problem_row else None)
+        except Exception:
+            set_current_run_id(None)
+        logger.info("DB integration ready", extra={"event_type": "dbi_ready", "problem_id": problem_id})
 
-        # PROMPT-ONLY MODE: Build and save prompts for all provers for round 1, then end
-        round_idx = 1
-        import asyncio
-        loop = asyncio.get_event_loop()
-        from orchestrator.problem_agents import call_prover_one
+        # FULL ORCHESTRATION: Multi-round, sequential stages with stop checks
+        for round_idx in range(1, int(rounds) + 1):
+            round_meta: dict = {
+                "round": round_idx,
+                "started_at": time.time(),
+                "stages": {
+                    "provers": {},
+                    "verifier": {},
+                    "summarizer": {}
+                }
+            }
+            # Mark progress
+            await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
 
-        print(f"📝 Prompt-only mode: saving prompts for {provers} provers (round {round_idx})")
-        print(f"🧩 Context: problem_id={problem_id}, user={user_id}, has_db={(db is not None)}")
+            # Provers
+            for prover_idx in range(1, int(provers) + 1):
+                if check_stop_signal(Path(".")):
+                    logger.info("Stop signal before prover", extra={"event_type": "stop_before_prover", "round": round_idx})
+                    raise StopSignalException("Stop requested")
+                try:
+                    start_ts = time.time()
+                    _content, _ok = call_prover_one(
+                        Path("."),
+                        round_idx,
+                        prover_idx,
+                        int(provers),
+                        prover_configs[prover_idx-1] if prover_configs and prover_idx-1 < len(prover_configs) else {},
+                        focus_description,
+                        prompt_only=False,
+                    )
+                    end_ts = time.time()
+                    round_meta["stages"]["provers"][f"prover-{prover_idx:02d}"] = {
+                        "start_ts": start_ts,
+                        "end_ts": end_ts,
+                        "duration_s": end_ts - start_ts,
+                        "ok": _ok,
+                    }
+                    logger.info("Prover finished", extra={"event_type": "prover_done", "round": round_idx, "prover_index": prover_idx, "ok": _ok})
+                except Exception as e:
+                    logger.warning("Prover error", extra={"event_type": "prover_error", "round": round_idx, "prover_index": prover_idx, "error_type": type(e).__name__, "error_details": str(e)})
 
-        # Ensure status reflects activity briefly
-        await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
-        write_status(user_dir, "running", round_idx)
-
-        # Generate and persist prompts without calling models
-        for prover_idx in range(1, provers + 1):
+            # Verifier
+            if check_stop_signal(Path(".")):
+                logger.info("Stop signal before verifier", extra={"event_type": "stop_before_verifier", "round": round_idx})
+                raise StopSignalException("Stop requested")
             try:
-                print(f"➡️  Building prompt for prover {prover_idx} (focus: {focus_description})")
-                _content, _ok = call_prover_one(
-                    user_dir,
-                    round_idx,
-                    prover_idx,
-                    provers,
-                    prover_configs[prover_idx-1] if prover_configs and prover_idx-1 < len(prover_configs) else {},
-                    focus_description,
-                    prompt_only=True,
-                )
-                print(f"⬅️  Prover {prover_idx} prompt saved flag: {_ok}")
+                v_start = time.time()
+                _verifier = call_verifier_combined(Path("."), round_idx, int(provers), focus_description)
+                v_end = time.time()
+                round_meta["stages"]["verifier"] = {
+                    "start_ts": v_start,
+                    "end_ts": v_end,
+                    "duration_s": v_end - v_start,
+                }
+                logger.info("Verifier finished", extra={"event_type": "verifier_done", "round": round_idx})
             except Exception as e:
-                print(f"⚠️  Failed to save prompt for prover {prover_idx}: {e}")
+                logger.error("Verifier error", extra={"event_type": "verifier_error", "round": round_idx, "error_type": type(e).__name__, "error_details": str(e)})
+                raise
 
-        # Return to idle immediately
-        await DatabaseService.update_problem_status(db, problem_id, "idle", 0)
-        write_status(user_dir, "idle", 0)
-        print(f"✅ Prompt-only run finished for problem '{problem_name}'")
+            # Summarizer
+            if check_stop_signal(Path(".")):
+                logger.info("Stop signal before summarizer", extra={"event_type": "stop_before_summarizer", "round": round_idx})
+                raise StopSignalException("Stop requested")
+            try:
+                s_start = time.time()
+                _summ = call_summarizer(Path("."), round_idx)
+                s_end = time.time()
+                round_meta["stages"]["summarizer"] = {
+                    "start_ts": s_start,
+                    "end_ts": s_end,
+                    "duration_s": s_end - s_start,
+                }
+                try:
+                    ols = getattr(_summ, 'one_line_summary', None)
+                    if ols:
+                        round_meta["one_line_summary"] = ols
+                except Exception:
+                    pass
+                logger.info("Summarizer finished", extra={"event_type": "summarizer_done", "round": round_idx})
+            except Exception as e:
+                logger.error("Summarizer error", extra={"event_type": "summarizer_error", "round": round_idx, "error_type": type(e).__name__, "error_details": str(e)})
+                raise
 
+            # Persist round metadata for debugging (Files/metadata)
+            try:
+                round_meta["ended_at"] = time.time()
+                await DatabaseService.create_problem_file(  # type: ignore
+                    db=db,
+                    problem_id=problem_id,
+                    round_num=round_idx,
+                    file_type="round_meta",
+                    filename=f"round-{round_idx:04d}.metadata.json",
+                    content=json.dumps(round_meta, indent=2),
+                    metadata={"phase": "complete"}
+                )
+            except Exception as meta_err:
+                logger.warning("Round metadata save failed", extra={"event_type": "round_meta_error", "round": round_idx, "error_type": type(meta_err).__name__, "error_details": str(meta_err)})
+
+            # Continue loop for next round
+
+        # Finished all rounds: mark idle and complete the run
+        await DatabaseService.update_problem_status(db, problem_id, "idle", int(rounds))
+        try:
+            # Mark run completed if still active
+            run_row = await DatabaseService.get_problem_by_id(db, problem_id)  # reuse to fetch active_run_id
+            run_id = (run_row or {}).get('active_run_id') if run_row else None
+            if run_id:
+                await DatabaseService.update_run(db, int(run_id), status='completed')
+        except Exception:
+            pass
+        logger.info("Orchestration finished", extra={"event_type": "orchestrator_finished", "problem_id": problem_id})
+
+    except StopSignalException:
+        # Mark idle and stop run
+        if db:
+            try:
+                await DatabaseService.update_problem_status(db, problem_id, "idle")
+                row = await DatabaseService.get_problem_by_id(db, problem_id)  # type: ignore
+                rid = (row or {}).get('active_run_id') if row else None
+                if rid:
+                    await DatabaseService.update_run(db, int(rid), status='stopped')
+            except Exception:
+                pass
+        logger.info("Orchestration stopped by signal", extra={"event_type": "orchestrator_stopped", "problem_id": problem_id})
     except Exception as e:
-        print(f"❌ Error in research run for problem '{problem_name}': {e}")
+        logger.error("Run error", extra={"event_type": "run_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
         # Update status to failed
         if db:
             try:
@@ -359,10 +462,4 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             except:
                 pass
 
-        # Write error status to file system
-        try:
-            data_root = Path(os.environ.get("AR_DATA_ROOT", "./data"))
-            user_dir = data_root / user_id / "problems" / problem_name
-            write_status(user_dir, "failed", 0)
-        except:
-            pass
+        # Filesystem error status writes removed in DB-only mode

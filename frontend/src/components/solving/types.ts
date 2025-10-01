@@ -230,8 +230,7 @@ export interface RunParameters {
   /** AI model preset to use */
   preset: 'gpt5' | 'fast'
   
-  /** Temperature for AI models (if supported) */
-  temperature?: number
+  // Temperature removed for GPT-5 models
   
   /** Per-prover configurations */
   proverConfigs?: ProverConfig[]

@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { ProblemComponentProps, FileInfo, FileVersion } from './types'
-import { listFiles, getFileContent, getFileVersions, uploadProblemPaper, uploadProblemTextContent } from '../../api'
+import { listFiles, getFileContent, getFileVersions, uploadProblemPaper, uploadProblemTextContent, updateBaseFileByName } from '../../api'
 
 // =============================================================================
 // INTERFACES
@@ -66,7 +66,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   /** Round selection for metadata filtering */
   const [selectedRound, setSelectedRound] = useState<string>('latest')
   
-  /** Upload paper state - inline form like TaskCreationPage */
+  /** Upload papers state - inline form like TaskCreationPage */
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [newPaperType, setNewPaperType] = useState<'file' | 'text'>('file')
   const [newPaperFile, setNewPaperFile] = useState<File | null>(null)
@@ -80,7 +80,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   // =============================================================================
   
   /** Check if current file supports versioning */
-  const isVersionedFile = selectedFile && ['notes.md', 'proofs.md', 'output.md'].includes(selectedFile)
+  const isVersionedFile = selectedFile && ['notes','proofs','output'].includes(selectedFile)
   
   /** Check if current file is markdown */
   const isMarkdownFile = selectedFile?.endsWith('.md') || false
@@ -215,20 +215,11 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
     try {
       setSaving(true)
       
-      // Save file content
-      const response = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/problems_public/${encodeURIComponent(problemName)}/file?file_path=${encodeURIComponent(selectedFile)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: editedContent,
-          description: editedDescription
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save changes')
+      // Save base files via name-based endpoint when applicable
+      if (['task','notes','proofs','output'].includes(selectedFile)) {
+        await updateBaseFileByName(problemName, selectedFile as any, editedContent, editedDescription)
+      } else {
+        // Non-base file editing not supported yet
       }
       
       // Update local state
@@ -241,7 +232,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
       }
       
       // Update files list if description changed
-      const updatedFiles = files.map(file =>
+      const updatedFiles = (files as any[]).map(file =>
         (file?.file_name || file?.file_type) === selectedFile
           ? { ...file, description: editedDescription }
           : file
@@ -327,7 +318,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   /**
    * Gets appropriate icon for file type
    */
-  const getFileIcon = (file: FileInfo): string => {
+  const getFileIcon = (file: any): string => {
     switch (file?.file_type) {
       case 'task': return '📋'
       case 'notes': return '📝'
@@ -360,12 +351,12 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    * Categorizes files into input, output, and metadata groups
    */
   const categorizeFiles = () => {
-    const inputFiles = files.filter(file =>
+    const inputFiles = (files as any[]).filter(file =>
       file?.file_type === 'task' ||
       file?.file_type === 'paper'
     )
 
-    const outputFiles = files.filter(file =>
+    const outputFiles = (files as any[]).filter(file =>
       file?.file_type === 'notes' ||
       file?.file_type === 'proofs' ||
       file?.file_type === 'output'
@@ -373,27 +364,23 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
 
     // Get all rounds from database (round > 0)
     const allRounds = [...new Set(
-      files
-        .filter(file => file?.round > 0)
+      (files as any[])
+        .filter(file => (file?.round || 0) > 0)
         .map(file => `round-${String(file.round).padStart(4, '0')}`)
     )].sort().reverse() // Most recent first
 
     // Filter metadata files based on selected round
-    let metadataFiles = files.filter(file => file?.round > 0)
+    let metadataFiles = (files as any[]).filter(file => (file?.round || 0) > 0)
     
     if (selectedRound !== 'all' && selectedRound !== 'latest') {
       // Filter to specific round - extract round number from selectedRound (e.g., "round-0001" -> 1)
       const roundNum = parseInt(selectedRound.replace('round-', ''))
-      metadataFiles = metadataFiles.filter(file =>
-        file?.round === roundNum
-      )
+      metadataFiles = metadataFiles.filter(file => (file?.round || 0) === roundNum)
     } else if (selectedRound === 'latest' && allRounds.length > 0) {
       // Show only the latest round
       const latestRoundStr = allRounds[0] // e.g., "round-0001"
       const latestRoundNum = parseInt(latestRoundStr.replace('round-', ''))
-      metadataFiles = metadataFiles.filter(file =>
-        file?.round === latestRoundNum
-      )
+      metadataFiles = metadataFiles.filter(file => (file?.round || 0) === latestRoundNum)
     }
     
     return { inputFiles, outputFiles, metadataFiles, allRounds }
@@ -402,12 +389,12 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   /**
    * Renders a file button
    */
-  const renderFileButton = (file, isFirst = true) => {
+  const renderFileButton = (file: any, isFirst = true) => {
     return (
       <div key={file?.id || `${file?.file_type}-${file?.round}`} style={{ marginBottom: '6px' }}>
         {/* Original File */}
         <button
-          onClick={() => loadFileContent(file?.file_type, 'current', file)}
+          onClick={() => loadFileContent(file?.file_type, 'current', file as any)}
           style={{
             background: selectedFile === file?.file_type ? '#e3f2fd' : 'transparent',
             border: '1px solid #ddd',
@@ -487,9 +474,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                     cursor: 'pointer',
                     marginLeft: '8px'
                   }}
-                  title={showUploadForm ? 'Cancel upload' : 'Upload paper'}
+                  title={showUploadForm ? 'Cancel upload' : 'Upload papers'}
                 >
-                  {showUploadForm ? '✕ Cancel' : '📄 Upload'}
+                  {showUploadForm ? '✕ Cancel' : '📄 Upload papers'}
                 </button>
               </div>
               <div style={{ listStyle: 'none', padding: 0 }}>

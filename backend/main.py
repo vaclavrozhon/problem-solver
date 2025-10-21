@@ -27,10 +27,12 @@ logger = setup_logging()
 try:
     from .authentication import is_database_configured
     from .routers.problems import router as problems_router
+    from .routers.profile import router as profile_router
     from .routers.tasks import router as tasks_router
 except ImportError:
     from backend.authentication import is_database_configured
     from backend.routers.problems import router as problems_router
+    from backend.routers.profile import router as profile_router
     from backend.routers.tasks import router as tasks_router
 
 app = FastAPI(title="Automatic Researcher Jara Cimrman Backend")
@@ -53,6 +55,7 @@ app.add_middleware(
 
 # Include modular routers
 app.include_router(problems_router)
+app.include_router(profile_router)
 app.include_router(tasks_router)
 
 
@@ -75,13 +78,13 @@ def readyz():
     return {"ready": True, "database_configured": db_configured}
 
 
-@app.get("/")
-def root():
+@app.get("/api/info")
+def api_info():
     """API information and storage mode."""
     db_configured = is_database_configured()
     logger.info(
-        "Root endpoint accessed",
-        extra={"event_type": "root_access", "database_configured": db_configured},
+        "API info endpoint accessed",
+        extra={"event_type": "api_info_access", "database_configured": db_configured},
     )
     return {
         "service": "Automatic Researcher Backend",

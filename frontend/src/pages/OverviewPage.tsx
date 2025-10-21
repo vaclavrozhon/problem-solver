@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { listProblems, getStatus } from '../api'
+import { listProblems, getStatus, getCredits } from '../api'
 import { Link } from 'react-router-dom'
 
 interface ProblemSummary {
@@ -20,6 +20,7 @@ export default function OverviewPage() {
     const saved = localStorage.getItem('hideQuickStartGuide')
     return saved !== 'true' // Show by default, hide if explicitly set to 'true'
   })
+  const [credits, setCredits] = useState<{ used: number, limit: number, available: number } | null>(null)
 
   async function refresh() {
     if (isInitialLoad) {
@@ -84,6 +85,22 @@ export default function OverviewPage() {
     refresh()
     const interval = setInterval(refresh, 30000) // Auto-refresh every 30 seconds
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const loadCredits = async () => {
+      try {
+        const d = await getCredits()
+        setCredits({
+          used: Number(d.credits_used || 0),
+          limit: Number(d.credits_limit || 0),
+          available: Number(d.credits_available || Math.max(0, Number(d.credits_limit || 0) - Number(d.credits_used || 0)))
+        })
+      } catch {
+        setCredits(null)
+      }
+    }
+    loadCredits()
   }, [])
 
   const hideQuickStartGuide = () => {
@@ -211,6 +228,28 @@ export default function OverviewPage() {
         )}
       </div>
 
+
+      {/* Credits info */}
+      <div style={{ marginTop: '30px' }}>
+        <h3>💳 Credits</h3>
+        <div className="problem-card">
+          <div style={{ fontSize: '14px', color: '#333' }}>
+            {credits ? (
+              <>
+                <div><strong>{credits.available.toFixed(2)}</strong> available</div>
+                <div className="small-font" style={{ color: '#666' }}>
+                  {credits.used.toFixed(2)} used / {credits.limit.toFixed(2)} total
+                </div>
+              </>
+            ) : (
+              <div className="small-font" style={{ color: '#666' }}>Credits unavailable</div>
+            )}
+          </div>
+          <div style={{ marginTop: '10px', fontSize: '12px', color: '#555' }}>
+            send me a mail if you want more
+          </div>
+        </div>
+      </div>
 
     </div>
   )

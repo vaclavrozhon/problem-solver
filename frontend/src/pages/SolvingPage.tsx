@@ -61,6 +61,9 @@ export default function SolvingPage() {
 
   /** Currently selected problem name */
   const [selectedProblem, setSelectedProblem] = useState<string | null>(null)
+
+  /** Currently selected problem id (source of truth for selection/highlight) */
+  const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null)
   
   /** Map of problem names to their current status data */
   const [statusMap, setStatusMap] = useState<Record<string, ProblemStatus>>({})
@@ -114,19 +117,23 @@ export default function SolvingPage() {
     if (pidParam) {
       const pid = parseInt(pidParam, 10)
       const byId = problems.find(p => p.id === pid)
-      if (byId && byId.name !== selectedProblem) {
-        setSelectedProblem(byId.name)
+      if (byId) {
+        if (selectedProblemId !== pid) setSelectedProblemId(pid)
+        if (byId.name !== selectedProblem) setSelectedProblem(byId.name)
         return
       }
     }
 
     // Fallback to name-based param for backward compatibility
     const problemFromUrl = searchParams.get('problem')
-    const problemNames = problems.map(p => p.name)
-    if (problemFromUrl && problemNames.includes(problemFromUrl) && selectedProblem !== problemFromUrl) {
-      setSelectedProblem(problemFromUrl)
+    if (problemFromUrl) {
+      const match = problems.find(p => p.name === problemFromUrl)
+      if (match) {
+        if (selectedProblemId !== match.id) setSelectedProblemId(match.id)
+        if (selectedProblem !== problemFromUrl) setSelectedProblem(problemFromUrl)
+      }
     }
-  }, [problems, searchParams, selectedProblem])
+  }, [problems, searchParams, selectedProblem, selectedProblemId])
 
   /** Auto-refresh status for all problems */
   useEffect(() => {
@@ -388,6 +395,7 @@ export default function SolvingPage() {
   // Sidebar now selects by problem id; keep internal state by name
   const selectProblem = (problemId: number | null) => {
     const name = problemId != null ? (problems.find(p => p.id === problemId)?.name || null) : null
+    setSelectedProblemId(problemId)
     setSelectedProblem(name)
     if (problemId != null) {
       navigate(`/solve?pid=${encodeURIComponent(String(problemId))}`)
@@ -630,7 +638,7 @@ export default function SolvingPage() {
         {/* Problem sidebar */}
         <ProblemSidebar
           problems={problems}
-          selectedProblemId={selectedProblem ? (problems.find(p => p.name === selectedProblem)?.id ?? null) : null}
+          selectedProblemId={selectedProblemId}
           statusMap={statusMap}
           onProblemSelect={selectProblem}
           loading={loading}
@@ -638,7 +646,7 @@ export default function SolvingPage() {
 
         {/* Main content */}
         <ProblemDetails
-          problemName={selectedProblem}
+          problemName={selectedProblem || ''}
           status={currentProblemStatus}
           loading={loading}
           message={null} // Use global message instead

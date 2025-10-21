@@ -37,6 +37,7 @@ import {
   getStatusDescription
 } from './utils'
 import { getStatus, runRound, stopProblem, listFiles, deleteRounds, getProblemFilesRaw } from '../../api'
+import { getCredits } from '../../api'
 import ProverConfigComponent from './ProverConfig'
 
 // =============================================================================
@@ -107,6 +108,7 @@ export default function StatusPanel({
   const [localLoading, setLocalLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<number>(0)
   const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([])
+  const [credits, setCredits] = useState<{ used: number, limit: number, available: number } | null>(null)
 
   // Round meta (timings, quick summary)
   const [roundMeta, setRoundMeta] = useState<Array<{ round: number, one_line_summary?: string, durations: { provers_total?: number, per_prover?: Record<string, number>, verifier?: number, summarizer?: number } }>>([])
@@ -158,7 +160,8 @@ export default function StatusPanel({
         runConfig.preset, 
         runConfig.proverConfigs,
         runConfig.focusDescription,
-        runConfig.verifierConfig
+        runConfig.verifierConfig,
+        runConfig.summarizerModel
       )
       
       setMessage({
@@ -168,6 +171,14 @@ export default function StatusPanel({
 
     } catch (error: any) {
       console.error('Failed to start run:', error)
+      try {
+        const parsed = JSON.parse(error.message)
+        if (parsed?.code === 'CREDIT_LIMIT_EXCEEDED') {
+          setMessage({ type: 'error', text: `Credit limit exceeded (${parsed.credits_used} used of ${parsed.credits_limit}). Send me a mail if you want more.` })
+          try { const data = await getCredits(); setCredits({ used: Number(data.credits_used||0), limit: Number(data.credits_limit||0), available: Number(data.credits_available||0) }) } catch {}
+          return
+        }
+      } catch {}
       setMessage({
         type: 'error',
         text: error.message || 'Failed to start research run'
@@ -270,7 +281,8 @@ export default function StatusPanel({
     const defaultConfig = { 
       calculator: true,  // Default: calculator enabled
       focus: 'default',
-      paperAccess: defaultPaperAccess
+      paperAccess: defaultPaperAccess,
+      model: 'gpt-5'
     }
     
     if (current) {
@@ -309,6 +321,23 @@ export default function StatusPanel({
       loadFiles()
     }
   }, [problemName])
+
+  // Credits moved to header; keep minimal refresh only for error toast accuracy
+  useEffect(() => {
+    const refreshCredits = async () => {
+      try {
+        const data = await getCredits()
+        setCredits({
+          used: Number(data.credits_used || 0),
+          limit: Number(data.credits_limit || 0),
+          available: Number(data.credits_available || Math.max(0, Number(data.credits_limit || 0) - Number(data.credits_used || 0)))
+        })
+      } catch {
+        setCredits(null)
+      }
+    }
+    refreshCredits()
+  }, [status?.overall?.current_round])
   
   // Load available files
   const loadFiles = async () => {
@@ -412,6 +441,24 @@ export default function StatusPanel({
     
     const verdictInfo = getVerdictDisplayInfo(getLatestVerdict() as any)
     const progress = calculateProgress(problemInfo)
+
+    // If complete and not running, show minimal status
+    const isComplete = !isRunning 
+      && status.overall.phase === 'idle' 
+      && !!status.overall.last_round_completed 
+      && ((status.overall.remaining_rounds ?? 0) === 0)
+    
+    if (isComplete) {
+      return (
+        <div className="status-display">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className={`status-dot ${problemInfo.status}`}></span>
+            <strong>Status:</strong> 
+            <span>Complete</span>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="status-display">
@@ -711,6 +758,29 @@ export default function StatusPanel({
                 ))}
               </select>
             </div>
+
+            {/* Verifier model selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <select
+                value={ensureVerifierConfig().model || 'gpt-5'}
+                onChange={e => updateVerifierConfig({
+                  ...ensureVerifierConfig(),
+                  model: e.target.value
+                })}
+                disabled={!canStart}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  background: 'white'
+                }}
+              >
+                <option value="gpt-5">GPT-5</option>
+                <option value="gpt-5-mini">GPT-5 mini</option>
+                <option value="gpt-4">GPT-4</option>
+              </select>
+            </div>
           </div>
           
           {/* Paper access checkboxes */}
@@ -752,6 +822,29 @@ export default function StatusPanel({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Summarizer model */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>
+          Summarizer Model
+        </label>
+        <select 
+          value={runConfig.summarizerModel || 'gpt-5-mini'}
+          onChange={e => updateRunConfig({ summarizerModel: e.target.value })}
+          disabled={!canStart}
+          style={{
+            width: '100%',
+            padding: '8px',
+            border: '1px solid #ced4da',
+            borderRadius: '4px',
+            fontSize: '14px'
+          }}
+        >
+          <option value="gpt-5-mini">GPT-5 mini</option>
+          <option value="gpt-5">GPT-5</option>
+          <option value="gpt-4">GPT-4</option>
+        </select>
       </div>
 
       {/* Start Button */}
@@ -804,7 +897,12 @@ export default function StatusPanel({
         gap: '8px' 
       }}>
         {/* Delete last N rounds (idle only) */}
-        <DeleteRoundsControl problemName={problemName} disabled={!isIdle || loading} setMessage={setMessage} />
+        <DeleteRoundsControl 
+          problemName={problemName} 
+          totalRounds={problemInfo.totalRounds}
+          disabled={!isIdle || loading} 
+          setMessage={setMessage} 
+        />
         <button 
           className="btn btn-danger" 
           onClick={onResetProblem}
@@ -834,6 +932,7 @@ export default function StatusPanel({
 
   return (
     <div className="status-panel">
+      {/* Credits summary moved to header */}
       {/* Status display */}
       <div style={{ 
         background: 'white',
@@ -918,12 +1017,16 @@ export default function StatusPanel({
   )
 }
 
-function DeleteRoundsControl({ problemName, disabled, setMessage }: { problemName: string | null, disabled: boolean, setMessage: (m: any) => void }) {
+function DeleteRoundsControl({ problemName, totalRounds, disabled, setMessage }: { problemName: string | null, totalRounds: number, disabled: boolean, setMessage: (m: any) => void }) {
   const [n, setN] = React.useState<number>(1)
   const [busy, setBusy] = React.useState<boolean>(false)
   const canDelete = !disabled && !busy && n > 0
   const onDelete = async () => {
     if (!problemName) return
+    // Confirm destructive action
+    const confirmMsg = `You will remove the last ${n} round(s) from ${totalRounds} total rounds.\n\nThis cannot be undone. Continue?`
+    const confirmed = window.confirm(confirmMsg)
+    if (!confirmed) return
     try {
       setBusy(true)
       const res = await deleteRounds(problemName, n)
@@ -946,7 +1049,7 @@ function DeleteRoundsControl({ problemName, disabled, setMessage }: { problemNam
         title="Number of latest rounds to delete"
       />
       <button
-        className="btn btn-warning"
+        className="btn btn-danger"
         onClick={onDelete}
         disabled={!canDelete}
         style={{ fontSize: '12px', padding: '6px 10px' }}

@@ -73,67 +73,57 @@ def is_o_model(name: str) -> bool:
 
 
 def is_reasoning_model(name: str) -> bool:
-    """Check if model supports reasoning controls via Responses API."""
-    return any(name.startswith(p) for p in ["o3", "o4", "gpt-5"])
+    """Check if model supports reasoning controls via model profiles only (no fallback)."""
+    from .model_profiles import is_reasoning_model as _prof_is_reasoning
+    return _prof_is_reasoning(name)
 
 
 def save_response_id(problem_dir: Path, round_idx: int, agent: str, response_id: str, model: str = ""):
-    """Persist response ID to database for reasoning state preservation."""
+    """Persist response ID to database for reasoning state preservation (sync)."""
     if not response_id:
         return
     try:
-        from .database_integration import get_database_integration, DatabaseService as _DS
+        from .database_integration import get_database_integration
+        import json
         dbi = get_database_integration()
         if not dbi or not dbi.db_client or not dbi.problem_id:
             return
-        import asyncio, json
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(_DS.create_problem_file(  # type: ignore
-                db=dbi.db_client,
-                problem_id=dbi.problem_id,
-                round_num=round_idx,
-                file_type='response_ids',
-                filename=f'{agent}.json',
-                content=json.dumps({"agent": agent, "model": model, "response_id": response_id}, indent=2),
-                metadata={"model": model}
-            ))
-        finally:
-            try:
-                loop.close()
-            except Exception:
-                pass
+        payload = {"agent": agent, "model": model, "response_id": response_id}
+        dbi.db_client.table('problem_files')\
+            .insert({
+                'problem_id': dbi.problem_id,
+                'round': round_idx,
+                'file_type': 'response_ids',
+                'file_name': f'{agent}.json',
+                'content': json.dumps(payload, indent=2),
+                'metadata': {"model": model},
+            })\
+            .execute()
     except Exception as e:
         print(f"Warning: Failed to save response ID to DB for {agent}/{model}: {e}")
 
 
 def load_previous_response_id(problem_dir: Path, round_idx: int, agent: str, model: str) -> Optional[str]:
-    """Load previous response ID from database (prior round)."""
+    """Load previous response ID from database (prior round) via sync client."""
     if round_idx <= 1:
         return None
     try:
-        from .database_integration import get_database_integration, DatabaseService as _DS
+        from .database_integration import get_database_integration
+        import json
         dbi = get_database_integration()
         if not dbi or not dbi.db_client or not dbi.problem_id:
             return None
-        import asyncio, json
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         prev_round_idx = round_idx - 1
-        try:
-            files = loop.run_until_complete(_DS.get_problem_files(  # type: ignore
-                db=dbi.db_client,
-                problem_id=dbi.problem_id,
-                round=prev_round_idx,
-                file_type='response_ids'
-            ))
-        finally:
-            try:
-                loop.close()
-            except Exception:
-                pass
-        for f in files or []:
+        resp = dbi.db_client.table('problem_files')\
+            .select('content, metadata, file_name')\
+            .eq('problem_id', dbi.problem_id)\
+            .eq('round', prev_round_idx)\
+            .eq('file_type', 'response_ids')\
+            .order('created_at', desc=True)\
+            .limit(5)\
+            .execute()
+        files = getattr(resp, 'data', []) or []
+        for f in files:
             try:
                 data = json.loads(f.get('content','') or '{}')
                 if data.get('agent') == agent and (data.get('model') == model or not data.get('model')):

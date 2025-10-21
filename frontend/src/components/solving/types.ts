@@ -106,8 +106,7 @@ export interface ProblemStatus {
     prover?: string
     verifier?: string  
     summarizer?: string
-    paper_suggester?: string
-    paper_fixer?: string
+  // legacy fields removed
   }
 }
 
@@ -187,7 +186,7 @@ export interface MessageHandlerProps {
  * Standard message format for user feedback
  */
 export interface AppMessage {
-  type: 'success' | 'error' | 'info'
+  type: 'success' | 'error' | 'info' | 'warning'
   text: string
 }
 
@@ -207,6 +206,9 @@ export interface ProverConfig {
   
   /** Paper access permissions - maps paper path to boolean */
   paperAccess?: Record<string, boolean>
+
+  /** Selected model identifier (e.g., 'gpt-5', 'gpt-5-mini', 'gpt-4') */
+  model?: string
 }
 
 export interface VerifierConfig {
@@ -218,6 +220,9 @@ export interface VerifierConfig {
   
   /** Paper access permissions - maps paper path to boolean */
   paperAccess?: Record<string, boolean>
+
+  /** Selected model identifier for verifier */
+  model?: string
 }
 
 export interface RunParameters {
@@ -240,6 +245,9 @@ export interface RunParameters {
   
   /** Focus description for this research round */
   focusDescription?: string
+
+  /** Selected model identifier for summarizer */
+  summarizerModel?: string
 }
 
 /**

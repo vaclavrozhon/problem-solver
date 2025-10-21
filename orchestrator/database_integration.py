@@ -9,7 +9,7 @@ to the database via backend DatabaseService methods.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 from pathlib import Path
 import sys
@@ -40,7 +40,7 @@ except Exception as e1:  # pragma: no cover
 
 @dataclass
 class _DbIntegration:
-    db_client: object | None
+    db_client: Any | None
     problem_id: int | None
     run_id: int | None = None
 
@@ -62,41 +62,25 @@ class _DbIntegration:
         if model:
             metadata["model"] = model
 
-        async def _save_async():
-            try:
-                print(f"[DBI] Saving prompt: problem_id={self.problem_id}, round={round_num}, prover={prover_idx}, len={len(prompt_text)}")
-                ok = await DatabaseService.create_problem_file(  # type: ignore
-                    db=self.db_client,
-                    problem_id=self.problem_id,
-                    round_num=round_num,
-                    file_type="prover_prompt",
-                    filename=f"prover-{prover_idx:02d}.prompt.txt",
-                    content=prompt_text,
-                    metadata=metadata,
-                )
-                print(f"[DBI] Save result: {ok}")
-                return ok
-            except Exception as e:
-                print(f"[DBI] Error saving prompt: {e}")
-                return False
-
+        # Perform a direct synchronous insert to avoid event loop interactions
         try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Schedule task; cannot block here
-                asyncio.create_task(_save_async())
-                print("[DBI] Scheduled async prompt save task")
-                return True
-            else:
-                # No running loop; run synchronously
-                result = loop.run_until_complete(_save_async())
-                return bool(result)
-        except RuntimeError:
-            # No loop set; create one
-            import asyncio
-            result = asyncio.run(_save_async())
-            return bool(result)
+            print(f"[DBI] Saving prompt (sync): problem_id={self.problem_id}, round={round_num}, prover={prover_idx}, len={len(prompt_text)}")
+            resp = self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'prover_prompt',
+                    'file_name': f"prover-{prover_idx:02d}.prompt.txt",
+                    'content': prompt_text,
+                    'metadata': metadata,
+                })\
+                .execute()
+            ok = bool(getattr(resp, 'data', None))
+            print(f"[DBI] Save result (sync): {ok}")
+            return ok
+        except Exception as e:
+            print(f"[DBI] Error saving prompt (sync): {e}")
+            return False
 
     def save_prover_output(self, round_num: int, prover_idx: int, content: str,
                            model: str | None = None, tokens_in: int | None = None,
@@ -104,44 +88,61 @@ class _DbIntegration:
         if not self.db_client or not DatabaseService or self.problem_id is None:
             print("[DBI] save_prover_output: missing db/problem_id/DS")
             return False
-        async def _save_async():
-            try:
-                meta = {"model": model, "tokens_in": tokens_in, "tokens_out": tokens_out, "prover_index": prover_idx}
-                ok_main = await DatabaseService.create_problem_file(  # type: ignore
-                    db=self.db_client,
-                    problem_id=self.problem_id,
-                    round_num=round_num,
-                    file_type="prover_output",
-                    filename=f"prover-{prover_idx:02d}.md",
-                    content=content,
-                    metadata=meta,
-                )
-                if raw_response is not None:
-                    import json
-                    await DatabaseService.create_problem_file(  # type: ignore
-                        db=self.db_client,
-                        problem_id=self.problem_id,
-                        round_num=round_num,
-                        file_type="prover_raw",
-                        filename=f"prover-{prover_idx:02d}.response.full.json",
-                        content=json.dumps(raw_response, indent=2),
-                        metadata={"model": model, "prover_index": prover_idx},
-                    )
-                return ok_main
-            except Exception as e:
-                print(f"[DBI] Error save_prover_output: {e}")
-                return False
         try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(_save_async())
-                return True
-            else:
-                return bool(loop.run_until_complete(_save_async()))
-        except RuntimeError:
-            import asyncio
-            return bool(asyncio.run(_save_async()))
+            meta = {"model": model, "tokens_in": tokens_in, "tokens_out": tokens_out, "prover_index": prover_idx}
+            # Main output
+            self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'prover_output',
+                    'file_name': f"prover-{prover_idx:02d}.md",
+                    'content': content,
+                    'metadata': meta,
+                })\
+                .execute()
+            # Raw response
+            if raw_response is not None:
+                import json
+                self.db_client.table('problem_files')\
+                    .insert({
+                        'problem_id': self.problem_id,
+                        'round': round_num,
+                        'file_type': 'prover_raw',
+                        'file_name': f"prover-{prover_idx:02d}.response.full.json",
+                        'content': json.dumps(raw_response, indent=2),
+                        'metadata': {"model": model, "prover_index": prover_idx},
+                    })\
+                    .execute()
+            return True
+        except Exception as e:
+            print(f"[DBI] Error save_prover_output (sync): {e}")
+            return False
+
+    def save_verifier_prompt(self, round_num: int, prompt_text: str, model: str | None = None) -> bool:
+        """Persist a verifier prompt as a round artifact in problem_files.
+
+        Stores as file_type='verifier_prompt' with filename 'verifier.prompt.txt'.
+        """
+        if not self.db_client or self.problem_id is None:
+            return False
+        try:
+            meta = {"phase": "prompt"}
+            if model:
+                meta["model"] = model
+            self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'verifier_prompt',
+                    'file_name': 'verifier.prompt.txt',
+                    'content': prompt_text,
+                    'metadata': meta,
+                })\
+                .execute()
+            return True
+        except Exception:
+            return False
 
     def save_verifier_output(self, round_num: int, feedback: str, summary: str,
                              verdict_data: dict | None, model: str | None = None,
@@ -149,46 +150,36 @@ class _DbIntegration:
         if not self.db_client or not DatabaseService or self.problem_id is None:
             print("[DBI] save_verifier_output: missing db/problem_id/DS")
             return False
-        async def _save_async():
-            try:
-                import json
-                payload = verdict_data or {}
-                payload.setdefault("feedback_md", feedback)
-                payload.setdefault("summary_md", summary)
-                ok = await DatabaseService.create_problem_file(  # type: ignore
-                    db=self.db_client,
-                    problem_id=self.problem_id,
-                    round_num=round_num,
-                    file_type="verifier_output",
-                    filename="verifier.json",
-                    content=json.dumps(payload, indent=2),
-                    metadata={"model": model},
-                )
-                if raw_response is not None:
-                    await DatabaseService.create_problem_file(  # type: ignore
-                        db=self.db_client,
-                        problem_id=self.problem_id,
-                        round_num=round_num,
-                        file_type="verifier_raw",
-                        filename="verifier.response.full.json",
-                        content=json.dumps(raw_response, indent=2),
-                        metadata={"model": model},
-                    )
-                return ok
-            except Exception as e:
-                print(f"[DBI] Error save_verifier_output: {e}")
-                return False
         try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(_save_async())
-                return True
-            else:
-                return bool(loop.run_until_complete(_save_async()))
-        except RuntimeError:
-            import asyncio
-            return bool(asyncio.run(_save_async()))
+            import json
+            payload = verdict_data or {}
+            payload.setdefault("feedback_md", feedback)
+            payload.setdefault("summary_md", summary)
+            self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'verifier_output',
+                    'file_name': 'verifier.json',
+                    'content': json.dumps(payload, indent=2),
+                    'metadata': {"model": model},
+                })\
+                .execute()
+            if raw_response is not None:
+                self.db_client.table('problem_files')\
+                    .insert({
+                        'problem_id': self.problem_id,
+                        'round': round_num,
+                        'file_type': 'verifier_raw',
+                        'file_name': 'verifier.response.full.json',
+                        'content': json.dumps(raw_response, indent=2),
+                        'metadata': {"model": model},
+                    })\
+                    .execute()
+            return True
+        except Exception as e:
+            print(f"[DBI] Error save_verifier_output (sync): {e}")
+            return False
 
     def save_summarizer_output(self, round_num: int, summary: str,
                                one_line_summary: str | None = None,
@@ -197,44 +188,59 @@ class _DbIntegration:
         if not self.db_client or not DatabaseService or self.problem_id is None:
             print("[DBI] save_summarizer_output: missing db/problem_id/DS")
             return False
-        async def _save_async():
-            try:
-                import json
-                payload = {"summary": summary, "one_line_summary": one_line_summary}
-                ok = await DatabaseService.create_problem_file(  # type: ignore
-                    db=self.db_client,
-                    problem_id=self.problem_id,
-                    round_num=round_num,
-                    file_type="summarizer_output",
-                    filename="summarizer.json",
-                    content=json.dumps(payload, indent=2),
-                    metadata={"model": model},
-                )
-                if raw_response is not None:
-                    await DatabaseService.create_problem_file(  # type: ignore
-                        db=self.db_client,
-                        problem_id=self.problem_id,
-                        round_num=round_num,
-                        file_type="summarizer_raw",
-                        filename="summarizer.response.full.json",
-                        content=json.dumps(raw_response, indent=2),
-                        metadata={"model": model},
-                    )
-                return ok
-            except Exception as e:
-                print(f"[DBI] Error save_summarizer_output: {e}")
-                return False
         try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(_save_async())
-                return True
-            else:
-                return bool(loop.run_until_complete(_save_async()))
-        except RuntimeError:
-            import asyncio
-            return bool(asyncio.run(_save_async()))
+            import json
+            payload = {"summary": summary, "one_line_summary": one_line_summary}
+            self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'summarizer_output',
+                    'file_name': 'summarizer.json',
+                    'content': json.dumps(payload, indent=2),
+                    'metadata': {"model": model},
+                })\
+                .execute()
+            if raw_response is not None:
+                self.db_client.table('problem_files')\
+                    .insert({
+                        'problem_id': self.problem_id,
+                        'round': round_num,
+                        'file_type': 'summarizer_raw',
+                        'file_name': 'summarizer.response.full.json',
+                        'content': json.dumps(raw_response, indent=2),
+                        'metadata': {"model": model},
+                    })\
+                    .execute()
+            return True
+        except Exception as e:
+            print(f"[DBI] Error save_summarizer_output (sync): {e}")
+            return False
+
+    def save_summarizer_prompt(self, round_num: int, prompt_text: str, model: str | None = None) -> bool:
+        """Persist a summarizer prompt as a round artifact in problem_files.
+
+        Stores as file_type='summarizer_prompt' with filename 'summarizer.prompt.txt'.
+        """
+        if not self.db_client or self.problem_id is None:
+            return False
+        try:
+            meta = {"phase": "prompt"}
+            if model:
+                meta["model"] = model
+            self.db_client.table('problem_files')\
+                .insert({
+                    'problem_id': self.problem_id,
+                    'round': round_num,
+                    'file_type': 'summarizer_prompt',
+                    'file_name': 'summarizer.prompt.txt',
+                    'content': prompt_text,
+                    'metadata': meta,
+                })\
+                .execute()
+            return True
+        except Exception:
+            return False
 
 
 _integration: Optional[_DbIntegration] = None
@@ -274,15 +280,16 @@ def get_run_parameters() -> dict:
     Returns a dict (possibly empty) with keys like 'user_specification' and 'prover_directives'.
     """
     try:
-        if not _integration or not _integration.db_client or not _integration.run_id or not DatabaseService:
+        if not _integration or not _integration.db_client or not _integration.run_id:
             return {}
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            run_row = loop.run_until_complete(DatabaseService.get_run_by_id(_integration.db_client, int(_integration.run_id)))  # type: ignore
-        finally:
-            loop.close()
+        # Perform a direct synchronous query using the Supabase client.
+        # This avoids mixing event loops inside a synchronous context.
+        resp = _integration.db_client.table('runs')\
+            .select('*')\
+            .eq('id', int(_integration.run_id))\
+            .single()\
+            .execute()
+        run_row = getattr(resp, 'data', None)
         if not run_row:
             return {}
         params = run_row.get('parameters') or {}

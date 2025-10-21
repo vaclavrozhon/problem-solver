@@ -46,7 +46,7 @@ export async function getRounds(name: string) {
   return r.json();
 }
 
-export async function runRound(name: string, rounds: number, provers: number, _temperature: number, preset: string, proverConfigs?: any[], focusDescription?: string, verifierConfig?: any) {
+export async function runRound(name: string, rounds: number, provers: number, _temperature: number, preset: string, proverConfigs?: any[], focusDescription?: string, verifierConfig?: any, summarizerModel?: string) {
   // Temperature not used for GPT-5 models
   const params: any = { rounds, provers, preset };
   // Send only DB-based fields. Missing fields are treated as empty server-side.
@@ -58,6 +58,9 @@ export async function runRound(name: string, rounds: number, provers: number, _t
   }
   if (verifierConfig) {
     params.verifier_config = verifierConfig;
+  }
+  if (summarizerModel) {
+    params.summarizer_model = summarizerModel;
   }
   
   const r = await req(`/problems/${encodeURIComponent(name)}/run`, {
@@ -81,6 +84,12 @@ export async function stopProblem(name: string) {
   const r = await req(`/problems/${encodeURIComponent(name)}/stop`, {
     method: "POST"
   });
+  return r.json();
+}
+
+// Profile API
+export async function getCredits() {
+  const r = await req(`/profile/credits`);
   return r.json();
 }
 

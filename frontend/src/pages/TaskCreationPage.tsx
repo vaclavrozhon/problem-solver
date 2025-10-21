@@ -97,13 +97,24 @@ export default function TaskCreationPage() {
       // Create the task
       const result = await createProblem(taskName, taskDescription, taskFormat)
 
-      const actualTaskName = result.name // Server may sanitize the name
+      // Prefer backend-provided identifiers when available
+      const problemId = (result && (result.problem_id || result.id)) ?? null
+      const actualTaskName = (result && result.name) || taskName // fallback to requested name
       setCreatedTaskName(actualTaskName)
 
       // Upload papers
+      if (!actualTaskName) {
+        setMessage({ type: 'error', text: 'Could not determine problem name for paper upload.' })
+        return
+      }
       await uploadPapers(actualTaskName)
 
-      setMessage({ type: 'success', text: 'Problem created successfully!' })
+      // Navigate to Problems tab focused on this problem
+      if (problemId != null) {
+        navigate(`/solve?pid=${encodeURIComponent(String(problemId))}`)
+      } else if (actualTaskName) {
+        navigate(`/solve?problem=${encodeURIComponent(actualTaskName)}`)
+      }
 
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create task' })

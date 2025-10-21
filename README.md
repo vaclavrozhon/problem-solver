@@ -61,8 +61,7 @@ automatic-researcher/
 │   ├── prover.md          # Prover agent system prompt
 │   ├── verifier.md        # Verifier agent system prompt
 │   ├── summarizer.md      # Summarizer agent system prompt
-│   ├── paper_suggester.md # Paper suggester system prompt
-│   └── paper_fixer.md     # Paper fixer/writer system prompt
+│   └── (paper prompts removed)
 ├── problems/              # Problem-solving tasks
 │   └── [problem-name]/
 │       ├── task.md        # Problem description
@@ -91,8 +90,7 @@ automatic-researcher/
             ├── live_status.json  # Current status
             ├── run_metadata.json # Run configuration
             └── round-XXXX/      # Individual rounds
-                ├── paper_suggester.*     # Suggester advice
-                ├── paper_fixer.*         # Writer output
+                └── (paper mode outputs removed)
                 ├── final_output.tex      # Updated draft
                 ├── paper.compile.*       # LaTeX compilation
                 └── timings.json          # Performance metrics
@@ -306,8 +304,7 @@ The app will be available at `https://your-app-name.up.railway.app`
 - `OPENAI_MODEL_PROVER`: Model for prover agents (default: gpt-5)
 - `OPENAI_MODEL_VERIFIER`: Model for verifier agent (default: gpt-5)
 - `OPENAI_MODEL_SUMMARIZER`: Model for summarizer agent (default: gpt-5-mini)
-- `OPENAI_MODEL_PAPER_SUGGESTER`: Model for paper suggester (default: same as prover)
-- `OPENAI_MODEL_PAPER_FIXER`: Model for paper fixer (default: same as prover)
+ (paper mode env vars removed)
 
 ## 📊 File Organization
 

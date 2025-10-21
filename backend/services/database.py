@@ -42,7 +42,7 @@ class DatabaseService:
                 db.table('profiles').insert({
                     'id': user_id,
                     'credits_used': 0.0,
-                    'credits_limit': 100.0,
+                    'credits_limit': 10.0,
                     'settings': {}
                 }).execute()
             else:
@@ -863,7 +863,24 @@ class DatabaseService:
                 .insert(file_data)\
                 .execute()
 
-            return len(response.data) > 0
+            ok = len(response.data) > 0
+            try:
+                logger.info(
+                    "Problem file created",
+                    extra={
+                        "event_type": "problem_file_created",
+                        "problem_id": problem_id,
+                        "round": round_num,
+                        "file_type": file_type,
+                        "filename": filename,
+                        "bytes": len(content.encode("utf-8")) if isinstance(content, str) else None,
+                        "has_metadata": bool(metadata)
+                    }
+                )
+            except Exception:
+                # Logging must never crash writes
+                pass
+            return ok
 
         except Exception as e:
             logger.error(

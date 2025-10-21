@@ -27,8 +27,6 @@ def write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | No
     model_prover = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
     model_verifier = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
     model_summarizer = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
-    model_paper_suggester = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", model_prover)
-    model_paper_fixer = os.environ.get("OPENAI_MODEL_PAPER_FIXER", model_prover)
     status = {
         "phase": phase,
         "round": round_idx,
@@ -37,8 +35,7 @@ def write_status(problem_dir: Path, phase: str, round_idx: int, extra: dict | No
             "prover": model_prover,
             "verifier": model_verifier,
             "summarizer": model_summarizer,
-            "paper_suggester": model_paper_suggester,
-            "paper_fixer": model_paper_fixer,
+            
         }
     }
     if extra:
@@ -168,8 +165,6 @@ def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int,
     model_prover = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
     model_verifier = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
     model_summarizer = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
-    model_paper_suggester = os.environ.get("OPENAI_MODEL_PAPER_SUGGESTER", model_prover)
-    model_paper_fixer = os.environ.get("OPENAI_MODEL_PAPER_FIXER", model_prover)
     status = {
         "phase": phase,
         "round": round_idx,
@@ -178,8 +173,7 @@ def enhanced_write_status(problem_dir: Path, phase: str, round_idx: int,
             "prover": model_prover,
             "verifier": model_verifier,
             "summarizer": model_summarizer,
-            "paper_suggester": model_paper_suggester,
-            "paper_fixer": model_paper_fixer,
+            
         }
     }
     if error:
@@ -200,26 +194,26 @@ def check_stop_signal(problem_dir: Path) -> bool:
         dbi = get_database_integration()
         if not dbi or not dbi.db_client or not dbi.problem_id:
             return False
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            from ..backend.services.database import DatabaseService  # type: ignore
-            # Find the most recent run for this problem; if status is stopping, honor it.
-            # Minimal: read problem to get active_run_id
-            problem = loop.run_until_complete(DatabaseService.get_problem_by_id(dbi.db_client, dbi.problem_id))  # type: ignore
-            active_run_id = problem.get('active_run_id') if problem else None
-            if not active_run_id:
-                return False
-            # Query the run status instead of writing anything
-            run_row = loop.run_until_complete(DatabaseService.get_run_by_id(dbi.db_client, int(active_run_id)))  # type: ignore
-            status = (run_row or {}).get('status') if run_row else None
-            return status == 'stopping' or status == 'stopped'
-        finally:
-            try:
-                loop.close()
-            except Exception:
-                pass
+        # Avoid creating new event loops here; use direct sync queries
+        # because this function is called from sync orchestrator code.
+        # Read active_run_id from problems then check run status.
+        problem_resp = dbi.db_client.table('problems')\
+            .select('active_run_id')\
+            .eq('id', dbi.problem_id)\
+            .single()\
+            .execute()
+        problem = getattr(problem_resp, 'data', None)
+        active_run_id = problem.get('active_run_id') if problem else None
+        if not active_run_id:
+            return False
+        run_resp = dbi.db_client.table('runs')\
+            .select('status')\
+            .eq('id', int(active_run_id))\
+            .single()\
+            .execute()
+        run_row = getattr(run_resp, 'data', None)
+        status = (run_row or {}).get('status') if run_row else None
+        return status == 'stopping' or status == 'stopped'
     except Exception:
         return False
 

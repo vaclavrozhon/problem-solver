@@ -106,7 +106,10 @@ export function getStatusDescription(info: ProblemInfo, status?: ProblemStatus):
     case 'error':
       return 'Error'
     case 'stopped':
-      return info.currentRound > 0 ? 'Complete' : 'Not started'
+      if (status?.overall?.last_round_completed && ((status.overall.remaining_rounds ?? 0) === 0)) {
+        return 'Complete'
+      }
+      return info.currentRound > 0 ? 'Stopped' : 'Not started'
     default:
       return 'Unknown'
   }
@@ -290,8 +293,8 @@ export function organizeTimings(timings: Record<string, { duration_s: number }>)
   verifier?: number
   summarizer?: number
 } {
-  const organized = {
-    provers: [] as Array<{ name: string; duration: number }>
+  const organized: { provers: Array<{ name: string; duration: number }>; verifier?: number; summarizer?: number } = {
+    provers: []
   }
 
   for (const [agent, timing] of Object.entries(timings)) {

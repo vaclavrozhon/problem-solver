@@ -13,6 +13,7 @@ export interface ProverConfig {
   calculator: boolean;
   focus: string;
   paperAccess?: Record<string, boolean>;
+  model?: string;
 }
 
 const ProverConfigTable: React.FC<ProverConfigTableProps> = ({
@@ -101,6 +102,15 @@ const ProverConfigTable: React.FC<ProverConfigTableProps> = ({
             }}>
               Focus Instructions
             </th>
+            <th style={{ 
+              padding: '8px', 
+              textAlign: 'left', 
+              borderBottom: '1px solid #ddd',
+              fontWeight: '600',
+              fontSize: '12px'
+            }}>
+              Model
+            </th>
             {paperFiles.map((paper) => (
               <th key={paper.path} style={{ 
                 padding: '8px', 
@@ -163,6 +173,27 @@ const ProverConfigTable: React.FC<ProverConfigTableProps> = ({
                       {option.name}
                     </option>
                   ))}
+                </select>
+              </td>
+              <td style={{ 
+                padding: '8px',
+                borderBottom: index === configs.length - 1 ? 'none' : '1px solid #eee'
+              }}>
+                <select
+                  value={config.model || 'gpt-5'}
+                  onChange={(e) => handleConfigChange(index, 'model', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '2px 4px',
+                    fontSize: '11px',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="gpt-5">GPT-5</option>
+                  <option value="gpt-5-mini">GPT-5 mini</option>
+                  <option value="gpt-4">GPT-4</option>
                 </select>
               </td>
               {paperFiles.map((paper) => (

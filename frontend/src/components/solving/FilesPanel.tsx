@@ -259,6 +259,10 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
     try {
       setUploading(true)
       
+      if (!problemName) {
+        alert('No problem selected')
+        return
+      }
       if (newPaperType === 'file' && newPaperFile) {
         // Upload file
         await uploadProblemPaper(problemName, newPaperFile, newPaperDescription)

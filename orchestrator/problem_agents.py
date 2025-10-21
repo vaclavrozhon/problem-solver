@@ -28,14 +28,19 @@ from .utils import (
     pre_dump_io, dump_failure, enhanced_write_status
 )
 from .database_integration import get_database_integration, get_current_problem_id, get_current_run_id, get_run_parameters
-from .papers import read_problem_context, get_paper_text_from_database, read_problem_context_from_database
+from .prompt_builder import (
+    build_common_base_context,
+    build_prompt_prover,
+    build_prompt_verifier,
+    build_prompt_summarizer,
+)
 from .agents import (
     complete_text, load_previous_response_id, save_response_id, 
     load_prover_focus_prompts, apply_notes_update, apply_proofs_update, 
     apply_output_update, parse_structured_output
 )
 
-# Get model configuration from environment
+# Default model configuration from environment (can be overridden per run)
 MODEL_PROVER = os.environ.get("OPENAI_MODEL_PROVER", "gpt-5")
 MODEL_VERIFIER = os.environ.get("OPENAI_MODEL_VERIFIER", "gpt-5")
 MODEL_SUMMARIZER = os.environ.get("OPENAI_MODEL_SUMMARIZER", "gpt-5-mini")
@@ -53,7 +58,16 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     round_dir = problem_dir / "runs" / f"round-{round_idx:04d}"
     
     agent = f"prover-{prover_idx:02d}"
-    print(f"  [{agent}] Running (model: {MODEL_PROVER})...")
+    # Determine model for this prover: per-run directive model fallback to env default
+    params = get_run_parameters()
+    run_prover_directives = params.get('prover_directives') or params.get('prover_configs') or []
+    model_override = None
+    if isinstance(run_prover_directives, list) and 1 <= prover_idx <= len(run_prover_directives):
+        directive = run_prover_directives[prover_idx - 1]
+        if isinstance(directive, dict):
+            model_override = directive.get('model')
+    effective_prover_model = model_override or MODEL_PROVER
+    print(f"  [{agent}] Running (model: {effective_prover_model})...")
     
     # 1) PROMPT CONSTRUCTION (single-source)
     base_system = load_prompt("prover")
@@ -83,21 +97,11 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
             try:
                 import asyncio
                 loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    from .papers import read_problem_context_from_database_async
-                    db_context = loop.run_until_complete(read_problem_context_from_database_async(problem_id, round_idx))  # type: ignore
-                else:
-                    from .papers import read_problem_context_from_database
-                    db_context = read_problem_context_from_database(problem_id, round_idx)
+                db_context = build_common_base_context(problem_id, round_idx)
             except RuntimeError:
-                from .papers import read_problem_context_from_database
-                db_context = read_problem_context_from_database(problem_id, round_idx)
+                db_context = build_common_base_context(problem_id, round_idx)
         else:
-            db_context = ""
-    if not db_context.strip():
-        # Ensure skeleton exists if DB context couldn't be built
-        from .papers import build_empty_db_context
-        db_context = build_empty_db_context()
+            raise RuntimeError("No problem_id available for DB context")
     user_parts: list[str] = []
 
     # Load run parameters for user specification and per-prover directives
@@ -179,7 +183,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
                 round_num=round_idx,
                 prover_idx=prover_idx,
                 prompt_text=combined_prompt,
-                model=MODEL_PROVER
+                model=effective_prover_model
             )
             print(f"📥 PROVER: Prompt persisted to DB: {saved}")
     except Exception as e:
@@ -192,48 +196,26 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
     try:
         # Call the model (free-text)
         response_text, duration, response_id, usage, raw_response = complete_text(
-            MODEL_PROVER, system_prompt, user_message,
+            effective_prover_model, system_prompt, user_message,
             response_format=response_format,
             previous_response_id=prev_response_id,
             tools=tools
         )
-        # Immediately persist RAW response for debugging before parsing
-        try:
-            dbi = get_database_integration()
-            if dbi and dbi.db_client and raw_response is not None:
-                import asyncio, json
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                from .database_integration import DatabaseService as _DS  # type: ignore
-                loop.run_until_complete(_DS.create_problem_file(  # type: ignore
-                    db=dbi.db_client,
-                    problem_id=get_current_problem_id(),  # type: ignore
-                    round_num=round_idx,
-                    file_type="prover_raw",
-                    filename=f"prover-{prover_idx:02d}.response.full.json",
-                    content=json.dumps(raw_response, indent=2),
-                    metadata={"model": MODEL_PROVER, "prover_index": prover_idx}
-                ))
-                try:
-                    loop.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # Raw response will be saved via db_integration.save_prover_output below
         
         # Save response ID for future rounds (DB-backed)
         if response_id:
-            save_response_id(problem_dir, round_idx, agent, response_id, MODEL_PROVER)
+            save_response_id(problem_dir, round_idx, agent, response_id, effective_prover_model)
         
         # Parse response with retry logic  
         response_obj = parse_structured_output(
-            ProverOutput, response_text, MODEL_PROVER,
+            ProverOutput, response_text, effective_prover_model,
             system_prompt, user_message, response_format
         )
         
         # Log only; DB persistence handled below
         dump_io(round_dir, agent, system_prompt, user_message,
-                response_text, response_obj, duration, MODEL_PROVER, usage=usage, raw_response=raw_response)
+                response_text, response_obj, duration, effective_prover_model, usage=usage, raw_response=raw_response)
         
     except Exception as e:
         # Dump failure state with enhanced error context
@@ -248,7 +230,7 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
         
         # Log the dummy response
         dump_io(round_dir, agent, system_prompt, user_message,
-                error_message, response_obj, 0.0, MODEL_PROVER, 
+                error_message, response_obj, 0.0, effective_prover_model, 
                 usage={"input_tokens": 0, "output_tokens": 0}, 
                 raw_response={"error": str(e)})
         
@@ -266,10 +248,10 @@ def call_prover_one(problem_dir: Path, round_idx: int, prover_idx: int, total: i
             round_num=round_idx,
             prover_idx=prover_idx,
             content=response_obj.content or "",
-            model=MODEL_PROVER,
+            model=effective_prover_model,
             tokens_in=getattr(response_obj, 'usage', {}).get('prompt_tokens'),
             tokens_out=getattr(response_obj, 'usage', {}).get('completion_tokens'),
-            raw_response=None
+            raw_response=raw_response
         )
         print(f"📊 PROVER: Database save result: {success}")
     else:
@@ -290,50 +272,11 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
     write_status(problem_dir, "verifier", round_idx)
     print(f"  [verifier] Running (model: {MODEL_VERIFIER})...")
     
-    # 1) PROMPT CONSTRUCTION
-    system_prompt = load_prompt("verifier")
-    
-    # Add round-specific focus description if provided
-    if focus_description:
-        system_prompt += "\n\n### User's Request\n" + focus_description.strip() + "\n"
-    
-    problem_context = read_problem_context(problem_dir, include_pdfs=False)
-    
-    # Build USER message from DB context and all prover outputs from DB
+    # 1) PROMPT CONSTRUCTION (use centralized builder to avoid drift)
     problem_id = get_current_problem_id()
-    problem_context = read_problem_context_from_database(problem_id, round_idx) if isinstance(problem_id, int) else ""
-    user_parts = [problem_context]
-    
-    # Add all provers' outputs from DB for this round
-    try:
-        dbi = get_database_integration()
-        if dbi and dbi.db_client and isinstance(problem_id, int):
-            import asyncio, json
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                files = loop.run_until_complete(
-                    dbi.DatabaseService.get_problem_files(dbi.db_client, problem_id, round=round_idx, file_type='prover_output')  # type: ignore
-                )
-            except Exception:
-                files = []
-            finally:
-                try:
-                    loop.close()
-                except Exception:
-                    pass
-            if files:
-                # Sort by filename to ensure stable order
-                files_sorted = sorted(files, key=lambda f: f.get('file_name',''))
-                for f in files_sorted:
-                    idx_label = f.get('file_name','')
-                    content = f.get('content','')
-                    user_parts.append(f"\n\n=== Prover Output ({idx_label}) ===\n")
-                    user_parts.append(content)
-    except Exception as _e:
-        print(f"[verifier] Warning: Failed loading prover outputs from DB: {_e}")
-    
-    user_message = "\n".join(user_parts)
+    if not isinstance(problem_id, int):
+        raise RuntimeError("No problem_id available for DB context")
+    system_prompt, user_message = build_prompt_verifier(problem_id, round_idx, focus_description)
     
     # 2) MODEL INVOCATION
     response_format = {
@@ -348,53 +291,49 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
     # Load previous response ID for reasoning state preservation
     previous_response_id = load_previous_response_id(problem_dir, round_idx, "verifier", MODEL_VERIFIER)
     
+    # Determine verifier model from run parameters override (do this early so we can persist prompt with model)
+    params = get_run_parameters()
+    verifier_conf = params.get('verifier_config') or {}
+    verifier_model = (verifier_conf.get('model') if isinstance(verifier_conf, dict) else None) or MODEL_VERIFIER
+
+    # Persist prompt to DB for visibility
+    try:
+        db_integration = get_database_integration()
+        if db_integration:
+            combined_prompt = f"=== SYSTEM ===\n{system_prompt}\n\n{user_message}"
+            db_integration.save_verifier_prompt(
+                round_num=round_idx,
+                prompt_text=combined_prompt,
+                model=verifier_model,
+            )
+    except Exception:
+        pass
+
     # Pre-dump inputs for debugging failures
     pre_dump_io(round_dir, "verifier", system_prompt, user_message, MODEL_VERIFIER)
     
     try:
         # Call the model
         response_text, duration, response_id, usage, raw_response = complete_text(
-            MODEL_VERIFIER, system_prompt, user_message,
-            response_format=response_format,
-            previous_response_id=previous_response_id
-        )
-        # Immediately persist RAW verifier response
-        try:
-            dbi = get_database_integration()
-            if dbi and dbi.db_client and isinstance(problem_id, int) and raw_response is not None:
-                import asyncio, json
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                from .database_integration import DatabaseService as _DS  # type: ignore
-                loop.run_until_complete(_DS.create_problem_file(  # type: ignore
-                    db=dbi.db_client,
-                    problem_id=problem_id,
-                    round_num=round_idx,
-                    file_type="verifier_raw",
-                    filename="verifier.response.full.json",
-                    content=json.dumps(raw_response, indent=2),
-                    metadata={"model": MODEL_VERIFIER}
-                ))
-                try:
-                    loop.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                verifier_model, system_prompt, user_message,
+                response_format=response_format,
+                previous_response_id=previous_response_id
+            )
+        # Raw response saved via db_integration.save_verifier_output below
         
         # Save response ID for future rounds
         if response_id:
-            save_response_id(problem_dir, round_idx, "verifier", response_id, MODEL_VERIFIER)
+            save_response_id(problem_dir, round_idx, "verifier", response_id, verifier_model)
         
         # Parse response with retry logic  
         response_obj = parse_structured_output(
-            VerifierCombinedOutput, response_text, MODEL_VERIFIER,
+            VerifierCombinedOutput, response_text, verifier_model,
             system_prompt, user_message, response_format
         )
         
         # 3) LOCAL PERSISTENCE OF INTERMEDIATE OUTPUTS
         dump_io(round_dir, "verifier", system_prompt, user_message,
-                response_text, response_obj, duration, MODEL_VERIFIER, usage=usage, raw_response=raw_response)
+                response_text, response_obj, duration, verifier_model, usage=usage, raw_response=raw_response)
                 
     except Exception as e:
         # Dump failure state with enhanced error context
@@ -429,7 +368,7 @@ def call_verifier_combined(problem_dir: Path, round_idx: int, num_provers: int, 
             summary=response_obj.summary_md,
             verdict_data=verdict_data,
             model=MODEL_VERIFIER,
-            raw_response=None
+            raw_response=raw_response
         )
         print(f"📊 VERIFIER: Database save result: {success}")
     else:
@@ -464,50 +403,28 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     write_status(problem_dir, "summarizer", round_idx)
     print(f"  [summarizer] Running (model: {MODEL_SUMMARIZER})...")
     
-    # 1) PROMPT CONSTRUCTION
-    system_prompt = load_prompt("summarizer")
-    problem_context = read_problem_context(problem_dir, include_pdfs=False)
-    
-    # Build user message from DB context and current round verifier summary (from DB)
+    # 1) PROMPT CONSTRUCTION (use centralized builder)
     problem_id = get_current_problem_id()
-    problem_context = read_problem_context_from_database(problem_id, round_idx) if isinstance(problem_id, int) else ""
-    user_parts = [problem_context]
+    if not isinstance(problem_id, int):
+        raise RuntimeError("No problem_id available for DB context")
+    system_prompt, user_message = build_prompt_summarizer(problem_id, round_idx)
     
-    # Add verifier summary from DB
+    # Persist prompt to DB for visibility
     try:
-        dbi = get_database_integration()
-        if dbi and dbi.db_client and isinstance(problem_id, int):
-            import asyncio, json
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                files = loop.run_until_complete(
-                    dbi.DatabaseService.get_problem_files(dbi.db_client, problem_id, round=round_idx, file_type='verifier_output')  # type: ignore
-                )
-            except Exception:
-                files = []
-            finally:
-                try:
-                    loop.close()
-                except Exception:
-                    pass
-            if files:
-                # Use the first verifier_output for this round
-                vf = files[0]
-                content = vf.get('content','')
-                try:
-                    data = json.loads(content)
-                    summary_md = data.get('summary_md') or data.get('summary') or ''
-                except Exception:
-                    summary_md = content
-                if summary_md:
-                    user_parts.append("\n\n=== Verifier Summary ===\n")
-                    user_parts.append(summary_md)
-    except Exception as _e:
-        print(f"[summarizer] Warning: Failed loading verifier summary from DB: {_e}")
-    
-    user_message = "\n".join(user_parts)
-    
+        db_integration = get_database_integration()
+        if db_integration:
+            # Choose model for prompt metadata
+            params = get_run_parameters()
+            summarizer_model_for_prompt = params.get('summarizer_model') or MODEL_SUMMARIZER
+            combined_prompt = f"=== SYSTEM ===\n{system_prompt}\n\n{user_message}"
+            db_integration.save_summarizer_prompt(
+                round_num=round_idx,
+                prompt_text=combined_prompt,
+                model=summarizer_model_for_prompt,
+            )
+    except Exception:
+        pass
+
     # 2) MODEL INVOCATION
     response_format = {
         "type": "json_schema",
@@ -526,11 +443,14 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     
     try:
         # Call the model
+        # Select summarizer model from run params override
+        params = get_run_parameters()
+        summarizer_model = params.get('summarizer_model') or MODEL_SUMMARIZER
         response_text, duration, response_id, usage, raw_response = complete_text(
-            MODEL_SUMMARIZER, system_prompt, user_message,
-            response_format=response_format,
-            previous_response_id=previous_response_id
-        )
+                summarizer_model, system_prompt, user_message,
+                response_format=response_format,
+                previous_response_id=previous_response_id
+            )
         # Immediately persist RAW summarizer response
         try:
             dbi = get_database_integration()
@@ -546,7 +466,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
                     file_type="summarizer_raw",
                     filename="summarizer.response.full.json",
                     content=json.dumps(raw_response, indent=2),
-                    metadata={"model": MODEL_SUMMARIZER}
+                    metadata={"model": summarizer_model}
                 ))
                 try:
                     loop.close()
@@ -557,11 +477,11 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
         
         # Save response ID for future rounds
         if response_id:
-            save_response_id(problem_dir, round_idx, "summarizer", response_id, MODEL_SUMMARIZER)
+            save_response_id(problem_dir, round_idx, "summarizer", response_id, summarizer_model)
         
         # Parse response with retry logic
         response_obj = parse_structured_output(
-            SummarizerOutput, response_text, MODEL_SUMMARIZER,
+            SummarizerOutput, response_text, summarizer_model,
             system_prompt, user_message, response_format
         )
         
@@ -582,7 +502,7 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
     
     # 3) LOCAL PERSISTENCE OF INTERMEDIATE OUTPUTS
     dump_io(round_dir, "summarizer", system_prompt, user_message,
-            response_text, response_obj, duration, MODEL_SUMMARIZER, usage=usage, raw_response=raw_response)
+            response_text, response_obj, duration, summarizer_model, usage=usage, raw_response=raw_response)
     
     # No local summary writes; saved to DB below
 
@@ -595,8 +515,8 @@ def call_summarizer(problem_dir: Path, round_idx: int) -> SummarizerOutput:
             round_num=round_idx,
             summary=response_obj.summary_md,
             one_line_summary=response_obj.one_line_summary,
-            model=MODEL_SUMMARIZER,
-            raw_response=None
+            model=summarizer_model,
+            raw_response=raw_response
         )
         print(f"📊 SUMMARIZER: Database save result: {success}")
     else:

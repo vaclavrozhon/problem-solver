@@ -25,6 +25,12 @@ BACKEND_PORT = 8000
 # Detect Railway environment
 RAILWAY_ENV = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT_NAME")
 
+# Optional install control flags
+AR_FORCE_BACKEND_INSTALL = os.environ.get("AR_FORCE_BACKEND_INSTALL") in ("1", "true", "yes")
+AR_SKIP_BACKEND_INSTALL = os.environ.get("AR_SKIP_BACKEND_INSTALL") in ("1", "true", "yes")
+AR_FORCE_NPM_INSTALL = os.environ.get("AR_FORCE_NPM_INSTALL") in ("1", "true", "yes")
+AR_SKIP_NPM_INSTALL = os.environ.get("AR_SKIP_NPM_INSTALL") in ("1", "true", "yes")
+
 def ensure_env():
     """Load API key from ~/.openai.env into environment if present."""
     home_env = Path.home() / ".openai.env"
@@ -65,12 +71,23 @@ def start_frontend() -> subprocess.Popen:
     fe_dir = REPO / "frontend"
     if not fe_dir.exists():
         raise RuntimeError("frontend/ directory not found")
-    print("📦 Ensuring frontend dependencies (npm install)...")
-    try:
-        subprocess.run(["npm", "install"], cwd=str(fe_dir), check=True)
-        print("✅ Frontend dependencies installed successfully")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"❌ Failed to install frontend dependencies: {e}\n   Please run 'cd frontend && npm install' manually and try again.")
+    # Run npm install only when necessary or explicitly requested
+    need_npm_install = False
+    node_modules = fe_dir / "node_modules"
+    if AR_FORCE_NPM_INSTALL:
+        need_npm_install = True
+    elif AR_SKIP_NPM_INSTALL:
+        need_npm_install = False
+    else:
+        need_npm_install = not node_modules.exists()
+
+    if need_npm_install:
+        print("📦 Installing frontend dependencies (npm install)...")
+        try:
+            subprocess.run(["npm", "install"], cwd=str(fe_dir), check=True)
+            print("✅ Frontend dependencies installed successfully")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"❌ Failed to install frontend dependencies: {e}\n   Please run 'cd frontend && npm install' manually and try again.")
 
     print(f"🧩 Starting Vite dev server (new UI) on http://localhost:{FRONTEND_PORT} ...")
     env = os.environ.copy()
@@ -98,16 +115,40 @@ def main():
     print("🔬 Starting Automatic Researcher — New UI (Development Mode)")
     ensure_env()
 
-    # Ensure a project-local virtual environment and install backend deps
+    # Ensure a project-local virtual environment and install backend deps (only if needed)
     try:
         if not VENV.exists():
             print("🐍 Creating virtual environment (venv)...")
             subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
-        # Always (re)install/repair dependencies to ensure uvicorn is available
-        print("📦 Ensuring backend dependencies (requirements.txt)...")
+
+        py_exe = str((VENV / ("Scripts" if os.name == "nt" else "bin") / "python"))
         pip_exe = str((VENV / ("Scripts" if os.name == "nt" else "bin") / "pip"))
-        subprocess.run([pip_exe, "install", "--upgrade", "pip", "setuptools", "wheel"], check=True)
-        subprocess.run([pip_exe, "install", "-r", str(REPO / "requirements.txt")], check=True)
+
+        need_backend_install = False
+        if AR_FORCE_BACKEND_INSTALL:
+            need_backend_install = True
+        elif AR_SKIP_BACKEND_INSTALL:
+            need_backend_install = False
+        else:
+            # Probe for required modules
+            try:
+                probe = subprocess.run(
+                    [py_exe, "-c", "import uvicorn, fastapi; print('OK')"],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                need_backend_install = (probe.returncode != 0)
+            except subprocess.CalledProcessError:
+                need_backend_install = True
+
+        if need_backend_install:
+            print("📦 Installing backend dependencies (requirements.txt)...")
+            subprocess.run([pip_exe, "install", "--upgrade", "pip", "setuptools", "wheel"], check=True)
+            subprocess.run([pip_exe, "install", "-r", str(REPO / "requirements.txt")], check=True)
+        else:
+            print("✅ Backend dependencies already satisfied (uvicorn/fastapi import OK)")
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to prepare venv or install dependencies: {e}")
         print("   Check requirements.txt or your network, then rerun: python3 run.py")

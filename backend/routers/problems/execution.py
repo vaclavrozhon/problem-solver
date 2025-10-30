@@ -542,11 +542,18 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             set_current_run_id(None)
         logger.info("DB integration ready", extra={"event_type": "dbi_ready", "problem_id": problem_id})
 
+        # Compute base round offset so new runs append rounds sequentially
+        try:
+            base_round = await DatabaseService.get_max_round(db, problem_id)  # type: ignore
+        except Exception:
+            base_round = 0
+
         # FULL ORCHESTRATION: Multi-round, sequential stages with stop checks
         for round_idx in range(1, int(rounds) + 1):
+            effective_round = int(base_round) + int(round_idx)
             logger.info("Round start", extra={"event_type": "round_start", "problem_id": problem_id, "round": round_idx})
             round_meta: dict = {
-                "round": round_idx,
+                "round": effective_round,
                 "started_at": time.time(),
                 "stages": {
                     "provers": {},
@@ -555,7 +562,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
                 }
             }
             # Mark progress
-            await DatabaseService.update_problem_status(db, problem_id, "running", round_idx)
+            await DatabaseService.update_problem_status(db, problem_id, "running", effective_round)
 
             # Provers
             for prover_idx in range(1, int(provers) + 1):
@@ -567,7 +574,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
                     logger.info("Prover start", extra={"event_type": "prover_start", "round": round_idx, "prover_index": prover_idx})
                     _content, _ok = call_prover_one(
                         Path("."),
-                        round_idx,
+                        effective_round,
                         prover_idx,
                         int(provers),
                         prover_configs[prover_idx-1] if prover_configs and prover_idx-1 < len(prover_configs) else {},
@@ -593,7 +600,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             try:
                 v_start = time.time()
                 logger.info("Verifier start", extra={"event_type": "verifier_start", "round": round_idx})
-                _verifier = call_verifier_combined(Path("."), round_idx, int(provers), focus_description)
+                _verifier = call_verifier_combined(Path("."), effective_round, int(provers), focus_description)
                 v_end = time.time()
                 round_meta["stages"]["verifier"] = {
                     "start_ts": v_start,
@@ -613,7 +620,7 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             try:
                 s_start = time.time()
                 logger.info("Summarizer start", extra={"event_type": "summarizer_start", "round": round_idx})
-                _summ = call_summarizer(Path("."), round_idx)
+                _summ = call_summarizer(Path("."), effective_round)
                 s_end = time.time()
                 round_meta["stages"]["summarizer"] = {
                     "start_ts": s_start,
@@ -638,9 +645,9 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
                 await DatabaseService.create_problem_file(  # type: ignore
                     db=db,
                     problem_id=problem_id,
-                    round_num=round_idx,
+                    round_num=effective_round,
                     file_type="round_meta",
-                    filename=f"round-{round_idx:04d}.metadata.json",
+                    filename=f"round-{effective_round:04d}.metadata.json",
                     content=json.dumps(round_meta, indent=2),
                     metadata={"phase": "complete"}
                 )
@@ -650,8 +657,12 @@ async def start_research_run(problem_id: int, problem_name: str, config: dict, u
             logger.info("Round end", extra={"event_type": "round_end", "problem_id": problem_id, "round": round_idx})
             # Continue loop for next round
 
-        # Finished all rounds: mark idle and complete the run
-        await DatabaseService.update_problem_status(db, problem_id, "idle", int(rounds))
+        # Finished all rounds: mark idle and complete the run (advance current_round)
+        try:
+            final_round = int(base_round) + int(rounds)
+        except Exception:
+            final_round = int(rounds)
+        await DatabaseService.update_problem_status(db, problem_id, "idle", final_round)
         try:
             # Mark run completed using provided run_id if available
             if run_id:

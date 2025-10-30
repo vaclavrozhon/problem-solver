@@ -114,7 +114,17 @@ async def get_problem_files(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting files: {e}")
+        logger.error(
+            "Get files failed",
+            extra={
+                "event_type": "file_list_error",
+                "problem_name": problem_name,
+                "round": round,
+                "file_type": file_type,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
         raise HTTPException(500, f"Failed to get files: {str(e)}")
 
 
@@ -166,7 +176,17 @@ async def get_problem_file_content(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting file content: {e}")
+        logger.error(
+            "Get file content failed",
+            extra={
+                "event_type": "file_content_error",
+                "problem_name": problem_name,
+                "file_path": file_path,
+                "version": version,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
         raise HTTPException(500, f"Failed to get file content: {str(e)}")
 
 
@@ -219,7 +239,16 @@ async def get_problem_file_versions(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error getting file versions: {e}")
+        logger.error(
+            "Get file versions failed",
+            extra={
+                "event_type": "file_versions_error",
+                "problem_name": problem_name,
+                "file_path": file_path,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
         raise HTTPException(500, f"Failed to get file versions: {str(e)}")
 
 
@@ -269,5 +298,15 @@ async def update_problem_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating file: {e}")
+        logger.error(
+            "Update file failed",
+            extra={
+                "event_type": "file_update_error_generic",
+                "problem_id": problem_id,
+                "file_type": file_type,
+                "round": round,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
         raise HTTPException(500, f"Failed to update file: {str(e)}")

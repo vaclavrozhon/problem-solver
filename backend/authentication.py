@@ -31,7 +31,8 @@ class AuthedUser(BaseModel):
 
 # Get Supabase configuration from environment variables
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+# Accept either SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for compatibility
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY") or os.getenv("SUPABASE_ANON_KEY", "")
 
 
 def is_database_configured() -> bool:

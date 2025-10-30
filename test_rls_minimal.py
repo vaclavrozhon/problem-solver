@@ -13,7 +13,7 @@ import jwt, time, os
 def main():
     # Get environment variables
     URL = os.environ.get("SUPABASE_URL")
-    ANON = os.environ.get("SUPABASE_ANON_KEY")
+    ANON = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_PUBLISHABLE_KEY")
     TOKEN = os.environ.get("TEST_ACCESS_TOKEN")
 
     if not all([URL, ANON, TOKEN]):

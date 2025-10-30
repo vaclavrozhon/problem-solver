@@ -9,10 +9,13 @@ from fastapi import HTTPException
 from supabase import Client
 
 from ..services.database import DatabaseService
+from ..logging_config import get_logger
 
 
 class TaskService:
     """Service for managing research tasks using database storage"""
+
+    logger = get_logger("automatic_researcher.services.tasks")
 
     @staticmethod
     async def create_problem(
@@ -50,7 +53,16 @@ class TaskService:
             return str(problem['id'])  # Return problem ID as string
 
         except Exception as e:
-            print(f"Database error in create_problem: {e}")
+            TaskService.logger.error(
+                f"Database error in create_problem: {e}",
+                extra={
+                    "event_type": "task_create_error",
+                    "name": name,
+                    "user_id": user_id,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e),
+                },
+            )
             raise HTTPException(500, f"Failed to create problem: {str(e)}")
 
 
@@ -88,7 +100,16 @@ class TaskService:
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Database error in delete_problem: {e}")
+            TaskService.logger.error(
+                f"Database error in delete_problem: {e}",
+                extra={
+                    "event_type": "task_delete_error",
+                    "name": name,
+                    "user_id": user_id,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e),
+                },
+            )
             raise HTTPException(500, f"Failed to delete problem: {str(e)}")
 
     @staticmethod
@@ -147,7 +168,16 @@ class TaskService:
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Database error in reset_problem: {e}")
+            TaskService.logger.error(
+                f"Database error in reset_problem: {e}",
+                extra={
+                    "event_type": "task_reset_error",
+                    "problem_id": problem_id,
+                    "user_id": user_id,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e),
+                },
+            )
             raise HTTPException(500, f"Failed to reset problem: {str(e)}")
 
 

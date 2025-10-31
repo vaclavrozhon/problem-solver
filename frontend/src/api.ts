@@ -101,7 +101,8 @@ export async function deleteRounds(name: string, deleteCount: number) {
 }
 
 export async function deleteRound(problemName: string, roundName: string) {
-  const r = await req(`/problems/${encodeURIComponent(problemName)}/rounds/${encodeURIComponent(roundName)}`, {
+  // Single-round deletion maps to "delete last N rounds" with N=1
+  const r = await req(`/problems/${encodeURIComponent(problemName)}/rounds?delete_count=1`, {
     method: "DELETE"
   });
   return r.json();

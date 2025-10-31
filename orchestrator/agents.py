@@ -378,7 +378,8 @@ def apply_notes_update(problem_dir: Path, update: NotesUpdate, round_idx: int = 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            from .services.database import DatabaseService  # type: ignore
+            # Use the DatabaseService resolved by database_integration to avoid path issues
+            from .database_integration import DatabaseService  # type: ignore
             existing = ""
             if mode == "append":
                 files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='notes'))  # type: ignore
@@ -407,7 +408,8 @@ def apply_proofs_update(problem_dir: Path, update: ProofsUpdate, round_idx: int 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            from .services.database import DatabaseService  # type: ignore
+            # Use the DatabaseService resolved by database_integration to avoid path issues
+            from .database_integration import DatabaseService  # type: ignore
             existing = ""
             if mode == "append":
                 files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='proofs'))  # type: ignore
@@ -436,7 +438,8 @@ def apply_output_update(problem_dir: Path, update: OutputUpdate, round_idx: int 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            from .services.database import DatabaseService  # type: ignore
+            # Use the DatabaseService resolved by database_integration to avoid path issues
+            from .database_integration import DatabaseService  # type: ignore
             existing = ""
             if mode == "append":
                 files = loop.run_until_complete(DatabaseService.get_problem_files(dbi.db_client, dbi.problem_id, round=0, file_type='output'))  # type: ignore

@@ -90,7 +90,7 @@ class TaskService:
                 return await DatabaseService.delete_problem(db, problem_id)
             except ValueError:
                 # If not a valid integer, treat as name and find by name
-                problems = await DatabaseService.get_user_problems(db)
+                problems = await DatabaseService.get_user_problems(db, user_id)
                 for problem in problems:
                     if problem['name'] == name:
                         return await DatabaseService.delete_problem(db, problem['id'])

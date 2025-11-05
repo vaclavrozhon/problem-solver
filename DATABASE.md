@@ -226,6 +226,7 @@ All database operations are handled through service classes that accept authenti
 - Methods include: `create_problem()`, `get_user_problems()`, `update_problem_file()`, `update_problem_status()`, etc.
 - `update_problem_status()` now accepts optional `current_round` parameter for progress tracking
 - Automatic RLS enforcement through authenticated client
+  - Not anymore: RLS updated so that `SELECT` on `public.problems` and `public.problem_files` is available to all `authenticated` users to select all rows for the purposes of archive (upcoming feature)
 
 **TaskService:**
 - Updated to use centralized authentication

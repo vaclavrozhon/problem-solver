@@ -35,7 +35,7 @@ async def get_all_problems_status(
     """
     try:
         # Get all user problems
-        problems = await DatabaseService.get_user_problems(db)
+        problems = await DatabaseService.get_user_problems(db, user.sub)
 
         # Build lightweight status map from problems table only
         status_map = {}

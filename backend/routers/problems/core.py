@@ -39,7 +39,7 @@ async def list_problems(
         List of user's problems from database
     """
     try:
-        problems = await DatabaseService.get_user_problems(db)
+        problems = await DatabaseService.get_user_problems(db, user.sub)
         # Return full problem objects for frontend compatibility
         result = [{"id": problem['id'], "name": problem['name']} for problem in problems]
         return result

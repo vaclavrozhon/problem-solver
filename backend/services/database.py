@@ -213,7 +213,7 @@ class DatabaseService:
             return False
 
     @staticmethod
-    async def get_user_problems(db: Client) -> List[Dict[str, Any]]:
+    async def get_user_problems(db: Client, user_id: str) -> List[Dict[str, Any]]:
         """
         Get all problems for a specific user.
 
@@ -224,9 +224,9 @@ class DatabaseService:
             List of problem dictionaries
         """
         try:
-            # Let RLS handle the filtering automatically via auth.uid()
             response = db.table('problems')\
                 .select('*')\
+                .eq("owner_id", user_id)\
                 .order('created_at', desc=True)\
                 .execute()
 

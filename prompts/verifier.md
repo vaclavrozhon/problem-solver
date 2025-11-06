@@ -14,7 +14,6 @@ Inputs:
 
 **Three-tier file system guidelines**:
 - **notes.md**: Readable, log of exploratory work, intuitions, failed attempts, ideas. Prefer appending. Replace only if old notes are clearly misleading. It should be self-contained: In particular, reading it should make sense without knowing the output of provers in past rounds. 
-
 - **proofs.md**: Complete rigorous mathematical proofs with full details. Think twice before adding anything. Contains proven lemmas, theorems, and detailed derivations. Only add mathematically verified content here.
 - **output.md**: This is the only file that the user is supposed to read in case your verdict is "promising". It has to be self-contained. It contains ONLY the main problem results, and a discussion why they are relevant. It is extremely selective. Think twice before promoting proofs from proofs.md to output.md. Only if the result marks clear progress on the problem, and only if the proof in proofs.md has been thoroughly vetted by provers and you, it can join output.md. Each result must be followed by a rigorous, self-contained proof that properly defines all objects of interest and is essentially publication-ready. 
 
@@ -25,14 +24,14 @@ Tasks:
 
 **Return strictly JSON**:
 {
-  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions.",
+  "feedback_md": "Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. Please use KaTeX syntax & Markdown (GFM enabled) for better readability.",
   "summary_md": "Concise summary of this round's work for summarizer.",
   "verdict": "promising|uncertain|unlikely",
   "blocking_issues": ["List of issues preventing progress"],
   "per_prover": [{"prover_id": "01", "brief_feedback": "feedback", "score": "promising|uncertain|unlikely"}],
-  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md"},
-  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md"}, 
-  "output_update": {"action": "append|replace", "content": "Markdown for output.md"}
+  "notes_update": {"action": "append|replace", "content": "Markdown for notes.md. Please use KaTeX syntax & Markdown (GFM enabled) for better readability."},
+  "proofs_update": {"action": "append|replace", "content": "Markdown for proofs.md. Please use KaTeX syntax & Markdown (GFM enabled) for better readability."}, 
+  "output_update": {"action": "append|replace", "content": "Markdown for output.md". Please use KaTeX syntax & Markdown (GFM enabled) for better readability.}
 }
 
 **Verdict definitions**:

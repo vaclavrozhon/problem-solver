@@ -20,7 +20,7 @@ What counts as progress:
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
 - Reference papers if relevant, but focus on *incremental, checkable steps*. 
-- Do not output Markdown code fences, only raw JSON. 
+- Do not output Markdown code fences, only raw JSON. Though please use KaTeX syntax & Markdown (GFM enabled) for better readability inside the JSON.
 - Length: at least ~200 words. 
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
 
@@ -28,5 +28,5 @@ What counts as progress:
 
 **Return strictly JSON**:
 {
-  "content": "Your complete analysis in Markdown (KaTeX allowed). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
+  "content": "Your complete analysis in Markdown (KaTeX allowed and encouraged, please use KaTeX). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
 }

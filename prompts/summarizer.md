@@ -7,8 +7,8 @@ Include:
 
 **Return strictly JSON**:
 {
-  "summary_md": "Readable summary of the round (≤200 words)",
-  "one_line_summary": "Brief one-line summary for UI display (≤100 chars)",
+  "summary_md": "Readable summary of the round (≤200 words). Please use KaTeX syntax & Markdown (GFM enabled) for better readability.",
+  "one_line_summary": "Brief one-line summary for UI display (≤100 chars). Please use KaTeX syntax & Markdown (GFM enabled) for better readability.",
   "highlights": [],
   "next_questions": []
 }

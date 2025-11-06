@@ -1,10 +1,10 @@
 FROM python:3.11-slim
 
-# Install system dependencies including Node.js
+# Install system dependencies including the latest Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,7 +24,7 @@ RUN cd frontend && npm install
 COPY . .
 
 # Build frontend with production API URL
-RUN cd frontend && VITE_API_BASE=https://automatic-researcher-production.up.railway.app npm run build
+RUN cd frontend && VITE_API_BASE=https://problem-dev.up.railway.app npm run build
 
 # Runtime environment
 ENV PYTHONDONTWRITEBYTECODE=1 \

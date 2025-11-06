@@ -20,13 +20,13 @@ What counts as progress:
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
 - Reference papers if relevant, but focus on *incremental, checkable steps*. 
-- Do not output Markdown code fences, only raw JSON. 
+- Do not output Markdown code fences, only raw JSON. Use Markdown and KateX for better formatting inside JSON. All KaTeX code needs to be enclosed in single '$' from each side.
 - Length: at least ~200 words. 
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
 
-**Output**: Write your analysis as Markdown that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
+**Output**: Write your analysis as Markdown with math formatted in KaTeX for better readability (All KaTeX code needs to be enclosed in single '$' from each side.) that includes both informal reasoning and any rigorous proofs. The verifier will decide what goes into notes.md, proofs.md, and output.md.
 
 **Return strictly JSON**:
 {
-  "content": "Your complete analysis in Markdown (KaTeX allowed). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
+  "content": "Your complete analysis in Markdown (KaTeX allowed, all KaTeX code needs to be enclosed in single '$' from each side). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review."
 }

@@ -57,7 +57,7 @@ def start_backend() -> subprocess.Popen:
     log_path = REPO / "backend.log"
     log_fp = open(log_path, "a", buffering=1)
     proc = subprocess.Popen(
-        [py, "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", str(BACKEND_PORT)],
+        [py, "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", str(BACKEND_PORT), "--reload"],
         cwd=str(REPO),
         env=os.environ.copy(),
         stdout=log_fp,
@@ -163,11 +163,12 @@ def main():
         frontend = start_frontend()
         # Give vite a moment to start
         time.sleep(2.5)
-        try:
-            webbrowser.open(f"http://localhost:{FRONTEND_PORT}")
-            print(f"🌐 Opened http://localhost:{FRONTEND_PORT} in your browser")
-        except Exception:
-            print(f"📖 Please open http://localhost:{FRONTEND_PORT} in your browser")
+        # TODO: GET RID OF THIS: I hate this
+        # try:
+        #     webbrowser.open(f"http://localhost:{FRONTEND_PORT}")
+        #     print(f"🌐 Opened http://localhost:{FRONTEND_PORT} in your browser")
+        # except Exception:
+        #     print(f"📖 Please open http://localhost:{FRONTEND_PORT} in your browser")
 
         print("🎉 New UI running. Press Ctrl+C to stop.")
         # Wait on frontend; it runs until interrupted

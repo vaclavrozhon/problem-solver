@@ -9,8 +9,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
+from ..services.database import DatabaseService
 from ..services.tasks import TaskService
-from ..authentication import get_current_user, get_db_client, AuthedUser
+from ..authentication import get_current_user, get_db_client, AuthedUser, get_supabase_client
 from ..logging_config import get_logger
 
 logger = get_logger("tasks")
@@ -23,6 +24,30 @@ class CreateTaskRequest(BaseModel):
     name: str
     task_description: str
     task_type: Optional[str] = "txt"
+    
+    
+# Get list of all created Reasearch Problems
+@router.get("/problems/getall")
+async def get_all_problems(db = Depends(get_db_client)):
+  try:
+    response = (
+      db.table("problems")
+        .select("*")
+        .order("created_at", desc=True)
+        .execute()
+    )
+      
+    problems = response.data
+      
+    result = [{
+      "owner_id": problem["owner_id"],
+      "id": problem["id"],
+      "name": problem["name"],
+      "created_at": problem["created_at"],
+    } for problem in problems]
+    return result
+  except Exception as e:
+    raise HTTPException(500, f"Failed to get all problems: {str(e)}")
 
 
 # Task creation endpoints

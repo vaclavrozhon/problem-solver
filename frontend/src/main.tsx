@@ -1,9 +1,51 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
+import { StrictMode, useEffect, useRef } from "react"
+import ReactDOM from "react-dom/client"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { useAuth, AuthProvider, AuthContextType } from "./contexts/AuthContext.tsx"
+import { RouterProvider, createRouter } from '@tanstack/react-router'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <App />
+import "./styles/index.css"
+import "./styles/global.css"
+
+import { routeTree } from './routeTree.gen'
+
+const queryClient = new QueryClient()
+const router = createRouter({
+  routeTree,
+  context: {
+    // initial state
+    auth: undefined!,
+  },
+  scrollRestoration: true,
+  defaultPreloadStaleTime: 0,
+})
+
+// Register the router instance for type safety
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router
+  }
+}
+
+function App() {
+  const auth = useAuth()
+
+  useEffect(() => {
+    if (auth.isLoading) return
+    auth.loadAuth.resolve(auth)
+  }, [auth])
+
+  return (
+    <RouterProvider router={router} context={{ auth }}/>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <App/>
+      </AuthProvider>
+    </QueryClientProvider>
+  </StrictMode>
 )
-

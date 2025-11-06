@@ -20,8 +20,8 @@
  * - Responsive layout with proper overflow handling
  */
 
-import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from "react-router"
 import ProblemSidebar from '../components/solving/ProblemSidebar'
 import ProblemDetails from '../components/solving/ProblemDetails'
 import DeleteModals from '../components/solving/DeleteModals'
@@ -480,75 +480,8 @@ export default function SolvingPage() {
   // RENDER HELPERS
   // =============================================================================
 
-  /**
-   * Renders global metrics header
-   */
   const renderMetrics = () => {
-    const runningCount = problems.filter(p => {
-      const status = statusMap[p.name]
-      return status?.overall.is_running && status.overall.phase !== 'idle'
-    }).length
-
-    const totalRounds = problems.reduce((sum, p) => {
-      const status = statusMap[p.name]
-      return sum + (status?.overall.current_round || 0)
-    }, 0)
-
-    return (
-      <div className="metrics-grid" style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(3, 1fr)', 
-        gap: '16px',
-        marginBottom: '20px'
-      }}>
-        <div className="metric-card" style={{ 
-          background: 'white',
-          padding: '16px',
-          borderRadius: '8px',
-          border: '1px solid #e9ecef',
-          textAlign: 'center'
-        }}>
-          <div className="metric-label" style={{ fontSize: '12px', color: '#6c757d' }}>
-            Total Problems
-          </div>
-          <div className="metric-value" style={{ fontSize: '24px', fontWeight: 'bold', color: '#495057' }}>
-            {problems.length}
-          </div>
-        </div>
-        <div className="metric-card" style={{ 
-          background: 'white',
-          padding: '16px',
-          borderRadius: '8px',
-          border: '1px solid #e9ecef',
-          textAlign: 'center'
-        }}>
-          <div className="metric-label" style={{ fontSize: '12px', color: '#6c757d' }}>
-            Currently Running
-          </div>
-          <div className="metric-value" style={{ 
-            fontSize: '24px', 
-            fontWeight: 'bold', 
-            color: runningCount > 0 ? '#28a745' : '#495057' 
-          }}>
-            {runningCount}
-          </div>
-        </div>
-        <div className="metric-card" style={{ 
-          background: 'white',
-          padding: '16px',
-          borderRadius: '8px',
-          border: '1px solid #e9ecef',
-          textAlign: 'center'
-        }}>
-          <div className="metric-label" style={{ fontSize: '12px', color: '#6c757d' }}>
-            Total Rounds
-          </div>
-          <div className="metric-value" style={{ fontSize: '24px', fontWeight: 'bold', color: '#495057' }}>
-            {totalRounds}
-          </div>
-        </div>
-      </div>
-    )
+    // already replicatrd, can be remioved
   }
 
   /**
@@ -558,50 +491,16 @@ export default function SolvingPage() {
     if (!message) return null
 
     return (
-      <div 
-        className={`alert alert-${message.type}`}
-        style={{
-          marginBottom: '20px',
-          padding: '12px 16px',
-          borderRadius: '6px',
-          border: `1px solid ${
-            message.type === 'error' ? '#f5c6cb' :
-            message.type === 'success' ? '#c3e6cb' :
-            message.type === 'warning' ? '#ffeaa7' :
-            '#bee5eb'
-          }`,
-          backgroundColor: 
-            message.type === 'error' ? '#f8d7da' :
-            message.type === 'success' ? '#d4edda' :
-            message.type === 'warning' ? '#fff3cd' :
-            '#d1ecf1',
-          color:
-            message.type === 'error' ? '#721c24' :
-            message.type === 'success' ? '#155724' :
-            message.type === 'warning' ? '#856404' :
-            '#0c5460',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}
-      >
+      <div>
         <span>
           {message.type === 'error' ? '❌' :
            message.type === 'success' ? '✅' :
            message.type === 'warning' ? '⚠️' :
            'ℹ️'}
         </span>
-        <span style={{ flex: 1 }}>{message.text}</span>
+        <span>{message.text}</span>
         <button
           onClick={() => setMessage(null)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            fontSize: '16px',
-            padding: '0 4px'
-          }}
           title="Dismiss"
         >
           ×
@@ -625,7 +524,7 @@ export default function SolvingPage() {
         background: 'white',
         borderBottom: '1px solid #e9ecef'
       }}>
-        {renderMetrics()}
+        {/* {renderMetrics()} */}
         {renderGlobalMessage()}
       </div>
 

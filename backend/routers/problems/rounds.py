@@ -18,16 +18,18 @@ logger = get_logger("automatic_researcher.routers.problems.rounds")
 router = APIRouter()
 
 
-@router.get("/{problem_name}/rounds")
+# USEFUL
+# used in problem retriaval
+@router.get("/{problem_ID}/rounds")
 async def get_problem_rounds(
-    problem_name: str,
+    problem_ID: str,
     user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
 ):
     """
     Get rounds for a problem.
 
     Args:
-        problem_name: Problem name
+        problem_ID: Problem ID
         user_id: Authenticated user ID
 
     Returns:
@@ -35,9 +37,9 @@ async def get_problem_rounds(
     """
     try:
         # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, problem_name)
+        problem = await DatabaseService.get_problem_by_id(db, problem_ID)
         if not problem:
-            raise HTTPException(404, "Problem not found")
+            raise HTTPException(404, "Problem not found (first error)")
 
         problem_id = problem['id']
 
@@ -102,7 +104,7 @@ async def get_problem_rounds(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Get rounds failed", extra={"event_type": "rounds_list_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
+        logger.error("Get rounds failed", extra={"event_type": "rounds_list_error", "problem_ID": problem_ID, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get rounds: {str(e)}")
 
 

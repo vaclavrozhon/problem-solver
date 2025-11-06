@@ -321,10 +321,14 @@ class DatabaseService:
             logger.error(f"Database error creating problem: {e}")
             raise HTTPException(500, f"Database error: {str(e)}")
 
+    # THIS METHOD USED TO ENSURE THAT THE USER OWNS THE PROBLEM
+    # BUT THAT'S NO LONGER THE CASE BECASUE OF PUBLIC ARCHIVE
+    # RETRIEVAL IS FOR EVERYONE
+    # well no exactly: this method didnt ensure, it's RLS config in the db
     @staticmethod
     async def get_problem_by_id(db: Client, problem_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get a specific problem by ID, ensuring user owns it.
+        Get a specific problem by ID
 
         Args:
             db: Authenticated Supabase client

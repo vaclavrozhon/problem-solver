@@ -28,6 +28,27 @@ async function req(path: string, opts: RequestInit = {}) {
   return response;
 }
 
+
+export interface Problem {
+  id: number,
+  name: string,
+  owner_id: string,
+  created_at: Date,
+}
+
+/* Used at /archive */
+export async function getAllProblems() {
+  try {
+    const res = await req("/tasks/problems/getall")
+    const data = await res.json()
+    return data
+  } catch (err) {
+    console.error("failed to get all problems:", err)
+    return ["ERROR!"]
+  }
+}
+
+// dog shit useless
 export async function listProblems(includeStatus: boolean = false) {
   try {
     const url = includeStatus ? `/problems/?include_status=true` : `/problems/`;
@@ -41,8 +62,9 @@ export async function listProblems(includeStatus: boolean = false) {
   }
 }
 
+// USEFUL
 export async function getRounds(name: string) {
-  const r = await req(`/problems/${encodeURIComponent(name)}/rounds`);
+  const r = await req(`/problems/${name}/rounds`);
   return r.json();
 }
 
@@ -75,6 +97,7 @@ export async function getStatus(problemId: string) {
   return r.json();
 }
 
+// actually goated, used e.g. at "/"
 export async function getAllProblemsStatus() {
   const r = await req(`/problems/all-status`);
   return r.json();
@@ -88,6 +111,8 @@ export async function stopProblem(name: string) {
 }
 
 // Profile API
+// TODO: this can probably be removed, not used anywhere i think
+// (also remove it in backend)
 export async function getCredits() {
   const r = await req(`/profile/credits`);
   return r.json();

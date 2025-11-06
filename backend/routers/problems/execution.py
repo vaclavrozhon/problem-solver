@@ -38,11 +38,11 @@ async def get_all_problems_status(
         problems = await DatabaseService.get_user_problems(db, user.sub)
 
         # Build lightweight status map from problems table only
-        status_map = {}
+        status_map = []
         for problem in problems:
             problem_name = problem['name']
             is_running = problem.get('status') == 'running'
-            status_map[problem_name] = {
+            status_map.append({
                 "problem": problem,
                 "overall": {
                     "phase": problem.get('status', 'idle'),
@@ -53,7 +53,7 @@ async def get_all_problems_status(
                 },
                 "rounds": [],
                 "base_files": {}
-            }
+            })
 
         return status_map
 

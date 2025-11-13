@@ -1,10 +1,13 @@
 # `Automatic Researcher Frontend`
 
-
 ## Important
 - The package `@vitejs/plugin-react` shall not be updated to version `> 5.0.1` or else both `@linaria/core` & `@linaria/react` will throw errors. These packages are used for easier CSS styling inside `.tsx` files (React components).
 - This frontend is not responsive, i.e. might not display correctly on smaller devices.
 - For the simplicity of this project, all routes require you to be logged in. If you're not logged it, the only page you can visit is `/login` where you need to log in.
+
+## Notes
+- Quote style is double (").
+- If required, it's easily possible to show the time it took for each prover to complete the research.
 
 ## TODO
 - [x] Problems Archive
@@ -30,7 +33,10 @@
   - [ ] Create various checkboxes for what should be included in the prompt.
   - [ ] Maybe even have different prompt templates.
 - [ ] How to serve static files?
-- [ ] i think i managed to somehow break `@tanstack/react-router`
-
-## Notes
-- Quote style is double (").
+  - [ ] robots.txt
+- [ ] is it possible to optimize markdown rendering?
+- [ ] add that option to create tags for problems like "combinatorics", "topology" for easier filtering in the problem's archive
+  - [ ] maybe also add the option to search when we have a lot of them
+  - [ ] the ability to filter by own
+- [ ] Conversations
+  - [ ] Could probably add the feature the view the prompt used to generate given conversation column.

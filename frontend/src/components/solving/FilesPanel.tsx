@@ -81,41 +81,10 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   
   /** Check if current file supports versioning */
   const isVersionedFile = selectedFile && ['notes','proofs','output'].includes(selectedFile)
-  
-  /** Check if current file is markdown */
-  const isMarkdownFile = selectedFile?.endsWith('.md') || false
-
-  // =============================================================================
-  // EFFECTS
-  // =============================================================================
-  
-  /** Load files when component mounts or problem changes */
-  useEffect(() => {
-    if (problemName) {
-      loadFiles()
-    }
-  }, [problemName])
-
 
   // =============================================================================
   // API FUNCTIONS
   // =============================================================================
-
-  /**
-   * Loads the file list from the backend
-   */
-  const loadFiles = async () => {
-    try {
-      setLoading(true)
-      const fileList = await listFiles(problemName)
-      setFiles(fileList)
-    } catch (err) {
-      console.error('Failed to load files:', err)
-      setFiles([])
-    } finally {
-      setLoading(false)
-    }
-  }
 
   /**
    * Loads content for a specific file and version
@@ -189,70 +158,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   }
 
   /**
-   * Starts edit mode
-   */
-  const startEditing = () => {
-    setIsEditing(true)
-    setEditedContent(fileContent)
-    setEditedDescription(selectedFileInfo?.description || '')
-  }
-
-  /**
-   * Cancels edit mode
-   */
-  const cancelEditing = () => {
-    setIsEditing(false)
-    setEditedContent('')
-    setEditedDescription('')
-  }
-
-  /**
-   * Saves the edited content
-   */
-  const saveChanges = async () => {
-    if (!selectedFile) return
-    
-    try {
-      setSaving(true)
-      
-      // Save base files via name-based endpoint when applicable
-      if (['task','notes','proofs','output'].includes(selectedFile)) {
-        await updateBaseFileByName(problemName, selectedFile as any, editedContent, editedDescription)
-      } else {
-        // Non-base file editing not supported yet
-      }
-      
-      // Update local state
-      setFileContent(editedContent)
-      if (selectedFileInfo) {
-        setSelectedFileInfo({
-          ...selectedFileInfo,
-          description: editedDescription
-        })
-      }
-      
-      // Update files list if description changed
-      const updatedFiles = (files as any[]).map(file =>
-        (file?.file_name || file?.file_type) === selectedFile
-          ? { ...file, description: editedDescription }
-          : file
-      )
-      setFiles(updatedFiles)
-      
-      // Exit edit mode
-      setIsEditing(false)
-      setEditedContent('')
-      setEditedDescription('')
-      
-    } catch (err) {
-      console.error('Failed to save changes:', err)
-      alert('Failed to save changes. Please try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /**
    * Handles adding a single paper (from TaskCreationPage pattern)
    */
   const handleAddSinglePaper = async () => {
@@ -304,20 +209,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
   // =============================================================================
   // UI HELPERS
   // =============================================================================
-
-  /**
-   * Simple markdown renderer for basic formatting
-   */
-  const renderMarkdown = (content: string): string => {
-    return content
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')  
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/`(.*?)`/gim, '<code>$1</code>')
-      .replace(/\n/gim, '<br>')
-  }
 
   /**
    * Gets appropriate icon for file type
@@ -395,39 +286,19 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
    */
   const renderFileButton = (file: any, isFirst = true) => {
     return (
-      <div key={file?.id || `${file?.file_type}-${file?.round}`} style={{ marginBottom: '6px' }}>
+      <div key={file?.id || `${file?.file_type}-${file?.round}`}>
         {/* Original File */}
         <button
-          onClick={() => loadFileContent(file?.file_type, 'current', file as any)}
-          style={{
-            background: selectedFile === file?.file_type ? '#e3f2fd' : 'transparent',
-            border: '1px solid #ddd',
-            padding: '8px 12px',
-            width: '100%',
-            textAlign: 'left',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}
-        >
-          <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          onClick={() => loadFileContent(file?.file_type, 'current', file as any)}>
+          <div>
             {getFileIcon(file)}
             {file?.file_name || file?.file_type || 'Unknown file'}
           </div>
-          <div style={{ fontSize: '10px', color: '#666' }}>
+          <div>
             {file?.file_type === 'paper' && file?.file_name?.toLowerCase().endsWith('.pdf') ? 'Original PDF' : formatFileSize(file?.size)} • {file?.created_at}
           </div>
           {file?.description && (
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#555', 
-              marginTop: '4px',
-              fontStyle: 'italic',
-              background: '#f8f9fa',
-              padding: '2px 4px',
-              borderRadius: '2px',
-              border: '1px solid #e9ecef'
-            }}>
+            <div>
               {file?.description}
             </div>
           )}
@@ -443,7 +314,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
     const { inputFiles, outputFiles, metadataFiles, allRounds } = categorizeFiles()
     
     return (
-      <div style={{ width: '300px', borderRight: '1px solid #ddd', paddingRight: '16px' }}>
+      <div>
         <h4>Problem Files</h4>
         
         {loading ? (
@@ -453,31 +324,13 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
         ) : (
           <div>
             {/* Input Files Section */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <h5 style={{ 
-                  fontSize: '13px', 
-                  fontWeight: 'bold', 
-                  color: '#2563eb',
-                  margin: '0',
-                  padding: '4px 0',
-                  borderBottom: '1px solid #e5e7eb',
-                  flex: 1
-                }}>
+            <div >
+              <div >
+                <h5>
                   📥 Input
                 </h5>
                 <button
                   onClick={() => setShowUploadForm(!showUploadForm)}
-                  style={{
-                    background: showUploadForm ? '#dc2626' : '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    fontSize: '11px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    marginLeft: '8px'
-                  }}
                   title={showUploadForm ? 'Cancel upload' : 'Upload papers'}
                 >
                   {showUploadForm ? '✕ Cancel' : '📄 Upload papers'}
@@ -486,16 +339,10 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
               <div style={{ listStyle: 'none', padding: 0 }}>
                 {/* Upload Form - shown inline like TaskCreationPage */}
                 {showUploadForm && (
-                  <div style={{ 
-                    marginBottom: '12px', 
-                    padding: '12px', 
-                    background: '#f8f9fa', 
-                    borderRadius: '6px', 
-                    border: '1px solid #dee2e6' 
-                  }}>
+                  <div>
                     {/* Paper Type Dropdown */}
-                    <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '12px' }}>
+                    <div>
+                      <label>
                         Paper Type:
                       </label>
                       <select 
@@ -517,8 +364,8 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
 
                     {/* Upload/Text Input Area */}
                     {newPaperType === 'file' ? (
-                      <div style={{ marginBottom: '12px' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '12px' }}>
+                      <div>
+                        <label>
                           Select File:
                         </label>
                         <input
@@ -554,18 +401,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                           onChange={e => setNewPaperText(e.target.value)}
                           placeholder="Paste your text content here (txt, md, or tex format supported)"
                           rows={4}
-                          style={{
-                            width: '100%',
-                            padding: '6px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            resize: 'vertical'
-                          }}
                           disabled={uploading}
-                          data-gramm="false"
-                          data-gramm_editor="false"
-                          data-enable-grammarly="false"
                         />
                       </div>
                     )}
@@ -580,13 +416,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                         value={newPaperDescription}
                         onChange={e => setNewPaperDescription(e.target.value)}
                         placeholder="Brief description of this paper..."
-                        style={{
-                          width: '100%',
-                          padding: '6px',
-                          border: '1px solid #ced4da',
-                          borderRadius: '4px',
-                          fontSize: '12px'
-                        }}
                         disabled={uploading}
                       />
                     </div>
@@ -600,14 +429,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                           setShowUploadForm(false)
                         }}
                         disabled={uploading}
-                        style={{
-                          padding: '4px 8px',
-                          border: '1px solid #ddd',
-                          background: 'white',
-                          borderRadius: '3px',
-                          cursor: uploading ? 'not-allowed' : 'pointer',
-                          fontSize: '11px'
-                        }}
                       >
                         Cancel
                       </button>
@@ -615,15 +436,6 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                         type="button"
                         onClick={handleAddSinglePaper}
                         disabled={uploading || (newPaperType === 'file' && !newPaperFile) || (newPaperType === 'text' && !newPaperText.trim())}
-                        style={{
-                          padding: '4px 8px',
-                          border: 'none',
-                          background: (uploading || (newPaperType === 'file' && !newPaperFile) || (newPaperType === 'text' && !newPaperText.trim())) ? '#ccc' : '#28a745',
-                          color: 'white',
-                          borderRadius: '3px',
-                          cursor: (uploading || (newPaperType === 'file' && !newPaperFile) || (newPaperType === 'text' && !newPaperText.trim())) ? 'not-allowed' : 'pointer',
-                          fontSize: '11px'
-                        }}
                       >
                         {uploading ? 'Uploading...' : 'Upload'}
                       </button>
@@ -637,14 +449,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
 
             {/* Output Files Section */}
             <div style={{ marginBottom: '20px' }}>
-              <h5 style={{ 
-                fontSize: '13px', 
-                fontWeight: 'bold', 
-                color: '#dc2626',
-                margin: '0 0 8px 0',
-                padding: '4px 0',
-                borderBottom: '1px solid #e5e7eb'
-              }}>
+              <h5>
                 📤 Output
               </h5>
               <div style={{ listStyle: 'none', padding: 0 }}>
@@ -832,37 +637,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                 <textarea
                   value={editedDescription}
                   onChange={(e) => setEditedDescription(e.target.value)}
-                  placeholder="Enter paper description..."
-                  style={{
-                    width: '100%',
-                    minHeight: '60px',
-                    padding: '8px',
-                    fontSize: '13px',
-                    border: '1px solid #ddd',
-                    borderRadius: '3px',
-                    resize: 'vertical',
-                    fontFamily: 'inherit'
-                  }}
-                  data-gramm="false"
-                  data-gramm_editor="false"
-                  data-enable-grammarly="false"
-                />
+                  placeholder="Enter paper description..."/>
               ) : (
-                <div style={{ 
-                  background: 'white',
-                  border: '1px solid #ddd',
-                  borderRadius: '3px',
-                  padding: '8px',
-                  fontSize: '13px',
-                  color: selectedFileInfo?.description ? '#333' : '#999',
-                  lineHeight: '1.4',
-                  fontStyle: selectedFileInfo?.description ? 'normal' : 'italic',
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word',
-                  wordBreak: 'break-word',
-                  maxHeight: '120px',
-                  overflowY: 'auto'
-                }}>
+                <div>
                   {selectedFileInfo?.description || 'No description provided'}
                 </div>
               )}
@@ -876,22 +653,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
             <textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              style={{
-                width: '100%',
-                minHeight: '400px',
-                background: '#f8f9fa',
-                padding: '16px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                lineHeight: '1.4',
-                resize: 'vertical'
-              }}
               placeholder="Edit file content..."
-              data-gramm="false"
-              data-gramm_editor="false"
-              data-enable-grammarly="false"
             />
           ) : (
             <div>
@@ -899,28 +661,9 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
                 <div 
                   className="markdown-content"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(fileContent) }}
-                  style={{
-                    background: '#f8f9fa',
-                    padding: '16px',
-                    borderRadius: '4px',
-                    border: '1px solid #ddd',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontSize: '14px',
-                    lineHeight: '1.5'
-                  }}
                 />
               ) : (
-                <pre style={{
-                  background: '#f8f9fa',
-                  padding: '16px',
-                  borderRadius: '4px',
-                  border: '1px solid #ddd',
-                  overflow: 'auto',
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  lineHeight: '1.4',
-                  whiteSpace: 'pre-wrap'
-                }}>
+                <pre>
                   {fileContent}
                 </pre>
               )}
@@ -928,7 +671,7 @@ export default function FilesPanel({ problemName, onFileSelect }: FilesPanelProp
           )}
         </div>
       ) : (
-        <div style={{ color: '#666', textAlign: 'center', marginTop: '50px' }}>
+        <div>
           Select a file to view its content
         </div>
       )}

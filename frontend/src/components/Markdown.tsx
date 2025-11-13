@@ -1,16 +1,11 @@
-import ReactMarkdown from "react-markdown"
-import remarkMath from "remark-math"
-import rehypeKatex from "rehype-katex"
 import { styled } from "@linaria/react"
+
+import RawMarkdown from "./RawMarkdown"
 
 export default function MathMarkdown({ md }: { md: string}) {
   return (
     <MarkdownContent>
-      <ReactMarkdown
-        children={md}
-        remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-      />
+      <RawMarkdown md={md}/>
     </MarkdownContent>
   )
 }

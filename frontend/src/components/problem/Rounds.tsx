@@ -23,10 +23,13 @@ interface ResearchRound {
   verdict: string,
 }
 
+// NOTE: Switching to different round/prover is slow because Markdown rendering is slow
 export default function ProblemRounds({ rounds }: Props) {
   const [curr_round, setCurrRound] = useState(rounds.length - 1)
   const [expanded, setExpanded] = useState<number | null>(null)
-  const [setup, setSetup] = useState<{title: string, content: string | {name: string, content: string}[] }[]>([])
+  const [setup, setSetup] = useState<{title: string, content: string | {name: string, content: string}[], verdict?: string }[]>([])
+
+  console.log("rounds", rounds)
 
   useEffect(() => {
     setSetup([
@@ -41,6 +44,7 @@ export default function ProblemRounds({ rounds }: Props) {
         {
           title: "📝 Summary",
           content: rounds[curr_round].summary,
+          verdict: rounds[curr_round].verdict,
         }
     ])
   }, [curr_round])
@@ -48,13 +52,13 @@ export default function ProblemRounds({ rounds }: Props) {
   return (
     <RoundsSection>
       <RoundSwitcher>
-        <h2>Showing Round <span>#</span>{curr_round + 1}</h2>
         {rounds.length > 1 && (
           <div>
             <p>Switch to round:</p>
             {rounds.map((_, i) => (
               <BracketButton disabled={i == curr_round}
-                onClick={() => setCurrRound(i)}>
+                onClick={() => setCurrRound(i)}
+                key={i}>
                 {i + 1}
               </BracketButton>
             ))}
@@ -65,14 +69,13 @@ export default function ProblemRounds({ rounds }: Props) {
         {expanded === null ? (
           <>
             {setup.map((conversation, i) => (
-              <Conversation title={conversation.title}
-                content={conversation.content}
-                onExpand={() => setExpanded(i)}/>
+              <Conversation conversation={conversation}
+                onExpand={() => setExpanded(i)}
+                key={conversation.title}/>
             ))}
           </>
         ) : (
-          <Conversation title={setup[expanded].title}
-            content={setup[expanded].content}
+          <Conversation conversation={setup[expanded]}
             expanded
             onShrink={() => setExpanded(null)}/>
         )}
@@ -114,15 +117,30 @@ const RoundsSection = styled.section`
 `
 
 interface ConversationProps {
-  title: string,
-  content: string | { name: string, content: string }[],
+  conversation: {
+    title: string,
+    content: string | { name: string, content: string }[],
+    verdict?: string,
+  },
   onExpand?: () => void,
   onShrink?: () => void,
   expanded?: boolean,
 }
 
-function Conversation({ title, content, expanded, onExpand, onShrink }: ConversationProps) {
+function Conversation({ conversation: { title, content, verdict }, expanded, onExpand, onShrink }: ConversationProps) {
   const [curr_prover, setCurrProver] = useState(0)
+
+  // NOTE: possible verdicts are specified in prompt verifier.md
+  const verdicts: { [index: string]: string } = {
+    promising: "✅ Promising progress",
+    uncertain: "⚠️  Unclear direction",
+    unlikely: "❌ Approach unlikely"
+  }
+
+  // If you switch from round with multiple provers to round with less provers, you index array out of bounds
+  useEffect(() => {
+    setCurrProver(0)
+  }, [content])
 
   return (
     <ConversationCol>
@@ -141,7 +159,7 @@ function Conversation({ title, content, expanded, onExpand, onShrink }: Conversa
           {Array.isArray(content) ? (
             <>
               {content.length > 1 && (
-                <SwitchProver>
+                <ConversationDetails>
                   Switch prover to:
                   {content.map((_, i) => (
                     <BracketButton disabled={i == curr_prover}
@@ -149,12 +167,21 @@ function Conversation({ title, content, expanded, onExpand, onShrink }: Conversa
                       {i + 1}
                     </BracketButton>
                   ))}
-                </SwitchProver>
+                </ConversationDetails>
               )}
-              <Markdown md={content[curr_prover].content}/>
+              <Markdown md={content[curr_prover]?.content}/>
             </>
           ) : (
-            <Markdown md={content}/>
+            <>
+              {verdict && (
+                <ConversationDetails>
+                  <p className={verdict}>
+                    {verdicts[verdict] || verdict}
+                  </p>
+                </ConversationDetails>
+              )}
+              <Markdown md={content}/>
+            </>
           )}
         </>
       )}
@@ -162,11 +189,23 @@ function Conversation({ title, content, expanded, onExpand, onShrink }: Conversa
   )
 }
 
-const SwitchProver = styled.div`
+const ConversationDetails = styled.div`
   display: flex;
   padding: .5rem 1rem;
   gap: .5rem;
   border-bottom: var(--border-alpha);
+  & > p {
+    font-weight: 600;
+    &.promising {
+      color: #28a745;
+    }
+    &.uncertain {
+      color: #856404;
+    }
+    &.unlikely {
+      color: #6c757d;
+    }
+  }
 `
 
 const ConversationCol = styled.div`
@@ -184,7 +223,7 @@ const ConversationCol = styled.div`
   & p.not_available {
     padding: .6rem;
   }
-  `
+`
 
 const ConversationHeader = styled.header`
   display: flex;

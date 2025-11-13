@@ -13,7 +13,9 @@ import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
 import { Route as ArchiveRouteImport } from "./routes/archive"
 import { Route as IndexRouteImport } from "./routes/index"
-import { Route as ProblemProblem_idRouteImport } from "./routes/problem/$problem_id"
+import { Route as ProblemProblem_idIndexRouteImport } from "./routes/problem/$problem_id/index"
+import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
+import { Route as ProblemProblem_idConversationsRouteImport } from "./routes/problem/$problem_id/conversations"
 
 const LoginRoute = LoginRouteImport.update({
   id: "/login",
@@ -35,25 +37,40 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProblemProblem_idRoute = ProblemProblem_idRouteImport.update({
-  id: "/problem/$problem_id",
-  path: "/problem/$problem_id",
+const ProblemProblem_idIndexRoute = ProblemProblem_idIndexRouteImport.update({
+  id: "/problem/$problem_id/",
+  path: "/problem/$problem_id/",
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProblemProblem_idFilesRoute = ProblemProblem_idFilesRouteImport.update({
+  id: "/problem/$problem_id/files",
+  path: "/problem/$problem_id/files",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProblemProblem_idConversationsRoute =
+  ProblemProblem_idConversationsRouteImport.update({
+    id: "/problem/$problem_id/conversations",
+    path: "/problem/$problem_id/conversations",
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
-  "/problem/$problem_id": typeof ProblemProblem_idRoute
+  "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
+  "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
-  "/problem/$problem_id": typeof ProblemProblem_idRoute
+  "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
+  "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,20 +78,38 @@ export interface FileRoutesById {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
-  "/problem/$problem_id": typeof ProblemProblem_idRoute
+  "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
+  "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id/": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/" | "/archive" | "/create" | "/login" | "/problem/$problem_id"
+  fullPaths:
+    | "/"
+    | "/archive"
+    | "/create"
+    | "/login"
+    | "/problem/$problem_id/conversations"
+    | "/problem/$problem_id/files"
+    | "/problem/$problem_id"
   fileRoutesByTo: FileRoutesByTo
-  to: "/" | "/archive" | "/create" | "/login" | "/problem/$problem_id"
+  to:
+    | "/"
+    | "/archive"
+    | "/create"
+    | "/login"
+    | "/problem/$problem_id/conversations"
+    | "/problem/$problem_id/files"
+    | "/problem/$problem_id"
   id:
     | "__root__"
     | "/"
     | "/archive"
     | "/create"
     | "/login"
-    | "/problem/$problem_id"
+    | "/problem/$problem_id/conversations"
+    | "/problem/$problem_id/files"
+    | "/problem/$problem_id/"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -82,7 +117,9 @@ export interface RootRouteChildren {
   ArchiveRoute: typeof ArchiveRoute
   CreateRoute: typeof CreateRoute
   LoginRoute: typeof LoginRoute
-  ProblemProblem_idRoute: typeof ProblemProblem_idRoute
+  ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
+  ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
+  ProblemProblem_idIndexRoute: typeof ProblemProblem_idIndexRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -115,11 +152,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/problem/$problem_id": {
-      id: "/problem/$problem_id"
+    "/problem/$problem_id/": {
+      id: "/problem/$problem_id/"
       path: "/problem/$problem_id"
       fullPath: "/problem/$problem_id"
-      preLoaderRoute: typeof ProblemProblem_idRouteImport
+      preLoaderRoute: typeof ProblemProblem_idIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/problem/$problem_id/files": {
+      id: "/problem/$problem_id/files"
+      path: "/problem/$problem_id/files"
+      fullPath: "/problem/$problem_id/files"
+      preLoaderRoute: typeof ProblemProblem_idFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/problem/$problem_id/conversations": {
+      id: "/problem/$problem_id/conversations"
+      path: "/problem/$problem_id/conversations"
+      fullPath: "/problem/$problem_id/conversations"
+      preLoaderRoute: typeof ProblemProblem_idConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -130,7 +181,9 @@ const rootRouteChildren: RootRouteChildren = {
   ArchiveRoute: ArchiveRoute,
   CreateRoute: CreateRoute,
   LoginRoute: LoginRoute,
-  ProblemProblem_idRoute: ProblemProblem_idRoute,
+  ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
+  ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,
+  ProblemProblem_idIndexRoute: ProblemProblem_idIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

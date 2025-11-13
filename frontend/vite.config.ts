@@ -12,6 +12,9 @@ export default defineConfig({
       target: "react",
       autoCodeSplitting: true,
       quoteStyle: "double",
+      experimental: {
+        nonNestedRoutes: true,
+      }
     }),
     react(),
     wyw(),

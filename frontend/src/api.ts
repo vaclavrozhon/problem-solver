@@ -2,7 +2,7 @@ import { supabase } from './config/supabase'
 
 const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-async function req(path: string, opts: RequestInit = {}) {
+export async function req(path: string, opts: RequestInit = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   // Get the current session and add JWT token to headers
@@ -63,6 +63,7 @@ export async function listProblems(includeStatus: boolean = false) {
 }
 
 // USEFUL
+// Used to retrieving conversations
 export async function getRounds(name: string) {
   const r = await req(`/problems/${name}/rounds`);
   return r.json();
@@ -92,11 +93,18 @@ export async function runRound(name: string, rounds: number, provers: number, _t
   return r.json();
 }
 
+
+//????
+// this function is a mess but is used at index of problem details
+// /problem/$problem_id
+// to retrieve basically everthing, name is really bad
 export async function getStatus(problemId: string) {
-  const r = await req(`/problems/${encodeURIComponent(problemId)}/status`);
+  console.log(problemId)
+  const r = await req(`/problems/${problemId}/status`);
   return r.json();
 }
 
+// USEFUL
 // actually goated, used e.g. at "/"
 export async function getAllProblemsStatus() {
   const r = await req(`/problems/all-status`);
@@ -133,9 +141,11 @@ export async function deleteRound(problemName: string, roundName: string) {
   return r.json();
 }
 
-export async function listFiles(name: string) {
+// NOTE: USED in retrival of all files in List.tsx
+// usees same API endpoint as getProblemFilesRaw
+export async function listFiles(problem_id: string) {
   try {
-    const r = await req(`/problems/${encodeURIComponent(name)}/files`);
+    const r = await req(`/problems/${problem_id}/files_by_id`);
     const data = await r.json();
     const files = Array.isArray(data) ? data : (data.files || []);
     // Preserve original DB fields (file_type, round, file_name, created_at, metadata, content)
@@ -161,6 +171,7 @@ export async function listFiles(name: string) {
   }
 }
 
+// dog shit useless can be removed
 export async function getFileContent(name: string, filePath: string, version?: string) {
   let url = `/problems/${encodeURIComponent(name)}/file?file_path=${encodeURIComponent(filePath)}`;
   if (version) {
@@ -185,12 +196,12 @@ export async function updateBaseFileByName(problemName: string, fileType: 'task'
   return r.json();
 }
 
-// DB-only helpers
-export async function getProblemFilesRaw(name: string, filters?: { round?: number; file_type?: string }) {
+// NOTE: USED in RoundTime.tsx
+export async function getProblemFilesRaw(problem_id: string, filters?: { round?: number; file_type?: string }) {
   const params = new URLSearchParams();
   if (filters?.round !== undefined) params.set('round', String(filters.round));
   if (filters?.file_type) params.set('file_type', filters.file_type);
-  const path = `/problems/${encodeURIComponent(name)}/files${params.toString() ? `?${params.toString()}` : ''}`;
+  const path = `/problems/${problem_id}/files_by_id${params.toString() ? `?${params.toString()}` : ''}`;
   const r = await req(path);
   const data = await r.json();
   return Array.isArray(data) ? data : (data.files || []);
@@ -251,8 +262,6 @@ export async function uploadProblemPaper(problemName: string, file: File, descri
   return r.json();
 }
 
-// Drafts are no longer supported
-
 export async function addProblemPaperFromUrl(problemName: string, url: string) {
   const r = await req(`/problems/${encodeURIComponent(problemName)}/papers/from-url`, {
     method: "POST",
@@ -261,7 +270,6 @@ export async function addProblemPaperFromUrl(problemName: string, url: string) {
   return r.json();
 }
 
-// Drafts are no longer supported
 
 // Text content upload functions
 export async function uploadProblemTextContent(problemName: string, content: string, filename: string, description?: string) {
@@ -289,6 +297,3 @@ export async function uploadProblemTextContent(problemName: string, content: str
   });
   return r.json();
 }
-
-// Drafts are no longer supported
-

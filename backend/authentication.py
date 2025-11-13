@@ -33,6 +33,7 @@ class AuthedUser(BaseModel):
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 # Accept either SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for compatibility
 SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY") or os.getenv("SUPABASE_ANON_KEY", "")
+SUPABASE_ADMIN_KEY = os.getenv("SUPABASE_ADMIN_KEY")
 
 
 def is_database_configured() -> bool:
@@ -175,6 +176,25 @@ def get_optional_user(request: Request) -> Optional[AuthedUser]:
         # If verification fails, return None (unauthenticated)
         return None
 
+def supabase_as_admin(user: AuthedUser) -> Client:
+  try:
+    client = create_client(SUPABASE_URL, SUPABASE_ADMIN_KEY)
+    logger.debug(
+      "Created ADMIN Supabase Client",
+      extra={"event_type": "admin_db_client_created", "user_id": user.sub}
+    )
+    return client
+  except Exception as e:
+    logger.error(
+      f"Failed to create ADMIN supabase client: {str(e)}",
+      extra={
+        "event_type": "admin_db_client_error",
+        "user_id": user.sub,
+        "error_type": type(e).__name__,
+        "error_details": str(e),
+      },
+    )
+    raise HTTPException(status_code=500, detail="Failed to create ADMIN DB CLIENT.")
 
 def supabase_as_user(user: AuthedUser) -> Client:
     """
@@ -212,6 +232,8 @@ def supabase_as_user(user: AuthedUser) -> Client:
         )
         raise HTTPException(status_code=500, detail="Failed to create database client")
 
+def get_admin_db_client(user: AuthedUser = Depends(get_current_user)) -> Client:
+  return supabase_as_admin(user)
 
 def get_db_client(user: AuthedUser = Depends(get_current_user)) -> Client:
     """
@@ -274,6 +296,7 @@ __all__ = [
     "get_optional_user",
     "supabase_as_user",
     "get_db_client",
+    "get_admin_db_client",
     "get_db_client_with_token",
     "security",
 ]

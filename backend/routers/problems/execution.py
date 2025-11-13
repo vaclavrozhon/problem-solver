@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from ...services.database import DatabaseService
 from ...logging_config import get_logger
-from ...authentication import get_current_user, get_db_client, AuthedUser
+from ...authentication import get_current_user, get_db_client, get_admin_db_client, AuthedUser
 
 logger = get_logger("automatic_researcher.routers.problems.execution")
 router = APIRouter()
@@ -61,78 +61,31 @@ async def get_all_problems_status(
         logger.error("Batch status failed", extra={"event_type": "batch_status_error", "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get status: {str(e)}")
 
-@router.get("/{problem_name}/status")
+# USEFUL
+# Used in ProblemOverview.tsx to get status
+@router.get("/{problem_id}/status")
 async def get_problem_status(
-    problem_name: str,
-    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+    problem_id: str,
+    db = Depends(get_db_client),
+    admin_db = Depends(get_admin_db_client),
 ):
     """
     Get detailed status for a problem including rounds and files.
 
     Args:
-        problem_name: Problem name
+        problem_id: Problem ID
         user_id: Authenticated user ID
 
     Returns:
         Problem status with rounds and recent activity
     """
     try:
-        # Get problem by name first
-        problem = await DatabaseService.get_problem_by_name(db, problem_name)
+        # Get problem by id first
+        problem = await DatabaseService.get_problem_by_id(db, problem_id)
         if not problem:
             raise HTTPException(404, "Problem not found")
 
         problem_id = problem['id']
-
-        # Enforce user credit limit before starting a run
-        try:
-            profile = await DatabaseService.get_user_profile(db, user.sub)  # type: ignore
-        except Exception as _e:
-            profile = None
-        if not profile:
-            logger.error(
-                "Profile missing for credit check",
-                extra={
-                    "event_type": "credit_profile_missing",
-                    "user_id": getattr(user, 'sub', None),
-                    "problem_id": problem_id,
-                },
-            )
-            raise HTTPException(
-                403,
-                detail={
-                    "code": "PROFILE_NOT_FOUND",
-                    "message": "User profile not found; cannot start run.",
-                },
-            )
-
-        try:
-            credits_used = float(profile.get('credits_used') or 0)
-            credits_limit = float(profile.get('credits_limit') or 0)
-        except Exception:
-            credits_used = float(profile.get('credits_used', 0) or 0)
-            credits_limit = float(profile.get('credits_limit', 0) or 0)
-
-        if credits_limit is not None and credits_used >= credits_limit:
-            logger.info(
-                "Credit limit exceeded; blocking run start",
-                extra={
-                    "event_type": "credit_limit_exceeded",
-                    "user_id": getattr(user, 'sub', None),
-                    "problem_id": problem_id,
-                    "credits_used": credits_used,
-                    "credits_limit": credits_limit,
-                },
-            )
-            raise HTTPException(
-                403,
-                detail={
-                    "code": "CREDIT_LIMIT_EXCEEDED",
-                    "message": "Credit limit exceeded. Please top up or increase your limit.",
-                    "credits_used": credits_used,
-                    "credits_limit": credits_limit,
-                },
-            )
 
         # Get all files to analyze rounds
         files = await DatabaseService.get_problem_files(db, problem_id)
@@ -186,6 +139,8 @@ async def get_problem_status(
 
         # Determine if currently running
         is_running = problem['status'] == 'running'
+        
+        user = admin_db.auth.admin.get_user_by_id(problem["owner_id"])
 
         return {
             "problem": problem,
@@ -197,13 +152,14 @@ async def get_problem_status(
                 "last_updated": problem['updated_at']
             },
             "rounds": rounds,
-            "base_files": base_files
+            "base_files": base_files,
+            "user": user,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Problem status failed", extra={"event_type": "problem_status_error", "problem_name": problem_name, "error_type": type(e).__name__, "error_details": str(e)})
+        logger.error("Problem status failed", extra={"event_type": "problem_status_error", "problem_id": problem_id, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to get problem status: {str(e)}")
 
 

@@ -8,11 +8,11 @@ import type { AuthContextType } from "../contexts/AuthContext.tsx"
 
 import ThemeSelector from "../components/app/ThemeSelector.tsx"
 
-interface MyRouterContxt {
+interface MyRouterContext {
   auth: AuthContextType,
 }
 
-export const Route = createRootRouteWithContext<MyRouterContxt>()({
+export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: RootLayout,
   notFoundComponent: PageNotFound,
   /* For simplicity of this app, we require login on all pages. */

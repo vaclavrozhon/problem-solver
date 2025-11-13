@@ -40,45 +40,24 @@ export const RuntimeHistory: React.FC<RuntimeHistoryProps> = ({ status }) => {
   }
 
   return (
-    <div style={{ 
-      background: 'white',
-      padding: '16px',
-      borderRadius: '8px',
-      border: '1px solid #dee2e6',
-      marginBottom: '20px'
-    }}>
-      <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#333' }}>
+    <div>
+      <h4>
         ⏱️ Model Runtime History
       </h4>
       
-      <div style={{
-        maxHeight: '400px',
-        overflowY: 'auto',
-        paddingRight: '8px'
-      }}>
+      <div>
         {[...status.rounds].reverse().map((round, index) => {
           const roundNum = status.rounds.length - index;
           if (!round.timings) return null;
           
           return (
-            <div key={roundNum} style={{ 
-              marginBottom: '12px',
-              padding: '10px',
-              background: index === 0 ? '#e8f4fd' : '#f8f9fa',
-              border: index === 0 ? '1px solid #bee5eb' : '1px solid #e9ecef',
-              borderRadius: '4px',
-              fontSize: '12px'
-            }}>
-              <div style={{ 
-                fontWeight: 'bold', 
-                marginBottom: '6px',
-                color: index === 0 ? '#0066cc' : '#495057'
-              }}>
+            <div key={roundNum}>
+              <div>
                 Round {roundNum} {index === 0 && '(Latest)'}
               </div>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+              <div>
+                <div>
                   {(() => {
                     // Show individual prover times
                     const proverEntries = Object.entries(round.timings).filter(([key]) => key.startsWith('prover-'));
@@ -132,14 +111,7 @@ export const RuntimeHistory: React.FC<RuntimeHistoryProps> = ({ status }) => {
                 </div>
                 
                 {round.one_line_summary && (
-                  <div style={{ 
-                    flex: 1,
-                    fontSize: '11px',
-                    color: '#6c757d',
-                    fontStyle: 'italic',
-                    lineHeight: '1.4',
-                    textAlign: 'right'
-                  }}>
+                  <div>
                     {round.one_line_summary}
                   </div>
                 )}

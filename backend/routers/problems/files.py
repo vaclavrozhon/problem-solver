@@ -74,7 +74,77 @@ async def update_problem_file_by_name(
         logger.error("Update file by name failed", extra={"event_type": "file_update_error", "problem_name": problem_name, "file_type": file_type, "error_type": type(e).__name__, "error_details": str(e)})
         raise HTTPException(500, f"Failed to update file: {str(e)}")
 
+# USED in files.tsx
+# to get certain file content
+@router.get("/{problem_id}/file_by_id/{file_id}")
+async def get_problem_file_by_file_id(
+  problem_id: str,
+  file_id: str,
+  db = Depends(get_db_client)
+):
+  try:
+    # it's not really required to match both problem_id & id
+    # but now it makes more sense as its more verbose
+    file = db.table("problem_files")\
+      .select("*")\
+      .eq("problem_id", problem_id)\
+      .eq("id", file_id)\
+      .execute()
+    return file.data[0]
+  except Exception as e:
+    logger.error(f"Failed to get problem file {file_id} from DB – error: {e}")
+    raise HTTPException(500, f"Failed to get file: {e}")
 
+# USED by RoundTime.tsx
+# duplicate of the function below with param name->ID
+@router.get("/{problem_id}/files_by_id")
+async def get_problem_files_by_id(
+    problem_id: str,
+    round: Optional[int] = None,
+    file_type: Optional[str] = None,
+    user: AuthedUser = Depends(get_current_user), db = Depends(get_db_client)
+):
+    """
+    Get files for a problem, optionally filtered by round and type.
+
+    Args:
+        problem_id: Problem ID
+        round: Optional round number filter
+        file_type: Optional file type filter
+        user_id: Authenticated user ID
+
+    Returns:
+        List of matching files
+    """
+    try:
+        files = await DatabaseService.get_problem_files(db, problem_id, round, file_type)
+        return {
+            "files": files,
+            "total": len(files),
+            "filters": {
+                "round": round,
+                "file_type": file_type
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Get files failed",
+            extra={
+                "event_type": "file_list_error",
+                "problem_id": problem_id,
+                "round": round,
+                "file_type": file_type,
+                "error_type": type(e).__name__,
+                "error_details": str(e),
+            },
+        )
+        raise HTTPException(500, f"Failed to get files: {str(e)}")
+
+# USED by execution.py->get_problem_status()
+# therefore i can't change the problem_name to ID and needed to create separate identical function above
 @router.get("/{problem_name}/files")
 async def get_problem_files(
     problem_name: str,

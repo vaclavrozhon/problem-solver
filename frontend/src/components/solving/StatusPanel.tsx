@@ -110,9 +110,6 @@ export default function StatusPanel({
   const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([])
   const [credits, setCredits] = useState<{ used: number, limit: number, available: number } | null>(null)
 
-  // Round meta (timings, quick summary)
-  const [roundMeta, setRoundMeta] = useState<Array<{ round: number, one_line_summary?: string, durations: { provers_total?: number, per_prover?: Record<string, number>, verifier?: number, summarizer?: number } }>>([])
-
   // =============================================================================
   // COMPUTED VALUES
   // =============================================================================
@@ -366,51 +363,6 @@ export default function StatusPanel({
     }
   }, [availableFiles])
 
-  // Load round meta files when status or problem changes
-  useEffect(() => {
-    const loadRoundMeta = async () => {
-      try {
-        if (!problemName) { setRoundMeta([]); return }
-        const files = await getProblemFilesRaw(problemName, { file_type: 'round_meta' })
-        const metas: Array<{ round: number, one_line_summary?: string, durations: { provers_total?: number, per_prover?: Record<string, number>, verifier?: number, summarizer?: number } }> = []
-        for (const f of (files || [])) {
-          try {
-            const data = JSON.parse(f.content || '{}')
-            const r = Number(data.round || 0)
-            if (!r || r <= 0) continue
-            const stages = data.stages || {}
-            const provers = stages.provers || {}
-            const perProver: Record<string, number> = {}
-            let proversTotal = 0
-            Object.keys(provers).forEach(k => {
-              const d = Number((provers[k]?.duration_s) || 0)
-              perProver[k] = d
-              proversTotal += d
-            })
-            const meta = {
-              round: r,
-              one_line_summary: data.one_line_summary,
-              durations: {
-                provers_total: proversTotal > 0 ? proversTotal : undefined,
-                per_prover: perProver,
-                verifier: Number(stages.verifier?.duration_s || 0) || undefined,
-                summarizer: Number(stages.summarizer?.duration_s || 0) || undefined,
-              }
-            }
-            metas.push(meta)
-          } catch (e) {
-            // ignore malformed meta
-          }
-        }
-        metas.sort((a,b) => b.round - a.round)
-        setRoundMeta(metas)
-      } catch (e) {
-        setRoundMeta([])
-      }
-    }
-    loadRoundMeta()
-  }, [problemName, status?.overall?.current_round])
-
   // =============================================================================
   // RENDER HELPERS
   // =============================================================================
@@ -471,23 +423,12 @@ export default function StatusPanel({
 
         {/* Error display */}
         {status.overall.error && (
-          <div style={{ 
-            marginBottom: '16px',
-            padding: '12px',
-            background: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '4px'
-          }}>
-            <div style={{ marginBottom: '8px', fontWeight: 'bold', color: '#c00' }}>❌ Error:</div>
+          <div>
+            <div >❌ Error:</div>
             
             {/* Show component and phase if available */}
             {(status.overall.error_component || status.overall.error_phase) && (
-              <div style={{ 
-                marginBottom: '8px', 
-                fontSize: '12px', 
-                color: '#666',
-                fontWeight: 'bold'
-              }}>
+              <div>
                 {status.overall.error_component && (
                   <span>Component: {status.overall.error_component}</span>
                 )}
@@ -498,7 +439,7 @@ export default function StatusPanel({
               </div>
             )}
             
-            <div style={{ fontSize: '13px', color: '#800', whiteSpace: 'pre-wrap' }}>
+            <div>
               {status.overall.error}
             </div>
           </div>
@@ -506,19 +447,9 @@ export default function StatusPanel({
 
         {/* Progress bar */}
         {problemInfo.totalRounds > 0 && isRunning && (
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ 
-              height: '4px', 
-              background: '#e9ecef', 
-              borderRadius: '2px',
-              overflow: 'hidden'
-            }}>
-              <div style={{ 
-                width: `${progress}%`, 
-                height: '100%', 
-                background: '#007bff',
-                transition: 'width 0.3s'
-              }}></div>
+          <div >
+            <div>
+              <div></div>
             </div>
           </div>
         )}
@@ -640,15 +571,7 @@ export default function StatusPanel({
             max={10}
             value={runConfig.provers} 
             onChange={e => updateRunConfig({ provers: parseInt(e.target.value || '1') })}
-            disabled={!canStart}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          />
+            disabled={!canStart}/>
         </div>
       </div>
 
@@ -664,20 +587,11 @@ export default function StatusPanel({
           placeholder="Describe what the prover and verifier should focus on during this round (e.g., 'Focus on the algorithmic complexity analysis', 'Pay special attention to edge cases')"
           disabled={!canStart}
           rows={3}
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: '1px solid #ced4da',
-            borderRadius: '4px',
-            fontSize: '14px',
-            resize: 'vertical',
-            fontFamily: 'inherit'
-          }}
           data-gramm="false"
           data-gramm_editor="false"
           data-enable-grammarly="false"
         />
-        <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+        <div>
           This description will be included in the prompts for all provers and the verifier to help guide their analysis.
         </div>
       </div>
@@ -686,8 +600,8 @@ export default function StatusPanel({
 
 
       {/* Prover Configurations */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>
+        <div>
+          <label>
             Prover Configurations
           </label>
           <div style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'auto' }}>
@@ -702,16 +616,11 @@ export default function StatusPanel({
         </div>
 
       {/* Verifier Configuration */}
-      <div style={{ marginBottom: '16px' }}>
+      <div>
         <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>
           Verifier Configuration
         </label>
-        <div style={{ 
-          background: '#f8f9fa',
-          border: '1px solid #dee2e6',
-          borderRadius: '4px',
-          padding: '12px'
-        }}>
+        <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', alignItems: 'center' }}>
             {/* Verifier label */}
             <div style={{ fontWeight: '500', fontSize: '14px' }}>
@@ -948,71 +857,19 @@ export default function StatusPanel({
       </div>
 
       {/* Runtime History */}
+      {/* I HAVE NO IDEA WHAT THIS IS?????? */}
       {status && <RuntimeHistory status={status} />}
-
-      {/* Round Meta Timings */}
-      {roundMeta.length > 0 && (
-        <div style={{ 
-          background: 'white',
-          padding: '16px',
-          borderRadius: '8px',
-          border: '1px solid #dee2e6',
-          marginTop: '20px'
-        }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#333' }}>
-            ⏱ Round timings and summaries
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {roundMeta.map(meta => (
-              <div key={meta.round} style={{ padding: '8px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '6px' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Round {meta.round}</div>
-                <div style={{ fontSize: '12px', color: '#555', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                  <span>Provers: {meta.durations.provers_total ? `${meta.durations.provers_total.toFixed(1)}s` : '—'}</span>
-                  <span>Verifier: {meta.durations.verifier ? `${meta.durations.verifier.toFixed(1)}s` : '—'}</span>
-                  <span>Summarizer: {meta.durations.summarizer ? `${meta.durations.summarizer.toFixed(1)}s` : '—'}</span>
-                </div>
-                {meta.one_line_summary && (
-                  <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
-                    “{meta.one_line_summary}”
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Configuration form - only show when not running */}
       {!isRunning && renderRunConfiguration()}
 
       {/* Action buttons */}
-      <div style={{
-        background: 'white',
-        padding: '16px',
-        borderRadius: '8px',
-        border: '1px solid #dee2e6'
-      }}>
-        <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#333' }}>
+      <div>
+        <h4>
           🎮 Actions
         </h4>
         {renderActionButtons()}
       </div>
-
-      {/* Loading indicator */}
-      {(loading || localLoading) && (
-        <div style={{ 
-          marginTop: '16px', 
-          padding: '12px',
-          background: '#fff3cd',
-          border: '1px solid #ffeaa7',
-          borderRadius: '4px',
-          fontSize: '13px',
-          color: '#856404',
-          textAlign: 'center'
-        }}>
-          ⏳ Processing...
-        </div>
-      )}
     </div>
   )
 }

@@ -109,6 +109,12 @@ export default function FilesList({ problem_id }: Props) {
               <ShowFiles files={files.rounds[curr_round - 1].summarizer!}/>
             </>
           )}
+          {files.rounds[curr_round - 1].metadata && (
+            <>
+              <h4>Metadata</h4>
+              <ShowFiles files={files.rounds[curr_round - 1].metadata!}/>
+            </>
+          )}
         </FilesGroup>
       )}
     </List>

@@ -14,6 +14,7 @@ import { Route as CreateRouteImport } from "./routes/create"
 import { Route as ArchiveRouteImport } from "./routes/archive"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as ProblemProblem_idIndexRouteImport } from "./routes/problem/$problem_id/index"
+import { Route as ProblemProblem_idResearchRouteImport } from "./routes/problem/$problem_id/research"
 import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
 import { Route as ProblemProblem_idConversationsRouteImport } from "./routes/problem/$problem_id/conversations"
 
@@ -42,6 +43,12 @@ const ProblemProblem_idIndexRoute = ProblemProblem_idIndexRouteImport.update({
   path: "/problem/$problem_id/",
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProblemProblem_idResearchRoute =
+  ProblemProblem_idResearchRouteImport.update({
+    id: "/problem/$problem_id/research",
+    path: "/problem/$problem_id/research",
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProblemProblem_idFilesRoute = ProblemProblem_idFilesRouteImport.update({
   id: "/problem/$problem_id/files",
   path: "/problem/$problem_id/files",
@@ -61,6 +68,7 @@ export interface FileRoutesByFullPath {
   "/login": typeof LoginRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
   "/problem/$problem_id": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRoutesByTo {
@@ -70,6 +78,7 @@ export interface FileRoutesByTo {
   "/login": typeof LoginRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
   "/problem/$problem_id": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRoutesById {
@@ -80,6 +89,7 @@ export interface FileRoutesById {
   "/login": typeof LoginRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
+  "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
   "/problem/$problem_id/": typeof ProblemProblem_idIndexRoute
 }
 export interface FileRouteTypes {
@@ -91,6 +101,7 @@ export interface FileRouteTypes {
     | "/login"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
+    | "/problem/$problem_id/research"
     | "/problem/$problem_id"
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -100,6 +111,7 @@ export interface FileRouteTypes {
     | "/login"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
+    | "/problem/$problem_id/research"
     | "/problem/$problem_id"
   id:
     | "__root__"
@@ -109,6 +121,7 @@ export interface FileRouteTypes {
     | "/login"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
+    | "/problem/$problem_id/research"
     | "/problem/$problem_id/"
   fileRoutesById: FileRoutesById
 }
@@ -119,6 +132,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
+  ProblemProblem_idResearchRoute: typeof ProblemProblem_idResearchRoute
   ProblemProblem_idIndexRoute: typeof ProblemProblem_idIndexRoute
 }
 
@@ -159,6 +173,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ProblemProblem_idIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/problem/$problem_id/research": {
+      id: "/problem/$problem_id/research"
+      path: "/problem/$problem_id/research"
+      fullPath: "/problem/$problem_id/research"
+      preLoaderRoute: typeof ProblemProblem_idResearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/problem/$problem_id/files": {
       id: "/problem/$problem_id/files"
       path: "/problem/$problem_id/files"
@@ -183,6 +204,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,
+  ProblemProblem_idResearchRoute: ProblemProblem_idResearchRoute,
   ProblemProblem_idIndexRoute: ProblemProblem_idIndexRoute,
 }
 export const routeTree = rootRouteImport

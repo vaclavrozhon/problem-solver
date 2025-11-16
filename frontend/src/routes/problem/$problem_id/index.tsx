@@ -105,7 +105,7 @@ const ProblemStatus = styled.div`
         }
       }
     }
-    &.completed, &.running {
+    &.completed, &.running, &.failed {
       color: var(--special-color);
       border-color: var(--special-color);
       & p.value {
@@ -117,6 +117,9 @@ const ProblemStatus = styled.div`
     }
     &.running {
       --special-color: #e0853b;
+    }
+    &.failed {
+      --special-color: #e02525;
     }
   }
 `

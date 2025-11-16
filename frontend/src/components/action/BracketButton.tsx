@@ -2,6 +2,7 @@ import React from "react"
 import { styled } from "@linaria/react"
 
 const Button = styled.button`
+  align-self: flex-start;
   position: relative;
   display: inline-flex;
   font-weight: 500;
@@ -32,12 +33,14 @@ const Button = styled.button`
 interface Props extends React.PropsWithChildren {
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean,
+  type?: "button" | "submit"
 }
 
-export default function BracketButton({ onClick, children, disabled = false }: Props) {
+export default function BracketButton({ onClick, children, disabled = false, type = "button" }: Props) {
   return (
     <Button onClick={onClick}
-      disabled={disabled}>
+      disabled={disabled}
+      type={type}>
       <span>[</span>
       {children}
       <span>]</span>

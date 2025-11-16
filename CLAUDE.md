@@ -1,2 +1,0 @@
-- README contains relevant info for the project. Read it regularly, and if we add a new feature, update it.
-- details about the database are in DATABASE.md

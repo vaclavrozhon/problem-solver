@@ -26,6 +26,7 @@ export interface ProblemFiles {
 }
 
 // TODO: I could migrate this logic to backend so that we just get the data ready to go   
+// TODO: also fix this function... it leaks metadata files so that it still remains in the prover/verifier/summarizer section even though its included in the metadata
 export function format_raw_files_data(files: File[]) {
   let file_list: ProblemFiles = {
     task: files.filter(file => file.file_type === "task")[0],

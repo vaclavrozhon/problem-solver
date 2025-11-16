@@ -2,7 +2,10 @@ import ReactMarkdown from "react-markdown"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
 
-export default function MathMarkdown({ md }: { md: string}) {
+interface Props {
+  md: string,
+}
+export default function MathMarkdown({ md }: Props) {
   return (
     <ReactMarkdown
       children={md}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { styled } from "@linaria/react"
 import Markdown from "../Markdown"
 import BracketButton from "../action/BracketButton"
+import { useMathJax } from "../../utils/hooks"
 
 interface Props {
   rounds: ResearchRound[],
@@ -23,31 +24,66 @@ interface ResearchRound {
   verdict: string,
 }
 
+interface ConversationConfig {
+  title: string,
+  content: string | {
+    name: string,
+    content: string
+  }[],
+  verdict?: string,
+  raw: boolean,
+  math_renderer: "KaTeX" | "MathJax"
+}
+
 // NOTE: Switching to different round/prover is slow because Markdown rendering is slow
 export default function ProblemRounds({ rounds }: Props) {
   const [curr_round, setCurrRound] = useState(rounds.length - 1)
   const [expanded, setExpanded] = useState<number | null>(null)
-  const [setup, setSetup] = useState<{title: string, content: string | {name: string, content: string}[], verdict?: string }[]>([])
-
-  console.log("rounds", rounds)
+  const [conversation, setConversation] = useState<ConversationConfig[]>([
+    {
+      title: "🤖 Prover",
+      content: rounds[curr_round].provers,
+      raw: false,
+      math_renderer: "KaTeX",
+    },
+    {
+      title: "🔍 Verifier",
+      content: rounds[curr_round].verifier,
+      raw: false,
+      math_renderer: "KaTeX",
+    },
+    {
+      title: "📝 Summary",
+      content: rounds[curr_round].summary,
+      verdict: rounds[curr_round].verdict,
+      raw: false,
+      math_renderer: "KaTeX",
+    }
+  ])
 
   useEffect(() => {
-    setSetup([
-        {
-          title: "🤖 Prover",
-          content: rounds[curr_round].provers,
-        },
-        {
-          title: "🔍 Verifier",
-          content: rounds[curr_round].verifier,
-        },
-        {
-          title: "📝 Summary",
-          content: rounds[curr_round].summary,
-          verdict: rounds[curr_round].verdict,
-        }
-    ])
+    setConversation(cnvs => {
+      cnvs[0].content = rounds[curr_round].provers
+      cnvs[1].content = rounds[curr_round].verifier
+      cnvs[2].content = rounds[curr_round].summary
+      cnvs[2].verdict = rounds[curr_round].verdict
+      return [...cnvs]
+    })
   }, [curr_round])
+
+  function switchFormatting(cnv_index: number) {
+    setConversation(cnv => cnv.map((col, i) => {
+      if (i === cnv_index) return { ...col, raw: !col.raw }
+      return col
+    }))
+  }
+
+  function switchMathRendering(cnv_index: number) {
+    setConversation(cnv => cnv.map((col, i) => {
+      if (i === cnv_index) return { ...col, math_renderer: col.math_renderer === "KaTeX" ? "MathJax" : "KaTeX" }
+      return col
+    }))
+  }
 
   return (
     <RoundsSection>
@@ -68,15 +104,19 @@ export default function ProblemRounds({ rounds }: Props) {
       <Conversations>
         {expanded === null ? (
           <>
-            {setup.map((conversation, i) => (
+            {conversation.map((conversation, i) => (
               <Conversation conversation={conversation}
                 onExpand={() => setExpanded(i)}
+                onSwitchFormatting={() => switchFormatting(i)}
+                onSwitchMathRendering={() => switchMathRendering(i)}
                 key={conversation.title}/>
             ))}
           </>
         ) : (
-          <Conversation conversation={setup[expanded]}
+          <Conversation conversation={conversation[expanded]}
             expanded
+            onSwitchFormatting={() => switchFormatting(expanded)}
+            onSwitchMathRendering={() => switchMathRendering(expanded)}
             onShrink={() => setExpanded(null)}/>
         )}
       </Conversations>
@@ -117,17 +157,15 @@ const RoundsSection = styled.section`
 `
 
 interface ConversationProps {
-  conversation: {
-    title: string,
-    content: string | { name: string, content: string }[],
-    verdict?: string,
-  },
+  conversation: ConversationConfig,
   onExpand?: () => void,
   onShrink?: () => void,
   expanded?: boolean,
+  onSwitchFormatting?: () => void,
+  onSwitchMathRendering?: () => void,
 }
 
-function Conversation({ conversation: { title, content, verdict }, expanded, onExpand, onShrink }: ConversationProps) {
+function Conversation({ conversation, conversation: { content, verdict }, expanded, onExpand, onShrink, onSwitchFormatting, onSwitchMathRendering }: ConversationProps) {
   const [curr_prover, setCurrProver] = useState(0)
 
   // NOTE: possible verdicts are specified in prompt verifier.md
@@ -142,10 +180,18 @@ function Conversation({ conversation: { title, content, verdict }, expanded, onE
     setCurrProver(0)
   }, [content])
 
+  // const { scriptLoaded: mathjaxLoaded, typeset } = useMathJax(conversation.math_renderer === "MathJax")
+  // TODO: possibly make the mathjax hook work
+  useEffect(() => {
+    // if (mathjaxLoaded) typeset();
+    MathJax.typesetPromise()
+  }, [conversation.math_renderer, conversation.raw]);
+  // }, [mathjaxLoaded, typeset, conversation.math_renderer, conversation.raw]);
+
   return (
     <ConversationCol>
       <ConversationHeader>
-        <h3>{title}</h3>
+        <h3>{conversation.title}</h3>
         {expanded === true ? (
           <BracketButton onClick={onShrink}>Shrink</BracketButton>
         ) : (
@@ -156,6 +202,17 @@ function Conversation({ conversation: { title, content, verdict }, expanded, onE
         <p className="not_available">Not available.</p>
       ) : (
         <>
+          <ConversationHeader>
+            <h4>⚙️ Settings</h4>
+            <BracketButton>Show Prompt</BracketButton>
+            <BracketButton onClick={onSwitchFormatting}>
+              {conversation.raw ? "Formatted" : "RAW"}
+            </BracketButton>
+            <BracketButton onClick={onSwitchMathRendering}
+              disabled={conversation.raw}>
+              Switch to {conversation.math_renderer === "KaTeX" ? "MathJax" : "KaTeX"}
+            </BracketButton>
+          </ConversationHeader>
           {Array.isArray(content) ? (
             <>
               {content.length > 1 && (
@@ -169,7 +226,12 @@ function Conversation({ conversation: { title, content, verdict }, expanded, onE
                   ))}
                 </ConversationDetails>
               )}
-              <Markdown md={content[curr_prover]?.content}/>
+              {conversation.raw ? (
+                <pre>{content[curr_prover].content}</pre>
+              ) : (
+                <Markdown md={content[curr_prover].content}
+                  render_math={conversation.math_renderer === "KaTeX"}/>
+              )}
             </>
           ) : (
             <>
@@ -180,7 +242,12 @@ function Conversation({ conversation: { title, content, verdict }, expanded, onE
                   </p>
                 </ConversationDetails>
               )}
-              <Markdown md={content}/>
+              {conversation.raw ? (
+                <pre>{content}</pre>
+              ) : (
+                <Markdown md={content}
+                  render_math={conversation.math_renderer === "KaTeX"}/>
+              )}
             </>
           )}
         </>
@@ -223,12 +290,19 @@ const ConversationCol = styled.div`
   & p.not_available {
     padding: .6rem;
   }
+  & pre {
+    padding: 1rem;
+  }
 `
 
 const ConversationHeader = styled.header`
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
+  gap: .2rem .4rem;
   border-bottom: var(--border-alpha);
   padding: .3rem .6rem;
+  & h3, h4 {
+    margin-right: auto;
+  }
 `

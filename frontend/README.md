@@ -20,7 +20,7 @@
   - Also, you can't really get exact values for prices. It's all just estimates. To estimate the price, throw the final prompt into tokenizer `tiktoken` which will closely give us the number of tokens and then multiply that by fixed pricing per tokens for given model.
   - [ ] In the future, have a look if e.g. Claude or Google Gemini allow these credits to be shown directly. (After we start using other models)
 - [ ] Debug research part
-- [ ] Markdown support for research
+- [x] Markdown support for research
 - [ ] Have a look at the auth (seems weird)
   - [x] Make protected routes work again after migrating to `@tanstack/react-router`
   - [x] Rewrite login page
@@ -39,4 +39,15 @@
   - [ ] maybe also add the option to search when we have a lot of them
   - [ ] the ability to filter by own
 - [ ] Conversations
-  - [ ] Could probably add the feature the view the prompt used to generate given conversation column.
+  - [ ] Could probably add the feature to view the prompt used to generate given conversation column
+- [ ] add time out option 20 minutes per prover, also add option to configure to this time
+- [ ]  button to resume the run aka rerun it from the point where it failed
+	- [ ]  so probably make the whole run more segmeneted and describe each steap in more detail
+- [ ] mathjax option for broken rendering (e. g. problem_id=220)
+  - [ ] fix mathjax hook mounting/unmounting script
+- [ ] in the future, add the paper upload/attach to problem option
+- [ ] investigate verified feedback if gets fed into next provers and also display it
+- [ ] add file explorer current round, current prover to url
+- [ ] either start using trpc or start using tanstack-query everywhere... these two can't be combined, right?
+- [ ] Render advice used in generating given Conversation column above the response.
+- [ ] Add the ability to see thinking process of the llm. It should be in the metadata.

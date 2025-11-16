@@ -10,7 +10,8 @@ interface LayoutProps {
 
 export default function ProblemDetailsLayout({ problem_id, problem_name, children }: LayoutProps) {
   const tabs = [
-    { name: "Overview", link: "/problem/$problem_id" },
+    { name: "Overview", link: "/problem/$problem_id", index: true },
+    { name: "Run research", link: "/problem/$problem_id/research" },
     { name: "Conversations", link: "/problem/$problem_id/conversations" },
     { name: "Files", link: "/problem/$problem_id/files" },
   ]
@@ -27,7 +28,7 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
         {tabs.map(tab => (
           <Link to={tab.link}
             params={{ problem_id }}
-            activeOptions={{ exact: true }}
+            activeOptions={{ exact: !!tab.index }}
             key={tab.link}>{tab.name}</Link>
         ))}
       </ProblemTabs>

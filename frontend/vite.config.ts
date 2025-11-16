@@ -20,8 +20,10 @@ export default defineConfig({
     wyw(),
   ],
   envDir: "../", // Look for .env files in the parent directory
+  publicDir: "static",
   server: {
     port: FRONTEND_PORT,
+    // TODO: what's the purpose of this?
     proxy: {
       // Proxy API requests to the backend
       "/auth": {

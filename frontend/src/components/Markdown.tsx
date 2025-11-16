@@ -1,16 +1,28 @@
 import { styled } from "@linaria/react"
 
 import RawMarkdown from "./RawMarkdown"
+import ReactMarkdown from "react-markdown"
 
-export default function MathMarkdown({ md }: { md: string}) {
+interface Props {
+  md: string,
+  render_math?: boolean,
+}
+export default function MathMarkdown({ md, render_math = true }: Props) {
   return (
     <MarkdownContent>
-      <RawMarkdown md={md}/>
+      {render_math ? (
+        <RawMarkdown md={md}/>
+      ) : (
+        // em needs to be disallowed becuase ... _ ... _ ... in latex code inside $ ... $ can trigger rendering bug
+        <ReactMarkdown children={md}
+          disallowedElements={["em"]}/>
+      )}
     </MarkdownContent>
   )
 }
 
 const MarkdownContent = styled.article`
+  font-family: SourceSerif;
   display: flex;
   flex-flow: column;
   gap: 15px;

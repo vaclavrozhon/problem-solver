@@ -14,8 +14,19 @@ import Markdown from "../../../components/Markdown"
 export const Route = createFileRoute("/problem/$problem_id/files")({
   component: ProblemFilesInitial,
   validateSearch: (search: Record<string, string>) => {
-    let num =  Number(search.file_id) || -1 // can't have file_id set to 0 in db
-    return { file_id: num >= -1 ? num : -1 }
+    // can't have file_id set to 0 in db
+    let field_id =  Number(search.file_id) || -1
+    // TODO: implement this after we write new backend
+    // both provers and rounds needs to be at least 1
+    // if it's higher than number of rounds/provers, then we replace current url to the highest num in the FilesList compoents
+    // when the value is equal to 0, it means we want the latest prover/round
+    // let round_num = Number(search.round) || 0
+    // let prover_num = Number(search.prover) || 0
+    return {
+      file_id: field_id >= -1 ? field_id : -1,
+      // round: round_num >= 1 ? round_num : 0,
+      // prover: prover_num >= 1 ? prover_num : 0,
+    }
   }  
 })
 
@@ -87,8 +98,8 @@ function ProblemFilesInitial() {
               <FileContent>
                 <h2>{data["file_name"]}</h2>
                 <div>
-                  {/* <BracketButton onClick={() => setCurrView("formatted")}
-                    disabled={curr_view === "formatted"}>File Content Formatted</BracketButton> */}
+                  <BracketButton onClick={() => setCurrView("formatted")}
+                    disabled={curr_view === "formatted"}>File Content Formatted</BracketButton>
                   <BracketButton onClick={() => setCurrView("raw")}
                     disabled={curr_view === "raw"}>RAW</BracketButton>
                   <BracketButton onClick={() => setCurrView("db_entry")}

@@ -49,11 +49,11 @@ const RunResearchConfigSchema = z.object({
 function RunNewResearchPage() {
   const { problem_id } = Route.useParams()
   const [selected_prompt, setSelectedPrompt] = useState<"prover" | "verifier" | "summarizer">("prover")
-  const prompts = {
-    prover: "example prover value",
-    verifier: "VERIFY THIS ",
-    summarizer: "and this is summa summarum",
-  }
+  const [prompts, setPrompts] = useState({
+    prover: "",
+    verifier: "Verify this!",
+    summarizer: "Summa summarum!",
+  })
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
@@ -73,6 +73,19 @@ function RunNewResearchPage() {
 
   return (
     <DetailsLayout problem_id={problem_id}>
+      <div className={css`
+          background: yellow;
+          color: black;
+          padding: 2rem;
+          font-weight: 600;
+          border: 6px solid black;
+          & span {
+            text-decoration: underline;
+          }
+        `}>
+        <p>THIS IS JUST INTERFACE PREVIEW AND IS NOT YET CONNECTED TO THE BACKEND. <span>DO NOT USE!</span></p>
+      </div>
+
       <h2 className={css`
         padding: 1rem;
       `}>⚙️ New run configuration</h2>
@@ -121,18 +134,21 @@ function RunNewResearchPage() {
                     <p>Model</p>
                   </div>
                   {Array.from({ length: provers_count }, (_, i) => (
-                    <div key={i}>
-                      <p>Prover {i + 1}</p>
+                    <>
                       <input {...register(`provers.list.${i}.num`)}
                         defaultValue={i + 1}
                         type="hidden"/>
-                      <textarea {...register(`provers.list.${i}.advice`)}
-                        placeholder="Describe what this prover should focus on..."
-                        rows={2}/>
-                      <select {...register(`provers.list.${i}.model`)}>
-                        <option value="GPT5">GPT-5</option>
-                      </select>
-                    </div>
+                      <div key={i}>
+                        <p>Prover {i + 1}</p>
+                        <textarea {...register(`provers.list.${i}.advice`)}
+                          placeholder="Describe what this prover should focus on..."
+                          rows={2}/>
+                        <select {...register(`provers.list.${i}.model`)}>
+                          <option value="GPT5">GPT-5</option>
+                          <option value="Gemini3">Gemini 3</option>
+                        </select>
+                      </div>
+                    </>
                   ))}
                 </ProversConfig>
                 <p>The General Advice is included in prompt for all provers. Additionally, you can give each prover some indiviual advice on top of the General Advice. (So that each prover focuses on something else – or leave it empty.) Both advices will be included in the prompt.</p>
@@ -171,6 +187,7 @@ function RunNewResearchPage() {
           </ConfigSection>
 
         </section>
+
         <PromptSection>
           <h3>Prompts config</h3>
           <div>
@@ -308,6 +325,8 @@ const PromptSection = styled.section`
       &.selected {
         background: var(--bg-delta);
         color: var(--text-beta);
+        outline: 2px solid var(--text-alpha);
+        pointer-events: none;
       }
     }
   }

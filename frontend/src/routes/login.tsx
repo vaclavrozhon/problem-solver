@@ -51,7 +51,7 @@ export default function LoginPage() {
           onInput={e => setEmail(e.target.value)}/>
         <TextInput name="password" label="PASSWORD" type="password"
           onInput={e => setPassword(e.target.value)}/>
-        <BracketButton>Sign In with Email & Password</BracketButton>
+        <BracketButton type="submit">Sign In with Email & Password</BracketButton>
         {message && (
           <p className="form-message">
             <span>ERROR</span>

@@ -23,33 +23,5 @@ export default defineConfig({
   publicDir: "static",
   server: {
     port: FRONTEND_PORT,
-    // TODO: what's the purpose of this?
-    proxy: {
-      // Proxy API requests to the backend
-      "/auth": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      "/problems": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      "/drafts": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      "/tasks": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      "/healthz": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      "/readyz": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      }
-    }
   }
 })

@@ -1,14 +1,14 @@
-import { createRootRouteWithContext, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router"
-import { useAuth } from "../contexts/AuthContext.tsx"
-import PageNotFound from "../pages/404.tsx"
+import { createRootRouteWithContext, Link, Outlet, redirect, useNavigate, RootRoute } from "@tanstack/react-router"
+import { useAuth } from "../contexts/AuthContext"
+import PageNotFound from "../pages/404"
 
 import { styled } from "@linaria/react"
-import BracketButton from "../components/action/BracketButton.tsx"
-import type { AuthContextType } from "../contexts/AuthContext.tsx"
+import BracketButton from "../components/action/BracketButton"
+import type { AuthContextType } from "../contexts/AuthContext"
 
-import ThemeSelector from "../components/app/ThemeSelector.tsx"
+import ThemeSelector from "../components/app/ThemeSelector"
 
-interface MyRouterContext {
+export interface MyRouterContext {
   auth: AuthContextType,
 }
 

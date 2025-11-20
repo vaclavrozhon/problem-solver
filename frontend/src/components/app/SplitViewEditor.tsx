@@ -2,16 +2,18 @@ import { useState, useEffect } from "react"
 import { styled } from "@linaria/react"
 
 import CodeMirror from "@uiw/react-codemirror"
+import { EditorView } from "@uiw/react-codemirror"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { tokyoNight } from "@uiw/codemirror-theme-tokyo-night"
 import Markdown from "../Markdown"
 
 interface Props {
   md?: string,
+  placeholder?: string,
   onChange?: (new_value: string) => void,
 }
-const code_mirror_extension = [markdown({ base: markdownLanguage })]
-export default function SplitViewEditor({ md = "", onChange }: Props) {
+const code_mirror_extension = [markdown({ base: markdownLanguage }), EditorView.lineWrapping]
+export default function SplitViewEditor({ md = "", onChange, placeholder = "" }: Props) {
   const [editor_content, setEditorContent] = useState(md)
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function SplitViewEditor({ md = "", onChange }: Props) {
           theme={tokyoNight}
           value={editor_content}
           extensions={code_mirror_extension}
-          placeholder={`Please write your Markdown & KaTeX here.
+          placeholder={placeholder || `Please write your Markdown & KaTeX here.
 
 To use inline math, just write it like this: $y = x^2$.
 
@@ -53,7 +55,7 @@ so don't feel forced to use it.
 ### ...
 
 - list item 1
-// - list item 2
+- list item 2
 - ...
           `}/>
       </div>
@@ -80,6 +82,9 @@ const SplitViewSection = styled.section`
     }
     & .cm-editor {
       height: 30rem !important;
+    }
+    & .cm-focused {
+      outline: none !important;
     }
     & > p {
       font-family: Kode;

@@ -1,0 +1,2 @@
+- If you update possible verdicts in prompt `verifier.md`, you need to update it in `components/proble/Rounds.tsx`
+- If you update criteria for form inputs in either `routes/login.tsx`, `routes/create.tsx`, you need to update the criteria in backend.

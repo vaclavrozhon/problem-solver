@@ -1,0 +1,142 @@
+import { createRootRouteWithContext, Link, Outlet, redirect, useNavigate, RootRoute } from "@tanstack/react-router"
+import { useAuth } from "../contexts/AuthContext"
+import PageNotFound from "../pages/404"
+
+import { styled } from "@linaria/react"
+import BracketButton from "../components/action/BracketButton"
+import type { AuthContextType } from "../contexts/AuthContext"
+
+import ThemeSelector from "../components/app/ThemeSelector"
+
+export interface MyRouterContext {
+  auth: AuthContextType,
+}
+
+export const Route = createRootRouteWithContext<MyRouterContext>()({
+  component: RootLayout,
+  notFoundComponent: PageNotFound,
+  /* For simplicity of this app, we require login on all pages. */
+  beforeLoad: async ({ context, location }) => {
+    let auth
+    // i know this check isn't ideal but it works for us rn
+    // proper implementation should add new property 'firstLoad'
+    // which we would need to update and check and i dont want
+    // to make it more complex than currently needed
+    if (context.auth.user === null) {
+      // This promise workaround is for first log in while the page is loading and the auth is fetching from supabase. Any other time auth updates, we launch redirects manually already at the time when the auth is updated and the data in promise is old
+      auth = await context.auth.loadAuth.promise
+    } else {
+      auth = context.auth
+    }
+    if (location.href === "/login") {
+      if (auth.isAuthenticated) throw redirect({ to: "/" })
+    } else {
+      if (!auth.isAuthenticated) throw redirect({ to: "/login" })
+    }
+  }
+})
+
+function RootLayout() {
+  const { user, signOut, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+
+  async function signOutAndRedirect() {
+    const result = await signOut()
+    if (result === "error") throw "erorr happend"
+    navigate({ to: "/login" })
+  }
+
+  return isAuthenticated ? (
+    <PageContent>
+      <Header>
+        <p>🔬 Automatic Researcher</p>
+        <Nav>
+          <Link to="/">Overview</Link>
+          <Link to="/archive" preload="intent">Archive</Link>
+          <Link to="/create">Create Problem</Link>
+          <a href="https://docs.google.com/document/d/1WS9RQYO7gGlbYph6ZW0xk-Nr6NcUz78mzzjY_l0ulAo/edit?usp=sharing"
+            target="_blank">Shared Notes</a>
+        </Nav>
+      </Header>
+
+      <Outlet/>
+
+      <Footer>
+        <div><ThemeSelector/></div>
+        <p>Page was loaded at {(new Date()).toLocaleTimeString()}</p>
+        {}
+        <p>Logged in as {user?.email}</p>
+        {/* TODO: show current balance or something */}
+        {/* <p>Credits: {100}</p> */}
+        <p>
+          <BracketButton onClick={signOutAndRedirect}>Sign Out</BracketButton>
+        </p>
+      </Footer>
+    </PageContent>
+  ) : (
+    <PageContent>
+      <Header>
+        <p>🔬 Automatic Researcher</p>
+      </Header>
+
+      <Outlet/>
+
+      {/* TODO: If we decide to publish this project, we should add some basic info here like who made it etc. */}
+    </PageContent>
+  )
+}
+
+const PageContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-flow: column;
+`
+
+const Header = styled.header`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .6rem 1rem;
+  border-bottom: var(--border-alpha);
+  & p {
+    color: var(--text-beta);
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+`
+
+const Nav = styled.nav`
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  & a {
+    &:hover:not(.active) {
+      text-decoration: underline;
+    }
+    &.active {
+      color: var(--text-beta);
+      font-weight: 600;
+    }
+  }
+`
+
+const Footer = styled.footer`
+  display: flex;
+  /* justify-content: center; */
+  border-top: var(--border-alpha);
+  & div {
+    padding: 0 .2rem;
+  }
+  & p {
+    padding: .4rem .6rem;
+  }
+  & div, p {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    &:not(:last-child) {
+      border-right: var(--border-alpha);
+    }
+  }
+`

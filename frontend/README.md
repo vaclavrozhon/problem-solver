@@ -51,3 +51,5 @@
 - [ ] either start using trpc or start using tanstack-query everywhere... these two can't be combined, right?
 - [ ] Render advice used in generating given Conversation column above the response.
 - [ ] Add the ability to see thinking process of the llm. It should be in the metadata.
+- [ ] I added ESLint and somehow configured but i don't even know if it's being used somehow. should investigate, possibly remove it, idk its weird
+- [ ] Add Thinking process details for prover.

@@ -1,7 +1,7 @@
-import { StrictMode, useEffect, useRef } from "react"
+import { StrictMode, useEffect } from "react"
 import ReactDOM from "react-dom/client"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { useAuth, AuthProvider, AuthContextType } from "./contexts/AuthContext.tsx"
+import { useAuth, AuthProvider, AuthContextType } from "./contexts/AuthContext"
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 
 import "./styles/global.css"

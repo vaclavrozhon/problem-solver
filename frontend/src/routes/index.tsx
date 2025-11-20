@@ -3,24 +3,24 @@ import { styled } from "@linaria/react"
 import { useQuery } from "@tanstack/react-query"
 import BracketLink from "../components/action/BracketLink"
 
-import { getAllProblemsStatus } from '../api'
+import { get_users_problems } from "../api/problems"
 
 // TODO: add like 30s refresh for checking on the problems
 export const Route = createFileRoute("/")({ component: OverviewPage })
 function OverviewPage() {
   let { data: problems, error, isPending, isError } = useQuery({
     queryKey: ["my_problems"],
-    queryFn: getAllProblemsStatus
+    queryFn: get_users_problems
   })
 
   
   if (isPending) return <MainContent><p>Loading problems...</p></MainContent>
-  if (isError) return <MainContent><p>Error occurred: {JSON.stringify(error)}</p></MainContent>
+  if (isError || !problems) return <MainContent><p>Error occurred: {JSON.stringify(error)}</p></MainContent>
   
-  problems.sort((a, b) => (new Date(b.overall.last_updated)) - (new Date(a.overall.last_updated)))
+  problems.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))
 
-  const currently_running_problems_count = problems.filter(p => p.overall.is_running && p.overall.phase !== "idle").length
-  const total_rounds_count = problems.reduce((sum, p) => sum + p.overall.current_round || 0, 0)
+  const currently_running_problems_count = problems.filter(p => p.is_running && p.phase !== "idle").length
+  const total_rounds_count = problems.reduce((sum, p) => sum + (p.current_round ?? 0), 0)
 
   return (
     <MainContent>
@@ -54,14 +54,14 @@ function OverviewPage() {
             </ProblemRow>
             <ProblemsTable>
               {problems.map(p => (
-                <ProblemRow key={p.problem.id}>
-                  <div className="problem_name">{p.problem.name}</div>
-                  <div>{p.overall.phase}</div>
-                  <div>{p.overall.total_rounds}</div>
-                  <div>{(new Date(p.overall.last_updated)).toLocaleString("cs-CZ")}</div>
+                <ProblemRow key={p.id}>
+                  <div className="problem_name">{p.name}</div>
+                  <div>{p.phase}</div>
+                  <div>{p.total_rounds}</div>
+                  <div>{(new Date(p.updated_at)).toLocaleString("cs-CZ")}</div>
                   <div>
                     <BracketLink to="/problem/$problem_id"
-                    params={{ problem_id: p.problem.id }}>
+                    params={{ problem_id: p.id }}>
                       View
                     </BracketLink>
                     </div>

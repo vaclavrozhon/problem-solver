@@ -4,17 +4,16 @@ import { styled } from "@linaria/react"
 import { createFileRoute } from "@tanstack/react-router"
 
 import { useAuth } from "../contexts/AuthContext"
-import { getAllProblems } from "../api"
-import type { Problem } from "../api"
+import { get_problems_archive } from "../api/problems"
 
 export const Route = createFileRoute("/archive")({
   component: ProblemsArchive,
 })
 function ProblemsArchive() {
   const { user } = useAuth()
-  const { data: problems, error, isPending, isError } = useQuery<Problem[]>({
+  const { data: problems, error, isPending, isError } = useQuery({
     queryKey: ["problems_archive"],
-    queryFn: getAllProblems,
+    queryFn: get_problems_archive,
   })
 
   if (isPending) return (
@@ -22,6 +21,7 @@ function ProblemsArchive() {
       <p>Loading problems...</p>
     </MainContent>
   )
+
   if (isError) return (
     <MainContent>
       <p>Error occurred: {JSON.stringify(error)}</p>

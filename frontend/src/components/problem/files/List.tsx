@@ -1,54 +1,52 @@
 import { useState, useEffect } from "react"
 import { styled } from "@linaria/react"
 import { Link } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 
-import { listFiles } from "../../../api"
-
-import type { File, ProblemFiles } from "./utils"
-import { format_raw_files_data } from "./utils"
+import type { File, ProblemFiles } from "@shared/types/problem"
 
 interface Props {
+  files: ProblemFiles,
   problem_id: string,
+  file_id: string,
 }
-export default function FilesList({ problem_id }: Props) {
-  const [files, setFiles] = useState<ProblemFiles | null>(null)
+export default function FilesList({ files, file_id, problem_id }: Props) {
   const [curr_round, setCurrRound] = useState(0)
-  const [curr_prover, setCurrProver] = useState(1)
+  const [curr_prover, setCurrProver] = useState(0)
 
-  const [initial_load, setInitialLoad] = useState(true)
+  useEffect(() => {
+    let round_index, prover_index
+    for (let i = 0; i < files.rounds.length; i++) {
+      for (let j = 0; j < files.rounds[i].provers.length; j++) {
+        if (files.rounds[i].provers[j].filter(f => f.id === file_id).length === 1) {
+          round_index = i
+          prover_index = j
+          break
+        }
+      }
+    }
+    if (round_index && prover_index) {
+      setCurrRound(round_index)
+      setCurrProver(prover_index)
+    }
+  }, [problem_id, files])
 
-  async function loadFiles() {
-    // TODO: this returns content of all files
-    //  but we don't need that... in the future it should just return everything
-    /// excepet for the content and then get the required content per request from db
-    const raw_files: File[] = await listFiles(problem_id)
-    let formatted_files = format_raw_files_data(raw_files)
-    setFiles(formatted_files)
-    setCurrRound(formatted_files.rounds.length)
-    setInitialLoad(false)
-  }
-
-  if (initial_load || !files) {
-  loadFiles()
-    return (
-      <List>
-        <p>Loading files...</p>
-      </List>
-    )
-  }
+  // useEffect(() => {
+  //   setCurrRound(files.rounds.length - 1)
+  // }, [files])
 
   function ShowFiles({ files }: { files: File[] }) {
-  return (
-    <>
-      {files.map(file => (
-        <Link to="/problem/$problem_id/files"
-          params={{ problem_id }}
-          search={{ file_id: file.id }}
-          key={file.id}>{file.file_name}</Link>
-      ))}
-    </>
-  )
-}
+    return (
+      <>
+        {files.map(file => (
+          <Link to="/problem/$problem_id/files"
+            params={{ problem_id }}
+            search={{ file_id: file.id }}
+            key={file.id}>{file.file_name}</Link>
+        ))}
+      </>
+    )
+  }
 
   const main_files = [
     files.task,
@@ -70,49 +68,48 @@ export default function FilesList({ problem_id }: Props) {
             <select name="round-picker"
               value={curr_round}
               onChange={e => {
-                setCurrProver(1)
+                setCurrProver(0)
                 setCurrRound(parseInt(e.target.value))
                 }}>
               {files.rounds.map(round => (
-                <option value={round.round}
+                <option value={round.round - 1}
                   key={round.round}>Round {round.round}</option>
               ))}
             </select>
           </div>
-          {files.rounds[curr_round - 1].provers &&
-            files.rounds[curr_round - 1].provers!.length > 0 && (
+          {files.rounds[curr_round].provers.length > 0 && (
             <>
               <div>
                 <h4>Provers</h4>
                 <select name="prover-picker"
                   value={curr_prover}
                   onChange={e => setCurrProver(parseInt(e.target.value))}>
-                    {files.rounds[curr_round - 1].provers!.map((_, i) => (
-                      <option value={i + 1}
-                        key={i + 1}>Prover {i + 1}</option>
+                    {files.rounds[curr_round].provers.map((_, i) => (
+                      <option value={i}
+                        key={i}>Prover {i + 1}</option>
                     ))}
                   </select>
               </div>
-              <h5>Prover {curr_prover}</h5>
-              <ShowFiles files={files.rounds[curr_round - 1].provers!  [curr_prover - 1]}/>
+              <h5>Prover {curr_prover + 1}</h5>
+              <ShowFiles files={files.rounds[curr_round].provers[curr_prover]}/>
             </>
           )}
-          {files.rounds[curr_round - 1].verifier && (
+          {files.rounds[curr_round].verifier.length > 0 && (
             <>
               <h4>Verifier</h4>
-              <ShowFiles files={files.rounds[curr_round - 1].verifier!}/>
+              <ShowFiles files={files.rounds[curr_round].verifier!}/>
             </>
           )}
-          {files.rounds[curr_round - 1].summarizer && (
+          {files.rounds[curr_round].summarizer.length > 0 && (
             <>
               <h4>Summarizer</h4>
-              <ShowFiles files={files.rounds[curr_round - 1].summarizer!}/>
+              <ShowFiles files={files.rounds[curr_round].summarizer!}/>
             </>
           )}
-          {files.rounds[curr_round - 1].metadata && (
+          {files.rounds[curr_round].metadata.length > 0 && (
             <>
               <h4>Metadata</h4>
-              <ShowFiles files={files.rounds[curr_round - 1].metadata!}/>
+              <ShowFiles files={files.rounds[curr_round].metadata!}/>
             </>
           )}
         </FilesGroup>
@@ -135,14 +132,27 @@ const FilesGroup = styled.div`
   }
   & > a {
     border: var(--border-alpha);
-    padding: .5rem;
+    border-radius: .2rem;
+    padding: .35rem .5rem;
     &:hover {
       background: var(--bg-beta);
     }
     &.active {
       background: var(--bg-gamma);
       border-style: dashed;
+      border-color: var(--text-alpha);
       pointer-events: none;
+      font-weight: 500;
+    }
+  }
+  & select {
+    background: var(--bg-beta);
+    border: var(--border-alpha);
+    border-radius: .2rem;
+    font-weight: 500;
+    cursor: pointer;  
+    &:hover {
+      background: var(--bg-gamma);
     }
   }
 `

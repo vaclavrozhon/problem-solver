@@ -4,7 +4,7 @@ import { styled } from "@linaria/react"
 
 interface LayoutProps {
   problem_id: string,
-  problem_name?: string,
+  problem_name: string,
   children: any,
 }
 
@@ -21,7 +21,7 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
       {problem_name ? (
         <h1>{problem_name}</h1>
       ) : (
-        <h1>Problem ID: {problem_id}</h1>
+        <h1></h1>
       )}
 
       <ProblemTabs>
@@ -34,7 +34,6 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
       </ProblemTabs>
 
       {children}
-
     </MainContent>
   )
 }
@@ -65,12 +64,21 @@ const ProblemTabs = styled.section`
   }
 `
 
-const MainContent = styled.main`
+export const MainContent = styled.main`
   display: flex;
   flex-flow: column;
   & > h1 {
     padding: 1rem;
     line-height: 1;
+    height: 4rem;
+    &:empty::before {
+      content: "";
+      display: flex;
+      background: var(--bg-gamma);
+      width: 30rem;
+      border-radius: .2rem;
+      height: 100%;
+    }
   }
   & > p {
     padding: 1rem;

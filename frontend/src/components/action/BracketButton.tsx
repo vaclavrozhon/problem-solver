@@ -2,7 +2,6 @@ import React from "react"
 import { styled } from "@linaria/react"
 
 const Button = styled.button`
-  align-self: flex-start;
   position: relative;
   display: inline-flex;
   font-weight: 500;
@@ -25,6 +24,9 @@ const Button = styled.button`
       content: unset;
     }
   }
+  &.hidden {
+    display: none;
+  }
   & span {
     font-weight: 600
   }
@@ -33,13 +35,15 @@ const Button = styled.button`
 interface Props extends React.PropsWithChildren {
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean,
-  type?: "button" | "submit"
+  type?: "button" | "submit",
+  hidden?: boolean,
 }
 
-export default function BracketButton({ onClick, children, disabled = false, type = "button" }: Props) {
+export default function BracketButton({ onClick, children, disabled = false, type = "button", hidden = false }: Props) {
   return (
     <Button onClick={onClick}
       disabled={disabled}
+      className={hidden ? "hidden" : ""}
       type={type}>
       <span>[</span>
       {children}

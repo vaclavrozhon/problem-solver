@@ -5,8 +5,6 @@ export const Form = styled.form`
   flex-flow: column;
   align-items: flex-start;
   gap: 1rem;
-  max-width: 45rem;
-  width: 100%;
 `
 
 export const FormField = styled.div`
@@ -14,10 +12,14 @@ export const FormField = styled.div`
   flex-flow: column;
   gap: .4rem;
   width: 100%;
+  &.max-width {
+    max-width: 45rem;
+  }
 `
 
 export const FormLabel = styled.label`
   font-weight: 500;
+  padding-left: 1rem;
 `
 
 const TextFieldCommon = `
@@ -39,6 +41,7 @@ const TextFieldCommon = `
 
 export const FormInput = styled.input`
   ${TextFieldCommon}
+  margin-left: 1rem;
 `
 
 export const FormTextarea = styled.textarea`

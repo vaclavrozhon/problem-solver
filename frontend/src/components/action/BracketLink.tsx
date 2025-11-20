@@ -18,7 +18,7 @@ const Link = styled.a`
       background: var(--accent-alpha);
   }
   & span {
-    font-weight: 600
+    font-weight: 600;
   }
 `
 
@@ -40,7 +40,7 @@ const BracketLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
 
 const BracketLinkComponent = createLink(BracketLink)
 
-export const CustomLink: LinkComponent<typeof BracketLink> = (props) => {
+const CustomLink: LinkComponent<typeof BracketLink> = (props) => {
   return <BracketLinkComponent preload={"intent"} {...props} />
 }
 

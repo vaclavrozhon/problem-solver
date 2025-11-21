@@ -2,8 +2,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import wyw from "@wyw-in-js/vite"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
-
-const FRONTEND_PORT = 5173
+import path from "node:path"
 
 export default defineConfig({
   plugins: [
@@ -19,9 +18,14 @@ export default defineConfig({
     react(),
     wyw(),
   ],
-  envDir: "../", // Look for .env files in the parent directory
+  envDir: "../",
   publicDir: "static",
   server: {
-    port: FRONTEND_PORT,
+    port: import.meta.env.FRONTEND_PORT,
+  },
+  resolve: {
+    alias: {
+      "@shared": path.resolve(__dirname, "../shared/src"),
+    }
   }
 })

@@ -1,32 +1,53 @@
 import { Elysia } from "elysia"
-import { cors } from '@elysiajs/cors'
+import { cors } from "@elysiajs/cors"
 
 import { problems_router } from "./problems"
 
 const api_router = new Elysia({ prefix: "/api" })
   .use(problems_router)
+  .get("/health", { status: "ok" }) 
 
-// TODO: Add static files from frontend/dist
-export const app = new Elysia()
-  // TODO: Properly config cors
+const backend = new Elysia({ name: "backend" })
   .use(cors({
-    origin: "http://localhost:5173"
+    origin: Bun.env.NODE_ENV === "production"
+      ? `https://${Bun.env.RAILWAY_PUBLIC_DOMAIN}`
+      : `http://localhost:${Bun.env.FRONTEND_PORT}`,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }))
   .use(api_router)
-  // RAILWAY: The '/health' check is required by Railway for successful deployment
-  .get("/health", { status: "ok" })
-  .listen(Bun.env.BACKEND_PORT_DEV || 3942)
 
-console.log(
-  `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`
-)
+const frontend = new Elysia({ name: "frontend" })
+// NOTE: This is a workaround for serving React SPA with Browser History.
+// It could be possible to use @elysiajs/static and Hash History setting in Tanstack Router
+// but who even likes Hash History??? (can' use the plugin with Browser Historiy
+// beucase it's completely broken... most likely a Bun issue)
+// (hopefully it's not vulnerable to path-traversal attack haha)
+if (Bun.env.NODE_ENV === "production") {
+  frontend.get("/*", async ({ params }) => {
+    const static_file = Bun.file(`../frontend/dist/${params["*"]}`);
+    const react_app = Bun.file("../frontend/dist/index.html");
+    return (await static_file.exists()) ? static_file : react_app;
+  })
+}
+
+export const app = new Elysia()
+  // PRODUCTION [RAILWAY]: The '/health' check is required by Railway for successful deployment
+  .get("/health", { status: "ok" })
+  .use(backend)
+  .use(frontend)
+  .listen(Bun.env.NODE_ENV === "production" ? Bun.env.PORT! : (Bun.env.BACKEND_PORT || 3942))
+
+console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}`)
 
 // DEV Hack to let TypeScript know we will always specify these in .env
 declare module "bun" {
   interface Env {
     SUPABASE_URL: string,
     SUPABASE_PUBLISHABLE_KEY: string,
-    SUPABASE_ADMIN_KEY: string,
+
+    BACKEND_PORT: number,
+    FRONTEND_PORT: number,
 
     DATABASE_URL: string,
     DATABASE_PASSWORD: string,

@@ -12,6 +12,7 @@ import { CreateProblemFormSchema } from "@shared/types/CreateProblem"
 const protected_routes = new Elysia({ name: "problem-protected_routes" })
   .use(drizzle_plugin)
   .use(auth_plugin)
+  .get("/health", { status: "ok" })
   .get("/my-problems", async ({ db, user }) => {
     return db
       .select({

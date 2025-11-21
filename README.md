@@ -29,12 +29,23 @@ The `.env` file should be located in the root directory. Access to it for backen
 #### Required
 
 - `SUPABASE_URL`:
+- `SUPABASE_PUBLISHABLE_KEY`:
+- `VITE_SUPABASE_URL`:
+- `VITE_SUPABASE_PUBLISHABLE_KEY`:
+
+- `DATABASE_PASSWORD`:
+- `DATABASE_URL`:
+
+- `VITE_RAILWAY_PUBLIC_DOMAIN`: Needs to be set up in Railway to mirror `RAILWAY_PUBLIC_DOMAIN`. The frontend requires to know this domain for API requests.
+
+
+### Dev env
 
 #### Optional
 
-- `BACKEND_PORT_DEV`: You can specify this port or leave it blank. If blank, it'll default to port `3942`.
-
-### Dev env
+- `FRONTEND_PORT`:
+- `BACKEND_PORT`: You can specify this port or leave it blank. If blank, it'll default to port `3942`.
+- `VITE_BACKEND_PORT`: 
 
 TODO
 

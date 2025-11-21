@@ -23,9 +23,4 @@ export default defineConfig({
   server: {
     port: import.meta.env.FRONTEND_PORT,
   },
-  resolve: {
-    alias: {
-      "@shared": path.resolve(__dirname, "../shared/src"),
-    }
-  }
 })

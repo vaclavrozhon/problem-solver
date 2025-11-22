@@ -31,10 +31,6 @@ export default function FilesList({ files, file_id, problem_id }: Props) {
     }
   }, [problem_id, files])
 
-  // useEffect(() => {
-  //   setCurrRound(files.rounds.length - 1)
-  // }, [files])
-
   function ShowFiles({ files }: { files: File[] }) {
     return (
       <>

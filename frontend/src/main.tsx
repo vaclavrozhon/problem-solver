@@ -5,6 +5,7 @@ import { useAuth, AuthProvider, AuthContextType } from "./contexts/AuthContext"
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 
 import "./styles/global.css"
+import "./styles/utils.css"
 
 import { routeTree } from './routeTree.gen'
 

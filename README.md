@@ -71,7 +71,7 @@ The production-ready distribution is based on running the built backend. A singl
 
 This is possible thanks to Vite which builds the whole frontend and creates a bunch of `.html`, `.css` and `.js` files which are linked together and can be served statically. And thus by our backend.
 
-This is different from the development environment in which you use 2 differnet URLs to access your project – one for your frontend, one for your backend. Backend only serves the API endpoints in this case and frontend serves all the static files & the interface. It could be combined into singular page even in the dev env but for better developer experience we're using Vite which handles compiling TypeScript to JavaScript, linking everything etc, optimizing etc. And that requires the frontend to run as its separate process.
+This is different from the development environment in which you use 2 differnet URLs to access your project – one for your frontend, one for your backend. Backend only serves the API endpoints in this case and frontend serves all the static files & the interface. It could be combined into singular page even in the dev env but for better developer experience we're using Vite which handles compiling TypeScript to JavaScript, linking everything, optimizing etc. And that requires the frontend to run as its separate process.
 
 ## TODO
 

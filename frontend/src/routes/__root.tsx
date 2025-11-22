@@ -42,7 +42,7 @@ function RootLayout() {
 
   async function signOutAndRedirect() {
     const result = await signOut()
-    if (result === "error") throw "erorr happend"
+    if (result === "error") throw "error happened"
     navigate({ to: "/login" })
   }
 
@@ -53,6 +53,7 @@ function RootLayout() {
         <Nav>
           <Link to="/">Overview</Link>
           <Link to="/archive" preload="intent">Archive</Link>
+          <Link to="/usage" preload="intent">Usage</Link>
           <Link to="/create">Create Problem</Link>
           <a href="https://docs.google.com/document/d/1WS9RQYO7gGlbYph6ZW0xk-Nr6NcUz78mzzjY_l0ulAo/edit?usp=sharing"
             target="_blank">Shared Notes</a>
@@ -66,8 +67,6 @@ function RootLayout() {
         <p>Page was loaded at {(new Date()).toLocaleTimeString()}</p>
         {}
         <p>Logged in as {user?.email}</p>
-        {/* TODO: show current balance or something */}
-        {/* <p>Credits: {100}</p> */}
         <p>
           <BracketButton onClick={signOutAndRedirect}>Sign Out</BracketButton>
         </p>

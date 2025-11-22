@@ -3,7 +3,9 @@ import { cors } from "@elysiajs/cors"
 
 import { problems_router } from "./problems"
 import { account_router } from "./account"
-import { research_router } from "./research/routes"
+import { research_router } from "./research"
+
+import { jobs } from "./jobs"
 
 const api_router = new Elysia({ prefix: "/api" })
   .get("/health", { status: "ok" })
@@ -29,21 +31,48 @@ const frontend = new Elysia({ name: "frontend" })
 // (hopefully it's not vulnerable to path-traversal attack haha)
 if (Bun.env.NODE_ENV === "production") {
   frontend.get("/*", async ({ params }) => {
-    const static_file = Bun.file(`../frontend/dist/${params["*"]}`);
-    const react_app = Bun.file("../frontend/dist/index.html");
-    return (await static_file.exists()) ? static_file : react_app;
+    const static_file = Bun.file(`../frontend/dist/${params["*"]}`)
+    const react_app = Bun.file("../frontend/dist/index.html")
+    return (await static_file.exists()) ? static_file : react_app
   })
 }
-
 
 export const app = new Elysia()
   // PRODUCTION [RAILWAY]: The '/health' check is required by Railway for successful deployment
   .get("/health", { status: "ok" })
   .use(backend)
   .use(frontend)
+  .onStart(async () => {
+    await jobs.start()
+    console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}.`)
+  })
+  .onStop(async () => {
+    console.log("stopping elysia server")
+    await jobs.stop()
+  })
   .listen(Bun.env.NODE_ENV === "production" ? Bun.env.PORT! : (Bun.env.BACKEND_PORT || 3942))
 
-console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}`)
+// Graceful shutdown on OS signals (e.g., Ctrl+C or platform stop)
+let shuttingDown = false
+const handleSignal = async (signal: string) => {
+  if (shuttingDown) return
+  shuttingDown = true
+  console.log(`[BACKEND] received ${signal}, shutting down gracefully...`)
+  try {
+    // Triggers Elysia's onStop hook, which stops the JobManager
+    await app.stop(true)
+  } catch (err) {
+    console.error("[BACKEND] error during shutdown:", err)
+  } finally {
+    // Ensure process exits even if something hangs
+    process.exit(0)
+  }
+}
+
+// SIGINT: interactive interrupt (Ctrl+C)
+// SIGTERM: termination request (e.g., from orchestrator/platform)
+process.on("SIGINT", async () => handleSignal("SIGINT"))
+process.on("SIGTERM", () => handleSignal("SIGTERM"))
 
 // DEV Hack to let TypeScript know we will always specify these in .env
 declare module "bun" {

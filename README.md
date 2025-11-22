@@ -78,3 +78,7 @@ This is different from the development environment in which you use 2 differnet 
 - [ ] Before deploying, look at [Elysia deploy guide](https://elysiajs.com/patterns/deploy.html)
 - [ ] Railway prod injects `PORT` env variable which should be used to run the service
 - [ ] Study single-threaded vs. multi-threaded backend apps differences and railway setup
+
+### BACKEND
+
+- [ ] Figure out how to handle interrupted job runs cancelled by server update... like a resume button? how does this situation work? how can we detect those that were stopped because of an update or crashed server... what about the request to openrouter? is it saved anywhere? can it be retrieved?

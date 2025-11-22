@@ -6,15 +6,13 @@ import * as schema from "../../drizzle/schema"
 import * as relations from "../../drizzle/relations"
 import postgres from "postgres"
 
-// All other DB requests should be made through drizzle
+// All DB requests should be made through Drizzle
+// Supabase used only for .auth
 export const drizzle_plugin = new Elysia({ name: "drizzle" })
   .decorate("db", new_db_connection())
 
 function new_db_connection() {
-  const connection_string = Bun.env.DATABASE_URL.replace(
-    "DATABASE_PASSWORD",
-    encodeURIComponent(Bun.env.DATABASE_PASSWORD)
-  )
+  const connection_string = get_db_connection_string()
   const client = postgres(connection_string, { prepare: false })
   return drizzle({
     client,
@@ -26,13 +24,19 @@ function new_db_connection() {
   })
 }
 
+export function get_db_connection_string() {
+  return Bun.env.DATABASE_URL.replace(
+    "DATABASE_PASSWORD",
+    encodeURIComponent(Bun.env.DATABASE_PASSWORD)
+  )
+}
+
 // The purpose of Supabase is to use the .auth capabilities
 export const supabase_plugin = new Elysia({ name: "supabase" })
   .decorate("supabase", createClient(
     Bun.env.SUPABASE_URL,
     Bun.env.SUPABASE_PUBLISHABLE_KEY
   ))
-
 
 export const auth_plugin = new Elysia({ name: "auth" })
   .use(supabase_plugin)
@@ -54,7 +58,6 @@ export const auth_plugin = new Elysia({ name: "auth" })
           .min(8, "Authorization header should contain Bearer token"),
       }),
       resolve: async ({ headers, supabase, status }) => {
-        console.log("start", headers)
         // TODO: resolve this TS issue
         let jwt_token = headers["authorization"].split(" ")[1]
         const { data: { user } } = await supabase.auth.getUser(jwt_token)

@@ -2,10 +2,14 @@ import { Elysia } from "elysia"
 import { cors } from "@elysiajs/cors"
 
 import { problems_router } from "./problems"
+import { account_router } from "./account"
+import { research_router } from "./research/routes"
 
 const api_router = new Elysia({ prefix: "/api" })
+  .get("/health", { status: "ok" })
   .use(problems_router)
-  .get("/health", { status: "ok" }) 
+  .use(account_router)
+  .use(research_router)
 
 const backend = new Elysia({ name: "backend" })
   .use(cors({
@@ -31,6 +35,7 @@ if (Bun.env.NODE_ENV === "production") {
   })
 }
 
+
 export const app = new Elysia()
   // PRODUCTION [RAILWAY]: The '/health' check is required by Railway for successful deployment
   .get("/health", { status: "ok" })
@@ -51,6 +56,8 @@ declare module "bun" {
 
     DATABASE_URL: string,
     DATABASE_PASSWORD: string,
+
+    OPENROUTER_API_KEY: string,
   }
 }
 

@@ -1,10 +1,8 @@
-import { pgTable, pgSchema, foreignKey, uuid, timestamp, integer, text, jsonb } from "drizzle-orm/pg-core"
-import { sql } from "drizzle-orm"
+import { pgSchema, foreignKey, uuid, timestamp, integer, text, jsonb } from "drizzle-orm/pg-core"
 
-// TODO: need to migrate to pg
-// export const main = pgSchema("main")
+export const main = pgSchema("main")
 
-export const problem_files = pgTable("problem_files", {
+export const problem_files = main.table("problem_files", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
 	problem_id: uuid().notNull(),
@@ -21,7 +19,7 @@ export const problem_files = pgTable("problem_files", {
 		}),
 ])
 
-export const problems = pgTable("problems", {
+export const problems = main.table("problems", {
   id: uuid().defaultRandom().primaryKey().notNull(),
 	owner_id: uuid().notNull(),
 	created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
@@ -38,7 +36,7 @@ export const problems = pgTable("problems", {
 		}),
 ])
 
-export const runs = pgTable("runs", {
+export const runs = main.table("runs", {
   id: uuid().defaultRandom().primaryKey().notNull(),
 	problem_id: uuid().notNull(),
 	created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),

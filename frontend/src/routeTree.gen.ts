@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root"
+import { Route as UsageRouteImport } from "./routes/usage"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
 import { Route as ArchiveRouteImport } from "./routes/archive"
@@ -18,6 +19,11 @@ import { Route as ProblemProblem_idResearchRouteImport } from "./routes/problem/
 import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
 import { Route as ProblemProblem_idConversationsRouteImport } from "./routes/problem/$problem_id/conversations"
 
+const UsageRoute = UsageRouteImport.update({
+  id: "/usage",
+  path: "/usage",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: "/login",
   path: "/login",
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/usage": typeof UsageRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/usage": typeof UsageRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/usage": typeof UsageRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/usage"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/usage"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/usage"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   ArchiveRoute: typeof ArchiveRoute
   CreateRoute: typeof CreateRoute
   LoginRoute: typeof LoginRoute
+  UsageRoute: typeof UsageRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
   ProblemProblem_idResearchRoute: typeof ProblemProblem_idResearchRoute
@@ -138,6 +151,13 @@ export interface RootRouteChildren {
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
+    "/usage": {
+      id: "/usage"
+      path: "/usage"
+      fullPath: "/usage"
+      preLoaderRoute: typeof UsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/login": {
       id: "/login"
       path: "/login"
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArchiveRoute: ArchiveRoute,
   CreateRoute: CreateRoute,
   LoginRoute: LoginRoute,
+  UsageRoute: UsageRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,
   ProblemProblem_idResearchRoute: ProblemProblem_idResearchRoute,

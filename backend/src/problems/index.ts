@@ -159,15 +159,19 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
 
         // TODO/BUG: Fix these ts in the future. right now it will always work
         if (file.file_type === "prover_output") {
+          // @ts-expect-error
           let prover_n = Number(file.file_name.match(/\d/g)[1])
+          // @ts-expect-error
           rounds[file.round - 1]["provers"][prover_n - 1] = file.content
         } else if (file.file_type === "verifier_output") {
+          // @ts-expect-error
           let verifier = JSON.parse(file.content)
           rounds[file.round - 1]["verifier"] = {
             verdict: verifier.verdict,
             output: verifier.feedback_md
           }
         } else {
+          // @ts-expect-error
           rounds[file.round - 1]["summarizer"] = JSON.parse(file.content).summary
         }
       }

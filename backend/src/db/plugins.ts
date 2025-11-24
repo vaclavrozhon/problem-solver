@@ -59,6 +59,7 @@ export const auth_plugin = new Elysia({ name: "auth" })
       }),
       resolve: async ({ headers, supabase, status }) => {
         // TODO: resolve this TS issue
+        // @ts-expect-error
         let jwt_token = headers["authorization"].split(" ")[1]
         const { data: { user } } = await supabase.auth.getUser(jwt_token)
         if (user === null) return status(401, {

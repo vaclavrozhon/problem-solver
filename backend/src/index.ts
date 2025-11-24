@@ -26,8 +26,8 @@ const backend = new Elysia({ name: "backend" })
 const frontend = new Elysia({ name: "frontend" })
 // NOTE: This is a workaround for serving React SPA with Browser History.
 // It could be possible to use @elysiajs/static and Hash History setting in Tanstack Router
-// but who even likes Hash History??? (can' use the plugin with Browser Historiy
-// beucase it's completely broken... most likely a Bun issue)
+// but who even likes Hash History??? (can'use the plugin with Browser History
+// because it's completely broken... most likely a Bun issue)
 // (hopefully it's not vulnerable to path-traversal attack haha)
 if (Bun.env.NODE_ENV === "production") {
   frontend.get("/*", async ({ params }) => {
@@ -47,7 +47,7 @@ export const app = new Elysia()
     console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}.`)
   })
   .onStop(async () => {
-    console.log("stopping elysia server")
+    console.log("elysia server stopped & stopping jobs")
     await jobs.stop()
   })
   .listen(Bun.env.NODE_ENV === "production" ? Bun.env.PORT! : (Bun.env.BACKEND_PORT || 3942))

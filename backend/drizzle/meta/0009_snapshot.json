@@ -1,9 +1,75 @@
 {
-  "id": "78b0b789-793c-4696-bdc8-612d812fee24",
-  "prevId": "75a09ef5-10a9-4b15-8897-a047d8a0a106",
+  "id": "4831506c-9a9f-4436-89a2-e25381830636",
+  "prevId": "39b7f119-14fc-4934-8370-fa24e5b3a63b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "main-dev.llms": {
+      "name": "llms",
+      "schema": "main-dev",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "response": {
+          "name": "response",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usage": {
+          "name": "usage",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_file_id": {
+          "name": "prompt_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modeels": {
+          "name": "modeels",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_files_id_in_llms_fkey": {
+          "name": "problem_files_id_in_llms_fkey",
+          "tableFrom": "llms",
+          "tableTo": "problem_files",
+          "schemaTo": "main-dev",
+          "columnsFrom": [
+            "prompt_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "main-dev.problem_files": {
       "name": "problem_files",
       "schema": "main-dev",
@@ -52,6 +118,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "usage": {
+          "name": "usage",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
         },
         "metadata": {
           "name": "metadata",
@@ -119,7 +191,7 @@
           "typeSchema": "main-dev",
           "primaryKey": false,
           "notNull": true,
-          "default": "'idle'"
+          "default": "'created'"
         },
         "updated_at": {
           "name": "updated_at",
@@ -204,6 +276,13 @@
           "notNull": true,
           "default": "now()"
         },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
         "completed_at": {
           "name": "completed_at",
           "type": "timestamp with time zone",
@@ -283,7 +362,20 @@
       "name": "files-types",
       "schema": "main-dev",
       "values": [
-        "task"
+        "task",
+        "proofs",
+        "notes",
+        "output",
+        "prover_prompt",
+        "verifier_prompt",
+        "summarizer_prompt",
+        "prover_reasoning",
+        "verifier_reasoning",
+        "summarizer_reasoning",
+        "prover_output",
+        "verifier_output",
+        "summarizer_output",
+        "round_meta"
       ]
     },
     "main-dev.problem-status": {
@@ -305,10 +397,13 @@
         "queued",
         "prover_working",
         "prover_finished",
+        "prover_failed",
         "verifier_working",
         "verifier_finished",
+        "verifier_failed",
         "summarizer_working",
         "summarizer_finished",
+        "summarizer_failed",
         "ended"
       ]
     },

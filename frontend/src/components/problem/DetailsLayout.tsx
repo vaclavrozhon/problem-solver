@@ -1,6 +1,7 @@
 
 import { Link } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
+import { useAuth } from "../../contexts/AuthContext"
 
 interface LayoutProps {
   problem_id: string,
@@ -15,6 +16,8 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
     { name: "Conversations", link: "/problem/$problem_id/conversations" },
     { name: "Files", link: "/problem/$problem_id/files" },
   ]
+  const { user } = useAuth()
+  // TODO: If user doesn't own problem, hide `Run research` tab
 
   return (
     <MainContent>

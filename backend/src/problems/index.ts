@@ -30,7 +30,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
   /**
    * Retrieves overview for problem by given id.
    * 
-   * If invalid UUID format, throws error.
+   * If invalid UUID format, throws error. BUG: Well not actually it doesnt care about (in)valid UUID format
    * 
    * If no problem matchces given id, returns nothing.
    */
@@ -56,59 +56,60 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         }
       })
       if (!result) return status(204)
+
       // Ok, now we know that problem with received id exists
-      const round_metadata_files = await db
-        .select()
-        .from(problem_files)
-        .where(
-          and(
-            eq(problem_files.problem_id, problem_id),
-            eq(problem_files.file_type, "round_meta")
-          )
-        )
+      // const round_metadata_files = await db
+      //   .select()
+      //   .from(problem_files)
+      //   .where(
+      //     and(
+      //       eq(problem_files.problem_id, problem_id),
+      //       eq(problem_files.file_type, "round_meta")
+      //     )
+      //   )
 
       const times: ProblemRoundTimes[] = []
 
       // TODO: if files.length === 0
       // TODO/NOTE: Current implementation generates metadata file for round only when it has completely finished. That means all provers, verifier and summarizer are successfuly done. In the future, this should be segmented and we should provide times gradually.
       // BUG: Should parse with ZOD
-      for (let round of round_metadata_files) {
-        if (!round.content) continue
-        const parsed_metadata: {
-          round: number,
-          started_at: number,
-          ended_at: number,
-          stages: {
-            provers: Record<string, {
-              start_ts: number,
-              end_ts: number,
-              duration_s: number,
-              ok: boolean,
-            }>,
-            verifier: {
-              start_ts: number,
-              end_ts: number,
-              duration_s: number,
-            },
-            summarizer: {
-              start_ts: number,
-              end_ts: number,
-              duration_s: number,
-            }
-          },
-          one_line_summary: string,
-        } = JSON.parse(round.content)
+      // for (let round of round_metadata_files) {
+      //   if (!round.content) continue
+      //   const parsed_metadata: {
+      //     round: number,
+      //     started_at: number,
+      //     ended_at: number,
+      //     stages: {
+      //       provers: Record<string, {
+      //         start_ts: number,
+      //         end_ts: number,
+      //         duration_s: number,
+      //         ok: boolean,
+      //       }>,
+      //       verifier: {
+      //         start_ts: number,
+      //         end_ts: number,
+      //         duration_s: number,
+      //       },
+      //       summarizer: {
+      //         start_ts: number,
+      //         end_ts: number,
+      //         duration_s: number,
+      //       }
+      //     },
+      //     one_line_summary: string,
+      //   } = JSON.parse(round.content)
 
-        times.push({
-          round: parsed_metadata.round,
-          one_line_summary: parsed_metadata.one_line_summary,
-          durations: {
-            provers_total: Object.values(parsed_metadata.stages.provers).reduce((total, prover) => total + prover.duration_s, 0),
-            verifier: parsed_metadata.stages.verifier.duration_s,
-            summarizer: parsed_metadata.stages.summarizer.duration_s,
-          }
-        })
-      }
+      //   times.push({
+      //     round: parsed_metadata.round,
+      //     one_line_summary: parsed_metadata.one_line_summary,
+      //     durations: {
+      //       provers_total: Object.values(parsed_metadata.stages.provers).reduce((total, prover) => total + prover.duration_s, 0),
+      //       verifier: parsed_metadata.stages.verifier.duration_s,
+      //       summarizer: parsed_metadata.stages.summarizer.duration_s,
+      //     }
+      //   })
+      // }
 
       return {
         name: result.name,
@@ -161,17 +162,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         if (file.file_type === "prover_output") {
           // @ts-expect-error
           let prover_n = Number(file.file_name.match(/\d/g)[1])
-          // @ts-expect-error
           rounds[file.round - 1]["provers"][prover_n - 1] = file.content
         } else if (file.file_type === "verifier_output") {
-          // @ts-expect-error
           let verifier = JSON.parse(file.content)
           rounds[file.round - 1]["verifier"] = {
             verdict: verifier.verdict,
             output: verifier.feedback_md
           }
         } else {
-          // @ts-expect-error
           rounds[file.round - 1]["summarizer"] = JSON.parse(file.content).summary
         }
       }
@@ -248,12 +246,53 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
   }, { isAuth: true })
   .post("/create-new-problem", async ({ db, user, body, status }) => {
     try {
-      // TODO
-      // const result = await db
-      //   .insert(problems)
-      //   .values({
-          
-      //   })
+      let new_problem_id = await db.transaction(async (tx) => {
+        const [new_problem] = await tx.insert(problems)
+          .values({
+            owner_id: user.id,
+            name: body.problem_name,
+          })
+          .returning({ id: problems.id })
+        await tx.insert(problem_files)
+          .values([
+            {
+              problem_id: new_problem.id,
+              round: 0,
+              file_type: "task",
+              file_name: "task.txt",
+              content: body.problem_task,
+            },
+            {
+              problem_id: new_problem.id,
+              round: 0,
+              file_type: "proofs",
+              file_name: "proofs.md",
+              content: "# Rigorous Proofs",
+            },
+            {
+              problem_id: new_problem.id,
+              round: 0,
+              file_type: "notes",
+              file_name: "notes.md",
+              content: "# Research Notes",
+            },
+            {
+              problem_id: new_problem.id,
+              round: 0,
+              file_type: "output",
+              file_name: "output.md",
+              content: "# Main Results",
+            },
+          ])
+        return new_problem.id
+      })
+      return {
+        type: "success",
+        message: "New problem created successfully!",
+        data: {
+          problem_id: new_problem_id,
+        }
+      }
     } catch (e) {
       return status(500, {
         type: "error",

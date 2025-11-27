@@ -10,6 +10,12 @@ import DetailsLayout from "../../../components/problem/DetailsLayout"
 import { FormField, FormInput, FormLabel, FormTextarea} from "../../../styles/Form"
 import { useForm } from "react-hook-form"
 import ErrorBox from "../../../components/form/ErrorBox"
+import { api } from "../../../api"
+import { NewStandardResearch, MaxProversPerRound, MaxRoundsPerResearch, LLMModelsMap } from "@shared/types/research"
+
+import ProverPromptTemplate from "@shared/prompts/prover.md?raw"
+import VerifierPromptTemplate from "@shared/prompts/verifier.md?raw"
+import SummarizerPromptTemplate from "@shared/prompts/summarizer.md?raw"
 
 import SplitViewEditor from "../../../components/app/SplitViewEditor"
 import BracketButton from "../../../components/action/BracketButton"
@@ -18,97 +24,80 @@ export const Route = createFileRoute("/problem/$problem_id/research")({
   component: RunNewResearchPage,
 })
 
-const AvailableModels = z.enum(["GPT5", "GPT5.1"])
-// TODO: add max number of provers & rounds? in backend
-// like 10?
-const RunResearchConfigSchema = z.object({
-  rounds_count: z.coerce.number().min(1).max(10),
-  provers: z.object({
-    count: z.coerce.number().min(1).max(10),
-    general_advice: z.string(),
-    list: z.array(z.object({
-      num: z.coerce.number().min(1).max(10), // these numbers related to provers.count
-      advice: z.string(),
-      model: AvailableModels,
-    })),
-  }),
-  verifier: z.object({
-    advice: z.string(),
-    model: AvailableModels,
-  }),
-  summarizer: z.object({
-    model: AvailableModels,
-  }),
-  prompts: z.object({
-    prover: z.string(),
-    verifier: z.string(),
-    summarizer: z.string(),
-  })
-})
+type PromptTypes = "prover" | "verifier" | "summarizer"
 
 function RunNewResearchPage() {
   const { problem_id } = Route.useParams()
-  const [selected_prompt, setSelectedPrompt] = useState<"prover" | "verifier" | "summarizer">("prover")
+  const [selected_prompt, setSelectedPrompt] = useState<PromptTypes>("prover")
+  // TODO: Load prompts from @shared
   const [prompts, setPrompts] = useState({
-    prover: "",
-    verifier: "Verify this!",
-    summarizer: "Summa summarum!",
+    prover: ProverPromptTemplate,
+    verifier: VerifierPromptTemplate,
+    summarizer: SummarizerPromptTemplate,
   })
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
-      rounds_count: 1,
-      provers: {
-        count: 1,
+      rounds: "1",
+      prover: {
+        count: "1",
+        prompt: prompts["prover"],
       },
-      prompts,
+      verifier: {
+        prompt: prompts["verifier"],
+      },
+      summarizer: {
+        prompt: prompts["summarizer"],
+      }
     },
-    resolver: zodResolver(RunResearchConfigSchema)
+    resolver: zodResolver(NewStandardResearch)
   })
-  const provers_count = Number(watch("provers.count")) >= 1 && Number(watch("provers.count")) <= 10 ? Number(watch("provers.count")) : 0
 
-  function onFormSubmit(data: z.infer<typeof RunResearchConfigSchema>) {
-    console.log(data)
+  let provers_count = Number(watch("prover.count"))
+  provers_count = provers_count >= 1 && provers_count <= MaxProversPerRound ? provers_count : 0
+
+  async function onFormSubmit(data: z.infer<typeof NewStandardResearch>) {
+    const result = await api.research["run-standard-research"].post(data)
+    if (result.error) {
+      // TODO: Handle error!
+      alert("ERROR!")
+      console.log(result.error)
+      return
+    }
+    alert("success!")
   }
 
   return (
     <DetailsLayout problem_id={problem_id}>
-      <div className={css`
-          background: yellow;
-          color: black;
-          padding: 2rem;
-          font-weight: 600;
-          border: 6px solid black;
-          & span {
-            text-decoration: underline;
-          }
-        `}>
-        <p>THIS IS JUST INTERFACE PREVIEW AND IS NOT YET CONNECTED TO THE BACKEND. <span>DO NOT USE!</span></p>
-      </div>
-
       <h2 className={css`
         padding: 1rem;
       `}>⚙️ New run configuration</h2>
       <NewRunForm onSubmit={handleSubmit(onFormSubmit)}>
+        <input {...register("problem_id")}
+          type="hidden"
+          value={problem_id}/>
         <section className="form_inputs">
           <ConfigSection>
             <h3>General</h3>
             <div className="row_input">
-              <FormLabel htmlFor="rounds_count">Rounds</FormLabel>
-              <FormInput {...register("rounds_count")}
-                id="rounds_count"
+              <FormLabel htmlFor="rounds">Rounds</FormLabel>
+              <FormInput {...register("rounds")}
+                id="rounds"
                 type="number"
+                inputMode="numeric"
                 min={1}
-                max={10}
+                max={MaxRoundsPerResearch}
                 defaultValue={1}/>
+              <p>For now, you can only run 1 round of research.</p>
             </div>
             <div className="row_input">
-              <FormLabel htmlFor="provers_count">Provers</FormLabel>
-              <FormInput {...register("provers.count")}
-                id="provers.count"
+              <FormLabel htmlFor="prover_count">Provers</FormLabel>
+              <FormInput {...register("prover.count")}
+                id="prover_count"
                 type="number"
+                inputMode="numeric"
                 min={1}
-                max={10}
+                max={MaxProversPerRound}
                 defaultValue={1}/>
             </div>
             {/* TODO: Add timeout option. Should discuss this in relation to price.... how many rounds & prover should we allow. So time for each prover/round. */} 
@@ -122,7 +111,7 @@ function RunNewResearchPage() {
               <>
                 <div className="row_input">
                   <FormLabel>General Advice</FormLabel>
-                  <FormTextarea {...register("provers.general_advice")}
+                  <FormTextarea {...register("prover.general_advice")}
                     id="provers.general_advice"
                     placeholder="Give all the provers some expert advice..."
                     rows={1}/>
@@ -135,17 +124,19 @@ function RunNewResearchPage() {
                   </div>
                   {Array.from({ length: provers_count }, (_, i) => (
                     <>
-                      <input {...register(`provers.list.${i}.num`)}
+                      <input {...register(`prover.provers.${i}.order`)}
                         defaultValue={i + 1}
                         type="hidden"/>
                       <div key={i}>
                         <p>Prover {i + 1}</p>
-                        <textarea {...register(`provers.list.${i}.advice`)}
+                        <textarea {...register(`prover.provers.${i}.advice`)}
                           placeholder="Describe what this prover should focus on..."
                           rows={2}/>
-                        <select {...register(`provers.list.${i}.model`)}>
-                          <option value="GPT5">GPT-5</option>
-                          <option value="Gemini3">Gemini 3</option>
+                        <select {...register(`prover.provers.${i}.model`)}>
+                          {Object.keys(LLMModelsMap["smart"]).map(model => (
+                            <option key={model}
+                              value={model}>{model}</option>
+                          ))}
                         </select>
                       </div>
                     </>
@@ -170,7 +161,10 @@ function RunNewResearchPage() {
               <FormLabel htmlFor="verifier.model">Model</FormLabel>
               <select {...register("verifier.model")}
                 id="verifier.model">
-                <option value="GPT5">GPT 5</option>
+                {Object.keys(LLMModelsMap["smart"]).map(model => (
+                  <option key={model}
+                    value={model}>{model}</option>
+                ))}
               </select>
             </div>
           </ConfigSection>
@@ -181,13 +175,16 @@ function RunNewResearchPage() {
               <FormLabel htmlFor="summarizer.model">Model</FormLabel>
               <select {...register("summarizer.model")}
                 id="summarizer.model">
-                <option value="GPT5">GPT 5</option>
+                {Object.keys(LLMModelsMap["summarizer"]).map(model => (
+                  <option key={model}
+                    value={model}>{model}</option>
+                ))}
               </select>
             </div>
           </ConfigSection>
 
         </section>
-
+        
         <PromptSection>
           <h3>Prompts config</h3>
           <div>
@@ -195,14 +192,16 @@ function RunNewResearchPage() {
             {Object.entries(prompts).map(([prompt_name]) => (
               <button type="button"
                 className={selected_prompt === prompt_name ? "selected" : ""}
-                onClick={() => setSelectedPrompt(prompt_name)}
+                // BUG: This "as" cast seems sketchy... 
+                onClick={() => setSelectedPrompt(prompt_name as PromptTypes)}
                 key={prompt_name}>{prompt_name}.prompt</button>
             ))}
           </div>
-          <SplitViewEditor md={watch(`prompts.${selected_prompt}`)}
-            onChange={new_value => setValue(`prompts.${selected_prompt}`, new_value)}/>
-          {/* TODO: How to enforce where results from e.g. prover.prompt will go into verifier.prompt? */}
-          <p>These prompts are not final! comment on...</p>
+          <SplitViewEditor md={watch(`${selected_prompt}.prompt`)}
+            onChange={new_value => setValue(`${selected_prompt}.prompt`, new_value)}/>
+          {/* TODO/NOTE: OpenRouter easily supports extracting text from PDF. It might be pricier depending on the model/pdf size but it should be implemented easily if required.  */}
+          <p>Generald Advice & Individual Advice for provers will be apended to the prompt automatically during processing in the backend.</p>
+          <p><strong>Don't</strong> specify output JSON structure. That's handled automatically in the backend. But you can specify what the output should look like it's drafted in the prompt template.</p>
         </PromptSection>
         <BracketButton type="submit">Run Research!</BracketButton>
       </NewRunForm>

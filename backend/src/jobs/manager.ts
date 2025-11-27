@@ -1,16 +1,87 @@
-import { PgBoss, SendOptions, WorkHandler } from "pg-boss"
-import type { z } from "zod"
+import { run, makeWorkerUtils, Task, WorkerUtils, Runner } from "graphile-worker"
+import { z } from "zod"
+import { createOpenRouter, OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 
-import { get_db_connection_string } from "../db/plugins"
+import { get_db_connection_string, new_db_connection } from "../db/plugins"
+
+type DatabaseAccess = ReturnType<typeof new_db_connection>
+type WorkHandler<Input = any> = (
+  payload: Input,
+  utils: { db: DatabaseAccess, openrouter: OpenRouterProvider }
+) => Promise<void>
+
+export class JobManager<Registry extends Record<string, any> = {}> {
+  private db!: DatabaseAccess
+  private worker!: WorkerUtils
+  private openrouter!: OpenRouterProvider
+  private runner?: Runner
+  private jobs: JobBuilder<any, any>[] = []
+  private job_map: Map<string, JobBuilder<any, any>> = new Map()
+
+  register<Builders extends readonly JobBuilder<any, any>[]>(...jobs: Builders):
+    JobManager<Registry & {
+      [K in Builders[number] as K["name"]]: K extends JobBuilder<any, infer I> ? I : never
+    }> {
+    for (const job of jobs) {
+      this.jobs.push(job)
+      this.job_map.set(job.name as string, job)
+    }
+    return this as any
+  }
+
+  async start() {
+    this.db = new_db_connection()
+    this.worker = await makeWorkerUtils({ connectionString: get_db_connection_string() })
+    this.openrouter = createOpenRouter({ apiKey: Bun.env.OPENROUTER_API_KEY })
+
+    await this.worker.migrate()
+
+    const taskList = this.jobs.reduce((acc, job) => {
+      const [name, task] = job.build(this.worker, this.db, this.openrouter)
+      acc[name] = task
+      return acc
+    }, {} as { [key: string]: Task })
+
+    this.runner = await run({
+      connectionString: get_db_connection_string(),
+      concurrency: 1,
+      taskList,
+    })
+
+    console.log("👍 [job_manager] was started!")
+  }
+
+  async stop() {
+    await this.runner?.stop()
+    await this.worker.release()
+    console.log("🚫 [job_manager] was stopped!")
+  }
+
+  async emit<N extends keyof Registry & string>(name: N, data: Registry[N]
+  ): Promise<void> {
+    const job = this.job_map.get(name);
+    if (!job) throw new Error(`[JobManager] job '${name}' is not registered`);
+
+    if (job.input_schema) {
+      const result = job.input_schema.safeParse(data)
+      if (!result.success) {
+        throw new Error(`[jobs]{${job.name}} invalid payload: ${result.error.message}`)
+      }
+    }
+    
+    console.debug(`[job]{${job.name}} was added to queue.`)
+
+    await this.worker.addJob(job.name, data as any)
+  }
+}
+
+export const define_job = <Name extends string>(name: Name) => new JobBuilder<Name>(name)
 
 export class JobBuilder<Name extends string = string, Input = any> {
   readonly name: Name
-  private input_schema?: z.ZodType<Input>
-  private options: SendOptions = {
-    retryLimit: 0,
-  }
+  input_schema?: z.ZodType<Input>
   private handler?: WorkHandler<Input>
-  private boss?: PgBoss
+  private worker?: WorkerUtils
 
   constructor(name: Name) {
     this.name = name
@@ -21,119 +92,40 @@ export class JobBuilder<Name extends string = string, Input = any> {
     return this as any
   }
 
-  work(handler: WorkHandler<Input>) {
-    const wrappedHandler: WorkHandler<Input> = async (jobs) => {
-      try {
-        return await handler(jobs);
-      } catch (error) {
-        console.error(`Job ${this.name} failed`, error);
-        throw error;
-      }
-    };
-    this.handler = wrappedHandler;
-    return this;
-  }
-
-  set_boss(boss: PgBoss) {
-    this.boss = boss;
-    return this;
+  work(handler: WorkHandler<Input>): JobBuilder<Name, Input> {
+    this.handler = handler
+    return this
   }
 
   async emit(data: Input) {
-    if (!this.boss) throw new Error(`[job]{${this.name}} is not registered in a JobManager!`)
-    let payload = data
+    if (!this.worker) throw new Error(`[job]{${this.name}} is not registered in a JobManager!`)
+
     if (this.input_schema) {
       const result = this.input_schema.safeParse(data)
       if (!result.success) {
-        throw new Error(`Invalid payload for job ${this.name}: ${result.error.message}`)
+        throw new Error(`[jobs]{${this.name}} invalid payload: ${result.error.message}`)
       }
-      payload = result.data as Input
+    }
+    
+    console.debug(`[job]{${this.name}} was added to queue.`)
+
+    await this.worker.addJob(this.name, data as any)
+  }
+
+  build(worker: WorkerUtils, db: DatabaseAccess, openrouter: OpenRouterProvider): [string, Task] {
+    if (!this.handler) throw new Error(`[job]{${this.name}} no handler has been defined!`)
+
+    this.worker = worker
+
+    const task: Task = async (payload) => {
+      try {
+        await this.handler!(payload as Input, { db, openrouter })
+      } catch (error) {
+        console.error(`[job]{${this.name}} failed: ${(error as Error).message}`)
+        throw error
+      }
     }
 
-    console.debug(`[job]{${this.name}} emitted"`)
-    return await this.boss.send(this.name as string, payload as any, this.options)
-  }
-
-  build() {
-    if (!this.handler) {
-      throw new Error(`No handler defined for job ${this.name}`)
-    }
-
-    return {
-      name: this.name as string,
-      schema: this.input_schema,
-      handler: this.handler,
-    }
-  }
-}
-
-export const define_job = <Name extends string>(name: Name) => new JobBuilder<Name>(name)
-
-// Registry maps job names to their input payload types
-export class JobManager<Registry extends Record<string, any> = {}> {
-  private boss: PgBoss
-  private jobs: JobBuilder<any, any>[] = []
-  private jobMap: Map<string, JobBuilder<any, any>> = new Map()
-
-  constructor() {
-    this.boss = new PgBoss(get_db_connection_string())
-    this.boss.on("error", error => console.error(`[JobManager]{error}: ${JSON.stringify(error, null, 2)}`))
-  }
-
-  register<Builders extends readonly JobBuilder<any, any>[]>(...jobs: Builders): JobManager<
-    Registry & { [K in Builders[number] as K["name"]]: K extends JobBuilder<any, infer I> ? I : never }
-  > {
-    for (const jb of jobs) {
-      const job = jb as unknown as JobBuilder<any, any>
-      job.set_boss(this.boss)
-      this.jobs.push(job)
-      this.jobMap.set(job.name as string, job)
-    }
-    return this as unknown as JobManager<
-      Registry & { [K in Builders[number] as K["name"]]: K extends JobBuilder<any, infer I> ? I : never }
-    >
-  }
-
-  async start() {
-    this.boss = await this.boss.start()
-    for (const job of this.jobs) {
-      const built = job.build()
-      await this.boss.createQueue(built.name)
-      await this.boss.work(
-        built.name,
-        { pollingIntervalSeconds: 0.5 }, // TODO what limits should we impose if any?
-        built.handler,
-      )
-    }
-    console.log("🔥 [JobManager] started!")
-  }
-
-  async stop() {
-    /**
-     * If `graceful` === `true`, then stopping will actually really wait for all jobs to
-     * finish, set their `status` to `completed` in DB and close the connection.
-     * If `graceful` === `false`, the job work function still executes until the end
-     * because i guess there is no way to stop it executing,
-     * unless we explicitly process.exit() the backend?
-     * But after it completes the execution it throws an error that crashes Elysia
-     * because it attempts to edit the `status` to `completed` in the DB but fails
-     * cause there is no active connection since we just stopped it.
-     * But the job's `status` gets set to `failed` in the DB by the `stop` function
-     * and on next start is not actually rerun. So it just stays like that.
-     */
-    await this.boss.stop({ graceful: true })
-    console.log("🚫 [JobManager] stopped!")
-  }
-
-  job<N extends keyof Registry & string>(name: N): JobBuilder<N, Registry[N]> {
-    const found = this.jobMap.get(name)
-    if (!found) throw new Error(`[JobManager] job '${name}' is not registered`)
-    return found as JobBuilder<N, Registry[N]>
-  }
-
-  async emit<N extends keyof Registry & string>(name: N, data: Registry[N]): Promise<string | null> {
-    const job = this.jobMap.get(name)
-    if (!job) throw new Error(`[JobManager] job '${name}' is not registered`)
-    return await (job as JobBuilder<N, Registry[N]>).emit(data)
+    return [this.name, task]
   }
 }

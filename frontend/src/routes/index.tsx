@@ -72,7 +72,7 @@ function OverviewPage() {
         </>
       ) : (
         <div>
-          <p>No research were problems found.</p>
+          <p>No research problems were found.</p>
           <p>
             To get started,&nbsp;
             <BracketLink to="/create">

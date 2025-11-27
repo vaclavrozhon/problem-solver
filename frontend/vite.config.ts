@@ -20,6 +20,13 @@ export default defineConfig({
   ],
   envDir: "../",
   publicDir: "static",
+  resolve: {
+    alias: {
+      "@shared": path.resolve(__dirname, "../shared/src"),
+      "@frontend": path.resolve(__dirname, "./src"),
+      "@backend": path.resolve(__dirname, "../backend/src"),
+    }
+  },
   server: {
     port: import.meta.env.FRONTEND_PORT,
   },

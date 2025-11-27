@@ -5,12 +5,14 @@ import { css } from "@linaria/core"
 import { useForm, Controller } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useNavigate } from "@tanstack/react-router"
 
 import Markdown from "../components/Markdown"
 import SplitViewEditor from "../components/app/SplitViewEditor"
 import BracketButton from "../components/action/BracketButton"
 import ErrorBox from "../components/form/ErrorBox"
 import { Form, FormField, FormLabel, FormInput, FormTextarea } from "../styles/Form"
+import { api } from "../api"
 
 export const Route = createFileRoute("/create")({ component: CreateProblem })
 
@@ -22,6 +24,7 @@ export const CreateProblemFormSchema = z.object({
 
 function CreateProblem() {
   const [show_preview, setShowPreview] = useState(false)
+  const navigate = useNavigate()
 
   const { register, handleSubmit, formState: { errors }, watch, control } = useForm({
     defaultValues: {
@@ -31,24 +34,23 @@ function CreateProblem() {
     resolver: zodResolver(CreateProblemFormSchema)
   })
 
-  function onFormSubmit(data: z.infer<typeof CreateProblemFormSchema>) {
+  async function onFormSubmit(form_data: z.infer<typeof CreateProblemFormSchema>) {
     // TODO: create problem in DB, then navigate to the created problem
+    const result = await api.problems["create-new-problem"].post(form_data)
+    if (result.error) {
+      // TODO: Handle error
+      return
+    }
+    navigate({
+      to: "/problem/$problem_id",
+      params: {
+        problem_id: result.data.data.problem_id,
+      }
+    })
   }
 
   return (
     <MainContent>
-      <div className={css`
-          background: yellow;
-          color: black;
-          padding: 2rem;
-          font-weight: 600;
-          border: 6px solid black;
-          & span {
-            text-decoration: underline;
-          }
-        `}>
-        <p>THIS IS JUST INTERFACE PREVIEW AND IS NOT YET CONNECTED TO THE BACKEND. <span>DO NOT USE!</span></p>
-      </div>
       <h1>Create new research problem</h1>
       <Form onSubmit={handleSubmit(onFormSubmit)}>
         <FormField className="max-width">

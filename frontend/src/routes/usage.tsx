@@ -32,7 +32,7 @@ function UsagePage() {
             {isPending ? (
               <div className="spinner"></div>
             ) : (
-              <p><span>$</span>{balance.total_credits}</p>
+              <p><span>$</span>{balance.total_credits.toFixed(3)}</p>
             )}
           </div>
           <div className="block">
@@ -40,7 +40,7 @@ function UsagePage() {
             {isPending ? (
               <div className="spinner"></div>
             ) : (
-              <p><span>$</span>{balance.total_usage}</p>
+              <p><span>$</span>{balance.total_usage.toFixed(3)}</p>
             )}
           </div>
         </div>
@@ -60,8 +60,8 @@ const MainContent = styled.main`
       padding: 1rem;
       border: var(--border-alpha);
       border-radius: .8rem;
-      width: 15rem;
-      height: 15rem;
+      width: 20em;
+      height: 10rem;
       background: var(--text-gamma);
       color: var(--bg-alpha);
       & *::selection {

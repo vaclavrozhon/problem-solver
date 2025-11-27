@@ -11,7 +11,7 @@ import postgres from "postgres"
 export const drizzle_plugin = new Elysia({ name: "drizzle" })
   .decorate("db", new_db_connection())
 
-function new_db_connection() {
+export function new_db_connection() {
   const connection_string = get_db_connection_string()
   const client = postgres(connection_string, { prepare: false })
   return drizzle({

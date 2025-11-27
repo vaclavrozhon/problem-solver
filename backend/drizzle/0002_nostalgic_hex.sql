@@ -1,0 +1,1 @@
+ALTER TABLE "main-dev"."problems" ALTER COLUMN "status" SET DEFAULT 'created';

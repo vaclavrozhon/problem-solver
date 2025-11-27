@@ -1,12 +1,12 @@
 {
-  "id": "00000000-0000-0000-0000-000000000000",
-  "prevId": "",
+  "id": "75a09ef5-10a9-4b15-8897-a047d8a0a106",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "main.problem_files": {
+    "main-dev.problem_files": {
       "name": "problem_files",
-      "schema": "main",
+      "schema": "main-dev",
       "columns": {
         "id": {
           "name": "id",
@@ -65,7 +65,7 @@
           "name": "problem_files_problem_id_fkey",
           "tableFrom": "problem_files",
           "tableTo": "problems",
-          "schemaTo": "main",
+          "schemaTo": "main-dev",
           "columnsFrom": [
             "problem_id"
           ],
@@ -78,13 +78,13 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {},
       "policies": {},
-      "isRLSEnabled": true
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "main.runs": {
-      "name": "runs",
-      "schema": "main",
+    "main-dev.problems": {
+      "name": "problems",
+      "schema": "main-dev",
       "columns": {
         "id": {
           "name": "id",
@@ -93,6 +93,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -100,14 +106,98 @@
           "notNull": true,
           "default": "now()"
         },
-        "status": {
-          "name": "status",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "started_at": {
-          "name": "started_at",
+        "status": {
+          "name": "status",
+          "type": "problem-status",
+          "typeSchema": "main-dev",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'idle'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "active_run_id": {
+          "name": "active_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_round": {
+          "name": "current_round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problems_owner_id_fkey": {
+          "name": "problems_owner_id_fkey",
+          "tableFrom": "problems",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "main-dev.runs": {
+      "name": "runs",
+      "schema": "main-dev",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "problem_id": {
+          "name": "problem_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phase": {
+          "name": "phase",
+          "type": "run-phase",
+          "typeSchema": "main-dev",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "run-status",
+          "typeSchema": "main-dev",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'running'"
+        },
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -133,77 +223,14 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {},
-      "policies": {},
-      "isRLSEnabled": true
-    },
-    "main.problems": {
-      "name": "problems",
-      "schema": "main",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "owner_id": {
-          "name": "owner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active_run_id": {
-          "name": "active_run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "current_round": {
-          "name": "current_round",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
       "foreignKeys": {
-        "problems_owner_id_fkey": {
-          "name": "problems_owner_id_fkey",
-          "tableFrom": "problems",
-          "tableTo": "users",
-          "schemaTo": "auth",
+        "runs_problem_id_fkey": {
+          "name": "runs_problem_id_fkey",
+          "tableFrom": "runs",
+          "tableTo": "problems",
+          "schemaTo": "main-dev",
           "columnsFrom": [
-            "owner_id"
+            "problem_id"
           ],
           "columnsTo": [
             "id"
@@ -214,25 +241,89 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {},
       "policies": {},
-      "isRLSEnabled": true
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "auth.users": {
+      "name": "users",
+      "schema": "auth",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_user_meta_data": {
+          "name": "raw_user_meta_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "main-dev.problem-status": {
+      "name": "problem-status",
+      "schema": "main-dev",
+      "values": [
+        "idle",
+        "queued",
+        "running",
+        "failed",
+        "completed"
+      ]
+    },
+    "main-dev.run-phase": {
+      "name": "run-phase",
+      "schema": "main-dev",
+      "values": [
+        "queued",
+        "prover_working",
+        "prover_finished",
+        "verifier_working",
+        "verifier_finished",
+        "summarizer_working",
+        "summarizer_finished",
+        "ended"
+      ]
+    },
+    "main-dev.run-status": {
+      "name": "run-status",
+      "schema": "main-dev",
+      "values": [
+        "running",
+        "completed",
+        "failed"
+      ]
+    }
+  },
   "schemas": {
-    "main": "main"
+    "auth": "auth",
+    "main-dev": "main-dev"
   },
   "sequences": {},
   "roles": {},
   "policies": {},
   "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
     "tables": {}
   }
 }

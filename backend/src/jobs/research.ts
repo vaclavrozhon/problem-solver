@@ -3,11 +3,10 @@ import { z } from "zod"
 import { eq, sql, and, inArray, lt } from "drizzle-orm"
 import { problems, runs, problem_files, llms } from "../../drizzle/schema"
 import { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
-import { AllowedModelsID, get_model_id } from "@shared/types/research"
 
 import { define_job } from "./manager"
 import { NewStandardResearch } from "@shared/types/research"
-import { SmartModels, SummarizerModels, get_model_id } from "@shared/types/research"
+import { AllowedModelsID, SmartModels, SummarizerModels, get_model_id } from "@shared/types/research"
 
 // TODO/BUG: Will need refactoring, so far only working for summoning 1 round at a time.
 export const run_standard_verifier = define_job("standard_verifier")
@@ -588,6 +587,11 @@ export const run_standard_research = define_job("standard_research")
           updated_at: sql`NOW()`,
         })
         .where(eq(runs.id, run_id))
+      await db.update(problems)
+        .set({
+          status: "failed",
+          updated_at: sql`NOW()`,
+        })
       console.error("[job]{standard_research} failed at prover's step because of", e)
       return
     }

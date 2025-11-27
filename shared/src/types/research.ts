@@ -6,7 +6,8 @@ export const LLMModelsMap = {
     "Gemini 3 Pro": "google/gemini-3-pro-preview",
     "GPT 5.1": "openai/gpt-5.1",
     "GPT 5": "openai/gpt-5",
-    "Kimi K2": "moonshotai/kimi-k2-thinking",
+    // BUG: see if kimi k2 works or is broekn
+    // "Kimi K2": "moonshotai/kimi-k2-thinking",
     "Claude Opus 4.5": "anthropic/claude-opus-4.5",
     "Grok 4": "x-ai/grok-4",
   },
@@ -48,7 +49,8 @@ const keys = <T extends Record<string, any>>(obj: T) =>
 export const SmartModels = z.enum(keys(LLMModelsMap.smart));
 export const SummarizerModels = z.enum(keys(LLMModelsMap.summarizer));
 
-export const MaxProversPerRound = 10
+// BUG: Cant be higher than 9 or breaks conversations retrieval by regex for digits
+export const MaxProversPerRound = 9
 export const MaxRoundsPerResearch = 1
 export const ProversPerRound = z.coerce.number<string>().min(1).max(MaxProversPerRound)
 export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsPerResearch)

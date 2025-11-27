@@ -44,8 +44,9 @@ export class JobManager<Registry extends Record<string, any> = {}> {
 
     this.runner = await run({
       connectionString: get_db_connection_string(),
-      concurrency: 1,
+      concurrency: 10,
       taskList,
+      schema: Bun.env.NODE_ENV === "production" ? "jobs" : "jobs_dev",
     })
 
     console.log("👍 [job_manager] was started!")

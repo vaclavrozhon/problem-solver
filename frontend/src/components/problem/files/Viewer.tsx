@@ -54,21 +54,22 @@ export default function FileViewer({ file_id }: Props) {
       //   let raw_json = JSON.stringify(JSON.parse(content), null, 2)
       //   FileContentViewer = <JSONViewer raw_json={raw_json}/>
       // }
-      // else FileContentViewer = <Markdown md={file.content}/>
+      // else
+      FileContentViewer = <Markdown md={file.content}/>
       break
   }
 
   return (
     <Viewer>
       <h2>{file["file_name"]}</h2>
-      {/* <div>
+      <div>
         <BracketButton onClick={() => setCurrView("formatted")}
-          disabled={curr_view === "formatted"}>File Content Formatted</BracketButton>
+          disabled={curr_view === "formatted"}>FORMATTED</BracketButton>
         <BracketButton onClick={() => setCurrView("raw")}
           disabled={curr_view === "raw"}>RAW</BracketButton>
-        <BracketButton onClick={() => setCurrView("db_entry")}
-          disabled={curr_view === "db_entry"}>DB Entry</BracketButton>
-      </div> */}
+        {/* <BracketButton onClick={() => setCurrView("db_entry")}
+          disabled={curr_view === "db_entry"}>DB Entry</BracketButton> */}
+      </div>
       {FileContentViewer}
     </Viewer>
   )

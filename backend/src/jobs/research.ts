@@ -306,8 +306,8 @@ export const run_standard_summarizer = define_job("standard_summarizer")
     const [summarizer_prompt_file] = await db.insert(problem_files)
       .values({
         problem_id: research.problem_id,
-        file_type: "summarizer_output",
-        file_name: "summarizer.output",
+        file_type: "summarizer_prompt",
+        file_name: "summarizer.prompt",
         content: summarizer_prompt,
         round: research.round,
       })

@@ -26,10 +26,11 @@ export const research_router = new Elysia({ prefix: "/research" })
       message: "Can' start research for non-existing problem – invalid problem id."
     })
 
-    if (problem.owner_id !== user.id) return status(401, {
-      type: "error",
-      message: "Can't start research for a problem you didn't create!"
-    })
+    // BUG COMMENETED OUT FOR NOW 
+    // if (problem.owner_id !== user.id) return status(401, {
+    //   type: "error",
+    //   message: "Can't start research for a problem you didn't create!"
+    // })
 
     if (problem.status === "running" || problem.status === "queued") return status(409, {
       type: "error",

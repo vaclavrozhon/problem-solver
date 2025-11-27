@@ -32,7 +32,7 @@ function UsagePage() {
             {isPending ? (
               <div className="spinner"></div>
             ) : (
-              <p><span>$</span>{balance.total_credits.toFixed(3)}</p>
+              <p><span>$</span>{(balance.total_credits - balance.total_usage).toFixed(3)}</p>
             )}
           </div>
           <div className="block">

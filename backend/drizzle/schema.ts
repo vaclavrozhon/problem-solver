@@ -111,6 +111,7 @@ export const llms = main.table("llms", {
   // its optional for now because twe just testing
   prompt_file_id: uuid(),
 
+  // TODO this name change pls bugs drizzle
   model: text("modeels").notNull(),
 
 }, (table) => [

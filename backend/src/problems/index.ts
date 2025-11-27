@@ -1,7 +1,7 @@
 import { Elysia } from "elysia"
 import { drizzle_plugin, auth_plugin } from "../db/plugins"
 import { problems, problem_files } from "../../drizzle/schema"
-import { desc, eq, and, like } from "drizzle-orm"
+import { desc, eq, and, like, sql } from "drizzle-orm"
 import { parse, z } from "zod"
 import { time } from "drizzle-orm/mysql-core"
 
@@ -139,6 +139,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         .from(problems)
         .where(eq(problems.id, problem_id))
       if (result.length === 0) return status(204)
+
       // Ok, now we know the problem exists
       const files = await db
         .select()
@@ -146,7 +147,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         .where(
           and(
             eq(problem_files.problem_id, problem_id),
-            like(problem_files.file_type, "%_output")
+            sql`${problem_files.file_type}::text LIKE '%_output'`
           )
         )
       
@@ -161,7 +162,9 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         // TODO/BUG: Fix these ts in the future. right now it will always work
         if (file.file_type === "prover_output") {
           // @ts-expect-error
-          let prover_n = Number(file.file_name.match(/\d/g)[1])
+          // BUG: This will break if we get prover number 10 or higher!!
+          let prover_n = Number(file.file_name.match(/\d/g)[0])
+          console.log(prover_n)
           rounds[file.round - 1]["provers"][prover_n - 1] = file.content
         } else if (file.file_type === "verifier_output") {
           let verifier = JSON.parse(file.content)

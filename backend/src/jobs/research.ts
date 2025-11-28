@@ -9,7 +9,8 @@ import { NewStandardResearch } from "@shared/types/research"
 import { AllowedModelsID, SmartModels, SummarizerModels, get_model_id } from "@shared/types/research"
 
 // TODO/BUG: Will need refactoring, so far only working for summoning 1 round at a time.
-export const run_standard_verifier = define_job("standard_verifier")
+export const run_standard_verifier = define_job("verifier")
+  .queue("standard_research")
   .input(z.object({
     problem_id: z.uuid(),
     run_id: z.uuid(),
@@ -252,7 +253,8 @@ export const run_standard_verifier = define_job("standard_verifier")
   })
 
 
-export const run_standard_summarizer = define_job("standard_summarizer")
+export const run_standard_summarizer = define_job("summarizer")
+  .queue("standard_research")
   .input(z.object({
     run_id: z.uuid(),
     problem_id: z.uuid(),
@@ -421,7 +423,8 @@ export const run_standard_summarizer = define_job("standard_summarizer")
 
 
 
-export const run_standard_research = define_job("standard_research")
+export const run_standard_research = define_job("start_research")
+  .queue("standard_research")
   .input(z.object({
     new_research: NewStandardResearch,
     user_id: z.uuid(),

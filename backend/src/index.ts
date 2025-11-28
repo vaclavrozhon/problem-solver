@@ -47,32 +47,24 @@ export const app = new Elysia()
     console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}.`)
   })
   .onStop(async () => {
-    console.log("elysia server stopped & stopping jobs")
+    console.log("🔥 [BACKEND] stopped!")
     await jobs.stop()
+    process.exit(0)
   })
   .listen(Bun.env.NODE_ENV === "production" ? Bun.env.PORT! : (Bun.env.BACKEND_PORT || 3942))
 
-// Graceful shutdown on OS signals (e.g., Ctrl+C or platform stop)
-let shuttingDown = false
-const handleSignal = async (signal: string) => {
-  if (shuttingDown) return
-  shuttingDown = true
-  console.log(`[BACKEND] received ${signal}, shutting down gracefully...`)
-  try {
-    // Triggers Elysia's onStop hook, which stops the JobManager
-    await app.stop(true)
-  } catch (err) {
-    console.error("[BACKEND] error during shutdown:", err)
-  } finally {
-    // Ensure process exits even if something hangs
-    process.exit(0)
+let shutting_down = false
+function handle_shutdown() {
+  if (!shutting_down) {
+    shutting_down = true
+    app.stop(true)
   }
 }
 
-// SIGINT: interactive interrupt (Ctrl+C)
-// SIGTERM: termination request (e.g., from orchestrator/platform)
-process.on("SIGINT", async () => handleSignal("SIGINT"))
-process.on("SIGTERM", () => handleSignal("SIGTERM"))
+// SIGINT: interactive interrupt (Ctrl + C)
+// SIGTERM: termination request (e.g. from platform)
+process.on("SIGINT", () => handle_shutdown())
+process.on("SIGTERM", () => handle_shutdown())
 
 // DEV Hack to let TypeScript know we will always specify these in .env
 declare module "bun" {
@@ -87,6 +79,8 @@ declare module "bun" {
     DATABASE_PASSWORD: string,
 
     OPENROUTER_API_KEY: string,
+
+    REDIS_URL: string,
   }
 }
 

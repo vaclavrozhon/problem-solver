@@ -1,27 +1,33 @@
 import { Elysia } from "elysia"
 import { createClient } from "@supabase/supabase-js"
-import { drizzle } from "drizzle-orm/postgres-js"
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 import * as schema from "../../drizzle/schema"
 import * as relations from "../../drizzle/relations"
 import postgres from "postgres"
 
+type DBSchema = typeof schema & typeof relations
+let db: PostgresJsDatabase<DBSchema> | null = null
+
 // All DB requests should be made through Drizzle
 // Supabase used only for .auth
 export const drizzle_plugin = new Elysia({ name: "drizzle" })
-  .decorate("db", new_db_connection())
+  .decorate("db", get_db())
 
-export function new_db_connection() {
-  const connection_string = get_db_connection_string()
-  const client = postgres(connection_string, { prepare: false })
-  return drizzle({
+export function get_db(): PostgresJsDatabase<DBSchema> {
+  if (db) return db
+  const client = postgres(get_db_connection_string(), {
+    prepare: false,
+    max: 10,
+    idle_timeout: 30,
+    connect_timeout: 10,
+  })
+  db = drizzle({
     client,
     casing: "snake_case",
-    schema: {
-      ...schema,
-      ...relations,
-    },
+    schema: { ...schema, ...relations },
   })
+  return db
 }
 
 export function get_db_connection_string() {

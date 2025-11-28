@@ -46,7 +46,8 @@ export const research_router = new Elysia({ prefix: "/research" })
       return status(500)
     }
 
-    jobs.emit("standard_research", { new_research: body, user_id: user.id })
+    jobs.queue("standard_research")
+      .emit("start_research", { new_research: body, user_id: user.id })
 
     return {
       type: "success",

@@ -1,0 +1,1 @@
+ALTER TABLE "main"."llms" ALTER COLUMN "prompt_file_id" DROP NOT NULL;

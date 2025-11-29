@@ -13,19 +13,28 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
   .use(drizzle_plugin)
   .use(auth_plugin)
   .get("/health", { status: "ok" })
-  .get("/my-problems", async ({ db, user }) => {
-    return db
-      .select({
-        id: problems.id,
-        name: problems.name,
-        updated_at: problems.updated_at,
-        is_running: eq(problems.status, "running"),
-        phase: problems.status,
-        current_round: problems.current_round,
-        total_rounds: problems.current_round,
+  .get("/my-problems", async ({ db, user, status }) => {
+    try {
+      const response = await db
+        .select({
+          id: problems.id,
+          name: problems.name,
+          updated_at: problems.updated_at,
+          is_running: eq(problems.status, "running"),
+          phase: problems.status,
+          current_round: problems.current_round,
+          total_rounds: problems.current_round,
+        })
+        .from(problems)
+        .where(eq(problems.owner_id, user.id))
+      if (response.length === 0) return (204)
+      return response
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: "Failed to retrieve your problems."
       })
-      .from(problems)
-      .where(eq(problems.owner_id, user.id))
+    }
   }, { isAuth: true })
   /**
    * Retrieves overview for problem by given id.

@@ -32,7 +32,7 @@ export function get_db(): PostgresJsDatabase<DBSchema> {
 
 export function get_db_connection_string() {
   return Bun.env.DATABASE_URL.replace(
-    "DATABASE_PASSWORD",
+    "[DATABASE_PASSWORD]",
     encodeURIComponent(Bun.env.DATABASE_PASSWORD)
   )
 }

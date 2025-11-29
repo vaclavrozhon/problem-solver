@@ -49,7 +49,7 @@ function RootLayout() {
   return isAuthenticated ? (
     <PageContent>
       <Header>
-        <p>🔬 Automatic Researcher</p>
+        <Link to="/" className="project_name">🔬 Automatic Researcher</Link>
         <Nav>
           <Link to="/">Overview</Link>
           <Link to="/archive" preload="intent">Archive</Link>
@@ -75,7 +75,7 @@ function RootLayout() {
   ) : (
     <PageContent>
       <Header>
-        <p>🔬 Automatic Researcher</p>
+        <p className="project_name">🔬 Automatic Researcher</p>
       </Header>
 
       <Outlet/>
@@ -98,7 +98,7 @@ const Header = styled.header`
   gap: 1rem;
   padding: .6rem 1rem;
   border-bottom: var(--border-alpha);
-  & p {
+  & .project_name {
     color: var(--text-beta);
     font-size: 1.1rem;
     font-weight: 600;

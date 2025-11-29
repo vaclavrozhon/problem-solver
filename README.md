@@ -6,7 +6,7 @@ Web based research system that automates mathematical problem solving and proof 
 
 This is a short overview of how the project is implemented any why. Longer and more detailed explanations can be found inside the `docs` folder.
 
-Project uses [Bun](https://bun.com) as it's runtime & package manager. Both the `frontend` and `backend` are written in TypeScript.
+Project uses [Bun](https://bun.com) as its runtime & package manager. Both the `frontend` and `backend` are written in TypeScript.
 
 ### Frontend
 
@@ -76,8 +76,9 @@ This is different from the development environment in which you use 2 differnet 
 ## TODO
 
 - [ ] Before deploying, look at [Elysia deploy guide](https://elysiajs.com/patterns/deploy.html)
-- [ ] Railway prod injects `PORT` env variable which should be used to run the service
+- [x] Railway prod injects `PORT` env variable which should be used to run the service
 - [ ] Study single-threaded vs. multi-threaded backend apps differences and railway setup
+- [ ] eslint?
 
 ### BACKEND
 

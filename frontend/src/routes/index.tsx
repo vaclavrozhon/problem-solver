@@ -16,6 +16,21 @@ function OverviewPage() {
   
   if (isPending) return <MainContent><p>Loading problems...</p></MainContent>
   if (isError || !problems) return <MainContent><p>Error occurred: {JSON.stringify(error)}</p></MainContent>
+
+  if (problems === 204) return (
+    <MainContent>
+      <div>
+        <p>No research problems were found.</p>
+        <p>
+          To get started,&nbsp;
+          <BracketLink to="/create">
+            create
+          </BracketLink>
+          &nbsp;your first research problem!
+        </p>
+      </div>
+    </MainContent>
+  )
   
   problems.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))
 
@@ -26,62 +41,46 @@ function OverviewPage() {
     <MainContent>
       <h1>My Problems</h1>
 
+      <MetricDashboard>
+        <MetricCard>
+          <p className="title">Total Problems</p>
+          <p className="num">{problems.length}</p>
+        </MetricCard>
+        <MetricCard>
+          <p className="title">Currently Running</p>
+          <p className="num">{currently_running_problems_count}</p>
+        </MetricCard>
+        <MetricCard>
+          <p className="title">Total Rounds</p>
+          <p className="num">{total_rounds_count}</p>
+        </MetricCard>
+      </MetricDashboard>
 
-      {problems.length > 0 ? (
-        <>
-          <MetricDashboard>
-            <MetricCard>
-              <p className="title">Total Problems</p>
-              <p className="num">{problems.length}</p>
-            </MetricCard>
-            <MetricCard>
-              <p className="title">Currently Running</p>
-              <p className="num">{currently_running_problems_count}</p>
-            </MetricCard>
-            <MetricCard>
-              <p className="title">Total Rounds</p>
-              <p className="num">{total_rounds_count}</p>
-            </MetricCard>
-          </MetricDashboard>
-
-          <ProblemsSection>
-            <ProblemRow className="header">
-              <div>Problem Name</div>
-              <div>Status</div>
-              <div>Rounds</div>
-              <div>Last Activity</div>
-              <div>Actions</div>
+      <ProblemsSection>
+        <ProblemRow className="header">
+          <div>Problem Name</div>
+          <div>Status</div>
+          <div>Rounds</div>
+          <div>Last Activity</div>
+          <div>Actions</div>
+        </ProblemRow>
+        <ProblemsTable>
+          {problems.map(p => (
+            <ProblemRow key={p.id}>
+              <div className="problem_name">{p.name}</div>
+              <div>{p.phase}</div>
+              <div>{p.total_rounds}</div>
+              <div>{(new Date(p.updated_at)).toLocaleString("cs-CZ")}</div>
+              <div>
+                <BracketLink to="/problem/$problem_id"
+                params={{ problem_id: p.id }}>
+                  View
+                </BracketLink>
+                </div>
             </ProblemRow>
-            <ProblemsTable>
-              {problems.map(p => (
-                <ProblemRow key={p.id}>
-                  <div className="problem_name">{p.name}</div>
-                  <div>{p.phase}</div>
-                  <div>{p.total_rounds}</div>
-                  <div>{(new Date(p.updated_at)).toLocaleString("cs-CZ")}</div>
-                  <div>
-                    <BracketLink to="/problem/$problem_id"
-                    params={{ problem_id: p.id }}>
-                      View
-                    </BracketLink>
-                    </div>
-                </ProblemRow>
-              ))}
-            </ProblemsTable>
-          </ProblemsSection>
-        </>
-      ) : (
-        <div>
-          <p>No research problems were found.</p>
-          <p>
-            To get started,&nbsp;
-            <BracketLink to="/create">
-              create
-            </BracketLink>
-            &nbsp;your first research problem!
-          </p>
-        </div>
-      )}
+          ))}
+        </ProblemsTable>
+      </ProblemsSection>
     </MainContent>
   )
 }

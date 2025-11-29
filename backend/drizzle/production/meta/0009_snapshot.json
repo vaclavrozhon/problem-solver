@@ -1,12 +1,78 @@
 {
-  "id": "75a09ef5-10a9-4b15-8897-a047d8a0a106",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "4831506c-9a9f-4436-89a2-e25381830636",
+  "prevId": "39b7f119-14fc-4934-8370-fa24e5b3a63b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "main-dev.problem_files": {
+    "main.llms": {
+      "name": "llms",
+      "schema": "main",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "response": {
+          "name": "response",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usage": {
+          "name": "usage",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_file_id": {
+          "name": "prompt_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modeels": {
+          "name": "modeels",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_files_id_in_llms_fkey": {
+          "name": "problem_files_id_in_llms_fkey",
+          "tableFrom": "llms",
+          "tableTo": "problem_files",
+          "schemaTo": "main",
+          "columnsFrom": [
+            "prompt_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "main.problem_files": {
       "name": "problem_files",
-      "schema": "main-dev",
+      "schema": "main",
       "columns": {
         "id": {
           "name": "id",
@@ -36,7 +102,8 @@
         },
         "file_type": {
           "name": "file_type",
-          "type": "text",
+          "type": "files-types",
+          "typeSchema": "main",
           "primaryKey": false,
           "notNull": true
         },
@@ -49,6 +116,12 @@
         "content": {
           "name": "content",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usage": {
+          "name": "usage",
+          "type": "json",
           "primaryKey": false,
           "notNull": false
         },
@@ -65,7 +138,7 @@
           "name": "problem_files_problem_id_fkey",
           "tableFrom": "problem_files",
           "tableTo": "problems",
-          "schemaTo": "main-dev",
+          "schemaTo": "main",
           "columnsFrom": [
             "problem_id"
           ],
@@ -82,9 +155,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "main-dev.problems": {
+    "main.problems": {
       "name": "problems",
-      "schema": "main-dev",
+      "schema": "main",
       "columns": {
         "id": {
           "name": "id",
@@ -115,10 +188,10 @@
         "status": {
           "name": "status",
           "type": "problem-status",
-          "typeSchema": "main-dev",
+          "typeSchema": "main",
           "primaryKey": false,
           "notNull": true,
-          "default": "'idle'"
+          "default": "'created'"
         },
         "updated_at": {
           "name": "updated_at",
@@ -164,9 +237,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "main-dev.runs": {
+    "main.runs": {
       "name": "runs",
-      "schema": "main-dev",
+      "schema": "main",
       "columns": {
         "id": {
           "name": "id",
@@ -184,20 +257,27 @@
         "phase": {
           "name": "phase",
           "type": "run-phase",
-          "typeSchema": "main-dev",
+          "typeSchema": "main",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
           "type": "run-status",
-          "typeSchema": "main-dev",
+          "typeSchema": "main",
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
         },
         "created_at": {
           "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -228,7 +308,7 @@
           "name": "runs_problem_id_fkey",
           "tableFrom": "runs",
           "tableTo": "problems",
-          "schemaTo": "main-dev",
+          "schemaTo": "main",
           "columnsFrom": [
             "problem_id"
           ],
@@ -278,10 +358,31 @@
     }
   },
   "enums": {
-    "main-dev.problem-status": {
-      "name": "problem-status",
-      "schema": "main-dev",
+    "main.files-types": {
+      "name": "files-types",
+      "schema": "main",
       "values": [
+        "task",
+        "proofs",
+        "notes",
+        "output",
+        "prover_prompt",
+        "verifier_prompt",
+        "summarizer_prompt",
+        "prover_reasoning",
+        "verifier_reasoning",
+        "summarizer_reasoning",
+        "prover_output",
+        "verifier_output",
+        "summarizer_output",
+        "round_meta"
+      ]
+    },
+    "main.problem-status": {
+      "name": "problem-status",
+      "schema": "main",
+      "values": [
+        "created",
         "idle",
         "queued",
         "running",
@@ -289,23 +390,26 @@
         "completed"
       ]
     },
-    "main-dev.run-phase": {
+    "main.run-phase": {
       "name": "run-phase",
-      "schema": "main-dev",
+      "schema": "main",
       "values": [
         "queued",
         "prover_working",
         "prover_finished",
+        "prover_failed",
         "verifier_working",
         "verifier_finished",
+        "verifier_failed",
         "summarizer_working",
         "summarizer_finished",
+        "summarizer_failed",
         "ended"
       ]
     },
-    "main-dev.run-status": {
+    "main.run-status": {
       "name": "run-status",
-      "schema": "main-dev",
+      "schema": "main",
       "values": [
         "running",
         "completed",
@@ -315,7 +419,7 @@
   },
   "schemas": {
     "auth": "auth",
-    "main-dev": "main-dev"
+    "main": "main"
   },
   "sequences": {},
   "roles": {},

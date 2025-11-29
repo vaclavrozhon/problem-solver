@@ -1,7 +1,7 @@
 import { pgSchema, foreignKey, uuid, timestamp, integer, text, jsonb, json } from "drizzle-orm/pg-core"
 import { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
 
-export const main = pgSchema("main-dev")
+export const main = pgSchema("main")
 
 export const files_types = main.enum("files-types", [
   "task", "proofs", "notes", "output",

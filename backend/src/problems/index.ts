@@ -182,7 +182,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         if (corresponding_reasoning) {
           let parsed_reasoning = JSON.parse(corresponding_reasoning.content)
           let filtered = parsed_reasoning.filter((reasoning: any) => 
-            reasoning.type === "reasoning.summary"
+            reasoning.type !== "reasoning.encrypted"
           )
           corresponding_reasoning = {
             content: JSON.stringify(filtered, null, 2)

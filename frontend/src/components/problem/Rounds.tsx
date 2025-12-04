@@ -246,7 +246,14 @@ function Conversation({ conversation, conversation: { content, verdict }, expand
                   {show_reasoning && (
                     <>
                       {JSON.parse(content[curr_prover].reasoning).map(reasoning => (
-                        <Markdown md={reasoning.summary}/>
+                        <>
+                          {reasoning.summary && (
+                            <Markdown md={reasoning.summary}/>
+                          )}
+                          {reasoning.text && (
+                            <Markdown md={reasoning.text}/>
+                          )}
+                        </>
                       ))}
                     </>
                   )}
@@ -282,7 +289,14 @@ function Conversation({ conversation, conversation: { content, verdict }, expand
                   {show_reasoning && (
                     <>
                       {JSON.parse(content.reasoning).map(reasoning => (
-                        <Markdown md={reasoning.summary}/>
+                        <>
+                          {reasoning.summary && (
+                            <Markdown md={reasoning.summary}/>
+                          )}
+                          {reasoning.text && (
+                            <Markdown md={reasoning.text}/>
+                          )}
+                        </>
                       ))}
                     </>
                   )}

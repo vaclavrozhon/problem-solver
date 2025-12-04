@@ -346,7 +346,7 @@ export const run_standard_verifier = define_job("verifier")
   })
   .on("failed", async ({ db }, job, error) => {
     const ctx = job!.data.ctx as z.infer<typeof StandardResearchContext>
-    await update_round_phase(db, ctx.current_round_id, "verifier_failed", JSON.stringify(error))
+    await update_round_phase(db, ctx.current_round_id, "verifier_failed", error.message)
     await update_problem_status(db, ctx.problem_id, "failed")
   })
 
@@ -455,7 +455,7 @@ export const run_standard_summarizer = define_job("summarizer")
   })
   .on("failed", async ({ db }, job, error) => {
     const ctx = job!.data.ctx as z.infer<typeof StandardResearchContext>
-    await update_round_phase(db, ctx.current_round_id, "summarizer_failed", JSON.stringify(error))
+    await update_round_phase(db, ctx.current_round_id, "summarizer_failed", error.message)
     await update_problem_status(db, ctx.problem_id, "failed")
   })
 

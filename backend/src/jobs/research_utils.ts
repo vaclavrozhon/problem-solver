@@ -370,9 +370,7 @@ export async function generate_llm_response<T>(
   try {
     llm_response = await generateObject({
       model: openrouter(model_id, {
-        // BUG/TODO: FIX EFFORT TO HIGH BEFORE RELEASE
-        // TODO: ALSO ADD CACHING
-        reasoning: { effort: "low" },
+        reasoning: { effort: "high" },
         user: user_id,
         usage: { include: true },
       }),

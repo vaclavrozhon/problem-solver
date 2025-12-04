@@ -8,12 +8,12 @@ export const LLMModelsMap = {
     "GPT 5": "openai/gpt-5",
     "Claude Opus 4.5": "anthropic/claude-opus-4.5",
     "Grok 4": "x-ai/grok-4",
-    "Kimi K2": "moonshotai/kimi-k2-thinking",
-    "DeepSeek V3.2 Speciale": "deepseek/deepseek-v3.2-speciale",
+    // "Kimi K2": "moonshotai/kimi-k2-thinking",
+    // "DeepSeek V3.2 Speciale": "deepseek/deepseek-v3.2-speciale",
   },
   summarizer: {
     "GPT 5 mini": "openai/gpt-5-mini",
-    "DeepSeek V3.2": "deepseek/deepseek-v3.2",
+    // "DeepSeek V3.2": "deepseek/deepseek-v3.2",
   }
 } as const
 

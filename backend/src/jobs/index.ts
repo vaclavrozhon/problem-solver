@@ -1,6 +1,5 @@
 import { Elysia } from "elysia"
-import { JobManager, define_job } from "./manager"
-import { z } from "zod"
+import { JobManager } from "./manager"
 import { research_jobs } from "./research"
 
 export const jobs = new JobManager()
@@ -8,5 +7,3 @@ export const jobs = new JobManager()
 
 export const jobs_plugin = new Elysia({ name: "jobs" })
   .decorate("jobs", jobs)
-
-

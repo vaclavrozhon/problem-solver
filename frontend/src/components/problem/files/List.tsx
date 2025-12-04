@@ -8,7 +8,7 @@ import type { File, ProblemFiles } from "@shared/types/problem"
 interface Props {
   files: ProblemFiles,
   problem_id: string,
-  file_id: string,
+  file_id?: string,
 }
 export default function FilesList({ files, file_id, problem_id }: Props) {
   const [curr_round, setCurrRound] = useState(0)
@@ -68,8 +68,8 @@ export default function FilesList({ files, file_id, problem_id }: Props) {
                 setCurrRound(parseInt(e.target.value))
                 }}>
               {files.rounds.map(round => (
-                <option value={round.round - 1}
-                  key={round.round}>Round {round.round}</option>
+                <option value={round.round_index - 1}
+                  key={round.round_index}>Round {round.round_index}</option>
               ))}
             </select>
           </div>
@@ -100,12 +100,6 @@ export default function FilesList({ files, file_id, problem_id }: Props) {
             <>
               <h4>Summarizer</h4>
               <ShowFiles files={files.rounds[curr_round].summarizer!}/>
-            </>
-          )}
-          {files.rounds[curr_round].metadata.length > 0 && (
-            <>
-              <h4>Metadata</h4>
-              <ShowFiles files={files.rounds[curr_round].metadata!}/>
             </>
           )}
         </FilesGroup>

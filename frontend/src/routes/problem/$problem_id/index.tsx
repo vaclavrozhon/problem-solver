@@ -35,6 +35,8 @@ function ProblemID() {
     </MainContent>
   )
 
+  const total_cost = problem.round_summaries.reduce((acc, round) => acc + round.usage, 0)
+
   return (
     <ProblemDetailsLayout problem_id={problem_id}
       problem_name={problem.name}>
@@ -47,6 +49,10 @@ function ProblemID() {
           <div>
             <p>Total rounds</p>
             <p className="value">{problem.total_rounds}</p>
+          </div>
+          <div>
+            <p>Total price</p>
+            <p className="value">${total_cost.toFixed(3)}</p>
           </div>
           {problem.owner.id === user?.id ? (
             <div>
@@ -61,20 +67,13 @@ function ProblemID() {
         </ProblemStatus>
 
         <div>
-          {/* TODO */}
-          <p>TODO: Showing Time for rounds is broken</p>
-          <RoundTime times={problem.times}/>
+          <RoundTime round_summaries={problem.round_summaries}/>
         </div>
 
         <div>
           <p>This problem was last updated at {format_date(problem.updated_at)}</p>
           <p>This problem was created at {format_date(problem.created_at)}</p>
         </div>
-
-        {/* <div>
-          new run config
-          should add estimate how much the run is gonna cost
-        </div> */}
 
         {/* <div>
           TODO: danger zone (actions like remove the problem etc. or stop the research for now if running)

@@ -69,6 +69,12 @@ export default function FileViewer({ file_id }: Props) {
           disabled={curr_view === "raw"}>RAW</BracketButton>
         {/* <BracketButton onClick={() => setCurrView("db_entry")}
           disabled={curr_view === "db_entry"}>DB Entry</BracketButton> */}
+        {file.model_id && (
+          <p>{file.model_id}</p>
+        )}
+        {file.usage?.cost && (
+          <p>${file.usage.cost.toFixed(3)}</p>
+        )}
       </div>
       {FileContentViewer}
     </Viewer>

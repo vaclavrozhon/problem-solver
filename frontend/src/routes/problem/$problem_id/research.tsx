@@ -4,13 +4,15 @@ import { styled } from "@linaria/react"
 import { css } from "@linaria/core"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQuery } from "@tanstack/react-query"
 
-import DetailsLayout from "../../../components/problem/DetailsLayout"
+import ProblemDetailsLayout from "../../../components/problem/DetailsLayout"
 
 import { FormField, FormInput, FormLabel, FormTextarea} from "../../../styles/Form"
 import { useForm } from "react-hook-form"
 import ErrorBox from "../../../components/form/ErrorBox"
 import { api } from "../../../api"
+import { get_research_overview } from "../../../api/problems"
 import { NewStandardResearch, MaxProversPerRound, MaxRoundsPerResearch, LLMModelsMap } from "@shared/types/research"
 
 import ProverPromptTemplate from "@shared/prompts/prover.md?raw"
@@ -35,6 +37,10 @@ function RunNewResearchPage() {
     verifier: VerifierPromptTemplate,
     summarizer: SummarizerPromptTemplate,
   })
+  const { data: problem, isError, isPending } = useQuery({
+    queryKey: ["problem-research"],
+    queryFn: () => get_research_overview(problem_id)
+  })
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
@@ -53,6 +59,25 @@ function RunNewResearchPage() {
     resolver: zodResolver(NewStandardResearch)
   })
 
+  if (isPending) return (
+    <ProblemDetailsLayout problem_id={problem_id}>
+      <p>Loading research run config...</p>
+    </ProblemDetailsLayout>
+  )
+
+  if (isError) return (
+    <ProblemDetailsLayout problem_id={problem_id}>
+      <p>Failed to load research run config for problem with id: {problem_id}</p>
+    </ProblemDetailsLayout>
+  )
+
+  if (problem.status === "running" || problem.status === "queued") return (
+    <ProblemDetailsLayout problem_id={problem_id}
+      problem_name={problem.name}>
+        <p>Active research running – can't run anything else for now.</p>
+    </ProblemDetailsLayout>
+  )
+
   let provers_count = Number(watch("prover.count"))
   provers_count = provers_count >= 1 && provers_count <= MaxProversPerRound ? provers_count : 0
 
@@ -68,7 +93,8 @@ function RunNewResearchPage() {
   }
 
   return (
-    <DetailsLayout problem_id={problem_id}>
+    <ProblemDetailsLayout problem_id={problem_id}
+      problem_name={problem.name}>
       <h2 className={css`
         padding: 1rem;
       `}>⚙️ New run configuration</h2>
@@ -88,7 +114,6 @@ function RunNewResearchPage() {
                 min={1}
                 max={MaxRoundsPerResearch}
                 defaultValue={1}/>
-              <p>For now, you can only run 1 round of research.</p>
             </div>
             <div className="row_input">
               <FormLabel htmlFor="prover_count">Provers</FormLabel>
@@ -100,7 +125,6 @@ function RunNewResearchPage() {
                 max={MaxProversPerRound}
                 defaultValue={1}/>
             </div>
-            {/* TODO: Add timeout option. Should discuss this in relation to price.... how many rounds & prover should we allow. So time for each prover/round. */} 
           </ConfigSection>
 
           <ConfigSection>
@@ -123,23 +147,18 @@ function RunNewResearchPage() {
                     <p>Model</p>
                   </div>
                   {Array.from({ length: provers_count }, (_, i) => (
-                    <>
-                      <input {...register(`prover.provers.${i}.order`)}
-                        defaultValue={i + 1}
-                        type="hidden"/>
-                      <div key={i}>
-                        <p>Prover {i + 1}</p>
-                        <textarea {...register(`prover.provers.${i}.advice`)}
-                          placeholder="Describe what this prover should focus on..."
-                          rows={2}/>
-                        <select {...register(`prover.provers.${i}.model`)}>
-                          {Object.keys(LLMModelsMap["smart"]).map(model => (
-                            <option key={model}
-                              value={model}>{model}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
+                    <div key={i}>
+                      <p>Prover {i + 1}</p>
+                      <textarea {...register(`prover.provers.${i}.advice`)}
+                        placeholder="Describe what this prover should focus on..."
+                        rows={2}/>
+                      <select {...register(`prover.provers.${i}.model`)}>
+                        {Object.keys(LLMModelsMap["smart"]).map(model => (
+                          <option key={model}
+                            value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </div>
                   ))}
                 </ProversConfig>
                 <p>The General Advice is included in prompt for all provers. Additionally, you can give each prover some indiviual advice on top of the General Advice. (So that each prover focuses on something else – or leave it empty.) Both advices will be included in the prompt.</p>
@@ -147,7 +166,6 @@ function RunNewResearchPage() {
             )}
           </ConfigSection>
 
-          {/* TODO: is it necessary to include 'Calculator' in the prompt? */}
           <ConfigSection>
             <h3>Verifier config</h3>
             <div className="row_input">
@@ -187,7 +205,7 @@ function RunNewResearchPage() {
         
         <PromptSection>
           <h3>Prompts config</h3>
-          <div>
+          <div className="prompt_switcher">
             <p>Edit/preview the:</p>
             {Object.entries(prompts).map(([prompt_name]) => (
               <button type="button"
@@ -200,13 +218,20 @@ function RunNewResearchPage() {
           <SplitViewEditor md={watch(`${selected_prompt}.prompt`)}
             onChange={new_value => setValue(`${selected_prompt}.prompt`, new_value)}/>
           {/* TODO/NOTE: OpenRouter easily supports extracting text from PDF. It might be pricier depending on the model/pdf size but it should be implemented easily if required.  */}
-          <p>Generald Advice & Individual Advice for provers will be apended to the prompt automatically during processing in the backend.</p>
-          <p><strong>Don't</strong> specify output JSON structure. That's handled automatically in the backend. But you can specify what the output should look like it's drafted in the prompt template.</p>
+          <div className="flex-col pad-1">
+            <p>Generald Advice & Individual Advice for provers will be appended to the prompt automatically during processing in the backend.</p>
+            <p><strong>Don't</strong> specify output JSON structure. That's handled automatically in the backend. But you can specify what the output should look like it's drafted in the prompt template.</p>
+          </div>
         </PromptSection>
-        <BracketButton type="submit">Run Research!</BracketButton>
+
+        <section className="final flex-col pad-1 gap-1">
+          <div>
+            <BracketButton type="submit">Run Research</BracketButton>
+          </div>
+          <ErrorBox errors={errors}/>
+        </section>
       </NewRunForm>
-      <ErrorBox errors={errors}/>
-    </DetailsLayout>
+    </ProblemDetailsLayout>
   )
 }
 
@@ -256,10 +281,11 @@ const ProversConfig = styled.div`
       flex: 1;
     }
     & > *:nth-child(2) {
-      flex: 3;
+      flex: 7;
     }
     & > *:nth-child(3) {
-      flex: 1;
+      max-width: 14rem;
+      width: 100%;
     }
   }
 `
@@ -289,8 +315,11 @@ const NewRunForm = styled.form`
   display: flex;
   flex-flow: column;
   & > section.form_inputs {
-    max-width: 45rem;
+    max-width: 60rem;
     width: 100%;
+  }
+  & > section.final {
+    margin-top: -1rem;
   }
   & h3 {
     font-family: Kode;
@@ -306,7 +335,7 @@ const PromptSection = styled.section`
     padding: 1rem;
     padding-bottom: 0;
   }
-  & > div {
+  & > div.prompt_switcher {
     display: flex;
     align-items: center;
     padding: 1rem;

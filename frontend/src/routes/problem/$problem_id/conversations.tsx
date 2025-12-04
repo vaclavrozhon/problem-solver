@@ -41,6 +41,7 @@ function ProblemConversations() {
         {problem_rounds.rounds.length === 0 ? (
           <p>No research has been done for this problem yet.</p>
         ) : (
+          // TODO: Add "Show reasoning"
           <ProblemRounds rounds={problem_rounds.rounds}/>
         )}
     </ProblemDetailsLayout>

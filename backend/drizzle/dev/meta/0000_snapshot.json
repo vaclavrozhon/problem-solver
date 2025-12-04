@@ -1,5 +1,5 @@
 {
-  "id": "8fdf7dce-e2e9-4e47-ae0d-30a1538f2a15",
+  "id": "bde51d7e-e1d9-4d30-b6ab-e98dde2a3df8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -40,8 +40,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "modeels": {
-          "name": "modeels",
+        "model": {
+          "name": "model",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -94,9 +94,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "round": {
-          "name": "round",
-          "type": "integer",
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -125,9 +125,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
+        "model_id": {
+          "name": "model_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }
@@ -141,6 +141,20 @@
           "schemaTo": "main",
           "columnsFrom": [
             "problem_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "problem_files_rounds_id_fkey": {
+          "name": "problem_files_rounds_id_fkey",
+          "tableFrom": "problem_files",
+          "tableTo": "research_rounds",
+          "schemaTo": "main",
+          "columnsFrom": [
+            "round_id"
           ],
           "columnsTo": [
             "id"
@@ -200,8 +214,8 @@
           "notNull": true,
           "default": "now()"
         },
-        "active_run_id": {
-          "name": "active_run_id",
+        "active_round_id": {
+          "name": "active_round_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -237,8 +251,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "main.runs": {
-      "name": "runs",
+    "main.research_rounds": {
+      "name": "research_rounds",
       "schema": "main",
       "columns": {
         "id": {
@@ -254,6 +268,19 @@
           "primaryKey": false,
           "notNull": true
         },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "research_type": {
+          "name": "research_type",
+          "type": "research-type",
+          "typeSchema": "main",
+          "primaryKey": false,
+          "notNull": true
+        },
         "phase": {
           "name": "phase",
           "type": "run-phase",
@@ -261,13 +288,42 @@
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "run-status",
-          "typeSchema": "main",
+        "failed_provers": {
+          "name": "failed_provers",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prover_time": {
+          "name": "prover_time",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verifier_time": {
+          "name": "verifier_time",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summarizer_time": {
+          "name": "summarizer_time",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usage": {
+          "name": "usage",
+          "type": "numeric",
           "primaryKey": false,
           "notNull": true,
-          "default": "'running'"
+          "default": 0
+        },
+        "estimated_usage": {
+          "name": "estimated_usage",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -295,18 +351,18 @@
           "primaryKey": false,
           "notNull": false
         },
-        "parameters": {
-          "name": "parameters",
-          "type": "jsonb",
+        "research_config": {
+          "name": "research_config",
+          "type": "json",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "runs_problem_id_fkey": {
-          "name": "runs_problem_id_fkey",
-          "tableFrom": "runs",
+        "problems_round_id_fkey": {
+          "name": "problems_round_id_fkey",
+          "tableFrom": "research_rounds",
           "tableTo": "problems",
           "schemaTo": "main",
           "columnsFrom": [
@@ -374,8 +430,7 @@
         "summarizer_reasoning",
         "prover_output",
         "verifier_output",
-        "summarizer_output",
-        "round_meta"
+        "summarizer_output"
       ]
     },
     "main.problem-status": {
@@ -390,11 +445,18 @@
         "completed"
       ]
     },
+    "main.research-type": {
+      "name": "research-type",
+      "schema": "main",
+      "values": [
+        "standard",
+        "adrian"
+      ]
+    },
     "main.run-phase": {
       "name": "run-phase",
       "schema": "main",
       "values": [
-        "queued",
         "prover_working",
         "prover_finished",
         "prover_failed",
@@ -404,16 +466,7 @@
         "summarizer_working",
         "summarizer_finished",
         "summarizer_failed",
-        "ended"
-      ]
-    },
-    "main.run-status": {
-      "name": "run-status",
-      "schema": "main",
-      "values": [
-        "running",
-        "completed",
-        "failed"
+        "finished"
       ]
     }
   },

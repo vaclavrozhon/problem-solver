@@ -13,23 +13,17 @@ export function format_raw_files_data(files: File[]): ProblemFiles {
     rounds: []
   }
 
-  const highest_round = Math.max(0, ...files.map(f => f.round))
+  const highest_round = Math.max(0, ...files.map(f => f.round.index))
 
   for (let round = 1; round <= highest_round; round++) {
-    const current_round_files = files.filter(f => f.round === round)
+    const current_round_files = files.filter(f => f.round.index === round)
 
-    const metadata = current_round_files.filter(f => (
-      f.file_type === "round_meta" || f.file_type === "response_ids"
-    ))
+    const by_type_in_curr_round = (type: string) =>
+      current_round_files.filter(f => f.file_type.startsWith(type))
 
-    const metadata_ids = new Set(metadata.map(f => f.id))
-    const not_metadata_by_type = (type: string) => current_round_files.filter(f => (
-      f.file_type.startsWith(type) && !metadata_ids.has(f.id)
-    ))
+    const prover_files = by_type_in_curr_round("prover")
 
-    const prover_files = not_metadata_by_type("prover")
-
-    const prover_index = (f: File) => parseInt(f.file_name.match(/\d+/)?.[0] ?? "0")
+    const prover_index = (f: File) => parseInt(f.file_name.match(/[0-9]+/)?.[0] ?? "0")
     const prover_count = Math.max(0, ...prover_files.map(prover_index))
 
     const provers: File[][] = []
@@ -38,10 +32,9 @@ export function format_raw_files_data(files: File[]): ProblemFiles {
     }
 
     file_list.rounds.push({
-      round,
-      metadata,
-      verifier: not_metadata_by_type("verifier"),
-      summarizer: not_metadata_by_type("summarizer"),
+      round_index: round,
+      verifier: by_type_in_curr_round("verifier"),
+      summarizer: by_type_in_curr_round("summarizer"),
       provers,
     })
   }

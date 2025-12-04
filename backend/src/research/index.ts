@@ -26,7 +26,9 @@ export const research_router = new Elysia({ prefix: "/research" })
       message: "Can' start research for non-existing problem – invalid problem id."
     })
 
-    // BUG COMMENETED OUT FOR NOW 
+    // BUG COMMENETED OUT FOR NOW
+    // TODO: Uncomment when publishing for production
+    // It works correctly but rn i want to be able to run research for others
     // if (problem.owner_id !== user.id) return status(401, {
     //   type: "error",
     //   message: "Can't start research for a problem you didn't create!"
@@ -47,7 +49,13 @@ export const research_router = new Elysia({ prefix: "/research" })
     }
 
     jobs.queue("standard_research")
-      .emit("start_research", { new_research: body, user_id: user.id })
+      .emit("start_research", {
+        new_research: body,
+        ctx: {
+          user_id: user.id,
+          current_relative_round_index: 1,
+        }
+      })
 
     return {
       type: "success",

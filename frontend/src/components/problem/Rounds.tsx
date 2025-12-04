@@ -12,9 +12,16 @@ interface Props {
   initial_prover?: number,
 }
 
+interface FileContent {
+  output: string,
+  reasoning?: string,
+  usage: number | null,
+  model: string | null // TODO: correct type
+}
+
 interface ConversationConfig {
   title: string,
-  content?: string | string[],
+  content?: FileContent | FileContent[],
   verdict?: string,
   raw: boolean,
   math_renderer: "KaTeX" | "MathJax"
@@ -33,14 +40,14 @@ export default function ProblemRounds({ rounds, initial_prover, initial_round }:
     },
     {
       title: "🔍 Verifier",
-      content: rounds[curr_round].verifier?.output,
+      content: rounds[curr_round].verifier,
       raw: false,
       math_renderer: "KaTeX",
     },
     {
       title: "📝 Summary",
       content: rounds[curr_round].summarizer,
-      verdict: rounds[curr_round].verifier?.verdict,
+      verdict: rounds[curr_round].verdict,
       raw: false,
       math_renderer: "KaTeX",
     }
@@ -49,9 +56,9 @@ export default function ProblemRounds({ rounds, initial_prover, initial_round }:
   useEffect(() => {
     setConversation(cnvs => {
       cnvs[0].content = rounds[curr_round].provers
-      cnvs[1].content = rounds[curr_round].verifier?.output
+      cnvs[1].content = rounds[curr_round].verifier
       cnvs[2].content = rounds[curr_round].summarizer
-      cnvs[2].verdict = rounds[curr_round].verifier?.verdict
+      cnvs[2].verdict = rounds[curr_round].verdict
       return [...cnvs]
     })
   }, [curr_round])
@@ -155,6 +162,7 @@ interface ConversationProps {
 
 function Conversation({ conversation, conversation: { content, verdict }, expanded, onExpand, onShrink, onSwitchFormatting, onSwitchMathRendering }: ConversationProps) {
   const [curr_prover, setCurrProver] = useState(0)
+  const [show_reasoning, setShowReasoning] = useState(false)
 
   // NOTE: possible verdicts are specified in prompt verifier.md
   const verdicts: { [index: string]: string } = {
@@ -186,7 +194,7 @@ function Conversation({ conversation, conversation: { content, verdict }, expand
           <BracketButton onClick={onExpand}>Expand</BracketButton>
         )}
       </ConversationHeader>
-      {!content || content.length === 0 ? (
+      {!content ? (
         <p className="not_available">Not available.</p>
       ) : (
         <>
@@ -217,15 +225,69 @@ function Conversation({ conversation, conversation: { content, verdict }, expand
                   ))}
                 </ConversationDetails>
               )}
+              {/* TODO: Make this better */}
+              <div className="model-usage">
+                {content[curr_prover].model && (
+                  <p>{content[curr_prover].model}</p>
+                )}
+                {content[curr_prover].usage && (
+                  <p>${content[curr_prover].usage.toFixed(3)}</p>
+                )}
+              </div>
+              {/* TODO: Make this better */}
+              {content[curr_prover].reasoning && JSON.parse(content[curr_prover].reasoning).length > 0 && (
+                <div className={`reasoning${show_reasoning ? " expanded" : ""}`}>
+                  <div>
+                    <h4>🧠 Reasoning</h4>
+                    <BracketButton onClick={() => setShowReasoning(prev => !prev)}>
+                      {show_reasoning ? "Hide" : "Show"}
+                    </BracketButton>
+                  </div>
+                  {show_reasoning && (
+                    <>
+                      {JSON.parse(content[curr_prover].reasoning).map(reasoning => (
+                        <Markdown md={reasoning.summary}/>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
               {conversation.raw ? (
-                <pre>{content[curr_prover]}</pre>
+                <pre>{content[curr_prover].output}</pre>
               ) : (
-                <Markdown md={content[curr_prover]}
+                <Markdown md={content[curr_prover].output}
                   render_math={conversation.math_renderer === "KaTeX"}/>
               )}
             </>
           ) : (
             <>
+              {/* TODO: Make this better */}
+              <div className="model-usage">
+                {content.model && (
+                  <p>{content.model}</p>
+                )}
+                {content.usage && (
+                  <p>${content.usage.toFixed(3)}</p>
+                )}
+              </div>
+              {/* TODO: Make this better */}
+              {content.reasoning && JSON.parse(content.reasoning).length > 0 && (
+                <div className={`reasoning${show_reasoning ? " expanded" : ""}`}>
+                  <div>
+                    <h4>🧠 Reasoning</h4>
+                    <BracketButton onClick={() => setShowReasoning(prev => !prev)}>
+                      {show_reasoning ? "Hide" : "Show"}
+                    </BracketButton>
+                  </div>
+                  {show_reasoning && (
+                    <>
+                      {JSON.parse(content.reasoning).map(reasoning => (
+                        <Markdown md={reasoning.summary}/>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
               {verdict && (
                 <ConversationDetails>
                   <p className={verdict}>
@@ -234,9 +296,9 @@ function Conversation({ conversation, conversation: { content, verdict }, expand
                 </ConversationDetails>
               )}
               {conversation.raw ? (
-                <pre>{content}</pre>
+                <pre>{content.output}</pre>
               ) : (
-                <Markdown md={content}
+                <Markdown md={content.output}
                   render_math={conversation.math_renderer === "KaTeX"}/>
               )}
             </>
@@ -283,6 +345,31 @@ const ConversationCol = styled.div`
   }
   & pre {
     padding: 1rem;
+  }
+  & div.model-usage {
+    display: flex;
+    padding: .5rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: var(--border-alpha);
+  }
+  & div.reasoning {
+    display: flex;
+    flex-flow: column;
+    &.expanded {
+      & div {
+        border-bottom: 2px dashed var(--border-alpha-color);
+      }
+    }
+    & div {
+      padding: .5rem 1rem;
+      display: flex;
+      align-items: center;
+    }
+    & h4 {
+      margin-right: auto;
+    }
+    border-bottom: var(--border-alpha);
   }
 `
 

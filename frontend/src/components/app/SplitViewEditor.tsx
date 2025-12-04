@@ -75,13 +75,13 @@ const SplitViewSection = styled.section`
   & > div.half {
     max-width: 50%;
     width: 100%;
-    max-height: 32.8rem;
+    max-height: 80vh;
     overflow: auto;
     &:first-child {
       border-right: var(--border-alpha);
     }
     & .cm-editor {
-      height: 30rem !important;
+      height: calc(80vh - 2.8rem) !important;
     }
     & .cm-focused {
       outline: none !important;

@@ -32,7 +32,7 @@ export async function get_users_problems() {
 export async function get_problem_overview(problem_id: string) {
   const response = await api.problems.overview({ problem_id }).get()
   if (response.error || response.data === null) throw response.error
-  if (response.data === "No Content") throw new Error(`Couldn't find problem with id: '${id}' .`)
+  if (response.data === "No Content") throw new Error(`Couldn't find problem with id: '${problem_id}' .`)
   return response.data
 }
 
@@ -44,7 +44,7 @@ export async function get_problem_overview(problem_id: string) {
 export async function get_problem_conversations(problem_id: string) {
   const response = await api.problems.conversations({ problem_id }).get()
   if (response.error || response.data === null) throw response.error
-  if (response.data === "No Content") throw new Error(`Couldn't find problem with id: '${id}' .`)
+  if (response.data === "No Content") throw new Error(`Couldn't find problem with id: '${problem_id}' .`)
   return response.data
 }
 
@@ -56,7 +56,7 @@ export async function get_problem_conversations(problem_id: string) {
 export async function get_file_by_id(file_id: string) {
   const response = await api.problems.file_by_id({ file_id }).get()
   if (response.error || response.data === null) throw response.error
-  if (response.data === "No Content") throw new Error(`Couldn't find file with id: '${id}'.`)
+  if (response.data === "No Content") throw new Error(`Couldn't find file with id: '${file_id}'.`)
   return response.data
 }
 
@@ -69,5 +69,17 @@ export async function get_all_files_for_problem(problem_id: string) {
   const response = await api.problems.all_files({ problem_id }).get()
   if (response.error || response.data === null) throw response.error
   if (response.data === "No Content") throw new Error(`Couldn't get files for problem with id: '${problem_id}'.`)
+  return response.data
+}
+
+/**
+ * Retrieves basic overview to check if problem is ready for new research.
+ * 
+ * Used at '/problem/$problem_id/research'
+ */
+export async function get_research_overview(problem_id: string) {
+  const response = await api.problems.research_overview({ problem_id }).get()
+  if (response.error || response.data === null) throw response.error
+  if (response.data === "No Content") throw new Error(`Couldn't get name for problem with id: '${problem_id}'.`)
   return response.data
 }

@@ -1,1 +1,0 @@
-ALTER TYPE "main"."files-types" ADD VALUE 'round_meta';

@@ -1,11 +1,10 @@
 import { Elysia } from "elysia"
 import { drizzle_plugin, auth_plugin } from "../db/plugins"
-import { problems, problem_files } from "../../drizzle/schema"
-import { desc, eq, and, like, sql } from "drizzle-orm"
-import { parse, z } from "zod"
-import { time } from "drizzle-orm/mysql-core"
+import { problems, problem_files, rounds, llms } from "../../drizzle/schema"
+import { desc, eq, and, like, sql, or, inArray } from "drizzle-orm"
+import { core, parse, z } from "zod"
 
-import type { ProblemRoundTimes, ResearchRound } from "@shared/types/problem"
+import type { ProblemRoundSumary, ResearchRound } from "@shared/types/problem"
 import { format_raw_files_data } from "@backend/problems/index.utils"
 import { CreateProblemFormSchema } from "@shared/types/CreateProblem"
 
@@ -62,63 +61,44 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
               raw_user_meta_data: true,
             }
           },
+          rounds: {
+            columns: {
+              index: true,
+              phase: true,
+              error_message: true,
+              prover_time: true,
+              verifier_time: true,
+              summarizer_time: true,
+              usage: true,
+              estimated_usage: true,
+              failed_provers: true,
+            }
+          }
         }
       })
       if (!result) return status(204)
 
-      // Ok, now we know that problem with received id exists
-      // const round_metadata_files = await db
-      //   .select()
-      //   .from(problem_files)
-      //   .where(
-      //     and(
-      //       eq(problem_files.problem_id, problem_id),
-      //       eq(problem_files.file_type, "round_meta")
-      //     )
-      //   )
+      const round_summaries: ProblemRoundSumary[] = []
 
-      const times: ProblemRoundTimes[] = []
-
-      // TODO: if files.length === 0
-      // TODO/NOTE: Current implementation generates metadata file for round only when it has completely finished. That means all provers, verifier and summarizer are successfuly done. In the future, this should be segmented and we should provide times gradually.
-      // BUG: Should parse with ZOD
-      // for (let round of round_metadata_files) {
-      //   if (!round.content) continue
-      //   const parsed_metadata: {
-      //     round: number,
-      //     started_at: number,
-      //     ended_at: number,
-      //     stages: {
-      //       provers: Record<string, {
-      //         start_ts: number,
-      //         end_ts: number,
-      //         duration_s: number,
-      //         ok: boolean,
-      //       }>,
-      //       verifier: {
-      //         start_ts: number,
-      //         end_ts: number,
-      //         duration_s: number,
-      //       },
-      //       summarizer: {
-      //         start_ts: number,
-      //         end_ts: number,
-      //         duration_s: number,
-      //       }
-      //     },
-      //     one_line_summary: string,
-      //   } = JSON.parse(round.content)
-
-      //   times.push({
-      //     round: parsed_metadata.round,
-      //     one_line_summary: parsed_metadata.one_line_summary,
-      //     durations: {
-      //       provers_total: Object.values(parsed_metadata.stages.provers).reduce((total, prover) => total + prover.duration_s, 0),
-      //       verifier: parsed_metadata.stages.verifier.duration_s,
-      //       summarizer: parsed_metadata.stages.summarizer.duration_s,
-      //     }
-      //   })
-      // }
+      for (let round of result.rounds.filter(round => round.index !== 0)) {
+        let round_summary: ProblemRoundSumary = {
+          round_index: round.index,
+          phase: round.phase,
+          duration: {
+            provers_total: round.prover_time,
+            verifier: round.verifier_time,
+            summarizer: round.summarizer_time,
+          },
+          usage: round.usage,
+          estimated_usage: round.estimated_usage,
+          error: null
+        }
+        if (round.error_message || round.failed_provers) round_summary.error = {
+          message: round.error_message,
+          failed_provers: round.failed_provers,
+        }
+        round_summaries.push(round_summary)
+      }
 
       return {
         name: result.name,
@@ -130,12 +110,30 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
           id: result.user.id,
           name: result.user.raw_user_meta_data.name ?? result.user.email,
         },
-        times,
+        round_summaries,
       }
     } catch (e) {
       return status(500, {
         type: "error",
         message: `Failed to retrieve Overview for problem with id: '${problem_id}'.`
+      })
+    }
+  }, { isAuth: true })
+  .get("/research_overview/:problem_id", async ({ db, params: { problem_id }, status }) => {
+    try {
+      const result = await db
+        .select({
+          name: problems.name,
+          status: problems.status,
+        })
+        .from(problems)
+        .where(eq(problems.id, problem_id))
+      if (result.length === 0) return status(204)
+      return result[0]
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: `Failed to retrieve research overview for problem with id: ${problem_id}`
       })
     }
   }, { isAuth: true })
@@ -147,42 +145,75 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         })
         .from(problems)
         .where(eq(problems.id, problem_id))
+      // TODO: if 204, show no problem found or something
       if (result.length === 0) return status(204)
 
       // Ok, now we know the problem exists
-      const files = await db
-        .select()
-        .from(problem_files)
-        .where(
-          and(
-            eq(problem_files.problem_id, problem_id),
-            sql`${problem_files.file_type}::text LIKE '%_output'`
+      const files = await db.query.problem_files.findMany({
+        where: and(
+          eq(problem_files.problem_id, problem_id),
+          or(
+            sql`${problem_files.file_type}::text LIKE '%_output'`,
+            sql`${problem_files.file_type}::text LIKE '%_reasoning'`,
           )
-        )
-      
+        ),
+        with: {
+          round: {
+            columns: {
+              index: true,
+            }
+          }
+        }
+      })
+
       const rounds: ResearchRound[] = []
 
-      for (let file of files) {
-        if (!rounds[file.round - 1]) rounds[file.round - 1] = {
-          round_number: file.round,
+      for (let file of files.filter(f => f.file_type.includes("_output"))) {
+        if (!rounds[file.round.index - 1]) rounds[file.round.index - 1] = {
+          round_number: file.round.index,
           provers: []
         }
 
-        // TODO/BUG: Fix these ts in the future. right now it will always work
+        let corresponding_reasoning = files
+          .find(f =>f.round_id == file.round_id
+              && f.file_name === file.file_name.replace("output", "reasoning"))
+        // Removing the encrypted part of the reasoning
+        // as it's unnecessary inside conversations view
+        if (corresponding_reasoning) {
+          let parsed_reasoning = JSON.parse(corresponding_reasoning.content)
+          let filtered = parsed_reasoning.filter((reasoning: any) => 
+            reasoning.type === "reasoning.summary"
+          )
+          corresponding_reasoning = {
+            content: JSON.stringify(filtered, null, 2)
+          }
+        }
+
         if (file.file_type === "prover_output") {
-          // @ts-expect-error
-          // BUG: This will break if we get prover number 10 or higher!!
-          let prover_n = Number(file.file_name.match(/\d/g)[0])
-          console.log(prover_n)
-          rounds[file.round - 1]["provers"][prover_n - 1] = file.content
+          let prover_n = Number(file.file_name.match(/[0-9]+/g)![0])
+          rounds[file.round.index - 1]["provers"][prover_n - 1] = {
+            output: file.content,
+            reasoning: corresponding_reasoning?.content,
+            model: file.model_id,
+            usage: file.usage?.cost ?? null,
+          }
         } else if (file.file_type === "verifier_output") {
           let verifier = JSON.parse(file.content)
-          rounds[file.round - 1]["verifier"] = {
-            verdict: verifier.verdict,
-            output: verifier.feedback_md
+          rounds[file.round.index - 1]["verdict"] = verifier.verdict
+          rounds[file.round.index - 1]["verifier"] = {
+            output: verifier.feedback_md,
+            reasoning: corresponding_reasoning?.content,
+            model: file.model_id,
+            usage: file.usage?.cost ?? null,
           }
         } else {
-          rounds[file.round - 1]["summarizer"] = JSON.parse(file.content).summary
+          let summarizer = JSON.parse(file.content)
+          rounds[file.round.index - 1]["summarizer"] = {
+            output: summarizer.summary,
+            reasoning: corresponding_reasoning?.content,
+            model: file.model_id,
+            usage: file.usage?.cost ?? null,
+          }
         }
       }
 
@@ -225,28 +256,34 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
   }, { isAuth: true })
   .get("/all_files/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
-      const result =  await db.query.problem_files.findMany({
+      const result = await db.query.problem_files.findMany({
         columns: {
           id: true,
           file_name: true,
           file_type: true,
-          round: true,
-
+          round_id: true,
+          model_id: true,
         },
         with: {
-          problems: {
+          problem: {
             columns: {
               name: true,
+            }
+          },
+          round: {
+            columns: {
+              index: true,
             }
           }
         },
         where: eq(problem_files.problem_id, problem_id)
       })
       if (result.length === 0) return status(204)
-      const files = result.map(({ problems, ...rest }) => rest)
+
+      const files = result.map(({ problem, ...rest }) => rest)
 
       return {
-        problem_name: result[0]["problems"]["name"],
+        problem_name: result[0]["problem"]["name"],
         files: format_raw_files_data(files),
       }
     } catch (e) {
@@ -265,32 +302,41 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
             name: body.problem_name,
           })
           .returning({ id: problems.id })
+        const [round_zero] = await tx.insert(rounds)
+          .values({
+            problem_id: new_problem.id,
+            index: 0,
+            phase: "finished",
+            research_type: "standard",
+          })
+          .returning({ id: rounds.id })
+
         await tx.insert(problem_files)
           .values([
             {
               problem_id: new_problem.id,
-              round: 0,
+              round_id: round_zero.id,
               file_type: "task",
               file_name: "task.txt",
               content: body.problem_task,
             },
             {
               problem_id: new_problem.id,
-              round: 0,
+              round_id: round_zero.id,
               file_type: "proofs",
               file_name: "proofs.md",
               content: "# Rigorous Proofs",
             },
             {
               problem_id: new_problem.id,
-              round: 0,
+              round_id: round_zero.id,
               file_type: "notes",
               file_name: "notes.md",
               content: "# Research Notes",
             },
             {
               problem_id: new_problem.id,
-              round: 0,
+              round_id: round_zero.id,
               file_type: "output",
               file_name: "output.md",
               content: "# Main Results",
@@ -313,7 +359,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
     }
   }, {
     body: CreateProblemFormSchema,
-    isAuth: true 
+    isAuth: true,
   })
 
 export const problems_router = new Elysia({ prefix: "/problems" })

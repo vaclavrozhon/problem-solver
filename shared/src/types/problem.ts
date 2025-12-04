@@ -1,31 +1,52 @@
-// TODO: could add `per_prover` times
-// The data for it should already be inside the DB
-export interface ProblemRoundTimes {
-  round: number,
-  one_line_summary: string,
-  durations: {
-    provers_total: number,
-    verifier: number,
-    summarizer: number,
-  }
+import type { RoundPhase, ProblemFile, Round } from "@backend/jobs/research_utils"
+
+export interface ProblemRoundSumary {
+  round_index: number,
+  // TODO
+  // one_line_summary: string,
+  phase: RoundPhase,
+  duration: {
+    provers_total: number | null,
+    verifier: number | null,
+    summarizer: number | null,
+  },
+  error: {
+    message: string | null,
+    failed_provers: string[] | null,
+  } | null,
+  usage: number,
+  estimated_usage: number | null,
 }
 
 // Used for Conversation purposes
 export interface ResearchRound {
   round_number: number,
-  provers: string[],
+  verdict?: string, // TODO: Add types of verdicts
+  provers: {
+    output: string,
+    reasoning?: string,
+    usage: number |  null ,
+    model: string | null, // TODO: correct type
+  }[],
   verifier?: {
     output: string,
-    verdict: string,
+    reasoning?: string,
+    usage: number |  null ,
+    model: string | null, // TODO: correct type
   },
-  summarizer?: string,
+  summarizer?: {
+    output: string,
+    reasoning?: string,
+    usage: number |  null ,
+    model: string | null, // TODO: correct type
+  },
 }
 
-export interface File {
-  id: string,
-  round: number,
-  file_name: string,
-  file_type: string,
+export type File = Pick<
+  ProblemFile,
+  "id" | "round_id" | "file_name" | "file_type" | "model_id" | "usage"
+> & {
+  round: Pick<Round, "index">
 }
 
 export interface ProblemFiles {
@@ -33,13 +54,12 @@ export interface ProblemFiles {
   results: {
     notes: File,
     proofs: File,
-    output: File, // aka Main Results
+    output: File,
   },
   rounds: {
-    round: number,
+    round_index: number,
     provers: File[][],
     verifier: File[],
     summarizer: File[],
-    metadata: any[],
   }[],
 }

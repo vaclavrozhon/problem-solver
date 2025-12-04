@@ -1,4 +1,27 @@
-import type { RoundPhase, ProblemFile, Round } from "@backend/jobs/research_utils"
+// Keep shared types independent of backend to avoid cycles.
+// These mirror backend enums/fields used by the frontend.
+
+export type RoundPhase =
+  | "prover_working" | "prover_finished" | "prover_failed"
+  | "verifier_working" | "verifier_finished" | "verifier_failed"
+  | "summarizer_working" | "summarizer_finished" | "summarizer_failed"
+  | "finished"
+
+export type FileType =
+  | "task" | "proofs" | "notes" | "output"
+  | "prover_prompt" | "verifier_prompt" | "summarizer_prompt"
+  | "prover_reasoning" | "verifier_reasoning" | "summarizer_reasoning"
+  | "prover_output" | "verifier_output" | "summarizer_output"
+
+export interface RoundRef { index: number, phase?: RoundPhase }
+export interface ProblemFileRef {
+  id: string
+  round_id: string
+  file_name: string
+  file_type: FileType
+  model_id?: string | null
+  usage?: unknown
+}
 
 export interface ProblemRoundSumary {
   round_index: number,
@@ -42,12 +65,7 @@ export interface ResearchRound {
   },
 }
 
-export type File = Pick<
-  ProblemFile,
-  "id" | "round_id" | "file_name" | "file_type" | "model_id" | "usage"
-> & {
-  round: Pick<Round, "index">
-}
+export type File = ProblemFileRef & { round: Pick<RoundRef, "index"> }
 
 export interface ProblemFiles {
   task: File,

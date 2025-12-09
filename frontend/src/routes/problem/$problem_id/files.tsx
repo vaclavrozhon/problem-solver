@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { styled } from "@linaria/react"
 import { uuidv4} from "zod"
 
-import ProblemDetailsLayout from "../../../components/problem/DetailsLayout"
+import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 import FilesList from "../../../components/problem/files/List"
 import FileViewer from "../../../components/problem/files/Viewer"
 
@@ -32,21 +32,21 @@ function ProblemFilesInitial() {
   })
 
   if (isPending) return (
-    <ProblemDetailsLayout problem_id={problem_id}>
+    <ProblemDetailsLayout problem_id={problem_id} problem_name="" loading>
       <p>Loading files...</p>
     </ProblemDetailsLayout>
   )
 
   if (isError) return (
-    <ProblemDetailsLayout problem_id={problem_id}>
+    <MainContent>
       <p>Failed to retrieve files for problem with id: {problem_id}</p>
-    </ProblemDetailsLayout>
+    </MainContent>
   )
 
   return (
     <ProblemDetailsLayout problem_id={problem_id}
       problem_name={data.problem_name}>
-      <MainContent>
+      <FileExplorer>
         <FilesList files={data.files}
           problem_id={problem_id}
           file_id={file_id}/>
@@ -57,12 +57,12 @@ function ProblemFilesInitial() {
           <FileViewer file_id={file_id}/>
         )}
 
-      </MainContent>
+      </FileExplorer>
     </ProblemDetailsLayout>
   )
 }
 
-const MainContent = styled.section`
+const FileExplorer = styled.section`
   flex: 1;
   display: flex;
   & p.initial_guide {

@@ -33,18 +33,15 @@ const MarkdownContent = styled.article`
     gap: 15px;
   }
   & h1 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
   & ul, ol {
     padding-left: 1.75rem;
   }
   & p, a, li {
-    // font-family: Roboto Slab
-    // font-size: 18px
-    font-size: 1.1rem;
+    font-size: 1rem;
     line-height: 1.6;
-    // margin: 5px 0
-    // letter-spacing: .2px
+    letter-spacing: -.01rem
   }
   & p a:not([class]) {
     padding: 0 2px;
@@ -65,7 +62,7 @@ const MarkdownContent = styled.article`
   }
   & h2 {
     font-size: 1.1rem;
-    padding: 5px 0 10px 0;
+    padding: .25rem 0 .25rem 0;
     position: relative;
     &:only-child {
       display: none;
@@ -81,10 +78,20 @@ const MarkdownContent = styled.article`
     }
   }
   & h3 {
-    font-size: 20px;
-    margin-top: 2.5px;
+    font-size: 1rem;
+    font-family: Kode;
+    text-transform: uppercase;
+    margin-top: .15rem;
   }
   & img {
     max-width: 100%;
+  }
+  & code {
+    padding: .1rem .2rem;
+    border: 1px solid var(--border-alpha-color);
+    border-radius: .2rem;
+    background: var(--bg-beta);
+    color: var(--accent-alpha);
+    font-size: .9rem;
   }
 `

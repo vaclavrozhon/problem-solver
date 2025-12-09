@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useQuery } from "@tanstack/react-query"
 
-import ProblemDetailsLayout from "../../../components/problem/DetailsLayout"
+import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 
 import { FormField, FormInput, FormLabel, FormTextarea} from "../../../styles/Form"
 import { useForm } from "react-hook-form"
@@ -60,15 +60,15 @@ function RunNewResearchPage() {
   })
 
   if (isPending) return (
-    <ProblemDetailsLayout problem_id={problem_id}>
+    <ProblemDetailsLayout problem_id={problem_id} problem_name="" loading>
       <p>Loading research run config...</p>
     </ProblemDetailsLayout>
   )
 
   if (isError) return (
-    <ProblemDetailsLayout problem_id={problem_id}>
+    <MainContent>
       <p>Failed to load research run config for problem with id: {problem_id}</p>
-    </ProblemDetailsLayout>
+    </MainContent>
   )
 
   if (problem.status === "running" || problem.status === "queued") return (

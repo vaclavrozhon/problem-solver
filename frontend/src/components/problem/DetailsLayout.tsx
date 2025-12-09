@@ -7,9 +7,15 @@ interface LayoutProps {
   problem_id: string,
   problem_name: string,
   children: any,
+  loading?: boolean,
 }
 
-export default function ProblemDetailsLayout({ problem_id, problem_name, children }: LayoutProps) {
+export default function ProblemDetailsLayout({
+  problem_id,
+  problem_name,
+  children,
+  loading = false,
+}: LayoutProps) {
   const tabs = [
     { name: "Overview", link: "/problem/$problem_id", index: true },
     { name: "Run research", link: "/problem/$problem_id/research" },
@@ -17,7 +23,7 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
     { name: "Files", link: "/problem/$problem_id/files" },
   ]
   const { user } = useAuth()
-  // TODO: If user doesn't own problem, hide `Run research` tab
+  // TODO[RELEASE]: If user doesn't own problem, hide `Run research` tab
 
   return (
     <MainContent>
@@ -36,7 +42,16 @@ export default function ProblemDetailsLayout({ problem_id, problem_name, childre
         ))}
       </ProblemTabs>
 
-      {children}
+      {loading ? (
+        <LoadingState>
+          <div className="spinner"/>
+          {children}
+        </LoadingState>
+      ) : (
+        <>
+          {children}
+        </>
+      )}
     </MainContent>
   )
 }
@@ -85,5 +100,27 @@ export const MainContent = styled.main`
   }
   & > p {
     padding: 1rem;
+  }
+`
+
+const LoadingState = styled.div`
+  flex: 1;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  & div.spinner {
+    border: .3rem solid var(--border-alpha-color);
+    border-top: .3rem solid var(--accent-alpha);
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 `

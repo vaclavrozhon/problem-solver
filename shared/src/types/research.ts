@@ -1,19 +1,22 @@
 import { z } from "zod"
 
 // TODO: Add model pricing to the app
+const smart_models = {
+  "Gemini 3 Pro": "google/gemini-3-pro-preview",
+  "GPT 5.1": "openai/gpt-5.1",
+  "GPT 5": "openai/gpt-5",
+  "Claude Opus 4.5": "anthropic/claude-opus-4.5",
+  "Grok 4": "x-ai/grok-4",
+  "Kimi K2": "moonshotai/kimi-k2-thinking",
+  "DeepSeek V3.2 Speciale": "deepseek/deepseek-v3.2-speciale",
+} as const
+
 export const LLMModelsMap = {
-  smart: {
-    "Gemini 3 Pro": "google/gemini-3-pro-preview",
-    "GPT 5.1": "openai/gpt-5.1",
-    "GPT 5": "openai/gpt-5",
-    "Claude Opus 4.5": "anthropic/claude-opus-4.5",
-    "Grok 4": "x-ai/grok-4",
-    // "Kimi K2": "moonshotai/kimi-k2-thinking",
-    // "DeepSeek V3.2 Speciale": "deepseek/deepseek-v3.2-speciale",
-  },
+  smart: smart_models,
   summarizer: {
     "GPT 5 mini": "openai/gpt-5-mini",
-    // "DeepSeek V3.2": "deepseek/deepseek-v3.2",
+    "DeepSeek V3.2": "deepseek/deepseek-v3.2",
+    ...smart_models,
   }
 } as const
 
@@ -51,7 +54,7 @@ export const SmartModels = z.enum(keys(LLMModelsMap.smart));
 export const SummarizerModels = z.enum(keys(LLMModelsMap.summarizer));
 
 export const MaxProversPerRound = 10
-export const MaxRoundsPerResearch = 5
+export const MaxRoundsPerResearch = 10
 export const ProversPerRound = z.coerce.number<string>().min(1).max(MaxProversPerRound)
 export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsPerResearch)
 

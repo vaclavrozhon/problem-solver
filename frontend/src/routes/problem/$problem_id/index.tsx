@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "../../../contexts/AuthContext"
 import { get_problem_overview } from "../../../api/problems"
 
-import ProblemDetailsLayout, { MainContent} from "../../../components/problem/DetailsLayout"
+import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 import RoundTime from "../../../components/problem/utils/RoundTime"
 
 export const Route = createFileRoute("/problem/$problem_id/")({
@@ -24,7 +24,7 @@ function ProblemID() {
 
 
   if (isPending) return (
-    <ProblemDetailsLayout problem_id={problem_id}>
+    <ProblemDetailsLayout problem_id={problem_id} problem_name="" loading>
       <p>Loading problem status...</p>
     </ProblemDetailsLayout>
   )

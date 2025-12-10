@@ -248,11 +248,14 @@ const RawContent = styled.pre`
 const ConversationRow = styled.div`
   display: flex;
   align-items: center;
-  padding: .4rem .75rem;
+  padding: .4rem .6rem;
   gap: .4rem;
   border-bottom: var(--border-alpha);
   &.header {
     border-bottom: 2px dashed var(--border-alpha-color);
+    & h3 {
+      margin-right: auto;
+    }
   }
   &.prover-selection {
     align-items: flex-end;
@@ -303,16 +306,12 @@ const ConversationCol = styled.div`
     border-right: var(--border-alpha);
   }
   & p.not_available {
-    padding: 1.5rem 1rem;
-    color: var(--text-alpha);
-    font-style: italic;
-    text-align: center;
-    font-size: .8rem;
+    padding: .6rem;
   }
   & div.model-usage {
     font-family: Kode;
     display: flex;
-    padding: .4rem .75rem;
+    padding: .4rem .6rem;
     align-items: center;
     justify-content: space-between;
     border-bottom: var(--border-alpha);

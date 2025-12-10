@@ -1,6 +1,13 @@
 // Keep shared types independent of backend to avoid cycles.
 // These mirror backend enums/fields used by the frontend.
 
+// Initial placeholder content for main files when a problem is created
+export const INITIAL_MAIN_FILES = {
+  notes: "# Research Notes",
+  proofs: "# Rigorous Proofs",
+  output: "# Main Results",
+} as const
+
 export type RoundPhase =
   | "prover_working" | "prover_finished" | "prover_failed"
   | "verifier_working" | "verifier_finished" | "verifier_failed"

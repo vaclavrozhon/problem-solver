@@ -4,8 +4,8 @@ import { problems, problem_files, rounds, llms } from "../../drizzle/schema"
 import { desc, eq, and, like, sql, or, inArray } from "drizzle-orm"
 import { core, parse, z } from "zod"
 
-import type { ProblemRoundSumary, ResearchRound } from "@shared/types/problem"
-import { format_raw_files_data } from "@backend/problems/index.utils"
+import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from "@shared/types/problem"
+import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
 import { CreateProblemFormSchema } from "@shared/types/CreateProblem"
 
 const protected_routes = new Elysia({ name: "problem-protected_routes" })
@@ -238,6 +238,18 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+  .get("/main_files_history/:problem_id", async ({ db, params: { problem_id }, status }) => {
+    try {
+      const history = await reconstruct_main_files_history(db, problem_id)
+      if (history.length === 0) return status(204)
+      return history
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: `Failed to retrieve main files history for problem with ID: '${problem_id}'.`
+      })
+    }
+  }, { isAuth: true })
   .get("/file_by_id/:file_id", async ({ db, params: { file_id }, status }) => {
     try {
       const result = await db
@@ -325,21 +337,21 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
               round_id: round_zero.id,
               file_type: "proofs",
               file_name: "proofs.md",
-              content: "# Rigorous Proofs",
+              content: INITIAL_MAIN_FILES.proofs,
             },
             {
               problem_id: new_problem.id,
               round_id: round_zero.id,
               file_type: "notes",
               file_name: "notes.md",
-              content: "# Research Notes",
+              content: INITIAL_MAIN_FILES.notes,
             },
             {
               problem_id: new_problem.id,
               round_id: round_zero.id,
               file_type: "output",
               file_name: "output.md",
-              content: "# Main Results",
+              content: INITIAL_MAIN_FILES.output,
             },
           ])
         return new_problem.id

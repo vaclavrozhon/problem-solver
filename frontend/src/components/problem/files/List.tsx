@@ -1,106 +1,185 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { styled } from "@linaria/react"
-import { Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
+import { Link, useNavigate } from "@tanstack/react-router"
 
 import type { File, ProblemFiles } from "@shared/types/problem"
+import type { MainFilesHistoryEntry } from "../../../api/problems"
+import BracketButton from "../../../components/action/BracketButton"
 
 interface Props {
-  files: ProblemFiles,
-  problem_id: string,
-  file_id?: string,
+  files: ProblemFiles
+  problem_id: string
+  file_id?: string
+  history: MainFilesHistoryEntry[]
+  selected_round: number
+  selected_main_file?: string
 }
-export default function FilesList({ files, file_id, problem_id }: Props) {
-  const [curr_round, setCurrRound] = useState(0)
+
+export default function FilesList({
+  files,
+  file_id,
+  problem_id,
+  history,
+  selected_round,
+  selected_main_file,
+}: Props) {
+  const navigate = useNavigate()
   const [curr_prover, setCurrProver] = useState(0)
 
-  useEffect(() => {
-    let round_index, prover_index
-    for (let i = 0; i < files.rounds.length; i++) {
-      for (let j = 0; j < files.rounds[i].provers.length; j++) {
-        if (files.rounds[i].provers[j].filter(f => f.id === file_id).length === 1) {
-          round_index = i
-          prover_index = j
-          break
-        }
-      }
-    }
-    if (round_index && prover_index) {
-      setCurrRound(round_index)
-      setCurrProver(prover_index)
-    }
-  }, [problem_id, files])
+  const total_rounds = history.length > 0 ? history.length - 1 : 0
+
+  function handle_round_change(new_round: number) {
+    const preserve_selected_task_file = file_id === files.task.id ? file_id : undefined
+    navigate({
+      to: "/problem/$problem_id/files",
+      params: { problem_id },
+      search: {
+        file_id: preserve_selected_task_file,
+        round: new_round,
+        main_file: selected_main_file
+      },
+    })
+  }
+
+  function get_file_type_class(file_name: string): string {
+    if (file_name.includes("prompt")) return "file-prompt"
+    if (file_name.includes("output")) return "file-output"
+    if (file_name.includes("reasoning")) return "file-reasoning"
+    return ""
+  }
+
+  function get_file_sort_order(file_name: string): number {
+    if (file_name.includes("prompt")) return 0
+    if (file_name.includes("output")) return 1
+    if (file_name.includes("reasoning")) return 2
+    return 3
+  }
+
+  function get_short_file_name(file_name: string): string {
+    return file_name
+      .replace(/^(prover-\d+|verifier|summarizer)\./, "")
+  }
 
   function ShowFiles({ files }: { files: File[] }) {
+    const sorted_files = [...files].sort((a, b) =>
+      get_file_sort_order(a.file_name) - get_file_sort_order(b.file_name)
+    )
     return (
-      <>
-        {files.map(file => (
+      <FileButtons>
+        {sorted_files.map(file => (
           <Link to="/problem/$problem_id/files"
             params={{ problem_id }}
-            search={{ file_id: file.id }}
-            key={file.id}>{file.file_name}</Link>
+            search={{ file_id: file.id, round: undefined, main_file: undefined }}
+            key={file.id}
+            className={`${file_id === file.id ? "active" : ""} ${get_file_type_class(file.file_name)}`}>
+            {get_short_file_name(file.file_name)}
+          </Link>
         ))}
-      </>
+      </FileButtons>
     )
   }
 
-  const main_files = [
-    files.task,
-    files.results.notes,
-    files.results.proofs,
-    files.results.output,
-  ]
+  function MainFileLink({ file_type, label }: { file_type: string; label: string }) {
+    return (
+      <Link
+        to="/problem/$problem_id/files"
+        params={{ problem_id }}
+        search={{ file_id: undefined, round: selected_round, main_file: file_type }}>
+        {label}
+      </Link>
+    )
+  }
+
+  const round_files_index = selected_round > 0 ? selected_round - 1 : 0
+  const has_round_files = files.rounds.length > 0 && files.rounds[round_files_index]
 
   return (
     <List>
-      <FilesGroup>
-        <h3>Main Files</h3>
-        <ShowFiles files={main_files}/>
-      </FilesGroup>
-      {files.rounds.length > 0 && (
-        <FilesGroup>
-          <div>
-            <h3>Round Files</h3>
-            <select name="round-picker"
-              value={curr_round}
-              onChange={e => {
-                setCurrProver(0)
-                setCurrRound(parseInt(e.target.value))
-                }}>
-              {files.rounds.map(round => (
-                <option value={round.round_index - 1}
-                  key={round.round_index}>Round {round.round_index}</option>
+      {/* Round Selector at top */}
+      {total_rounds > 0 && (
+        <RoundSelector>
+          <span>Round</span>
+          <div className="controls">
+            <button
+              onClick={() => handle_round_change(selected_round - 1)}
+              disabled={selected_round <= 0}>
+              &lt;
+            </button>
+            <select
+              value={selected_round}
+              onChange={e => handle_round_change(parseInt(e.target.value))}>
+              {history.map(h => (
+                <option value={h.round_index} key={h.round_index}>
+                  {h.round_index}
+                </option>
               ))}
             </select>
+            <button
+              onClick={() => handle_round_change(selected_round + 1)}
+              disabled={selected_round >= total_rounds}>
+              &gt;
+            </button>
           </div>
-          {files.rounds[curr_round].provers.length > 0 && (
-            <>
-              <div>
-                <h4>Provers</h4>
-                <select name="prover-picker"
-                  value={curr_prover}
-                  onChange={e => setCurrProver(parseInt(e.target.value))}>
-                    {files.rounds[curr_round].provers.map((_, i) => (
-                      <option value={i}
-                        key={i}>Prover {i + 1}</option>
+          <span className="total">/ {total_rounds}</span>
+        </RoundSelector>
+      )}
+
+      {/* Task - always at top, never changes */}
+      <FilesGroup>
+        <Link
+          to="/problem/$problem_id/files"
+          params={{ problem_id }}
+          search={{ file_id: files.task.id, round: undefined, main_file: undefined }}
+          className={`task-file ${file_id === files.task.id ? "active" : ""}`}>
+          problem task
+        </Link>
+      </FilesGroup>
+
+      {/* Main Files - content varies by round */}
+      <FilesGroup>
+        <h3>Main Files</h3>
+        <FileButtons>
+          <MainFileLink file_type="notes" label="notes"/>
+          <MainFileLink file_type="proofs" label="proofs"/>
+          <MainFileLink file_type="output" label="output"/>
+        </FileButtons>
+      </FilesGroup>
+
+      {/* Round Files - prover/verifier/summarizer */}
+      {has_round_files && selected_round > 0 && (
+        <FilesGroup>
+          {files.rounds[round_files_index].provers.length > 0 && (
+            <AgentGroup className="prover">
+              <div className="flex-col">
+                <h3>Prover {curr_prover + 1}</h3>
+                {files.rounds[round_files_index].provers.length > 1 && (
+                  <ProverSwitcher>
+                    <span>switch to:</span>
+                    {files.rounds[round_files_index].provers.map((_, i) => (
+                      <BracketButton
+                        key={i}
+                        disabled={i === curr_prover}
+                        onClick={() => setCurrProver(i)}>
+                        {i + 1}
+                      </BracketButton>
                     ))}
-                  </select>
+                  </ProverSwitcher>
+                )}
               </div>
-              <h5>Prover {curr_prover + 1}</h5>
-              <ShowFiles files={files.rounds[curr_round].provers[curr_prover]}/>
-            </>
+              <ShowFiles files={files.rounds[round_files_index].provers[curr_prover]}/>
+            </AgentGroup>
           )}
-          {files.rounds[curr_round].verifier.length > 0 && (
-            <>
-              <h4>Verifier</h4>
-              <ShowFiles files={files.rounds[curr_round].verifier!}/>
-            </>
+          {files.rounds[round_files_index].verifier.length > 0 && (
+            <AgentGroup className="verifier">
+              <h3>Verifier</h3>
+              <ShowFiles files={files.rounds[round_files_index].verifier}/>
+            </AgentGroup>
           )}
-          {files.rounds[curr_round].summarizer.length > 0 && (
-            <>
-              <h4>Summarizer</h4>
-              <ShowFiles files={files.rounds[curr_round].summarizer!}/>
-            </>
+          {files.rounds[round_files_index].summarizer.length > 0 && (
+            <AgentGroup className="summarizer">
+              <h3>Summarizer</h3>
+              <ShowFiles files={files.rounds[round_files_index].summarizer}/>
+            </AgentGroup>
           )}
         </FilesGroup>
       )}
@@ -108,41 +187,149 @@ export default function FilesList({ files, file_id, problem_id }: Props) {
   )
 }
 
+const RoundSelector = styled.div`
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  border-bottom: var(--border-alpha);
+  background: var(--bg-beta);
+  height: 3.5rem;
+  & > span {
+    font-weight: 500;
+  }
+  & > span.total {
+    color: var(--text-gamma);
+  }
+  & > .controls {
+    display: flex;
+    align-items: center;
+    & > button {
+      width: 1.75rem;
+      height: 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Kode;
+      font-size: .9rem;
+      font-weight: 700;
+      background: var(--bg-alpha);
+      border: var(--border-alpha);
+      color: var(--accent-alpha);
+      transition: all .1s ease;
+      &:first-child {
+        border-radius: .25rem 0 0 .25rem;
+        border-right: none;
+      }
+      &:last-child {
+        border-radius: 0 .25rem .25rem 0;
+        border-left: none;
+      }
+      &:hover:not(:disabled) {
+        background: var(--bg-gamma);
+        color: var(--text-alpha);
+      }
+      &:disabled {
+        color: var(--border-alpha-color);
+        cursor: not-allowed;
+      }
+    }
+    & > select {
+      height: 1.75rem;
+      background: var(--bg-alpha);
+      border: var(--border-alpha);
+      padding: 0 .5rem;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      &:hover {
+        background: var(--bg-beta);
+      }
+    }
+  }
+`
+
+const AgentGroup = styled.div`
+  display: flex;
+  flex-flow: column;
+  border-bottom: var(--border-beta);
+  &.prover {
+    & h3 {
+      border-bottom: 2px dashed var(--border-alpha-color);
+    }
+  }
+`
+
+const ProverSwitcher = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: .3rem;
+  padding: .3rem;
+  background: var(--bg-beta);
+  & > span {
+    font-family: Kode;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: .8rem;
+  }
+`
+
+const FileButtons = styled.div`
+  display: flex;
+  /* gap: .5rem; */
+  & > a {
+    flex: 1;
+    font-family: Kode;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: .3rem .5rem;
+    text-align: center;
+    font-size: .9rem;
+    border-top: 2px dashed var(--border-alpha-color);
+    &:hover {
+      background: var(--bg-beta);
+    }
+    &.active {
+      /* outline: 1px dashed var(--text-alpha); */
+      /* outline-offset: 1px; */
+      pointer-events: none;
+      background: var(--bg-gamma);
+      color: var(--text-beta);
+      font-weight: 700;
+      border-top-style: solid;
+    }
+    &:not(:last-child) {
+      border-right: var(--border-alpha);
+    }
+  }
+`
+
 const FilesGroup = styled.div`
   display: flex;
   flex-flow: column;
-  padding: 1rem;
-  gap: 1rem;
+  /* padding: 1rem; */
+  /* gap: .75rem; */
   &:not(:last-of-type) {
-    border-bottom: var(--border-alpha);
+    border-bottom: 6px double var(--border-alpha-color);
   }
-  & > div {
-    display: flex;
-    gap: 1rem;
+  & h3 {
+    /* text-align: center; */
+    padding: .25rem .5rem;
+    font-size: 1.1rem;
   }
-  & > a {
-    border: var(--border-alpha);
-    border-radius: .2rem;
+  & > a.task-file {
+    font-family: Kode;
+    text-transform: uppercase;
+    font-weight: 700;
     padding: .35rem .5rem;
+    text-align: center;
     &:hover {
       background: var(--bg-beta);
     }
     &.active {
       background: var(--bg-gamma);
-      border-style: dashed;
-      border-color: var(--text-alpha);
       pointer-events: none;
-      font-weight: 500;
-    }
-  }
-  & select {
-    background: var(--bg-beta);
-    border: var(--border-alpha);
-    border-radius: .2rem;
-    font-weight: 500;
-    cursor: pointer;  
-    &:hover {
-      background: var(--bg-gamma);
     }
   }
 `

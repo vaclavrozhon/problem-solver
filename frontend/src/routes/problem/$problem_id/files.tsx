@@ -51,8 +51,13 @@ function ProblemFilesInitial() {
     </MainContent>
   )
 
-  const selected_round = round ?? (history && history.length > 0 ? history.length - 1 : 0)
+  const total_rounds = data.files.rounds.length
+  const selected_round = round ?? total_rounds
+
+  // For failed rounds (no verifier output), fall back to nearest previous round's content
   const history_entry = history?.find(h => h.round_index === selected_round)
+    ?? history?.filter(h => h.round_index <= selected_round)
+      .sort((a, b) => b.round_index - a.round_index)[0]
 
   return (
     <ProblemDetailsLayout problem_id={problem_id}
@@ -61,7 +66,6 @@ function ProblemFilesInitial() {
         <FilesList files={data.files}
           problem_id={problem_id}
           file_id={file_id}
-          history={history ?? []}
           selected_round={selected_round}
           selected_main_file={main_file}/>
 

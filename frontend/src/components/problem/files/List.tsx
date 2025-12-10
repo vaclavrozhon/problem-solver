@@ -3,14 +3,12 @@ import { styled } from "@linaria/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 
 import type { File, ProblemFiles } from "@shared/types/problem"
-import type { MainFilesHistoryEntry } from "../../../api/problems"
 import BracketButton from "../../../components/action/BracketButton"
 
 interface Props {
   files: ProblemFiles
   problem_id: string
   file_id?: string
-  history: MainFilesHistoryEntry[]
   selected_round: number
   selected_main_file?: string
 }
@@ -19,14 +17,13 @@ export default function FilesList({
   files,
   file_id,
   problem_id,
-  history,
   selected_round,
   selected_main_file,
 }: Props) {
   const navigate = useNavigate()
   const [curr_prover, setCurrProver] = useState(0)
 
-  const total_rounds = history.length > 0 ? history.length - 1 : 0
+  const total_rounds = files.rounds.length
 
   function handle_round_change(new_round: number) {
     const preserve_selected_task_file = file_id === files.task.id ? file_id : undefined
@@ -108,9 +105,9 @@ export default function FilesList({
             <select
               value={selected_round}
               onChange={e => handle_round_change(parseInt(e.target.value))}>
-              {history.map(h => (
-                <option value={h.round_index} key={h.round_index}>
-                  {h.round_index}
+              {Array.from({ length: total_rounds + 1 }, (_, i) => (
+                <option value={i} key={i}>
+                  {i}
                 </option>
               ))}
             </select>
@@ -254,7 +251,7 @@ const AgentGroup = styled.div`
   flex-flow: column;
   border-bottom: var(--border-beta);
   &.prover {
-    & h3 {
+    & h3:not(:only-child) {
       border-bottom: 2px dashed var(--border-alpha-color);
     }
   }

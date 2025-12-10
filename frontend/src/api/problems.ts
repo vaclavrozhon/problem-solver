@@ -83,3 +83,22 @@ export async function get_research_overview(problem_id: string) {
   if (response.data === "No Content") throw new Error(`Couldn't get name for problem with id: '${problem_id}'.`)
   return response.data
 }
+
+export type MainFilesHistoryEntry = {
+  round_index: number
+  notes: string
+  proofs: string
+  output: string
+}
+
+/**
+ * Retrieves main files (notes, proofs, output) reconstructed per round.
+ *
+ * Used at '/problem/$problem_id/files' for viewing file evolution.
+ */
+export async function get_main_files_history(problem_id: string): Promise<MainFilesHistoryEntry[]> {
+  const response = await api.problems.main_files_history({ problem_id }).get()
+  if (response.error || response.data === null) throw response.error
+  if (response.data === "No Content") return []
+  return response.data
+}

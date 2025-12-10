@@ -9,14 +9,19 @@ export default function JSONViewer({ raw_json }: Props) {
   return (
     <ShikiHighlighter language="json" theme="aurora-x"
       showLineNumbers
-      className={codeWrap}>
+      className={JSONStyle}>
       {formatted_json}
     </ShikiHighlighter>
   );
 }
 
-const codeWrap = css`
+const JSONStyle = css`
+  font-size: .8rem;
+  & pre {
+    border-radius: 0 !important;
+  }
   & code {
     white-space: pre-wrap;
   }
 `
+

@@ -110,17 +110,4 @@ const LoadingState = styled.div`
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  & div.spinner {
-    border: .3rem solid var(--border-alpha-color);
-    border-top: .3rem solid var(--accent-alpha);
-    border-radius: 50%;
-    width: 2rem;
-    height: 2rem;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
 `

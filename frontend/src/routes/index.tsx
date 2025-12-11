@@ -1,19 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
 import { useQuery } from "@tanstack/react-query"
-import BracketLink from "../components/action/BracketLink"
 
+import BracketLink from "../components/action/BracketLink"
+import { Table, TableBody, TableHeader, TableRow, TableCell, SortButton, ClickableTableCell, SortSelect } from "../components/ui/Table"
+import StatusBadge from "../components/ui/StatusBadge"
 import { get_users_problems } from "../api/problems"
+
+type SortField = "updated_at" | "created_at"
+type SortDirection = "asc" | "desc"
 
 // TODO: add like 30s refresh for checking on the problems
 export const Route = createFileRoute("/")({ component: OverviewPage })
+
 function OverviewPage() {
+  const [sort_field, set_sort_field] = useState<SortField>("updated_at")
+  const [sort_direction, set_sort_direction] = useState<SortDirection>("desc")
+
   let { data: problems, error, isPending, isError } = useQuery({
     queryKey: ["my_problems"],
     queryFn: get_users_problems
   })
 
-  
   if (isPending) return <MainContent><p>Loading problems...</p></MainContent>
   if (isError || !problems) return <MainContent><p>Error occurred: {JSON.stringify(error)}</p></MainContent>
 
@@ -31,8 +40,12 @@ function OverviewPage() {
       </div>
     </MainContent>
   )
-  
-  problems.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))
+
+  const sorted_problems = [...problems].sort((a, b) => {
+    const a_time = new Date(a[sort_field]).getTime()
+    const b_time = new Date(b[sort_field]).getTime()
+    return sort_direction === "desc" ? b_time - a_time : a_time - b_time
+  })
 
   const currently_running_problems_count = problems.filter(p => p.is_running && p.phase !== "idle").length
   const total_rounds_count = problems.reduce((sum, p) => sum + (p.current_round ?? 0), 0)
@@ -56,70 +69,48 @@ function OverviewPage() {
         </MetricCard>
       </MetricDashboard>
 
-      <ProblemsSection>
-        <ProblemRow className="header">
-          <div>Problem Name</div>
-          <div>Status</div>
-          <div>Rounds</div>
-          <div>Last Activity</div>
-          <div>Actions</div>
-        </ProblemRow>
-        <ProblemsTable>
-          {problems.map(p => (
-            <ProblemRow key={p.id}>
-              <div className="problem_name">{p.name}</div>
-              <div>{p.phase}</div>
-              <div>{p.total_rounds}</div>
-              <div>{(new Date(p.updated_at)).toLocaleString("cs-CZ")}</div>
-              <div>
-                <BracketLink to="/problem/$problem_id"
-                params={{ problem_id: p.id }}>
-                  View
-                </BracketLink>
-                </div>
-            </ProblemRow>
+      <Table $columns="3fr minmax(5rem, .4fr) .8fr minmax(14rem, .9fr)">
+        <TableHeader>
+          <TableCell>Problem Name</TableCell>
+          <TableCell $align="right">Rounds</TableCell>
+          <TableCell>Status</TableCell>
+          <TableCell>
+            <SortSelect
+              value={sort_field}
+              onChange={e => set_sort_field(e.target.value as SortField)}>
+              <option value="updated_at">Last Activity</option>
+              <option value="created_at">Created</option>
+            </SortSelect>
+            <SortButton
+              onClick={() => set_sort_direction(d => d === "asc" ? "desc" : "asc")}
+              title={sort_direction === "desc" ? "Newest first" : "Oldest first"}>
+              {sort_direction === "desc" ? "↓" : "↑"}
+            </SortButton>
+          </TableCell>
+        </TableHeader>
+        <TableBody>
+          {sorted_problems.map(problem => (
+            <TableRow key={problem.id}>
+              <ClickableTableCell>
+                <Link to="/problem/$problem_id" params={{ problem_id: problem.id }}>{problem.name}</Link>
+              </ClickableTableCell>
+              <TableCell $align="right">{problem.total_rounds}</TableCell>
+              <TableCell>
+                <StatusBadge status={problem.phase} />
+              </TableCell>
+              <TableCell>
+                {sort_field === "updated_at"
+                  ? new Date(problem.updated_at).toLocaleString("cs-CZ")
+                  : new Date(problem.created_at).toLocaleDateString("cs-CZ")
+                }
+              </TableCell>
+            </TableRow>
           ))}
-        </ProblemsTable>
-      </ProblemsSection>
+        </TableBody>
+      </Table>
     </MainContent>
   )
 }
-
-
-
-const ProblemRow = styled.div`
-  display: flex;
-  &:not(:last-of-type):not(.header) {
-    border-bottom: var(--border-alpha);
-  }
-  &.header {
-    font-weight: 600;
-    color: var(--text-beta);
-  }
-  &:not(.header) div:not(:last-of-type) {
-    border-right: var(--border-alpha);
-  }
-  & div {
-    flex: 1;
-    padding: .3rem .6rem;
-    &.problem_name {
-      color: var(--text-beta);
-      font-weight: 500;
-    }
-  }
-`
-
-const ProblemsTable = styled.div`
-  display: flex;
-  flex-flow: column;
-  border: var(--border-alpha);
-  border-radius: .4rem;
-`
-
-const ProblemsSection = styled.section`
-  display: flex;
-  flex-flow: column;
-`
 
 const MetricCard = styled.div`
   flex: 1;
@@ -127,7 +118,6 @@ const MetricCard = styled.div`
   flex-flow: column;
   gap: .4rem;
   padding: 1rem 1.4rem;
-  /* background: var(--bg-gamma); */
   border-radius: .5rem;
   border: var(--border-alpha);
   & p.title {

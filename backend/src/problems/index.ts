@@ -1,6 +1,6 @@
 import { Elysia } from "elysia"
 import { drizzle_plugin, auth_plugin } from "../db/plugins"
-import { problems, problem_files, rounds, llms } from "../../drizzle/schema"
+import { problems, problem_files, rounds, llms, users } from "../../drizzle/schema"
 import { desc, eq, and, like, sql, or, inArray } from "drizzle-orm"
 import { core, parse, z } from "zod"
 
@@ -18,6 +18,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         .select({
           id: problems.id,
           name: problems.name,
+          created_at: problems.created_at,
           updated_at: problems.updated_at,
           is_running: eq(problems.status, "running"),
           phase: problems.status,
@@ -373,17 +374,29 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
     body: CreateProblemFormSchema,
     isAuth: true,
   })
-
-export const problems_router = new Elysia({ prefix: "/problems" })
-  .use(drizzle_plugin)
   .get("/archive", async ({ db }) => {
-    return db
+    const result = await db
       .select({
         id: problems.id,
         owner_id: problems.owner_id,
         name: problems.name,
+        created_at: problems.created_at,
+        updated_at: problems.updated_at,
+        phase: problems.status,
+        total_rounds: problems.current_round,
+        owner_email: users.email,
+        owner_meta: users.raw_user_meta_data,
       })
       .from(problems)
+      .leftJoin(users, eq(problems.owner_id, users.id))
       .orderBy(desc(problems.created_at))
-  })
+  
+    return result.map(({ owner_meta, owner_email, ...problem }) => ({
+      ...problem,
+      owner_name: owner_meta?.name ?? owner_email!,
+    }))
+  }, { isAuth: true })
+
+export const problems_router = new Elysia({ prefix: "/problems" })
+  .use(drizzle_plugin)
   .use(protected_routes)

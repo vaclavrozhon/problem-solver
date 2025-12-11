@@ -1,6 +1,9 @@
 // Keep shared types independent of backend to avoid cycles.
 // These mirror backend enums/fields used by the frontend.
 
+// Problem status type (mirrors backend problem-status enum)
+export type ProblemStatus = "created" | "idle" | "queued" | "running" | "failed" | "completed"
+
 // Initial placeholder content for main files when a problem is created
 export const INITIAL_MAIN_FILES = {
   notes: "# Research Notes",

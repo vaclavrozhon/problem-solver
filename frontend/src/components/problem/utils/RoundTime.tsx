@@ -1,11 +1,17 @@
 import { styled } from "@linaria/react"
 
-import type { ProblemRoundSumary } from "@shared/types/problem"
+import type { ProblemRoundSumary, Verdict } from "@shared/types/problem"
 import { Table, TableBody, TableHeader, TableRow, TableCell, TableErrorSection } from "../../ui/Table"
 import StatusBadge from "../../ui/StatusBadge"
 
 interface Props {
   round_summaries: ProblemRoundSumary[]
+}
+
+const VERDICTS: Record<string, string> = {
+  promising: "✅ Promising",
+  uncertain: "⚠️ Unclear",
+  unlikely: "❌ Unlikely"
 }
 
 export default function RoundTime({ round_summaries }: Props) {
@@ -20,10 +26,11 @@ export default function RoundTime({ round_summaries }: Props) {
   return (
     <TimeTableSection>
       <h2>⏱ Round times and summaries</h2>
-      <Table $columns="minmax(5rem, .4fr) 2fr 1fr 1fr 1fr 1fr 1fr">
+      <Table $columns="minmax(5rem, .4fr) 2fr minmax(7.5rem, 1fr) 1fr 1fr 1fr 1fr 1fr">
         <TableHeader>
           <TableCell>Round</TableCell>
           <TableCell>Status</TableCell>
+          <TableCell>Verdict</TableCell>
           <TableCell $align="right">Cost</TableCell>
           <TableCell $align="right">Total</TableCell>
           <TableCell $align="right">Provers</TableCell>
@@ -37,6 +44,13 @@ export default function RoundTime({ round_summaries }: Props) {
                 <TableCell>{round.round_index}</TableCell>
                 <TableCell>
                   <StatusBadge status={round.phase} />
+                </TableCell>
+                <TableCell>
+                  {round.verdict ? (
+                    <VerdictBadge>
+                      {VERDICTS[round.verdict]}
+                    </VerdictBadge>
+                  ) : "-"}
                 </TableCell>
                 <TableCell $align="right">${round.usage.toFixed(3)}</TableCell>
                 <TableCell $align="right">
@@ -91,4 +105,11 @@ const RoundRow = styled.div`
   &:not(:last-child) {
     border-bottom: var(--border-alpha);
   }
+`
+// TODO: possibly make this universal badge since its the same as the status badge
+const VerdictBadge = styled.p`
+  font-family: Kode;
+  font-size: .85rem;
+  text-transform: uppercase;
+  font-weight: 600;
 `

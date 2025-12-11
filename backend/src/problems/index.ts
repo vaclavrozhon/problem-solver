@@ -64,6 +64,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
           },
           rounds: {
             columns: {
+              id: true,
               index: true,
               phase: true,
               error_message: true,
@@ -79,12 +80,35 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
       if (!result) return status(204)
 
+      // Fetch verifier outputs to extract verdicts
+      const round_ids = result.rounds.map(r => r.id)
+      const verifier_outputs = round_ids.length > 0
+        ? await db.query.problem_files.findMany({
+            columns: { round_id: true, content: true },
+            where: and(
+              eq(problem_files.file_type, "verifier_output"),
+              inArray(problem_files.round_id, round_ids)
+            )
+          })
+        : []
+
+      const verdict_by_round_id = new Map<string, string | null>()
+      for (const v_output of verifier_outputs) {
+        try {
+          const parsed = JSON.parse(v_output.content)
+          verdict_by_round_id.set(v_output.round_id, parsed.verdict ?? null)
+        } catch {
+          verdict_by_round_id.set(v_output.round_id, null)
+        }
+      }
+
       const round_summaries: ProblemRoundSumary[] = []
 
       for (let round of result.rounds.filter(round => round.index !== 0)) {
         let round_summary: ProblemRoundSumary = {
           round_index: round.index,
           phase: round.phase,
+          verdict: (verdict_by_round_id.get(round.id) as ProblemRoundSumary["verdict"]) ?? null,
           duration: {
             provers_total: round.prover_time,
             verifier: round.verifier_time,

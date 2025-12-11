@@ -2,9 +2,11 @@ import { z } from "zod"
 
 // TODO: Add model pricing to the app
 const smart_models = {
+  // "GPT 5 mini": "openai/gpt-5-mini",
   "Gemini 3 Pro": "google/gemini-3-pro-preview",
   "GPT 5.1": "openai/gpt-5.1",
   "GPT 5": "openai/gpt-5",
+  "GPT 5 Pro": "openai/gpt-5-pro",
   "Claude Opus 4.5": "anthropic/claude-opus-4.5",
   "Grok 4": "x-ai/grok-4",
   // "Kimi K2": "moonshotai/kimi-k2-thinking",

@@ -4,7 +4,7 @@ import { styled } from "@linaria/react"
 import CodeMirror from "@uiw/react-codemirror"
 import { EditorView } from "@uiw/react-codemirror"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
-import { tokyoNight } from "@uiw/codemirror-theme-tokyo-night"
+import { xcodeDark } from "@uiw/codemirror-theme-xcode"
 import Markdown from "../Markdown"
 
 interface Props {
@@ -30,7 +30,7 @@ export default function SplitViewEditor({ md = "", onChange, placeholder = "" }:
             if (onChange) onChange(val)
             else setEditorContent(val)
           }}
-          theme={tokyoNight}
+          theme={xcodeDark}
           value={editor_content}
           extensions={code_mirror_extension}
           placeholder={placeholder || `Please write your Markdown & KaTeX here.

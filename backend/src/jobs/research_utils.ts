@@ -363,23 +363,39 @@ export async function generate_llm_response<T>(
   messages: ModelMessage[],
   schema: z.ZodType<T>,
   prompt_file_id: string,
-  context: string
+  context: string,
+  max_retries: number = 3
 ): Promise<LLMResponse<T>> {
-  const llm_start_time = performance.now()
+  let llm_start_time = performance.now()
   let llm_response
-  try {
-    llm_response = await generateObject({
-      model: openrouter(model_id, {
-        reasoning: { effort: "high" },
-        user: user_id,
-        usage: { include: true },
-      }),
-      messages,
-      schema,
-    })
-  } catch (e) {
-    throw new Error(`[OpenRouter][${model_id}] LLM generation failed for ${context}: ${(e as Error).message}`)
+  let last_error: Error | null = null
+
+  for (let attempt = 1; attempt <= max_retries; attempt++) {
+    try {
+      const local_llm_start_time = performance.now()
+      llm_response = await generateObject({
+        model: openrouter(model_id, {
+          reasoning: { effort: "high" },
+          user: user_id,
+          usage: { include: true },
+        }),
+        messages,
+        schema,
+      })
+      llm_start_time = local_llm_start_time
+      break
+    } catch (e) {
+      last_error = e as Error
+      if (attempt < max_retries) {
+        console.warn(`[OpenRouter][${model_id}] Attempt ${attempt}/${max_retries} failed for ${context}: ${last_error.message}. Retrying...`)
+      }
+    }
   }
+
+  if (!llm_response) {
+    throw new Error(`[OpenRouter][${model_id}] LLM generation failed for ${context} after ${max_retries} attempts: ${last_error?.message}`)
+  }
+
   const time = (performance.now() - llm_start_time) / 1000
   const usage = llm_response.providerMetadata!.openrouter!.usage as OpenRouterUsageAccounting
   const reasoning = llm_response.providerMetadata!.openrouter!.reasoning_details

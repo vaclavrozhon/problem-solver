@@ -2,6 +2,7 @@
 // These mirror backend enums/fields used by the frontend.
 
 // Problem status type (mirrors backend problem-status enum)
+// Link this to drizzle defintion
 export type ProblemStatus = "created" | "idle" | "queued" | "running" | "failed" | "completed"
 
 // Initial placeholder content for main files when a problem is created
@@ -32,12 +33,15 @@ export interface ProblemFileRef {
   model_id?: string | null
   usage?: unknown
 }
+// TODO: Link this to the Drizzle definition
+export type Verdict = "promising" | "uncertain" | "unlikely"
 
 export interface ProblemRoundSumary {
   round_index: number,
   // TODO
   // one_line_summary: string,
   phase: RoundPhase,
+  verdict: Verdict | null,
   duration: {
     provers_total: number | null,
     verifier: number | null,

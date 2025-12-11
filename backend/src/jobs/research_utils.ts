@@ -96,12 +96,12 @@ export function create_prover_prompt(
   general_advice?: string,
   advice?: string
 ) {
-  if (general_advice || advice) prompt += "\n\n=== ADVICE ==="
+  if (general_advice || advice) prompt += "\n\n=== PERSONALIZED INSTRUCTIONS ===\n"
   if (general_advice) prompt += "\n" + general_advice
   if (advice) prompt += "\n" + advice
 
   if (previous_verifier_output.length === 1) {
-    prompt += "\n\n=== VERIFIER OUTPUT FROM PREVIOUS ROUND ==="
+    prompt += "\n\n=== VERIFIER OUTPUT FROM PREVIOUS ROUND ===\n"
     const parsed_verifier_output = safe_json_parse(
       previous_verifier_output[0].content,
       VerifierOutputSchema,
@@ -114,7 +114,7 @@ export function create_prover_prompt(
   }
 
   if (all_previous_summarizer_outputs.length > 0) {
-    prompt += "\n\n=== SUMMARIZER OUTPUTS FROM PREVIOUS ROUNDS ==="
+    prompt += "\n\n=== SUMMARIZER OUTPUTS FROM PREVIOUS ROUNDS ===\n"
     for (let summarizer_output of all_previous_summarizer_outputs) {
       const content = safe_json_parse(
         summarizer_output.content,
@@ -127,9 +127,9 @@ export function create_prover_prompt(
   }
 
   for (let file of main_files) {
-    if (file.file_type === "notes") prompt += "\n\n=== NOTES (notes.md) ==="
-    else if (file.file_type === "proofs") prompt += "\n\n=== PROOFS (proofs.md) ==="
-    else if (file.file_type === "output") prompt += "\n\n=== OVERALL OUTPUTS (output.md) ==="
+    if (file.file_type === "notes") prompt += "\n\n=== NOTES (notes.md) ===\n"
+    else if (file.file_type === "proofs") prompt += "\n\n=== PROOFS (proofs.md) ===\n"
+    else if (file.file_type === "output") prompt += "\n\n=== OVERALL OUTPUTS (output.md) ===\n"
     else prompt += "\n\n=== TASK ==="
     prompt += "\n" + file.content
   }
@@ -151,7 +151,7 @@ export function create_prover_prompt(
 export function create_verifier_prompt(prompt: string, files: PromptBuildingFiles, prover_output: string[], advice?: string,) {
   let prompt_1 = create_prover_prompt(prompt, files, undefined, advice)
   for (let [i, output] of prover_output.entries()) {
-    prompt_1 += `\n\n=== PROVER-${i + 1} OUTPUT ===`
+    prompt_1 += `\n\n=== PROVER-${i + 1} OUTPUT ===\n`
     prompt_1 += output
   }
   return prompt_1
@@ -164,29 +164,29 @@ export function create_summarizer_prompt(
   new_main_files: { notes: string, proofs: string, output: string, task: string }
 ) {
   let prompt = base_prompt
-  prompt += "\n\n=== VERIFIER OUTPUT ==="
+  prompt += "\n\n=== VERIFIER OUTPUT ===\n"
   prompt += verifier_output
 
   if (all_previous_summarizer_outputs.length > 0) {
-    prompt += "\n\n=== SUMMARIZER OUTPUTS FROM PREVIOUS ROUNDS ==="
+    prompt += "\n\n=== SUMMARIZER OUTPUTS FROM PREVIOUS ROUNDS ===\n"
     for (let summarizer_output of all_previous_summarizer_outputs) {
       const content = safe_json_parse(
         summarizer_output.content,
         SummarizerOutputSchema,
         `Summarizer Output (Round ${summarizer_output.round.index})`
       )
-      prompt += `\n## Round ${summarizer_output.round.index}`
+      prompt += `\n## Round ${summarizer_output.round.index}\n`
       prompt += `\n${content.summary}`
     }
   }
 
-  prompt += "\n\n=== NOTES (notes.md) ==="
+  prompt += "\n\n=== NOTES (notes.md) ===\n"
   prompt += new_main_files.notes
-  prompt += "\n\n=== PROOFS (proofs.md) ==="
+  prompt += "\n\n=== PROOFS (proofs.md) ===\n"
   prompt += new_main_files.proofs
-  prompt += "\n\n=== OUTPUT (output.md) ==="
+  prompt += "\n\n=== OUTPUT (output.md) ===\n"
   prompt += new_main_files.output
-  prompt += "\n\n=== TASK ==="
+  prompt += "\n\n=== TASK ===\n"
   prompt += new_main_files.task
 
   return prompt

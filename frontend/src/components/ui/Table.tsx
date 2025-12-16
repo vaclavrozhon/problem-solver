@@ -1,4 +1,5 @@
 import { styled } from "@linaria/react"
+import { Link } from "@tanstack/react-router"
 
 interface TableProps {
   $columns?: string
@@ -20,26 +21,39 @@ export const TableBody = styled.div`
 const BaseRow = styled.div`
   display: grid;
   grid-template-columns: var(--table-columns);
-`
+  & > *:not(:last-child) {
+    border-right: var(--border-alpha);
+  }
+  `
+
+// TODO: restyle this for better readability
 export const TableHeader = styled(BaseRow)`
   font-weight: 600;
   color: var(--text-beta);
   border: var(--border-alpha);
   border-radius: .4rem;
   margin-bottom: .3rem;
+`
+
+export const ClickableRow = styled(Link)`
+  display: grid;
+  grid-template-columns: var(--table-columns);
+  &:hover {
+    background: var(--bg-gamma);
+    color: var(--text-beta);
+  }
   & > *:not(:last-child) {
     border-right: var(--border-alpha);
   }
 `
+
 interface TableRowProps {
   $noBorder?: boolean
 }
+
 export const TableRow = styled(BaseRow) <TableRowProps>`
   &:not(:last-of-type) {
     border-bottom: ${({ $noBorder }) => $noBorder ? "none" : "var(--border-alpha)"};
-  }
-  & > *:not(:last-child) {
-    border-right: var(--border-alpha);
   }
 `
 
@@ -147,5 +161,10 @@ export const TableErrorSection = styled.div`
       color: #e02525;
       margin-left: .3rem;
     }
+  }
+`
+export const PossibleErrorRow = styled.div`
+  &:not(:last-child) {
+    border-bottom: var(--border-alpha);
   }
 `

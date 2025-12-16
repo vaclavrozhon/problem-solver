@@ -6,6 +6,8 @@ import { styled } from "@linaria/react"
 import BracketButton from "../components/action/BracketButton"
 import type { AuthContextType } from "../contexts/AuthContext"
 
+import Logo from "../components/svg/Logo"
+import TextLogo from "../components/svg/TextLogo"
 import ThemeSelector from "../components/app/ThemeSelector"
 
 export interface MyRouterContext {
@@ -49,14 +51,17 @@ function RootLayout() {
   return isAuthenticated ? (
     <PageContent>
       <Header>
-        <Link to="/" className="project_name">🔬 Automatic Researcher</Link>
+        {/* <Link to="/" className="project_name">🔬 Bolzano</Link> */}
+        <Link to="/" className="project_name">
+          <Logo/>
+          <TextLogo lowercase/>
+        </Link>
         <Nav>
           <Link to="/">Overview</Link>
           <Link to="/archive" preload="intent">Archive</Link>
           <Link to="/usage" preload="intent">Usage</Link>
           <Link to="/create">Create Problem</Link>
-          <a href="https://docs.google.com/document/d/1WS9RQYO7gGlbYph6ZW0xk-Nr6NcUz78mzzjY_l0ulAo/edit?usp=sharing"
-            target="_blank">Shared Notes</a>
+          <Link to="/admin">Administration</Link>
         </Nav>
       </Header>
 
@@ -75,7 +80,10 @@ function RootLayout() {
   ) : (
     <PageContent>
       <Header>
-        <p className="project_name">🔬 Automatic Researcher</p>
+        <p className="project_name">
+          <Logo/>
+          <TextLogo lowercase/>
+        </p>
       </Header>
 
       <Outlet/>
@@ -99,9 +107,9 @@ const Header = styled.header`
   padding: .6rem 1rem;
   border-bottom: var(--border-alpha);
   & .project_name {
-    color: var(--text-beta);
-    font-size: 1.1rem;
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
   }
 `
 

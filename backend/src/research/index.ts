@@ -26,6 +26,7 @@ export const research_router = new Elysia({ prefix: "/research" })
       message: "Can' start research for non-existing problem – invalid problem id."
     })
 
+    // TODO: Add Admin workaround to be able to start reserach for anyone.
     // BUG COMMENETED OUT FOR NOW
     // TODO: Uncomment when publishing for production
     // It works correctly but rn i want to be able to run research for others
@@ -44,8 +45,7 @@ export const research_router = new Elysia({ prefix: "/research" })
         .set({ status: "queued", updated_at: sql`NOW()` })
         .where(eq(problems.id, problem_id))
     } catch (e) {
-      // TODO: Log this error
-      return status(500)
+      return status(500, { type: "error", message: "Failed to queue new research! "})
     }
 
     jobs.queue("standard_research")

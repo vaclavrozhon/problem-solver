@@ -4,6 +4,7 @@ import { cors } from "@elysiajs/cors"
 import { problems_router } from "./problems"
 import { account_router } from "./account"
 import { research_router } from "./research"
+import { admin_router } from "./admin"
 
 import { jobs } from "./jobs"
 
@@ -12,6 +13,7 @@ const api_router = new Elysia({ prefix: "/api" })
   .use(problems_router)
   .use(account_router)
   .use(research_router)
+  .use(admin_router)
 
 const backend = new Elysia({ name: "backend" })
   .use(cors({
@@ -47,6 +49,7 @@ export const app = new Elysia()
     console.log(`✌️ [BACKEND] is running at http://${app.server?.hostname}:${app.server?.port}.`)
   })
   .onStop(async () => {
+    // TODO: How to do the gentle shutdown? To wait for all active jobs to finish??
     console.log("🔥 [BACKEND] stopped!")
     await jobs.stop()
     process.exit(0)

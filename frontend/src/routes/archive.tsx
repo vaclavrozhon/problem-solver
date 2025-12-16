@@ -56,6 +56,12 @@ function ProblemsArchive() {
     return sort_direction === "desc" ? b_val - a_val : a_val - b_val
   })
 
+  if (problems.length === 0) return (
+    <MainContent>
+      <p>So far, no problems have been researched.</p>
+    </MainContent>
+  )
+
   return (
     <MainContent>
       <h1>Archive of All Problems</h1>

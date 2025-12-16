@@ -1,11 +1,22 @@
-import { Queue, Worker, Job, QueueEvents, WorkerListener } from "bullmq"
+import { Queue, Worker, Job, QueueEvents, WorkerListener, JobType } from "bullmq"
 import { z } from "zod"
 import { createOpenRouter, OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 
 import { get_db } from "../db/plugins"
 
+import { QueueState, JobInputSchema, JobStatus } from "@shared/admin"
+
 const DEFAULT_QUEUE = "jobs"
 const DEFAULT_CONCURRENCY = 10
+
+type RedisConfig = ReturnType<typeof parse_redis_url>
+
+type JobManagerOptions = {
+  /** When true, only connects to Redis for reading state - no workers spawned */
+  observer_mode?: boolean
+  /** Override the default REDIS_URL from environment */
+  redis_url?: string
+}
 
 type Database = ReturnType<typeof get_db>
 
@@ -44,7 +55,7 @@ type AugmentedEventHandler<E extends JobEventKeys> = (
  * Extracts the union of all queue names from an array of JobBuilders.
  * Example: if builders have queues "A" and "B", this type is "A" | "B".
  */
-type QueueNameUnion<Bs extends BuildersArray> =
+export type QueueNameUnion<Bs extends BuildersArray> =
   Bs[number] extends JobBuilder<any, any, infer Q> ? Q : never
 
 /**
@@ -66,7 +77,11 @@ type QueueJobRegistry<Bs extends BuildersArray, Q extends string> = {
  * It provides a type-safe API for emitting jobs to specific queues.
  */
 export class JobManager<Builders extends BuildersArray = []> {
-  // Dependencies
+  // Options
+  private observer_mode: boolean
+  private redis_url: string
+
+  // Dependencies (not initialized in observer mode)
   private db!: Database
   private openrouter!: OpenRouterProvider
 
@@ -77,7 +92,12 @@ export class JobManager<Builders extends BuildersArray = []> {
 
   // Job Registry
   private jobs: AnyJobBuilder[] = []
-  private job_map = new Map<string, AnyJobBuilder>()
+  private job_map: Record<string, Record<string, AnyJobBuilder>> = {}
+
+  constructor(options?: JobManagerOptions) {
+    this.observer_mode = options?.observer_mode ?? false
+    this.redis_url = options?.redis_url ?? Bun.env.REDIS_URL
+  }
 
   /**
    * Registers new job builders with the manager.
@@ -97,27 +117,40 @@ export class JobManager<Builders extends BuildersArray = []> {
       }
 
       this.jobs.push(job)
-      this.job_map.set(job.name, job)
+
+      if (!this.job_map[queue_name]) this.job_map[queue_name] = {}
+      this.job_map[queue_name][job.name] = job
     }
     // Cast to update the generic type parameter with the new builders
     return this as unknown as JobManager<[...Builders, ...NewBuilders]>
   }
 
   /**
-   * Starts the job manager: connects to DB, initializes queues and workers.
+   * Starts the job manager: connects to Redis and initializes queues.
+   * In observer mode, only queue connections are created (no workers).
    */
   async start() {
-    this.db = get_db()
-    this.openrouter = createOpenRouter({ apiKey: Bun.env.OPENROUTER_API_KEY })
-
-    const redis_url = parse_redis_url(Bun.env.REDIS_URL)
+    const redis_config = parse_redis_url(this.redis_url)
     const queue_names = new Set(this.jobs.map(j => j.get_queue_name()))
 
     for (let queue_name of queue_names) {
-      this.initialize_queue(queue_name, redis_url)
+      this.initialize_queue_connection(queue_name)
     }
 
-    // Bind all jobs to their respective queues and dependencies
+    if (this.observer_mode) {
+      console.log(`👀 [job_manager] started in observer mode with ${queue_names.size} queues.`)
+      return
+    }
+
+    // Worker mode: initialize dependencies, events, and workers
+    this.db = get_db()
+    this.openrouter = createOpenRouter({ apiKey: Bun.env.OPENROUTER_API_KEY })
+
+    for (let queue_name of queue_names) {
+      this.initialize_queue_events(queue_name, redis_config)
+      this.initialize_worker(queue_name, redis_config)
+    }
+
     for (let job of this.jobs) {
       const queue_name = job.get_queue_name()
       const queue = this.queues.get(queue_name)!
@@ -129,6 +162,7 @@ export class JobManager<Builders extends BuildersArray = []> {
 
   /**
    * Stops all workers and closes queue connections.
+   * It should wait for all workers to finish before closing the connection.
    */
   async stop() {
     for (const worker of this.workers.values()) await worker.close()
@@ -137,52 +171,129 @@ export class JobManager<Builders extends BuildersArray = []> {
   }
 
   /**
+   * Returns the details of all queues with job counts, details and input schemas.
+   * Used in AdminDashboard for overview of all jobs.
+   */
+  async get_all_job_details(): Promise<Record<QueueNameUnion<Builders>, QueueState>> {
+    const result = {} as Record<QueueNameUnion<Builders>, QueueState>
+
+    for (const [name, queue] of this.queues) {
+      const counts = await queue.getJobCounts(
+        "active",
+        "waiting",
+        "delayed",
+        "completed",
+        "failed",
+      )
+      const schemas: Record<string, JobInputSchema> = {}
+      for (const [job_name, job] of Object.entries(this.job_map[name])) {
+        schemas[job_name] = job.input_schema
+          ? z.toJSONSchema(
+              job.input_schema, 
+              { target: "openapi-3.0" },
+            )
+          : null
+      }
+
+      result[name as QueueNameUnion<Builders>] = {
+        counts: {
+          running: counts.active,
+          queued: counts.waiting,
+          delayed: counts.delayed,
+          finished: counts.completed,
+          failed: counts.failed,
+        },
+        jobs: {
+          // TODO: Decide how many we want to retrieve.
+          // oldest first for queue – next to be processed
+          queued: await get_job_summaries(queue, "waiting", 10, true),
+          // for others latest first
+          running: await get_job_summaries(queue, "active", 10, false),
+          delayed: await get_job_summaries(queue, "delayed", 10, false),
+          finished: await get_job_summaries(queue, "completed", 10, false),
+          failed: await get_job_summaries(queue, "failed", 10, false)
+        },
+        schemas,
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Retrieves job details by `job_id` and `queue_name`.
+   * Used in API for Dashboard insights for given Job.
+   */
+  async get_job(queue_name: string, job_id: string) {
+    const queue = this.queues.get(queue_name)
+    if (!queue) return null
+    const job = await queue.getJob(job_id)
+    if (!job) return null
+
+    const state = await job.getState()
+    if (state === "waiting-children" || state === "unknown" || state === "prioritized") return null
+    const state_status_map: Record<typeof state, JobStatus> = {
+      active: "running",
+      completed: "finished",
+      waiting: "queued",
+      delayed: "delayed",
+      failed: "failed",
+    }
+    const status = state_status_map[state]
+
+    return {
+      job,
+      job_status: status as JobStatus,
+    }
+  }
+
+  /**
    * Returns a type-safe emitter for a specific queue.
+   * Throws in observer mode - observers cannot emit jobs.
    */
   queue<Q extends QueueNameUnion<Builders>>(queue_name: Q) {
+    if (this.observer_mode) throw new Error("[job_manager] cannot emit jobs in observer mode!")
+
     type SubReg = QueueJobRegistry<Builders, Q & string>
     const self = this
 
     return {
       async emit<N extends keyof SubReg & string>(name: N, data?: SubReg[N]) {
-        const job = self.job_map.get(name)
-        if (!job) throw new Error(`[job_manager]{${name}} is not registered!`)
-        const expected_queue = job.get_queue_name()
-        if (expected_queue !== String(queue_name)) {
-          throw new Error(`[job_manager]{${name}} belongs to queue '${expected_queue}'`)
-        }
+        const job = self.job_map[queue_name]?.[name]
+        if (!job) throw new Error(`[job_manager]{${name}} is not registered in queue '${queue_name}'!`)
 
         await job.emit(data)
       }
     }
   }
 
-  private initialize_queue(queue_name: string, redis_url: ReturnType<typeof parse_redis_url>) {
-    // (1) Create Queue
+  private initialize_queue_connection(queue_name: string) {
     const queue = new Queue(queue_name, {
       connection: {
-        url: Bun.env.REDIS_URL,
+        url: this.redis_url,
         enableOfflineQueue: false,
       }
     })
     this.queues.set(queue_name, queue)
+  }
 
-    // (2) Create QueueEvents
-    const queue_events = new QueueEvents(queue_name, { connection: redis_url })
+  private initialize_queue_events(queue_name: string, redis_config: RedisConfig) {
+    const queue_events = new QueueEvents(queue_name, { connection: redis_config })
     queue_events.on("error", error => {
       console.error(`[job_manager][${queue_name}] error: ${error.message}`)
     })
     this.queue_events.set(queue_name, queue_events)
+  }
 
-    // (3) Create Worker
+  private initialize_worker(queue_name: string, redis_config: RedisConfig) {
     const worker = new Worker(
       queue_name,
-      this.process_job.bind(this),
-      { connection: redis_url, concurrency: DEFAULT_CONCURRENCY }
+      (job) => this.process_job(queue_name, job),
+      { connection: redis_config, concurrency: DEFAULT_CONCURRENCY }
     )
     this.workers.set(queue_name, worker)
 
-    // (4) Attach job event listeners
+    // Attach job event listeners
     const jobs_in_queue = this.jobs.filter(j => j.get_queue_name() === queue_name)
     const handlers_by_event = new Map<string, Map<string, Function>>()
 
@@ -195,7 +306,6 @@ export class JobManager<Builders extends BuildersArray = []> {
       }
     }
 
-    // (5) Dispatch events to the correct job handler, injecting context
     const context: JobContext = { db: this.db, openrouter: this.openrouter }
 
     for (const [event, handlers] of handlers_by_event) {
@@ -211,10 +321,10 @@ export class JobManager<Builders extends BuildersArray = []> {
     }
   }
 
-  private async process_job(job: Job) {
-    const builder = this.job_map.get(job.name)
+  private async process_job(queue_name: string, job: Job) {
+    const builder = this.job_map[queue_name]?.[job.name]
     if (!builder) {
-      throw new Error(`[job_manager] no handler registered for job '${job.name}'`)
+      throw new Error(`[job_manager] no handler registered for job '${job.name}' in queue '${queue_name}'`)
     }
 
     // Validate Input
@@ -229,8 +339,6 @@ export class JobManager<Builders extends BuildersArray = []> {
     try {
       await builder.invoke(job.data)
     } catch (error) {
-      // TODO: In the future, we might want to log these errors
-      // better. Some dashboard or something idk
       console.error(`[job]{${builder.name}} failed: ${(error as Error).message}`)
       throw error
     }
@@ -351,4 +459,26 @@ function parse_redis_url(connection_url: string) {
     username: url.username,
     password: url.password,
   }
+}
+
+async function get_job_summaries(queue: Queue, job_status: JobType, count: number, asc?: boolean) {
+  const jobs = await queue.getJobs([job_status], 0, count - 1, asc)
+  return jobs.map(job => ({
+    /**
+     * BullMQ docs state that all jobs must have unique ID
+     * but typescript disagrees
+     * https://docs.bullmq.io/guide/jobs/job-ids
+     */
+    id: job.id!,
+    name: job.name,
+    created_at: job.timestamp,
+    started_at: job.processedOn,
+    attempts: job.attemptsStarted,
+    error: job.failedReason && job.stacktrace
+      ? {
+        message: job.failedReason,
+        stacktrace: job.stacktrace,
+      }
+      : null
+  }))
 }

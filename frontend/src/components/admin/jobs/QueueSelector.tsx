@@ -1,6 +1,7 @@
 import { styled } from "@linaria/react"
 
-import { QueueName, QueueState, format_name } from "@shared/admin"
+import { type QueueState, format_name } from "@shared/admin"
+import type { QueueName } from "@backend/jobs"
 
 interface QueueSelectorProps {
   queues: Record<QueueName, QueueState>,

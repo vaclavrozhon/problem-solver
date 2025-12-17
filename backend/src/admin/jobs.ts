@@ -5,7 +5,8 @@ import { problems, users } from "../../drizzle/schema"
 import { eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 
-import type { QueueName, QueueState, Job } from "@shared/admin"
+import type { QueueState, Job } from "@shared/admin"
+import type { QueueName } from "../jobs/index"
 
 // TODO: Add isAdmin to all!
 // TODO: Write automatic tests to check if isUser & isAdmin work!
@@ -80,7 +81,7 @@ export const jobs_router = new Elysia({ prefix: "/jobs" })
       }
     }
 
-    const retrieved_job: Job = {
+    const retrieved_job: Job<QueueName> = {
       id: job_id,
       name: job.name,
       queue_name: queue_name as QueueName,

@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test"
-import { JobManager, define_job } from "../src/jobs/manager"
+import { JobManager, create_job_factory } from "../src/jobs/manager"
 import { Job } from "bullmq"
 import { z } from "zod"
 
@@ -38,22 +38,25 @@ mock.module("bullmq", () => {
   }
 })
 
+type MockDB = { mock_db: true }
+type MockOpenRouter = { mock_openrouter: true }
 
-const mock_db = {}
-mock.module("../src/db/plugins", () => ({
-  get_db: () => mock_db
-}))
+const mock_db: MockDB = { mock_db: true }
+const mock_openrouter: MockOpenRouter = { mock_openrouter: true }
 
-const mock_open_router = {}
-mock.module("@openrouter/ai-sdk-provider", () => ({
-  createOpenRouter: () => mock_open_router
-}))
+const define_job = create_job_factory<MockDB>()
 
 describe("JobManager", () => {
-  let manager: JobManager<any>
+  let manager: JobManager<any, MockDB>
+
+  const create_manager = () => new JobManager<[], MockDB>({
+    redis_url: "redis://localhost:6379",
+    db: mock_db,
+    openrouter: mock_openrouter as any,
+  })
 
   beforeEach(() => {
-    manager = new JobManager()
+    manager = create_manager()
   })
 
   afterEach(async () => {
@@ -116,7 +119,7 @@ describe("JobManager", () => {
     const handler = mock((received_payload, { db, openrouter }) => {
       expect(received_payload).toEqual(payload)
       expect(db).toBe(mock_db)
-      expect(openrouter).toBe(mock_open_router)
+      expect(openrouter).toBe(mock_openrouter)
       return Promise.resolve()
     })
     const job = define_job("test-job").work(handler)
@@ -135,7 +138,7 @@ describe("JobManager", () => {
     expect(handler).toHaveBeenCalled()
     expect(handler).toHaveBeenCalledWith(
       payload,
-      expect.objectContaining({ db: mock_db, openrouter: mock_open_router })
+      expect.objectContaining({ db: mock_db, openrouter: mock_openrouter })
     )
   })
 
@@ -155,7 +158,7 @@ describe("JobManager", () => {
 
     expect(failed_handler).toHaveBeenCalled()
     expect(failed_handler).toHaveBeenCalledWith(
-      expect.objectContaining({ db: mock_db, openrouter: mock_open_router }),
+      expect.objectContaining({ db: mock_db, openrouter: mock_openrouter }),
       expect.anything(),
       expect.any(Error),
     )

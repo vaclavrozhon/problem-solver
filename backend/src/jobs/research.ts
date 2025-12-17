@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { eq, inArray, sql, and } from "drizzle-orm"
 import { problems, rounds, problem_files } from "../../drizzle/schema"
-import { define_job } from "./manager"
+import { define_job } from "./job_factory"
 import { NewStandardResearch, AllowedModelsID, get_model_id, VerifierOutputSchema, SummarizerOutputSchema, ProverOutputSchema, ProverOutput, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
 import {
   create_verifier_prompt,

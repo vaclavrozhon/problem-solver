@@ -10,6 +10,7 @@ import LeftArrowSVG from "@frontend/components/svg/LeftArrow"
 import { ElapsedTime, format_duration } from "@frontend/components/admin/jobs/ElapsedTime"
 
 import { format_name, JobStatusIcon, Job } from "@shared/admin"
+import type { QueueName } from "@backend/jobs"
 
 
 export const Route = createFileRoute("/admin/job/$queue_name/$job_id")({
@@ -244,7 +245,7 @@ interface ResearchConfig {
   summarizer_model: string
 }
 
-function extract_research_config(job: Job): ResearchConfig | null {
+function extract_research_config(job: Job<QueueName>): ResearchConfig | null {
   let config
 
   // For start_research jobs

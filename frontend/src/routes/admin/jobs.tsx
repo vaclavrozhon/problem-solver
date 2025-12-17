@@ -9,7 +9,8 @@ import UpdatedAt from "@frontend/components/ui/UpdatedAt"
 
 import * as Breadcrumb from "../../components/ui/Breadcrumb"
 import { JobStatusValues, JobStatusIcon } from "@shared/admin"
-import type { JobStatus, QueueName } from "@shared/admin"
+import type { JobStatus } from "@shared/admin"
+import type { QueueName } from "@backend/jobs"
 
 export const Route = createFileRoute("/admin/jobs")({
   component: JobManagerDashboardPage,

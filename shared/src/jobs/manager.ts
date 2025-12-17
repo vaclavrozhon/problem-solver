@@ -1,36 +1,45 @@
 import { Queue, Worker, Job, QueueEvents, WorkerListener, JobType } from "bullmq"
 import { z } from "zod"
-import { createOpenRouter, OpenRouterProvider } from "@openrouter/ai-sdk-provider"
+import type { OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 
-import { get_db } from "../db/plugins"
-
-import { QueueState, JobInputSchema, JobStatus } from "@shared/admin"
+import { QueueState, JobInputSchema, JobStatus } from "../admin"
 
 const DEFAULT_QUEUE = "jobs"
 const DEFAULT_CONCURRENCY = 10
 
 type RedisConfig = ReturnType<typeof parse_redis_url>
 
-type JobManagerOptions = {
+type JobManagerObserverOptions = {
   /** When true, only connects to Redis for reading state - no workers spawned */
-  observer_mode?: boolean
-  /** Override the default REDIS_URL from environment */
-  redis_url?: string
+  observer_mode: true
+  /** Redis connection URL */
+  redis_url: string
 }
 
-type Database = ReturnType<typeof get_db>
-
-type JobContext = {
-  db: Database
+type JobManagerWorkerOptions<DB> = {
+  /** When false or undefined, workers are spawned and db/openrouter are required */
+  observer_mode?: false
+  /** Redis connection URL */
+  redis_url: string
+  /** Database instance - required when not in observer mode */
+  db: DB
+  /** OpenRouter provider instance - required when not in observer mode */
   openrouter: OpenRouterProvider
 }
 
-type JobHandler<Input = unknown> = (
+type JobManagerOptions<DB> = JobManagerObserverOptions | JobManagerWorkerOptions<DB>
+
+type JobContext<DB> = {
+  db: DB
+  openrouter: OpenRouterProvider
+}
+
+type JobHandler<Input, DB> = (
   payload: Input,
-  utils: JobContext
+  utils: JobContext<DB>
 ) => Promise<void>
 
-type AnyJobBuilder = JobBuilder<any, any, any>
+type AnyJobBuilder = JobBuilder<any, any, any, any>
 
 type BuildersArray = readonly AnyJobBuilder[]
 
@@ -46,8 +55,8 @@ type JobEventKeys = {
 /**
  * Augmented event handler type that prepends JobContext to the original BullMQ event handler arguments.
  */
-type AugmentedEventHandler<E extends JobEventKeys> = (
-  utils: JobContext,
+type AugmentedEventHandler<E extends JobEventKeys, DB> = (
+  utils: JobContext<DB>,
   ...args: Parameters<WorkerListener[E]>
 ) => void | Promise<void>
 
@@ -56,34 +65,37 @@ type AugmentedEventHandler<E extends JobEventKeys> = (
  * Example: if builders have queues "A" and "B", this type is "A" | "B".
  */
 export type QueueNameUnion<Bs extends BuildersArray> =
-  Bs[number] extends JobBuilder<any, any, infer Q> ? Q : never
+  Bs[number] extends JobBuilder<any, any, infer Q, any> ? Q : never
 
 /**
  * Extracts the subset of JobBuilders that belong to a specific queue.
  */
 type BuildersForQueue<Bs extends BuildersArray, Q extends string> =
-  Extract<Bs[number], JobBuilder<any, any, Q>>
+  Extract<Bs[number], JobBuilder<any, any, Q, any>>
 
 /**
  * Creates a registry object type for a specific queue, mapping job names to their input types.
  * Used for type-safe job emission.
  */
 type QueueJobRegistry<Bs extends BuildersArray, Q extends string> = {
-  [B in BuildersForQueue<Bs, Q> as B["name"]]: B extends JobBuilder<any, infer I, any> ? I : never
+  [B in BuildersForQueue<Bs, Q> as B["name"]]: B extends JobBuilder<any, infer I, any, any> ? I : never
 }
 
 /**
  * JobManager handles the lifecycle of queues, workers, and job registration.
  * It provides a type-safe API for emitting jobs to specific queues.
+ *
+ * @template Builders - Array of registered JobBuilder types
+ * @template DB - Database type (generic to avoid coupling to specific ORM)
  */
-export class JobManager<Builders extends BuildersArray = []> {
+export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
   // Options
   private observer_mode: boolean
   private redis_url: string
 
   // Dependencies (not initialized in observer mode)
-  private db!: Database
-  private openrouter!: OpenRouterProvider
+  private db?: DB
+  private openrouter?: OpenRouterProvider
 
   // BullMQ components
   private queues = new Map<string, Queue>()
@@ -94,9 +106,15 @@ export class JobManager<Builders extends BuildersArray = []> {
   private jobs: AnyJobBuilder[] = []
   private job_map: Record<string, Record<string, AnyJobBuilder>> = {}
 
-  constructor(options?: JobManagerOptions) {
-    this.observer_mode = options?.observer_mode ?? false
-    this.redis_url = options?.redis_url ?? Bun.env.REDIS_URL
+  constructor(options: JobManagerOptions<DB>) {
+    this.observer_mode = options.observer_mode ?? false
+    this.redis_url = options.redis_url
+
+    if (!this.observer_mode) {
+      const worker_options = options as JobManagerWorkerOptions<DB>
+      this.db = worker_options.db
+      this.openrouter = worker_options.openrouter
+    }
   }
 
   /**
@@ -104,7 +122,7 @@ export class JobManager<Builders extends BuildersArray = []> {
    * Returns a new JobManager instance with updated type definitions.
    */
   register<NewBuilders extends readonly AnyJobBuilder[]>(...jobs: NewBuilders):
-    JobManager<[...Builders, ...NewBuilders]> {
+    JobManager<[...Builders, ...NewBuilders], DB> {
     for (const job of jobs) {
       const queue_name = job.get_queue_name()
 
@@ -122,7 +140,7 @@ export class JobManager<Builders extends BuildersArray = []> {
       this.job_map[queue_name][job.name] = job
     }
     // Cast to update the generic type parameter with the new builders
-    return this as unknown as JobManager<[...Builders, ...NewBuilders]>
+    return this as unknown as JobManager<[...Builders, ...NewBuilders], DB>
   }
 
   /**
@@ -142,10 +160,11 @@ export class JobManager<Builders extends BuildersArray = []> {
       return
     }
 
-    // Worker mode: initialize dependencies, events, and workers
-    this.db = get_db()
-    this.openrouter = createOpenRouter({ apiKey: Bun.env.OPENROUTER_API_KEY })
+    if (!this.db || !this.openrouter) {
+      throw new Error("[job_manager] db and openrouter are required when not in observer mode!")
+    }
 
+    // Worker mode: initialize events and workers
     for (let queue_name of queue_names) {
       this.initialize_queue_events(queue_name, redis_config)
       this.initialize_worker(queue_name, redis_config)
@@ -189,7 +208,7 @@ export class JobManager<Builders extends BuildersArray = []> {
       for (const [job_name, job] of Object.entries(this.job_map[name])) {
         schemas[job_name] = job.input_schema
           ? z.toJSONSchema(
-              job.input_schema, 
+              job.input_schema,
               { target: "openapi-3.0" },
             )
           : null
@@ -306,7 +325,7 @@ export class JobManager<Builders extends BuildersArray = []> {
       }
     }
 
-    const context: JobContext = { db: this.db, openrouter: this.openrouter }
+    const context: JobContext<DB> = { db: this.db!, openrouter: this.openrouter! }
 
     for (const [event, handlers] of handlers_by_event) {
       worker.on(event as any, async (job: Job, ...args: any[]) => {
@@ -347,19 +366,25 @@ export class JobManager<Builders extends BuildersArray = []> {
 }
 
 /**
- * Helper to define a new job builder.
+ * Creates a typed job factory for defining jobs with a specific database type.
+ * Use this to get proper type inference for `db` in job handlers.
  */
-export const define_job = <Name extends string>(name: Name) => new JobBuilder<Name>(name)
+export const create_job_factory = <DB>() => <Name extends string>(name: Name) => new JobBuilder<Name, unknown, "jobs", DB>(name)
 
 /**
  * Builder class for configuring and defining a job.
  * Supports fluent API for setting input schema, handler, and queue.
+ *
+ * @template Name - Job name string literal type
+ * @template Input - Input data type for the job
+ * @template Q - Queue name string literal type
+ * @template DB - Database type (generic to avoid coupling to specific ORM)
  */
-export class JobBuilder<Name extends string = string, Input = unknown, Q extends string = "jobs"> {
+export class JobBuilder<Name extends string = string, Input = unknown, Q extends string = typeof DEFAULT_QUEUE, DB = unknown> {
   readonly name: Name
   input_schema?: z.ZodTypeAny
 
-  private handler?: JobHandler<Input>
+  private handler?: JobHandler<Input, DB>
   private in_queue?: Queue
   private queue_name: Q = DEFAULT_QUEUE as unknown as Q
 
@@ -367,7 +392,7 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
   readonly event_handlers: { event: string, handler: Function }[] = []
 
   // Dependencies injected at runtime
-  private db?: Database
+  private db?: DB
   private openrouter?: OpenRouterProvider
 
   constructor(name: Name) {
@@ -377,15 +402,15 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
   /**
    * Define the Zod schema for the job input.
    */
-  input<T extends z.ZodTypeAny>(schema: T): JobBuilder<Name, z.infer<T>, Q> {
+  input<T extends z.ZodTypeAny>(schema: T): JobBuilder<Name, z.infer<T>, Q, DB> {
     this.input_schema = schema
-    return this as unknown as JobBuilder<Name, z.infer<T>, Q>
+    return this as unknown as JobBuilder<Name, z.infer<T>, Q, DB>
   }
 
   /**
    * Define the handler function that processes the job.
    */
-  work(handler: JobHandler<Input>): JobBuilder<Name, Input, Q> {
+  work(handler: JobHandler<Input, DB>): JobBuilder<Name, Input, Q, DB> {
     this.handler = handler
     return this
   }
@@ -393,9 +418,9 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
   /**
    * Specify the queue this job belongs to.
    */
-  queue<Q2 extends string>(name: Q2): JobBuilder<Name, Input, Q2> {
+  queue<Q2 extends string>(name: Q2): JobBuilder<Name, Input, Q2, DB> {
     this.queue_name = name as unknown as Q
-    return this as unknown as JobBuilder<Name, Input, Q2>
+    return this as unknown as JobBuilder<Name, Input, Q2, DB>
   }
 
   /**
@@ -403,7 +428,7 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
    * Only events where the first argument is a Job are supported.
    * The handler receives the standard BullMQ arguments followed by the JobContext.
    */
-  on<E extends JobEventKeys>(event: E, handler: AugmentedEventHandler<E>): JobBuilder<Name, Input, Q> {
+  on<E extends JobEventKeys>(event: E, handler: AugmentedEventHandler<E, DB>): JobBuilder<Name, Input, Q, DB> {
     this.event_handlers.push({ event, handler: handler as Function })
     return this
   }
@@ -429,7 +454,7 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
   /**
    * Internal: Bind the job to a queue and dependencies.
    */
-  bind(queue: Queue, db: Database, openrouter: OpenRouterProvider) {
+  bind(queue: Queue, db: DB, openrouter: OpenRouterProvider) {
     this.in_queue = queue
     this.db = db
     this.openrouter = openrouter

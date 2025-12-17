@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { define_job } from "./manager"
+import { define_job } from "./job_factory"
 
 export const run_experimental_research = define_job("start")
   .queue("experimental_research")

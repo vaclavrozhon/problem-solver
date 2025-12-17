@@ -1,12 +1,5 @@
 import { z } from "zod"
 
-import { jobs } from "@backend/jobs/index"
-import { JobManager, QueueNameUnion } from "@backend/jobs/manager"
-
-export type QueueName = typeof jobs extends JobManager<infer Bs>
-  ? QueueNameUnion<Bs>
-  : never
-
 // The order of values here influences the order they are rendered in the dashboard.
 export const JobStatusValues = ["running", "queued", "failed", "finished", "delayed"] as const
 export const JobStatusEnum = z.enum(JobStatusValues)
@@ -21,8 +14,8 @@ export const JobStatusIcon: Record<JobStatus, string> = {
   "delayed": "🔜",
 }
 
-export interface Job {
-  id: string, 
+export interface Job<QueueName extends string = string> {
+  id: string,
   name: string,
   queue_name: QueueName
   attempts: number,

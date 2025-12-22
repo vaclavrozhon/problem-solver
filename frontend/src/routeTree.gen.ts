@@ -10,12 +10,14 @@
 
 import { Route as rootRouteImport } from "./routes/__root"
 import { Route as UsageRouteImport } from "./routes/usage"
+import { Route as SignupRouteImport } from "./routes/signup"
 import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
 import { Route as ArchiveRouteImport } from "./routes/archive"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as AdminIndexRouteImport } from "./routes/admin/index"
+import { Route as AuthCallbackRouteImport } from "./routes/auth/callback"
 import { Route as AdminUsersRouteImport } from "./routes/admin/users"
 import { Route as AdminJobsRouteImport } from "./routes/admin/jobs"
 import { Route as AdminInvitesRouteImport } from "./routes/admin/invites"
@@ -28,6 +30,11 @@ import { Route as AdminJobQueue_nameJob_idRouteImport } from "./routes/admin/job
 const UsageRoute = UsageRouteImport.update({
   id: "/usage",
   path: "/usage",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: "/signup",
+  path: "/signup",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -58,6 +65,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: "/admin/",
   path: "/admin/",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: "/auth/callback",
+  path: "/auth/callback",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -110,10 +122,12 @@ export interface FileRoutesByFullPath {
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
+  "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/auth/callback": typeof AuthCallbackRoute
   "/admin": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -127,10 +141,12 @@ export interface FileRoutesByTo {
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
+  "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/auth/callback": typeof AuthCallbackRoute
   "/admin": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -145,10 +161,12 @@ export interface FileRoutesById {
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
+  "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/auth/callback": typeof AuthCallbackRoute
   "/admin/": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -164,10 +182,12 @@ export interface FileRouteTypes {
     | "/create"
     | "/login"
     | "/settings"
+    | "/signup"
     | "/usage"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
+    | "/auth/callback"
     | "/admin"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -181,10 +201,12 @@ export interface FileRouteTypes {
     | "/create"
     | "/login"
     | "/settings"
+    | "/signup"
     | "/usage"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
+    | "/auth/callback"
     | "/admin"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -198,10 +220,12 @@ export interface FileRouteTypes {
     | "/create"
     | "/login"
     | "/settings"
+    | "/signup"
     | "/usage"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
+    | "/auth/callback"
     | "/admin/"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -216,10 +240,12 @@ export interface RootRouteChildren {
   CreateRoute: typeof CreateRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
+  SignupRoute: typeof SignupRoute
   UsageRoute: typeof UsageRoute
   AdminInvitesRoute: typeof AdminInvitesRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
@@ -235,6 +261,13 @@ declare module "@tanstack/react-router" {
       path: "/usage"
       fullPath: "/usage"
       preLoaderRoute: typeof UsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/signup": {
+      id: "/signup"
+      path: "/signup"
+      fullPath: "/signup"
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/settings": {
@@ -277,6 +310,13 @@ declare module "@tanstack/react-router" {
       path: "/admin"
       fullPath: "/admin"
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/auth/callback": {
+      id: "/auth/callback"
+      path: "/auth/callback"
+      fullPath: "/auth/callback"
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/admin/users": {
@@ -344,10 +384,12 @@ const rootRouteChildren: RootRouteChildren = {
   CreateRoute: CreateRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
+  SignupRoute: SignupRoute,
   UsageRoute: UsageRoute,
   AdminInvitesRoute: AdminInvitesRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   AdminIndexRoute: AdminIndexRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,

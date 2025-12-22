@@ -9,6 +9,7 @@ export type Database = PostgresJsDatabase<DBSchema>
 
 let db_client: Database | null = null
 let supabase_client: SupabaseClient | null = null
+let supabase_admin_client: SupabaseClient | null = null
 
 /**
  * @returns `Drizzle` instance connected to DB.
@@ -40,7 +41,7 @@ export function get_db_connection_string() {
 }
 
 /**
- * @returns `SupabaseSDK` client built from `.env` variables.
+ * @returns `SupabaseSDK` client built from `SUPABASE_PUBLISHABLE_KEY`
  */
 export function get_supabase() {
   if (supabase_client) return supabase_client
@@ -49,4 +50,24 @@ export function get_supabase() {
     Bun.env.SUPABASE_PUBLISHABLE_KEY
   )
   return supabase_client
+}
+
+/**
+ * @returns `SupabaseSDK` ADMIN client built from `SUPABASE_SECRET_KEY`
+ */
+export function get_supabase_admin() {
+  if (supabase_admin_client) return supabase_admin_client
+  supabase_admin_client = createClient(
+    Bun.env.SUPABASE_URL,
+    Bun.env.SUPABASE_SECRET_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+        flowType: "pkce",
+      }
+    }
+  )
+  return supabase_admin_client
 }

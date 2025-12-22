@@ -30,10 +30,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     } else {
       auth = context.auth
     }
-    if (location.href === "/login") {
+    const public_routes = ["/login", "/signup", "/auth/callback"]
+    if (public_routes.includes(location.pathname)) {
       if (auth.isAuthenticated) throw redirect({ to: "/" })
     } else {
-      if (!auth.isAuthenticated) throw redirect({ to: "/login" })
+      if (!auth.isAuthenticated) throw redirect({ to: "/login", search: { error: undefined, message: undefined } })
     }
   }
 })
@@ -45,7 +46,7 @@ function RootLayout() {
   async function signOutAndRedirect() {
     const result = await signOut()
     if (result === "error") throw "error happened"
-    navigate({ to: "/login" })
+    navigate({ to: "/login", search: { error: undefined, message: undefined } })
   }
 
   return isAuthenticated ? (

@@ -5,11 +5,13 @@ import { problems_router } from "./problems"
 import { research_router } from "./research"
 import { admin_router } from "./admin"
 import { profile_router } from "./profile"
+import { auth_router } from "./auth"
 
 import { jobs } from "./jobs"
 
 const api_router = new Elysia({ prefix: "/api" })
   .get("/health", { status: "ok" })
+  .use(auth_router)
   .use(problems_router)
   .use(research_router)
   .use(admin_router)
@@ -74,6 +76,7 @@ declare module "bun" {
   interface Env {
     SUPABASE_URL: string,
     SUPABASE_PUBLISHABLE_KEY: string,
+    SUPABASE_SECRET_KEY: string,
 
     BACKEND_PORT: number,
     FRONTEND_PORT: number,

@@ -1,5 +1,5 @@
 import { useState, FormEvent, FormEventHandler } from "react"
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
 import BracketButton from "../components/action/BracketButton"
 import BracketLink from "../components/action/BracketLink"
@@ -7,82 +7,99 @@ import BracketLink from "../components/action/BracketLink"
 import { supabase } from "../config/supabase"
 import { api } from "../api"
 
-export const Route = createFileRoute("/login")({
-  component: LoginPage,
-  // TODO: lookup zod for this
-  validateSearch: (search: Record<string, unknown>) => ({
-    error: search.error as string | undefined,
-    message: search.message as string | undefined,
-  })
+export const Route = createFileRoute("/signup")({
+  component: SignupPage
 })
 
 
-export default function LoginPage() {
+export default function SignupPage() {
   const navigate = useNavigate()
-  const { error: url_error, message: url_message } = Route.useSearch()
-  const [email, setEmail] = useState<string>("")
-  const [password, setPassword] = useState<string>("")
-  const [message, setMessage] = useState<string>(url_error ?? "")
+  const [name, set_name] = useState<string>("")
+  const [email, set_email] = useState<string>("")
+  const [password, set_password] = useState<string>("")
+  const [message, set_message] = useState<string>("")
   const [is_loading, set_loading] = useState(false)
 
-  // TODO: Migrate this to use backend sign in
-  const handleEmailSignIn = async (e: FormEvent<HTMLFormElement>) => {
+  // TODO: migrate to react-form-hook
+  const handle_signup = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setMessage("")
+    set_message("")
+    set_loading(true)
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await api.auth.signup.post({
+        name,
         email,
         password,
       })
 
       if (error) {
-        setMessage(error.message ?? "Sign in failed")
-      } else {
-        navigate({ to: "/" })
-      }
-    } catch (err) {
-      setMessage("Network error — please try again")
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setMessage("")
-    set_loading(true)
-    try {
-      const { data, error } = await api.auth.oauth.google.get()
-      if (error || !data?.url) {
-        setMessage("Failed to initiate Google sign in")
+        set_message(error.value?.message ?? "Signup failed")
         set_loading(false)
         return
       }
+
+      if (data?.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        })
+        navigate({ to: "/" })
+      } else {
+        navigate({ to: "/login", search: { error: undefined, message: undefined } })
+      }
+    } catch (err) {
+      set_message("Network error - please try again")
+    } finally {
+      set_loading(false)
+    }
+  }
+
+  const handle_google_signup = async () => {
+    set_message("")
+    set_loading(true)
+
+    try {
+      const { data, error } = await api.auth.oauth.google.get()
+
+      if (error || !data?.url) {
+        set_message("Failed to initiate Google sign up")
+        set_loading(false)
+        return
+      }
+
       window.location.href = data.url
     } catch (err) {
-      setMessage("Network error – please try again")
+      set_message("Network error - please try again")
       set_loading(false)
     }
   }
 
   return (
     <MainContent>
-      <h1>Sign In</h1>
-      <AuthForm onSubmit={handleEmailSignIn}>
+      <h1>Create Account</h1>
+      <AuthForm onSubmit={handle_signup}>
+        <TextInput name="name" label="YOUR NAME"
+          onInput={e => set_name(e.currentTarget.value)} />
         <TextInput name="email" label="EMAIL ADDRESS"
-          onInput={e => setEmail(e.currentTarget.value)}/>
+          onInput={e => set_email(e.currentTarget.value)} />
         <TextInput name="password" label="PASSWORD" type="password"
-          onInput={e => setPassword(e.currentTarget.value)}/>
-        <BracketButton type="submit">Sign In with Email & Password</BracketButton>
+          onInput={e => set_password(e.currentTarget.value)} />
+        <BracketButton type="submit" disabled={is_loading}>
+          {is_loading ? "Creating..." : "Create Account"}
+        </BracketButton>
         {message && (
           <p className="form-message">
             <span>ERROR</span>
             {message}
           </p>
-        )} 
+        )}
       </AuthForm>
-      <p>Don't have an account? <BracketLink to="/signup">Create one</BracketLink></p>
+      <p>Already have an account? <BracketLink to="/login" search={{ error: undefined, message: undefined }}>Sign In</BracketLink></p>
       <GoogleSignIn>
-        <p>Or simply</p>
-        <BracketButton onClick={handleGoogleSignIn} disabled={is_loading}>
-          {is_loading ? "Loading..." : "Get In with Google"}
+        <p>Or simly</p>
+        <BracketButton onClick={handle_google_signup} disabled={is_loading}>
+          Get In with Google
         </BracketButton>
       </GoogleSignIn>
     </MainContent>
@@ -104,9 +121,7 @@ const AuthForm = styled.form`
   align-items: flex-start;
   max-width: 24rem;
   gap: 1rem;
-  /* border: var(--border-alpha); */
   border-radius: .4rem;
-  /* padding: 1rem; */
   & p.form-message {
     background: var(--bg-beta);
     padding: .3rem .6rem;
@@ -159,27 +174,14 @@ const TextInputStyled = styled.div`
 position: relative;
 display: flex;
 width: 100%;
-/* // flex-flow: column */
 background: var(--bg-beta);
-/* // padding: 20px 25px */
-/* // padding: 30px 0 10px 0 */
 border-radius: 6px 6px 0 0;
-/* // padding-top: 36px */
-/* // overflow: hidden */
 cursor: text;
-// border: var(--border-alpha)
-// border-bottom: 2px solid #c5625a
 & label {
   position: absolute;
-  // top: 20px
-  // left: 22.5px
-  // bottom: 23.5px
-  // color: v(card-heading-color)
   text-transform: uppercase;
-  // color: #c5625a
   color: var(--text-alpha);
   font-weight: 600;
-  // margin-top: 2.5px
   font-size: 1.1rem;
   cursor: text;
   user-select: none;
@@ -190,8 +192,6 @@ cursor: text;
   z-index: 2;
 }
 & input {
-  // height: 23px
-  // flex: 1
   font-size: 1.1rem;
   background: var(--bg-beta);
   color: var(--text-beta);
@@ -200,8 +200,6 @@ cursor: text;
   padding: 36px 22.5px 11px 22.5px;
   border-bottom: 2px solid var(--text-alpha);
   width: 100%;
-  // margin-top: 29.5px
-  // padding: 
   &:autofill {
     -webkit-text-fill-color: var(--text-beta);
   }
@@ -212,16 +210,7 @@ cursor: text;
     }
   }
   &:focus + label, &:not(:placeholder-shown) + label {
-    // top: 12.5px
     transform: translate(22.5px, 12.5px) scale(0.82);
-    // font-size: .9rem
-  }
-}
-&.unit input {
-  padding-right: 48.75px;
-  text-align: right;
-  &:focus ~ p, &:not(:placeholder-shown) ~ p {
-    display: flex;
   }
 }
 & p {

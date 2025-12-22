@@ -61,6 +61,7 @@ interface TableCellProps {
   $align?: "left" | "right" | "center"
   $sortable?: boolean
   $active?: boolean
+  $cols?: number,
 }
 
 export const TableCell = styled.div<TableCellProps>`
@@ -69,6 +70,7 @@ export const TableCell = styled.div<TableCellProps>`
   padding: .3rem .6rem;
   justify-content: ${({ $align }) => $align === "right" ? "flex-end" : $align === "center" ? "center" : "flex-start"};
   overflow: hidden;
+  grid-column: ${({ $cols }) => $cols === undefined ? "auto" : `span ${$cols}`};
 
   ${({ $sortable }) => $sortable ? `
     cursor: pointer;

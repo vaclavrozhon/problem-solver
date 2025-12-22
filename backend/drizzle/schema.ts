@@ -1,5 +1,9 @@
 import { pgSchema, foreignKey, uuid, timestamp, integer, text, jsonb, json, numeric } from "drizzle-orm/pg-core"
-import { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
+
+import type { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
+import { UserRoleValues, KeySourceValues } from "../../shared/src/auth"
+import { InviteStatusValues } from "../../shared/src/admin/invites"
+
 // TODO: convert all "json" to "jsonb"?
 
 export const main = pgSchema("main")
@@ -36,7 +40,9 @@ export const problem_files = main.table("problem_files", {
   })
 ])
 
-export const research_type = main.enum("research-type", ["standard", "adrian"])
+// TODO: could actually make this dynamic and import them dynamically based on
+// queue defintions in job manager?
+export const research_type = main.enum("research-type", ["standard"])
 
 export const run_phase = main.enum("run-phase", [
   "prover_working", "prover_finished", "prover_failed",
@@ -80,8 +86,14 @@ export const rounds = main.table("research_rounds", {
 ])
 
 // TODO: rename from "completed" to "finished", sounds better
-// TODO: I think i will remove "queued" problem status and jsut keep in the run phase
 export const problem_status = main.enum("problem-status", ["created", "idle", "queued", "running", "failed", "completed"])
+
+export const user_role = main.enum("user-role", UserRoleValues)
+
+// tracks where user's OpenRouter key came from
+export const key_source = main.enum("key-source", KeySourceValues)
+
+export const invite_status = main.enum("invite-status", InviteStatusValues)
 
 export const problems = main.table("problems", {
   id: uuid().defaultRandom().primaryKey().notNull(),
@@ -139,8 +151,75 @@ export const llms = main.table("llms", {
 export const auth_schema = pgSchema("auth")
 export const users = auth_schema.table("users", {
   id: uuid().primaryKey().notNull(),
+  // TODO: remove email & raw_user_meta_data? in favor of `profiles` table
   email: text().notNull(),
   raw_user_meta_data: jsonb().notNull().$type<{
     name?: string,
   }>(),
 })
+
+export const profiles = main.table("profiles", {
+  // Primary key = auth.users.id (1:1 relationship, same UUID)
+  id: uuid().primaryKey().notNull(),
+
+  name: text().notNull(),
+  email: text().notNull(),
+  role: user_role().notNull().default("default"),
+
+  // Encrypted OpenRouter API key (nullable - users must set their own)
+  openrouter_key_encrypted: text(),
+  openrouter_key_iv: text(),
+  encryption_key_version: integer(),
+
+  key_source: key_source(),
+  // FK to invites.id if key was provisioned
+  // BUG: Shoulnd't the FK be defined below as well?
+  provisioned_invite_id: uuid(),
+
+  created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+  updated_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.id],
+    foreignColumns: [users.id],
+    name: "profiles_id_fkey"
+  }),
+])
+
+export const invites = main.table("invites", {
+  id: uuid().defaultRandom().primaryKey().notNull(),
+
+  code: text().notNull().unique(),
+  recipient_name: text().notNull(),
+
+  openrouter_key_encrypted: text().notNull(),
+  openrouter_key_iv: text().notNull(),
+  // Hash to identify key in OpenRouter API
+  openrouter_key_hash: text().notNull(),
+  encryption_key_version: integer().notNull().default(1),
+
+  // Credit limit set on OpenRouter
+  credit_limit: numeric({ mode: "number" }).notNull(),
+
+  status: invite_status().notNull().default("pending"),
+  // this can be NULL since the user could remove their profile and then what?!
+  // FK to profiles.id when redeemed
+  redeemed_by: uuid(),
+  redeemed_at: timestamp({ withTimezone: true, mode: "string" }),
+
+  // FK to profiles.id (admin who created)
+  created_by: uuid().notNull(),
+  created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+  updated_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.created_by],
+    foreignColumns: [profiles.id],
+    name: "invites_created_by_fkey"
+  }),
+  foreignKey({
+    columns: [table.redeemed_by],
+    foreignColumns: [profiles.id],
+    name: "invites_redeemed_by_fkey"
+  }),
+])

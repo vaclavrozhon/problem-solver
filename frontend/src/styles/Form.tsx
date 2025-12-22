@@ -23,7 +23,6 @@ export const FormLabel = styled.label`
 `
 
 const TextFieldCommon = `
-  font-family: monospace;
   background: var(--bg-beta);
   border: var(--border-alpha);
   color: var(--text-beta);

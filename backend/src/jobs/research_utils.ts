@@ -4,10 +4,9 @@ import { OpenRouterProvider, OpenRouterUsageAccounting } from "@openrouter/ai-sd
 import { z } from "zod"
 import { generateObject, ModelMessage } from "ai"
 import { AllowedModelsID, VerifierOutputSchema, SummarizerOutputSchema } from "@shared/types/research"
-import { get_db } from "../db/plugins"
+import type { Database } from "../db"
 import { InferSelectModel } from "drizzle-orm"
 
-type Database = ReturnType<typeof get_db>
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 type DbOrTx = Database | Transaction
 
@@ -364,7 +363,7 @@ export async function generate_llm_response<T>(
   schema: z.ZodType<T>,
   prompt_file_id: string,
   context: string,
-  max_retries: number = 3
+  max_retries: number = 5
 ): Promise<LLMResponse<T>> {
   let llm_start_time = performance.now()
   let llm_response
@@ -375,9 +374,14 @@ export async function generate_llm_response<T>(
       const local_llm_start_time = performance.now()
       llm_response = await generateObject({
         model: openrouter(model_id, {
-          reasoning: { effort: "high" },
+          // The library has not been updated yet to reflect this new option.
+          // @ts-expect-error
+          reasoning: { effort: "xhigh" },
           user: user_id,
           usage: { include: true },
+          plugins: [
+            { id: "response-healing" }
+          ]
         }),
         messages,
         schema,

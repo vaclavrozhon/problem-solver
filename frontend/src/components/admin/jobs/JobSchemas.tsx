@@ -2,7 +2,7 @@ import { useState } from "react"
 import { styled } from "@linaria/react"
 
 import BracketButton from "../../action/BracketButton"
-import { JobInputSchema } from "@shared/admin"
+import { JobInputSchema } from "@shared/admin/jobs"
 
 interface JobSchemasProps {
   schemas: Record<string, JobInputSchema>

@@ -11,7 +11,6 @@ import { get_users_problems } from "../api/problems"
 type SortField = "updated_at" | "created_at"
 type SortDirection = "asc" | "desc"
 
-// TODO: add like 30s refresh for checking on the problems
 export const Route = createFileRoute("/")({ component: OverviewPage })
 
 function OverviewPage() {
@@ -20,7 +19,7 @@ function OverviewPage() {
 
   let { data: problems, error, isPending, isError } = useQuery({
     queryKey: ["my_problems"],
-    queryFn: get_users_problems
+    queryFn: get_users_problems,
   })
 
   if (isPending) return <MainContent><p>Loading problems...</p></MainContent>
@@ -54,7 +53,7 @@ function OverviewPage() {
     <MainContent>
       <h1>My Problems</h1>
 
-      <MetricDashboard>
+      {/* <MetricDashboard>
         <MetricCard>
           <p className="title">Total Problems</p>
           <p className="num">{problems.length}</p>
@@ -67,7 +66,7 @@ function OverviewPage() {
           <p className="title">Total Rounds</p>
           <p className="num">{total_rounds_count}</p>
         </MetricCard>
-      </MetricDashboard>
+      </MetricDashboard> */}
 
       <Table $columns="3fr minmax(5rem, .4fr) .8fr minmax(14rem, .9fr)">
         <TableHeader>

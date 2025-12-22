@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit"
+import { get_db_connection_string } from "./src/db"
 
 export default defineConfig({
   out: `./drizzle/${process.env.NODE_ENV}`,
@@ -6,9 +7,6 @@ export default defineConfig({
   dialect: "postgresql",
   schemaFilter: ["main"],
   dbCredentials: {
-    url: process.env.DATABASE_URL.replace(
-      "[DATABASE_PASSWORD]",
-      encodeURIComponent(process.env.DATABASE_PASSWORD)
-    )
+    url: get_db_connection_string(),
   }
 })

@@ -1,0 +1,1 @@
+ALTER TABLE "main"."invites" ALTER COLUMN "encryption_key_version" SET NOT NULL;

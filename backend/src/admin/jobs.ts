@@ -1,18 +1,25 @@
 import { Elysia } from "elysia"
-import { drizzle_plugin } from "../db/plugins"
+import { drizzle_plugin, auth_plugin } from "../plugins"
 import { jobs_plugin } from "../jobs/index"
-import { problems, users } from "../../drizzle/schema"
-import { eq, inArray } from "drizzle-orm"
+import { problems, profiles } from "../../drizzle/schema"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 
-import type { QueueState, Job } from "@shared/admin"
+import type { QueueState, Job } from "@shared/admin/jobs"
 import type { QueueName } from "../jobs/index"
 
-// TODO: Add isAdmin to all!
-// TODO: Write automatic tests to check if isUser & isAdmin work!
 export const jobs_router = new Elysia({ prefix: "/jobs" })
   .use(drizzle_plugin)
   .use(jobs_plugin)
+  .use(auth_plugin)
+
+  /**
+   * [ADMIN] GET /jobs/:queue_name/:job_id
+   * 
+   * Retrieves details of job by queue and job id.
+   * 
+   * MANUALLY TESTED?: YES, works.
+   */
   .get("/:queue_name/:job_id", async ({ params, status, db, jobs }) => {
     const { queue_name, job_id } = params
     const result = await jobs.get_job(queue_name, job_id)
@@ -46,8 +53,7 @@ export const jobs_router = new Elysia({ prefix: "/jobs" })
       }
     }
 
-    // (4) Get user name
-    // TODO: Edit this after the update with new `profile` table
+    // (4) Get user name from profiles table
     let user: {
       id: string,
       name: string,
@@ -55,16 +61,16 @@ export const jobs_router = new Elysia({ prefix: "/jobs" })
     } | null = null
     if (user_id) {
       const found = await db.select({
-        email: users.email,
-        meta: users.raw_user_meta_data
+        name: profiles.name,
+        email: profiles.email,
       })
-        .from(users)
-        .where(eq(users.id, user_id))
+        .from(profiles)
+        .where(eq(profiles.id, user_id))
         .limit(1)
       if (found.length > 0) {
         user = {
           id: user_id,
-          name: found[0].meta?.name || found[0].email.split('@')[0],
+          name: found[0].name,
           email: found[0].email,
         }
       }
@@ -97,13 +103,20 @@ export const jobs_router = new Elysia({ prefix: "/jobs" })
     }
     return retrieved_job
   }, {
+    isAdmin: true,
     params: z.object({
       queue_name: z.string(),
       job_id: z.string(),
     })
   })
+
+  /**
+   * [ADMIN] /jobs/overview
+   * 
+   * MANUALLY TESTED?: YES, works.
+   */
   .get("/overview", async ({ jobs }) => {
     let states: Record<QueueName, QueueState> = await jobs.get_all_job_details()
 
     return states
-  })
+  }, { isAdmin: true })

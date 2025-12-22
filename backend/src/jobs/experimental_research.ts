@@ -5,8 +5,8 @@ import { define_job } from "./job_factory"
 export const run_experimental_research = define_job("start")
   .queue("experimental_research")
   // .input(z.number())
-  .work(async (data, { db, openrouter }) => {
-    console.log("exprimental research running!!")
+  .work(async (data, { db, get_openrouter }) => {
+    console.log("experimental research running!!")
   })
 
 export const experimental_research_jobs = [

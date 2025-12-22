@@ -1,17 +1,33 @@
 import { Elysia } from "elysia"
-import { drizzle_plugin, auth_plugin } from "../db/plugins"
-import { problems, problem_files, rounds, llms, users } from "../../drizzle/schema"
-import { desc, eq, and, like, sql, or, inArray } from "drizzle-orm"
-import { core, parse, z } from "zod"
+import { drizzle_plugin, auth_plugin } from "../plugins"
+import { problems, problem_files, rounds, profiles } from "../../drizzle/schema"
+import { desc, eq, and, sql, or, inArray } from "drizzle-orm"
 
 import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from "@shared/types/problem"
 import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
 import { CreateProblemFormSchema } from "@shared/types/CreateProblem"
 
-const protected_routes = new Elysia({ name: "problem-protected_routes" })
+
+export const problems_router = new Elysia({ prefix: "/problems" })
   .use(drizzle_plugin)
   .use(auth_plugin)
-  .get("/health", { status: "ok" })
+
+  /**
+   * [AUTH] GET /problems/my-problems
+   * 
+   * Retrieves all problems the user has created.
+   * 
+   * TODO: Extend this by problems for groups and update API response:
+   * {
+   *  group-A: [...],
+   *  ...
+   *  group-G: [...],
+   *  own: [...],
+   * }
+   * 
+   * TODO: Write tests.
+   * MANUALLY TESTED?: YES, WORKS.
+   */
   .get("/my-problems", async ({ db, user, status }) => {
     try {
       const response = await db
@@ -36,12 +52,20 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  // BUG
   /**
+   * [AUTH] GET /problems/overview/:problem_id
+   *  
    * Retrieves overview for problem by given id.
    * 
    * If invalid UUID format, throws error. BUG: Well not actually it doesnt care about (in)valid UUID format
    * 
    * If no problem matchces given id, returns nothing.
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem. Could be implementd via macro so that we dont repeat ourselves.
+   * MANUALLY TESTED?: Yes, but needs new breaking features.
    */
   .get("/overview/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
@@ -55,11 +79,11 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         },
         where: eq(problems.id, problem_id),
         with: {
-          user: {
+          profile: {
             columns: {
               id: true,
+              name: true,
               email: true,
-              raw_user_meta_data: true,
             }
           },
           rounds: {
@@ -132,8 +156,8 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         updated_at: result.updated_at,
         created_at: result.created_at,
         owner: {
-          id: result.user.id,
-          name: result.user.raw_user_meta_data.name ?? result.user.email,
+          id: result.profile.id,
+          name: result.profile.name,
         },
         round_summaries,
       }
@@ -144,6 +168,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/research_overview/:problem_id
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/research_overview/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db
@@ -162,6 +194,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/conversations/:problem_id
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/conversations/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db
@@ -199,26 +239,25 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
           provers: []
         }
 
-        let corresponding_reasoning = files
+        const corresponding_reasoning = files
           .find(f =>f.round_id == file.round_id
               && f.file_name === file.file_name.replace("output", "reasoning"))
         // Removing the encrypted part of the reasoning
         // as it's unnecessary inside conversations view
+        let filtered_reasoning_content: string | undefined
         if (corresponding_reasoning) {
           let parsed_reasoning = JSON.parse(corresponding_reasoning.content)
-          let filtered = parsed_reasoning.filter((reasoning: any) => 
+          let filtered = parsed_reasoning.filter((reasoning: any) =>
             reasoning.type !== "reasoning.encrypted"
           )
-          corresponding_reasoning = {
-            content: JSON.stringify(filtered, null, 2)
-          }
+          filtered_reasoning_content = JSON.stringify(filtered, null, 2)
         }
 
         if (file.file_type === "prover_output") {
           let prover_n = Number(file.file_name.match(/[0-9]+/g)![0])
           rounds[file.round.index - 1]["provers"][prover_n - 1] = {
             output: file.content,
-            reasoning: corresponding_reasoning?.content,
+            reasoning: filtered_reasoning_content,
             model: file.model_id,
             usage: file.usage?.cost ?? null,
           }
@@ -227,7 +266,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
           rounds[file.round.index - 1]["verdict"] = verifier.verdict
           rounds[file.round.index - 1]["verifier"] = {
             output: verifier.feedback_md,
-            reasoning: corresponding_reasoning?.content,
+            reasoning: filtered_reasoning_content,
             model: file.model_id,
             usage: file.usage?.cost ?? null,
           }
@@ -235,7 +274,7 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
           let summarizer = JSON.parse(file.content)
           rounds[file.round.index - 1]["summarizer"] = {
             output: summarizer.summary,
-            reasoning: corresponding_reasoning?.content,
+            reasoning: filtered_reasoning_content,
             model: file.model_id,
             usage: file.usage?.cost ?? null,
           }
@@ -253,9 +292,16 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/files/:problem_id
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/files/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
-
     } catch (e) {
       return status(500, {
         type: "error",
@@ -263,6 +309,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/main_files_history/:problem_id
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/main_files_history/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const history = await reconstruct_main_files_history(db, problem_id)
@@ -275,6 +329,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/file_by_id/:file_id
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/file_by_id/:file_id", async ({ db, params: { file_id }, status }) => {
     try {
       const result = await db
@@ -291,6 +353,13 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /problems/all_files/:problem_id
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .get("/all_files/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db.query.problem_files.findMany({
@@ -330,6 +399,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
       })
     }
   }, { isAuth: true })
+
+  /**
+   * [AUTH] POST /problems/create-new-problem
+   * 
+   * TODO: Write tests.
+   * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
+   * MANUALLY TESTED?: NO.
+   */
   .post("/create-new-problem", async ({ db, user, body, status }) => {
     try {
       let new_problem_id = await db.transaction(async (tx) => {
@@ -398,8 +475,14 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
     body: CreateProblemFormSchema,
     isAuth: true,
   })
+
+  // TODO
+  /**
+   * TODO: This needs to be moved to ADMIN as it's admin only feature.
+   */
   .get("/archive", async ({ db }) => {
-    const result = await db
+    // BUG: Possibly make sure that "owner_name" is type defined
+    return await db
       .select({
         id: problems.id,
         owner_id: problems.owner_id,
@@ -408,19 +491,9 @@ const protected_routes = new Elysia({ name: "problem-protected_routes" })
         updated_at: problems.updated_at,
         phase: problems.status,
         total_rounds: problems.current_round,
-        owner_email: users.email,
-        owner_meta: users.raw_user_meta_data,
+        owner_name: profiles.name,
       })
       .from(problems)
-      .leftJoin(users, eq(problems.owner_id, users.id))
+      .leftJoin(profiles, eq(problems.owner_id, profiles.id))
       .orderBy(desc(problems.created_at))
-  
-    return result.map(({ owner_meta, owner_email, ...problem }) => ({
-      ...problem,
-      owner_name: owner_meta?.name ?? owner_email!,
-    }))
-  }, { isAuth: true })
-
-export const problems_router = new Elysia({ prefix: "/problems" })
-  .use(drizzle_plugin)
-  .use(protected_routes)
+  }, { isAdmin: true })

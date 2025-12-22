@@ -43,6 +43,7 @@ type MockOpenRouter = { mock_openrouter: true }
 
 const mock_db: MockDB = { mock_db: true }
 const mock_openrouter: MockOpenRouter = { mock_openrouter: true }
+const mock_openrouter_resolver = mock(() => Promise.resolve(mock_openrouter as any))
 
 const define_job = create_job_factory<MockDB>()
 
@@ -52,7 +53,7 @@ describe("JobManager", () => {
   const create_manager = () => new JobManager<[], MockDB>({
     redis_url: "redis://localhost:6379",
     db: mock_db,
-    openrouter: mock_openrouter as any,
+    openrouter_resolver: mock_openrouter_resolver,
   })
 
   beforeEach(() => {
@@ -116,11 +117,12 @@ describe("JobManager", () => {
 
   it("should process a job successfully", async () => {
     const payload = { some: "data" }
-    const handler = mock((received_payload, { db, openrouter }) => {
+    const handler = mock(async (received_payload, { db, get_openrouter }) => {
       expect(received_payload).toEqual(payload)
       expect(db).toBe(mock_db)
+      expect(typeof get_openrouter).toBe("function")
+      const openrouter = await get_openrouter("test-user")
       expect(openrouter).toBe(mock_openrouter)
-      return Promise.resolve()
     })
     const job = define_job("test-job").work(handler)
 
@@ -138,7 +140,7 @@ describe("JobManager", () => {
     expect(handler).toHaveBeenCalled()
     expect(handler).toHaveBeenCalledWith(
       payload,
-      expect.objectContaining({ db: mock_db, openrouter: mock_openrouter })
+      expect.objectContaining({ db: mock_db, get_openrouter: expect.any(Function) })
     )
   })
 
@@ -158,7 +160,7 @@ describe("JobManager", () => {
 
     expect(failed_handler).toHaveBeenCalled()
     expect(failed_handler).toHaveBeenCalledWith(
-      expect.objectContaining({ db: mock_db, openrouter: mock_openrouter }),
+      expect.objectContaining({ db: mock_db, get_openrouter: expect.any(Function) }),
       expect.anything(),
       expect.any(Error),
     )

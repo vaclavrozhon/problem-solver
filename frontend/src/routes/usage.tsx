@@ -14,6 +14,13 @@ function UsagePage() {
     queryFn: () => get_openrouter_usage()
   })
 
+  if (isPending) return (
+    <MainContent className="flex-center flex-col gap-1">
+      <div className="spinner"></div>
+      <p>Loading usage...</p>
+    </MainContent>
+  )
+
   if (isError) return (
     <MainContent>
       <p>An error occurred whilst fetching OpenRouter usage data.</p>
@@ -23,28 +30,26 @@ function UsagePage() {
   return (
     <MainContent className="flex-col gap-1">
       <h1>LLM Paid Usage</h1>
-      <section className="flex-col gap-1">
-        <h2>OpenRouter</h2>
-        <p>Since 23rd November 2025.</p>
-        <div className="flex gap-1">
-          <div className="block">
-            <h3>Balance remaining</h3>
-            {isPending ? (
-              <div className="spinner"></div>
-            ) : (
-              <p><span>$</span>{(balance.total_credits - balance.total_usage).toFixed(3)}</p>
-            )}
+      {balance === null ? (
+        <p>Add your OpenRouter API key in Settings to see your balance & usage.</p>
+      ) : (
+        <section className="flex-col gap-1">
+          <h2>OpenRouter</h2>
+          <div className="flex gap-1">
+            <div className="block">
+              <h3>Balance remaining</h3>
+              <p><span>$</span>{balance.balance?.toFixed(3)}</p>
+            </div>
+            <div className="block">
+              <h3>Money spent</h3>
+              <p><span>$</span>{balance.usage.toFixed(3)}</p>
+            </div>
           </div>
-          <div className="block">
-            <h3>Money spent</h3>
-            {isPending ? (
-              <div className="spinner"></div>
-            ) : (
-              <p><span>$</span>{balance.total_usage.toFixed(3)}</p>
-            )}
-          </div>
-        </div>
-      </section>
+          {/* TODO: Display this messgae only if we check that the key_source is "self" and not "provisioned"... should probably add that tot the API? */}
+          {/* <p>The usage includes all API costs even those made outside of bolzano.app</p> */}
+          {/* TODO: Add estimate for only Bolzano.app usage */}
+        </section>
+      )}
     </MainContent>
   )
 }

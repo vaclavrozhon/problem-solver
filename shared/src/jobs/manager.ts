@@ -2,10 +2,10 @@ import { Queue, Worker, Job, QueueEvents, WorkerListener, JobType } from "bullmq
 import { z } from "zod"
 import type { OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 
-import { QueueState, JobInputSchema, JobStatus } from "../admin"
+import { QueueState, JobInputSchema, JobStatus } from "../admin/jobs"
 
 const DEFAULT_QUEUE = "jobs"
-const DEFAULT_CONCURRENCY = 10
+const DEFAULT_CONCURRENCY = 25
 
 type RedisConfig = ReturnType<typeof parse_redis_url>
 
@@ -16,22 +16,43 @@ type JobManagerObserverOptions = {
   redis_url: string
 }
 
+/**
+ * Resolver function type - injected from backend at construction.
+ * Called per-job with user_id to get the appropriate OpenRouter provider.
+ * Admin users get system key, regular users get their decrypted key.
+ */
+export type OpenRouterResolver<DB> = (db: DB, user_id: string) => Promise<OpenRouterProvider>
+
 type JobManagerWorkerOptions<DB> = {
-  /** When false or undefined, workers are spawned and db/openrouter are required */
+  /** When false or undefined, workers are spawned and db/openrouter_resolver are required */
   observer_mode?: false
   /** Redis connection URL */
   redis_url: string
   /** Database instance - required when not in observer mode */
   db: DB
-  /** OpenRouter provider instance - required when not in observer mode */
-  openrouter: OpenRouterProvider
+  /** OpenRouter resolver function - called at job execution time with user_id */
+  openrouter_resolver: OpenRouterResolver<DB>
 }
 
 type JobManagerOptions<DB> = JobManagerObserverOptions | JobManagerWorkerOptions<DB>
 
+/**
+ * Job context passed to handlers.
+ * `get_openrouter` is a function that resolves the appropriate provider for a user.
+ */
 type JobContext<DB> = {
   db: DB
-  openrouter: OpenRouterProvider
+  /** 
+   * Get OpenRouter provider for a specific user. Fetches role from DB,
+   * decrypts key if needed (admin users use system key).
+    *
+    * This function is called at job **EXECUTION time**, not when job is queued.
+    * Keys are never stored in Redis.
+    * 
+    * @throws If no profile with `user_id` exists.
+    * @returns OpenRouterProvider for user: `user.id === user_id`
+    */
+  get_openrouter: (user_id: string) => Promise<OpenRouterProvider>
 }
 
 type JobHandler<Input, DB> = (
@@ -95,7 +116,7 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
 
   // Dependencies (not initialized in observer mode)
   private db?: DB
-  private openrouter?: OpenRouterProvider
+  private openrouter_resolver?: OpenRouterResolver<DB>
 
   // BullMQ components
   private queues = new Map<string, Queue>()
@@ -113,7 +134,7 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
     if (!this.observer_mode) {
       const worker_options = options as JobManagerWorkerOptions<DB>
       this.db = worker_options.db
-      this.openrouter = worker_options.openrouter
+      this.openrouter_resolver = worker_options.openrouter_resolver
     }
   }
 
@@ -160,8 +181,8 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
       return
     }
 
-    if (!this.db || !this.openrouter) {
-      throw new Error("[job_manager] db and openrouter are required when not in observer mode!")
+    if (!this.db || !this.openrouter_resolver) {
+      throw new Error("[job_manager] db and openrouter_resolver are required when not in observer mode!")
     }
 
     // Worker mode: initialize events and workers
@@ -173,7 +194,7 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
     for (let job of this.jobs) {
       const queue_name = job.get_queue_name()
       const queue = this.queues.get(queue_name)!
-      job.bind(queue, this.db, this.openrouter)
+      job.bind(queue, this.db, this.openrouter_resolver)
     }
 
     console.log(`👍 [job_manager] started with ${queue_names.size} queues.`)
@@ -325,7 +346,13 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
       }
     }
 
-    const context: JobContext<DB> = { db: this.db!, openrouter: this.openrouter! }
+    // Create the context with get_openrouter resolver function
+    const db = this.db!
+    const resolver = this.openrouter_resolver!
+    const context: JobContext<DB> = {
+      db,
+      get_openrouter: (user_id: string) => resolver(db, user_id),
+    }
 
     for (const [event, handlers] of handlers_by_event) {
       worker.on(event as any, async (job: Job, ...args: any[]) => {
@@ -393,7 +420,7 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
 
   // Dependencies injected at runtime
   private db?: DB
-  private openrouter?: OpenRouterProvider
+  private openrouter_resolver?: OpenRouterResolver<DB>
 
   constructor(name: Name) {
     this.name = name
@@ -454,10 +481,10 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
   /**
    * Internal: Bind the job to a queue and dependencies.
    */
-  bind(queue: Queue, db: DB, openrouter: OpenRouterProvider) {
+  bind(queue: Queue, db: DB, openrouter_resolver: OpenRouterResolver<DB>) {
     this.in_queue = queue
     this.db = db
-    this.openrouter = openrouter
+    this.openrouter_resolver = openrouter_resolver
   }
 
   get_queue_name(): Q {
@@ -468,10 +495,17 @@ export class JobBuilder<Name extends string = string, Input = unknown, Q extends
    * Internal: Invoke the handler with dependencies.
    */
   async invoke(payload: unknown) {
-    if (!this.handler || !this.db || !this.openrouter) {
+    if (!this.handler || !this.db || !this.openrouter_resolver) {
       throw new Error(`[job]{${this.name}} no handler has been defined!`)
     }
-    await this.handler(payload as Input, { db: this.db, openrouter: this.openrouter })
+
+    const db = this.db
+    const resolver = this.openrouter_resolver
+
+    // Create get_openrouter function that resolves provider for a specific user
+    const get_openrouter = (user_id: string) => resolver(db, user_id)
+
+    await this.handler(payload as Input, { db, get_openrouter })
   }
 }
 

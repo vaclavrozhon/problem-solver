@@ -1,8 +1,8 @@
 import { z } from "zod"
-import { eq, inArray, sql, and } from "drizzle-orm"
+import { eq, inArray, sql } from "drizzle-orm"
 import { problems, rounds, problem_files } from "../../drizzle/schema"
 import { define_job } from "./job_factory"
-import { NewStandardResearch, AllowedModelsID, get_model_id, VerifierOutputSchema, SummarizerOutputSchema, ProverOutputSchema, ProverOutput, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
+import { NewStandardResearch, get_model_id, VerifierOutputSchema, SummarizerOutputSchema, ProverOutputSchema, ProverOutput, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
 import {
   create_verifier_prompt,
   create_summarizer_prompt,
@@ -38,10 +38,12 @@ export const run_standard_research = define_job("start_research")
       current_relative_round_index: z.number().default(1),
     }),
   }))
-  .work(async ({ new_research, ctx }, { db, openrouter }) => {
+  .work(async ({ new_research, ctx }, { db, get_openrouter }) => {
     const problem_id = new_research.problem_id
 
     console.log(`[job]{standard_research} started for round ${ctx.current_relative_round_index}/${new_research.rounds}`)
+
+    const openrouter = await get_openrouter(ctx.user_id)
 
     // (1) Create new round we're going to be working on
     const [current_round_id, current_round_index] = await db.transaction(async (tx) => {
@@ -233,8 +235,9 @@ export const run_standard_verifier = define_job("verifier")
       all_previous_summarizer_outputs: z.array(zod_file(["summarizer_output"])),
     })
   }))
-  .work(async (research, { db, openrouter }) => {
+  .work(async (research, { db, get_openrouter }) => {
     const ctx = research.ctx
+    const openrouter = await get_openrouter(ctx.user_id)
 
     await update_round_phase(db, ctx.current_round_id, "verifier_working")
 
@@ -366,9 +369,10 @@ export const run_standard_summarizer = define_job("summarizer")
     }),
     summarizer: SummarizerConfigSchema,
   }))
-  .work(async (research, { db, openrouter }) => {
+  .work(async (research, { db, get_openrouter }) => {
     const ctx = research.ctx
     const files = research.files
+    const openrouter = await get_openrouter(ctx.user_id)
 
     await update_round_phase(db, ctx.current_round_id, "summarizer_working")
 

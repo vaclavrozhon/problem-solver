@@ -1,11 +1,17 @@
-import { api } from "./index"
+import { api } from "../index"
 
+/**
+ * GET ...
+ */
 export const get_jobs_overview = async () => {
   const response = await api.admin.jobs.overview.get()
   if (response.error) throw response.error
   return response.data
 }
 
+/**
+ * GET ...
+ */
 export const get_job_details = async (queue_name: string, job_id: string) => {
   const response = await api.admin.jobs({ queue_name })({ job_id }).get()
   if (response.error) throw response.error

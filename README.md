@@ -20,6 +20,8 @@ The backend runs on Elysia with tRPC.
 
 Database & Auth is hosted by [Supabase](https://supabase.com).
 
+All DB requests should be made through Drizzle – Supabase used only for .auth.
+
 ## Running the project
 
 ### Required `.env` values (for both `dev` & `prod`)

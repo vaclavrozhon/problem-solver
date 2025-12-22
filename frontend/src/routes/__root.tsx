@@ -58,8 +58,8 @@ function RootLayout() {
         </Link>
         <Nav>
           <Link to="/">Overview</Link>
-          <Link to="/archive" preload="intent">Archive</Link>
           <Link to="/usage" preload="intent">Usage</Link>
+          <Link to="/settings" preload="intent">Settings</Link>
           <Link to="/create">Create Problem</Link>
           <Link to="/admin">Administration</Link>
         </Nav>
@@ -70,7 +70,6 @@ function RootLayout() {
       <Footer>
         <div><ThemeSelector/></div>
         <p>Page was loaded at {(new Date()).toLocaleTimeString()}</p>
-        {}
         <p>Logged in as {user?.email}</p>
         <p>
           <BracketButton onClick={signOutAndRedirect}>Sign Out</BracketButton>

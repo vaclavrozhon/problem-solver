@@ -1,7 +1,7 @@
 import { styled } from "@linaria/react"
 
 import { Table, TableCell, TableBody, TableErrorSection, TableHeader, PossibleErrorRow, ClickableRow } from "../../ui/Table"
-import { QueueState, JobSummary, JobStatus, JobStatusValues, format_name, JobStatusIcon } from "@shared/admin"
+import { QueueState, JobSummary, JobStatus, JobStatusValues, format_name, JobStatusIcon } from "@shared/admin/jobs"
 import JobSchemas from "./JobSchemas"
 import { ElapsedTime } from "@frontend/components/admin/jobs/ElapsedTime"
 

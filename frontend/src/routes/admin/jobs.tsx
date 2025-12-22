@@ -2,14 +2,14 @@ import { useState } from "react"
 import { styled } from "@linaria/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { get_jobs_overview } from "../../api/admin"
+import { get_jobs_overview } from "../../api/admin/jobs"
 import { QueueOverview } from "../../components/admin/jobs/QueueOverview"
 import QueueSelector from "../../components/admin/jobs/QueueSelector"
 import UpdatedAt from "@frontend/components/ui/UpdatedAt"
 
 import * as Breadcrumb from "../../components/ui/Breadcrumb"
-import { JobStatusValues, JobStatusIcon } from "@shared/admin"
-import type { JobStatus } from "@shared/admin"
+import { JobStatusValues, JobStatusIcon } from "@shared/admin/jobs"
+import type { JobStatus } from "@shared/admin/jobs"
 import type { QueueName } from "@backend/jobs"
 
 export const Route = createFileRoute("/admin/jobs")({
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin/jobs")({
 function JobManagerDashboardPage() {
   const [selected_queue, selectQueue] = useState<QueueName | null>(null)
 
-  const { data: job_states, error, isPending, dataUpdatedAt, isFetching } = useQuery({
+  const { data: job_states, isError, error, isPending, dataUpdatedAt, isFetching } = useQuery({
     queryKey: ["admin", "jobs"],
     queryFn: get_jobs_overview,
     refetchInterval: 10000,
@@ -32,7 +32,7 @@ function JobManagerDashboardPage() {
     </MainContent>
   )
 
-  if (error) return (
+  if (isError) return (
     <MainContent className="align-center justify-center gap-1">
       <p>❌ Error loading Job Dashboard: {error.message}</p>
     </MainContent>

@@ -1,7 +1,7 @@
 import { styled } from "@linaria/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { get_job_details } from "../../../api/admin"
+import { get_job_details } from "../../../api/admin/jobs"
 
 import * as Breadcrumb from "../../../components/ui/Breadcrumb"
 import UpdatedAt from "@frontend/components/ui/UpdatedAt"
@@ -9,7 +9,7 @@ import JSONViewer from "../../../components/JSONViewer"
 import LeftArrowSVG from "@frontend/components/svg/LeftArrow"
 import { ElapsedTime, format_duration } from "@frontend/components/admin/jobs/ElapsedTime"
 
-import { format_name, JobStatusIcon, Job } from "@shared/admin"
+import { format_name, JobStatusIcon, Job } from "@shared/admin/jobs"
 import type { QueueName } from "@backend/jobs"
 
 

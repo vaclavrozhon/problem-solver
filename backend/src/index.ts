@@ -2,18 +2,18 @@ import { Elysia } from "elysia"
 import { cors } from "@elysiajs/cors"
 
 import { problems_router } from "./problems"
-import { account_router } from "./account"
 import { research_router } from "./research"
 import { admin_router } from "./admin"
+import { profile_router } from "./profile"
 
 import { jobs } from "./jobs"
 
 const api_router = new Elysia({ prefix: "/api" })
   .get("/health", { status: "ok" })
   .use(problems_router)
-  .use(account_router)
   .use(research_router)
   .use(admin_router)
+  .use(profile_router)
 
 const backend = new Elysia({ name: "backend" })
   .use(cors({
@@ -21,7 +21,7 @@ const backend = new Elysia({ name: "backend" })
       ? `https://${Bun.env.RAILWAY_PUBLIC_DOMAIN}`
       : `http://localhost:${Bun.env.FRONTEND_PORT}`,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   }))
   .use(api_router)
 
@@ -82,6 +82,7 @@ declare module "bun" {
     DATABASE_PASSWORD: string,
 
     OPENROUTER_API_KEY: string,
+    OPENROUTER_PROVISION_KEY: string,
 
     REDIS_URL: string,
   }

@@ -10,12 +10,15 @@
 
 import { Route as rootRouteImport } from "./routes/__root"
 import { Route as UsageRouteImport } from "./routes/usage"
+import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
 import { Route as ArchiveRouteImport } from "./routes/archive"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as AdminIndexRouteImport } from "./routes/admin/index"
+import { Route as AdminUsersRouteImport } from "./routes/admin/users"
 import { Route as AdminJobsRouteImport } from "./routes/admin/jobs"
+import { Route as AdminInvitesRouteImport } from "./routes/admin/invites"
 import { Route as ProblemProblem_idIndexRouteImport } from "./routes/problem/$problem_id/index"
 import { Route as ProblemProblem_idResearchRouteImport } from "./routes/problem/$problem_id/research"
 import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
@@ -25,6 +28,11 @@ import { Route as AdminJobQueue_nameJob_idRouteImport } from "./routes/admin/job
 const UsageRoute = UsageRouteImport.update({
   id: "/usage",
   path: "/usage",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -52,9 +60,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: "/admin/",
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: "/admin/users",
+  path: "/admin/users",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminJobsRoute = AdminJobsRouteImport.update({
   id: "/admin/jobs",
   path: "/admin/jobs",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminInvitesRoute = AdminInvitesRouteImport.update({
+  id: "/admin/invites",
+  path: "/admin/invites",
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProblemProblem_idIndexRoute = ProblemProblem_idIndexRouteImport.update({
@@ -91,8 +109,11 @@ export interface FileRoutesByFullPath {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/settings": typeof SettingsRoute
   "/usage": typeof UsageRoute
+  "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/users": typeof AdminUsersRoute
   "/admin": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -105,8 +126,11 @@ export interface FileRoutesByTo {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/settings": typeof SettingsRoute
   "/usage": typeof UsageRoute
+  "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/users": typeof AdminUsersRoute
   "/admin": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -120,8 +144,11 @@ export interface FileRoutesById {
   "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
+  "/settings": typeof SettingsRoute
   "/usage": typeof UsageRoute
+  "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/users": typeof AdminUsersRoute
   "/admin/": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
@@ -136,8 +163,11 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/settings"
     | "/usage"
+    | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/users"
     | "/admin"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -150,8 +180,11 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/settings"
     | "/usage"
+    | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/users"
     | "/admin"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -164,8 +197,11 @@ export interface FileRouteTypes {
     | "/archive"
     | "/create"
     | "/login"
+    | "/settings"
     | "/usage"
+    | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/users"
     | "/admin/"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
@@ -179,8 +215,11 @@ export interface RootRouteChildren {
   ArchiveRoute: typeof ArchiveRoute
   CreateRoute: typeof CreateRoute
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   UsageRoute: typeof UsageRoute
+  AdminInvitesRoute: typeof AdminInvitesRoute
   AdminJobsRoute: typeof AdminJobsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
@@ -196,6 +235,13 @@ declare module "@tanstack/react-router" {
       path: "/usage"
       fullPath: "/usage"
       preLoaderRoute: typeof UsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/settings": {
+      id: "/settings"
+      path: "/settings"
+      fullPath: "/settings"
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/login": {
@@ -233,11 +279,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/admin/users": {
+      id: "/admin/users"
+      path: "/admin/users"
+      fullPath: "/admin/users"
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/admin/jobs": {
       id: "/admin/jobs"
       path: "/admin/jobs"
       fullPath: "/admin/jobs"
       preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/admin/invites": {
+      id: "/admin/invites"
+      path: "/admin/invites"
+      fullPath: "/admin/invites"
+      preLoaderRoute: typeof AdminInvitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/problem/$problem_id/": {
@@ -283,8 +343,11 @@ const rootRouteChildren: RootRouteChildren = {
   ArchiveRoute: ArchiveRoute,
   CreateRoute: CreateRoute,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   UsageRoute: UsageRoute,
+  AdminInvitesRoute: AdminInvitesRoute,
   AdminJobsRoute: AdminJobsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,

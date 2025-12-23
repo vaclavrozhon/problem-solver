@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import * as Breadcrumb from "../../components/ui/Breadcrumb"
 import { Table, TableBody, TableHeader, TableRow, TableCell } from "../../components/ui/Table"
 
-import { useAuth } from "../../contexts/AuthContext"
+import { useAuth } from "../../auth/hook"
 import { get_all_users } from "../../api/admin/users"
 
 export const Route = createFileRoute("/admin/users")({

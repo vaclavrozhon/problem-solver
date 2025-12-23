@@ -14,13 +14,14 @@ import { Route as SignupRouteImport } from "./routes/signup"
 import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
-import { Route as ArchiveRouteImport } from "./routes/archive"
+import { Route as AdminRouteImport } from "./routes/admin"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as AdminIndexRouteImport } from "./routes/admin/index"
 import { Route as AuthCallbackRouteImport } from "./routes/auth/callback"
 import { Route as AdminUsersRouteImport } from "./routes/admin/users"
 import { Route as AdminJobsRouteImport } from "./routes/admin/jobs"
 import { Route as AdminInvitesRouteImport } from "./routes/admin/invites"
+import { Route as AdminArchiveRouteImport } from "./routes/admin/archive"
 import { Route as ProblemProblem_idIndexRouteImport } from "./routes/problem/$problem_id/index"
 import { Route as ProblemProblem_idResearchRouteImport } from "./routes/problem/$problem_id/research"
 import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
@@ -52,9 +53,9 @@ const CreateRoute = CreateRouteImport.update({
   path: "/create",
   getParentRoute: () => rootRouteImport,
 } as any)
-const ArchiveRoute = ArchiveRouteImport.update({
-  id: "/archive",
-  path: "/archive",
+const AdminRoute = AdminRouteImport.update({
+  id: "/admin",
+  path: "/admin",
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -63,9 +64,9 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: "/admin/",
-  path: "/admin/",
-  getParentRoute: () => rootRouteImport,
+  id: "/",
+  path: "/",
+  getParentRoute: () => AdminRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: "/auth/callback",
@@ -73,19 +74,24 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: "/admin/users",
-  path: "/admin/users",
-  getParentRoute: () => rootRouteImport,
+  id: "/users",
+  path: "/users",
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminJobsRoute = AdminJobsRouteImport.update({
-  id: "/admin/jobs",
-  path: "/admin/jobs",
-  getParentRoute: () => rootRouteImport,
+  id: "/jobs",
+  path: "/jobs",
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminInvitesRoute = AdminInvitesRouteImport.update({
-  id: "/admin/invites",
-  path: "/admin/invites",
-  getParentRoute: () => rootRouteImport,
+  id: "/invites",
+  path: "/invites",
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminArchiveRoute = AdminArchiveRouteImport.update({
+  id: "/archive",
+  path: "/archive",
+  getParentRoute: () => AdminRoute,
 } as any)
 const ProblemProblem_idIndexRoute = ProblemProblem_idIndexRouteImport.update({
   id: "/problem/$problem_id/",
@@ -111,24 +117,25 @@ const ProblemProblem_idConversationsRoute =
   } as any)
 const AdminJobQueue_nameJob_idRoute =
   AdminJobQueue_nameJob_idRouteImport.update({
-    id: "/admin/job/$queue_name/$job_id",
-    path: "/admin/job/$queue_name/$job_id",
-    getParentRoute: () => rootRouteImport,
+    id: "/job/$queue_name/$job_id",
+    path: "/job/$queue_name/$job_id",
+    getParentRoute: () => AdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
-  "/archive": typeof ArchiveRoute
+  "/admin": typeof AdminRouteWithChildren
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
   "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
+  "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
   "/auth/callback": typeof AuthCallbackRoute
-  "/admin": typeof AdminIndexRoute
+  "/admin/": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -137,12 +144,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
-  "/archive": typeof ArchiveRoute
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
   "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
+  "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
@@ -157,12 +164,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/": typeof IndexRoute
-  "/archive": typeof ArchiveRoute
+  "/admin": typeof AdminRouteWithChildren
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
   "/signup": typeof SignupRoute
   "/usage": typeof UsageRoute
+  "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
@@ -178,17 +186,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | "/"
-    | "/archive"
+    | "/admin"
     | "/create"
     | "/login"
     | "/settings"
     | "/signup"
     | "/usage"
+    | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
     | "/auth/callback"
-    | "/admin"
+    | "/admin/"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -197,12 +206,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
-    | "/archive"
     | "/create"
     | "/login"
     | "/settings"
     | "/signup"
     | "/usage"
+    | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
@@ -216,12 +225,13 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/"
-    | "/archive"
+    | "/admin"
     | "/create"
     | "/login"
     | "/settings"
     | "/signup"
     | "/usage"
+    | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
     | "/admin/users"
@@ -236,22 +246,17 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ArchiveRoute: typeof ArchiveRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CreateRoute: typeof CreateRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   UsageRoute: typeof UsageRoute
-  AdminInvitesRoute: typeof AdminInvitesRoute
-  AdminJobsRoute: typeof AdminJobsRoute
-  AdminUsersRoute: typeof AdminUsersRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
-  AdminIndexRoute: typeof AdminIndexRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
   ProblemProblem_idResearchRoute: typeof ProblemProblem_idResearchRoute
   ProblemProblem_idIndexRoute: typeof ProblemProblem_idIndexRoute
-  AdminJobQueue_nameJob_idRoute: typeof AdminJobQueue_nameJob_idRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -291,11 +296,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/archive": {
-      id: "/archive"
-      path: "/archive"
-      fullPath: "/archive"
-      preLoaderRoute: typeof ArchiveRouteImport
+    "/admin": {
+      id: "/admin"
+      path: "/admin"
+      fullPath: "/admin"
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/": {
@@ -307,10 +312,10 @@ declare module "@tanstack/react-router" {
     }
     "/admin/": {
       id: "/admin/"
-      path: "/admin"
-      fullPath: "/admin"
+      path: "/"
+      fullPath: "/admin/"
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     "/auth/callback": {
       id: "/auth/callback"
@@ -321,24 +326,31 @@ declare module "@tanstack/react-router" {
     }
     "/admin/users": {
       id: "/admin/users"
-      path: "/admin/users"
+      path: "/users"
       fullPath: "/admin/users"
       preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     "/admin/jobs": {
       id: "/admin/jobs"
-      path: "/admin/jobs"
+      path: "/jobs"
       fullPath: "/admin/jobs"
       preLoaderRoute: typeof AdminJobsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     "/admin/invites": {
       id: "/admin/invites"
-      path: "/admin/invites"
+      path: "/invites"
       fullPath: "/admin/invites"
       preLoaderRoute: typeof AdminInvitesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    "/admin/archive": {
+      id: "/admin/archive"
+      path: "/archive"
+      fullPath: "/admin/archive"
+      preLoaderRoute: typeof AdminArchiveRouteImport
+      parentRoute: typeof AdminRoute
     }
     "/problem/$problem_id/": {
       id: "/problem/$problem_id/"
@@ -370,32 +382,47 @@ declare module "@tanstack/react-router" {
     }
     "/admin/job/$queue_name/$job_id": {
       id: "/admin/job/$queue_name/$job_id"
-      path: "/admin/job/$queue_name/$job_id"
+      path: "/job/$queue_name/$job_id"
       fullPath: "/admin/job/$queue_name/$job_id"
       preLoaderRoute: typeof AdminJobQueue_nameJob_idRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
   }
 }
 
+interface AdminRouteChildren {
+  AdminArchiveRoute: typeof AdminArchiveRoute
+  AdminInvitesRoute: typeof AdminInvitesRoute
+  AdminJobsRoute: typeof AdminJobsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminJobQueue_nameJob_idRoute: typeof AdminJobQueue_nameJob_idRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminArchiveRoute: AdminArchiveRoute,
+  AdminInvitesRoute: AdminInvitesRoute,
+  AdminJobsRoute: AdminJobsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminJobQueue_nameJob_idRoute: AdminJobQueue_nameJob_idRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ArchiveRoute: ArchiveRoute,
+  AdminRoute: AdminRouteWithChildren,
   CreateRoute: CreateRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   UsageRoute: UsageRoute,
-  AdminInvitesRoute: AdminInvitesRoute,
-  AdminJobsRoute: AdminJobsRoute,
-  AdminUsersRoute: AdminUsersRoute,
   AuthCallbackRoute: AuthCallbackRoute,
-  AdminIndexRoute: AdminIndexRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,
   ProblemProblem_idResearchRoute: ProblemProblem_idResearchRoute,
   ProblemProblem_idIndexRoute: ProblemProblem_idIndexRoute,
-  AdminJobQueue_nameJob_idRoute: AdminJobQueue_nameJob_idRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

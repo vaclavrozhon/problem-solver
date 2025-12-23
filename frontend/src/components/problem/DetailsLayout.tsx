@@ -1,7 +1,6 @@
-
 import { Link } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
-import { useAuth } from "../../contexts/AuthContext"
+import { useAuth } from "../../auth/hook"
 
 interface LayoutProps {
   problem_id: string,

@@ -149,7 +149,7 @@ export const auth_router = new Elysia({ prefix: "/auth" })
       console.error("[auth/oauth/google] Failed to initiate OAuth:", error)
       return status(500, {
         type: "error",
-        message: "Failed to initx<xziate OAuth flow."
+        message: "Failed to initiate OAuth flow."
       })
     }
 

@@ -3,15 +3,15 @@ import { useQuery } from "@tanstack/react-query"
 import { styled } from "@linaria/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 
-import { useAuth } from "../contexts/AuthContext"
-import { get_problems_archive } from "../api/problems"
-import { Table, TableBody, TableHeader, TableRow, TableCell, SortButton, SortSelect, ClickableTableCell } from "../components/ui/Table"
-import StatusBadge from "../components/ui/StatusBadge"
+import { useAuth } from "../../auth/hook"
+import { get_problems_archive } from "../../api/problems"
+import { Table, TableBody, TableHeader, TableRow, TableCell, SortButton, SortSelect, ClickableTableCell } from "../../components/ui/Table"
+import StatusBadge from "../../components/ui/StatusBadge"
 
 type SortField = "updated_at" | "created_at"
 type SortDirection = "asc" | "desc"
 
-export const Route = createFileRoute("/archive")({
+export const Route = createFileRoute("/admin/archive")({
   component: ProblemsArchive,
 })
 

@@ -13,6 +13,7 @@ function AdminIndexPage() {
         <Link to="/admin/jobs">Job Queue Monitor</Link>
         <Link to="/admin/users">User Management</Link>
         <Link to="/admin/invites">Invite Management</Link>
+        <Link to="/admin/archive">Archive</Link>
         <a href="https://docs.google.com/document/d/1WS9RQYO7gGlbYph6ZW0xk-Nr6NcUz78mzzjY_l0ulAo/edit?usp=sharing"
           target="_blank">Shared Notes</a>
       </Nav>

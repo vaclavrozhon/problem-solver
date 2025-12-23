@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
 import { useQuery } from "@tanstack/react-query"
 
-import { useAuth } from "../../../contexts/AuthContext"
+import { useAuth } from "../../../auth/hook"
 import { get_problem_overview } from "../../../api/problems"
 
 import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"

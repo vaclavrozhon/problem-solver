@@ -97,7 +97,7 @@ export default function SignupPage() {
       </AuthForm>
       <p>Already have an account? <BracketLink to="/login" search={{ error: undefined, message: undefined }}>Sign In</BracketLink></p>
       <GoogleSignIn>
-        <p>Or simly</p>
+        <p>Or simply</p>
         <BracketButton onClick={handle_google_signup} disabled={is_loading}>
           Get In with Google
         </BracketButton>

@@ -71,6 +71,7 @@ export const auth_ready = new Promise<void>((resolve) => {
       const { data, error } = await supabase.auth.getSession()
       /** 
        * [WORKAROUND] Set session to expose access token for API call
+       * THIS IS ACTUALLY THIS BUGGED!
        * whilst fetching profile data inside `build_state`
        */
       if (data.session) set({ session: data.session })

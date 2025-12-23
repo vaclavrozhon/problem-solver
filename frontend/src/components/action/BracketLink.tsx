@@ -26,7 +26,7 @@ interface LinkProps extends
   React.AnchorHTMLAttributes<HTMLAnchorElement>,
   React.PropsWithChildren {}
 
-const BracketLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
+export const BracketLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
   (props, ref) => {
     return (
       <Link ref={ref} {...props}>

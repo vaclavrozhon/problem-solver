@@ -4,6 +4,7 @@ import PageNotFound from "../pages/404"
 
 import { styled } from "@linaria/react"
 import BracketButton from "../components/action/BracketButton"
+import { BracketLink } from "../components/action/BracketLink"
 import { auth_ready, useAuthStore, select_is_authenticated } from "../auth/store"
 
 import Logo from "../components/svg/Logo"
@@ -57,7 +58,19 @@ function RootLayout() {
           <TextLogo lowercase/>
         </p>
       </Header>
+
       <Outlet/>
+
+      <Footer>
+        <div><ThemeSelector/></div>
+        <p>
+          <BracketLink href="https://github.com/vaclavrozhon/problem-solver/tree/dev" target="_blank">Code-&gt;GitHub</BracketLink>
+        </p>
+        <p>
+          Errors, feedback, help? -&gt;
+          <Email href="mailto:human@bolzano.app">human@bolzano.app</Email>
+        </p>
+      </Footer>
     </PageContent>
   )
 
@@ -81,11 +94,17 @@ function RootLayout() {
 
       <Footer>
         <div><ThemeSelector/></div>
-        <p>Page was loaded at {(new Date()).toLocaleTimeString()}</p>
-        <p>Logged in as {user?.email}</p>
         <p>
+          <BracketLink href="https://github.com/vaclavrozhon/problem-solver/tree/dev" target="_blank">Code-&gt;GitHub</BracketLink>
+        </p>
+        <p>
+          Errors, feedback, help? -&gt;
+          <Email href="mailto:human@bolzano.app">human@bolzano.app</Email>
+        </p>
+        <p style={{ marginLeft: "auto" }}>
           <BracketButton onClick={handle_sign_out}>Sign Out</BracketButton>
         </p>
+        <p>Logged in as {user?.email}</p>
       </Footer>
     </PageContent>
   )
@@ -142,5 +161,13 @@ const Footer = styled.footer`
     &:not(:last-child) {
       border-right: var(--border-alpha);
     }
+  }
+`
+
+const Email = styled.a`
+  margin-left: .3rem;
+  font-weight: 500;
+  &:hover {
+    text-decoration: underline;
   }
 `

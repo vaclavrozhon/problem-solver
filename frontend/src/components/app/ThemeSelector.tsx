@@ -12,7 +12,7 @@ export default function ThemeSelector() {
       t.classList.add("animate")
       setTimeout(() => y = true, 500)
     }, 20)
-    let n = c[(c.indexOf(l.getItem("theme") || "dark") + 1) % c.length]
+    let n = c[(c.indexOf(l.getItem("theme") || "light") + 1) % c.length]
     l.setItem("theme", n)
     document.documentElement.setAttribute("data-theme", n)
   }

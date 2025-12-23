@@ -75,6 +75,10 @@ function ProblemID() {
           <p>This problem was created at {format_date(problem.created_at)}</p>
         </div>
 
+        <div>
+          <p>To share this problem, simply share the current URL with anyone. They must be signed in to view it.</p>
+        </div>
+
         {/* <div>
           TODO: danger zone (actions like remove the problem etc. or stop the research for now if running)
         </div> */}

@@ -221,12 +221,13 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   /**
    * [AUTH] GET /profile/balance
    * 
-   * Retrieves balance on OpenRouter through linked API key.
+   * Retrieves OpenRouter balance & usage through linked API key.
    * If no key set, returns `204` code.
+   * Usage per key (not total for account)
+   * Balance per key, if no limit and provisioned, returns null
    * 
    * MANUALLY TESTED?: yes, works
    */
-  // TODO: Refactor this code
   .get("/balance", async ({ db, user, status }) => {
     try {
       let decrypted_key
@@ -255,41 +256,46 @@ export const profile_router = new Elysia({ prefix: "/profile" })
           api_key.encryption_key_version
         )
       }
-  
+
       const openrouter = new OpenRouter({ apiKey: decrypted_key })
-      const { data: usage } = await openrouter.apiKeys.getCurrentKeyMetadata()
-      // Only keys that were not created using Provision API
-      // can get total account credits. These are manually created
-      // API keys in OpenRouter dashboard (either with & without limit)
-      // Keys that were created through the Invite Dashboard can't fetch
-      // account credits and it's our responsibility to have enough credits
-      // for the invited user.
+
+      // Works for all keys
+      const { data: key_metadata } = await openrouter.apiKeys.getCurrentKeyMetadata()
+
+      // This endpoint works only for non-provisioned keys
       let credits: GetCreditsData | null = null
       try {
         const response = await openrouter.credits.getCredits()
         credits = response.data
       } catch (e) {}
 
-      let account_remaining_total_credits: number | null
+      // /credits returns usage for whole account even if current key has no usage
+      // => usage needs to be inherited from key metadata at all times
+      const key_usage = key_metadata.usage
+      
+      /**
+       * if the key is provisioned, openrouter disallows access to /credits
+       * that reveals total account balance -> no way to get actual available
+       * credits for provisioned key – uncertainty whether you can use it or not
+       * => provisioned key: show remaining key limit, if no limit, return null
+       * => manual key:
+       *      -    limit: min{ account_balance, remaining_key_limit }
+       *      - no limit: account balance
+       */
+      let key_balance: number | null
       if (credits) {
-        account_remaining_total_credits = credits.totalCredits - credits.totalUsage
+        const total_account_balance = credits.totalCredits - credits.totalUsage
+        if (key_metadata.limitRemaining) key_balance = Math.min(total_account_balance, key_metadata.limitRemaining)
+        else key_balance = total_account_balance
       } else {
-        account_remaining_total_credits = usage.limitRemaining
+        key_balance = key_metadata.limitRemaining
       }
-
-      // limit === null means NO LIMIT
-      const key_limit = usage.limit
-      let key_remaining_balance
-      if (key_limit === null || account_remaining_total_credits === null) {
-        key_remaining_balance = account_remaining_total_credits
-      } else {
-        key_remaining_balance = Math.min(account_remaining_total_credits, key_limit)
-      }
-      const key_usage = usage.usage
 
       return {
         usage: key_usage,
-        balance: key_remaining_balance,
+        balance: key_balance,
+        // TODO: BYOK UI
+        // byok_usage: key_metadata.byokUsage,
       }
     } catch (e) {
       console.log("[/profile/balance] failed", e)

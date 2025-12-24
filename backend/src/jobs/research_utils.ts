@@ -374,9 +374,9 @@ export async function generate_llm_response<T>(
       const local_llm_start_time = performance.now()
       llm_response = await generateObject({
         model: openrouter(model_id, {
-          // The library has not been updated yet to reflect this new option.
-          // @ts-expect-error
-          reasoning: { effort: "xhigh" },
+          // BUG: wanted to do "xhigh" but OpenAI throws error
+          // for gpt-5-mini... reverting back to "high"
+          reasoning: { effort: "high" },
           user: user_id,
           usage: { include: true },
           plugins: [

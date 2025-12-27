@@ -1,61 +1,551 @@
 import { z } from "zod"
 
-// TODO: Add model pricing to the app
-const smart_models = {
-  // "GPT 5 mini": "openai/gpt-5-mini",
-  "Gemini 3 Pro": "google/gemini-3-pro-preview",
-  "GPT-5.2": "openai/gpt-5.2",
-  "GPT 5.1": "openai/gpt-5.1",
-  "GPT 5": "openai/gpt-5",
-  "GPT 5 Pro": "openai/gpt-5-pro",
-  "GPT-5.2 Pro": "openai/gpt-5.2-pro",
-  "Claude Opus 4.5": "anthropic/claude-opus-4.5",
-  "Grok 4": "x-ai/grok-4",
-  // "Kimi K2": "moonshotai/kimi-k2-thinking",
-  // "DeepSeek V3.2 Speciale": "deepseek/deepseek-v3.2-speciale",
-} as const
+// OpenRouter reasoning effort levels (% of max_tokens for reasoning):
+// NOTE: must be ordered from none to high for UI (ModelSelect) to work properly
+export const reasoning_efforts = ["none", "minimal", "low", "medium", "high", "xhigh"] as const
+export type ReasoningEffort = typeof reasoning_efforts[number]
 
-export const LLMModelsMap = {
-  smart: smart_models,
-  summarizer: {
-    "GPT 5 mini": "openai/gpt-5-mini",
-    // "DeepSeek V3.2": "deepseek/deepseek-v3.2",
-    ...smart_models,
-  }
-} as const
+/**
+ * Reasoning configuration for a model:
+ * - `null` – no control possible – model either doesn't reason
+ * - `"toggle"` – simple on/off switch
+ * - `ReasoningEffort[] – effort levels, if `none` then that turns off reasoning
+ */
+export type ReasoningConfig = null | "toggle" | readonly ReasoningEffort[]
 
-const FlatModelMap = {
-  ...LLMModelsMap.smart,
-  ...LLMModelsMap.summarizer,
-} as const
-
-export function get_model_id(model_name: AllowedModelsName): AllowedModelsID {
-  return FlatModelMap[model_name]
+interface Model {
+  id: string,
+  name: string,
+  provider: string,
+  price: {
+    input: number,
+    output: number,
+    search?: number,
+  },
+  config: {
+    /** `true` if the model supports searching the web, else `false` */
+    web_search: boolean,
+    reasoning: ReasoningConfig,
+  },
+  context: number,
+  max_output: number,
+  stream_cancel: boolean,
+  byok: boolean,
 }
 
-export type SmartModelName = keyof typeof LLMModelsMap.smart
-export type SummarizerModelName = keyof typeof LLMModelsMap.summarizer
+interface ProviderDetails {
+  name: string,
+  logo: string | null,
+}
 
-export type AllowedModelsName = SmartModelName | SummarizerModelName
-export const AllowedModelsNames = [
-  ...Object.keys(LLMModelsMap.smart),
-  ...Object.keys(LLMModelsMap.summarizer),
-] as AllowedModelsName[]
+// TODO: Not all icons are available on Iconify, add these manually somehow
+export const provider_details = {
+  anthropic: {
+    name: "Anthropic",
+    logo: "logos:anthropic-icon",
+  },
+  deepseek: {
+    name: "DeepSeek",
+    logo: "ri:deepseek-fill",
+  },
+  moonshotai: {
+    name: "Moonshot AI",
+    logo: null,
+  },
+  nvidia: {
+    name: "NVIDIA",
+    logo: "simple-icons:nvidia",
+  },
+  google: {
+    name: "Google",
+    logo: "logos:google-icon",
+  },
+  openai: {
+    name: "OpenAI",
+    logo: "logos:openai-icon",
+  },
+  xai: {
+    name: "xAI",
+    logo: null,
+  },
+  xiaomi: {
+    name: "Xiaomi",
+    logo: "simple-icons:xiaomi",
+  },
+  zai: {
+    name: "Z.ai",
+    logo: null,
+  },
+} satisfies Record<string, ProviderDetails>
 
-export const AllowedModelsIDs = [
-  ...Object.values(LLMModelsMap.smart),
-  ...Object.values(LLMModelsMap.summarizer),
-] as const
+export type Provider = keyof typeof provider_details
 
-export type AllowedModelsID = typeof AllowedModelsIDs[number]
+// TODO should write checker function whether all these endpoints are still active
+// https://openrouter.ai/docs/api/api-reference/endpoints/list-endpoints
+export const models = {
+  anthropic: [
+    {
+      //final
+      id: "anthropic/claude-opus-4.5",
+      name: "Claude Opus 4.5",
+      provider: "anthropic",
+      price: { input: 5, output: 25, search: 10 },
+      config: {
+        web_search: true,
+        // reasponds to "enabled" toggle
+        // according to api should support "low", "medium", "high" effort levels
+        // with "high" as default when you dont specify anything
+        // but it looks like you need to give them some beta header else it doesnt seem to work
+        reasoning: "toggle",
+      },
+      context: 200_000,
+      max_output: 64_000,
+      stream_cancel: true,
+      byok: true,
+    }
+  ],
+  deepseek: [
+    {
+      // final
+      id: "deepseek/deepseek-v3.2-speciale",
+      name: "DeepSeek V3.2 Speciale",
+      provider: "parasail/fp8",
+      price: { input: 0.4, output: 0.5 },
+      config: {
+        web_search: false,
+        // thinking by default, cant be turned off
+        // ofc doesnt react to effort
+        reasoning: null,
+      },
+      context: 163_840,
+      max_output: 163_840,
+      stream_cancel: true,
+      // BYOK for Parasail!
+      byok: true
+    },
+    {
+      // final
+      id: "deepseek/deepseek-v3.2",
+      name: "DeepSeek V3.2",
+      provider: "deepseek",
+      price: { input: 0.28, output: 0.42 },
+      config: {
+        web_search: false,
+        // Correct, only toggle, doesnt react to effort
+        // only "enabled": true/false
+        reasoning: "toggle",
+      },
+      context: 128_000,
+      max_output: 64_000,
+      stream_cancel: true,
+      byok: true,
+    }
+  ],
+  google: [
+    {
+      // final
+      id: "google/gemini-3-pro-preview",
+      name: "Gemini 3 Pro Preview",
+      provider: "google-vertex",
+      price: { input: 2, output: 12 },
+      config: {
+        web_search: false,
+        // REASONING CAN'T BE DISABLED
+        reasoning: ["low", "high"],
+      },
+      /**
+       * NOTE: Context is actually 1_048_576 but after 200K tokens
+       * the pricing gets higher. Our app shouldn't really get to 200k tokens
+       * therefore I feel like there's no need to mention the higher pricing.
+       */
+      context: 200_000,
+      max_output: 65_536,
+      byok: true,
+      stream_cancel: false,
+    },
+    {
+      // final
+      id: "google/gemini-3-flash-preview",
+      name: "Gemini 3 Flash Preview",
+      provider: "google-vertex",
+      price: { input: 0.5, output: 3 },
+      config: {
+        web_search: false,
+        // REASONING CAN BE DISABLED BY `enabled: false`
+        // doesnt actually support none, but if user chooses none,
+        // then i should map it in the backend to set "enabled": false instead 
+        // but only for specific endpoints
+        reasoning: ["none", "minimal", "low", "medium", "high"],
+      },
+      context: 1_048_576,
+      max_output: 65_536,
+      stream_cancel: false,
+      byok: true,
+    },
+  ],
+  moonshotai: [
+    {
+      // final
+      id: "moonshotai/kimi-k2-thinking",
+      name: "Kimi K2 Thinking",
+      provider: "nebius/fp8",
+      price: { input: 0.6, output: 2.5 },
+      config: {
+        web_search: false,
+        // I feel like it doesnt react to effort levels and cant be turned off, is on by default
+        // https://platform.moonshot.ai/docs/guide/use-kimi-k2-thinking-model#usage-notes
+        // have a look here, supposedly it reacts to max_tokens
+        // also proposes to stream the response?
+        reasoning: null,
+      },
+      context: 262_144,
+      max_output: 262_144,
+      stream_cancel: false,
+      // for nebius
+      byok: true,
+    },
+  ],
+  nvidia: [
+    {
+      // final
+      id: "nvidia/nemotron-3-nano-30b-a3b",
+      name: "Nemotron 3 Nano 30B",
+      provider: "deepinfra/bf16",
+      price: { input: 0.06, output: 0.24 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      context: 262_144,
+      max_output: 262_144,
+      stream_cancel: true,
+      // for deepinfra
+      byok: true,
+    }
+  ],
+  openai: [
+    {
+      // final except for todo
+      id: "openai/gpt-5.2-pro",
+      name: "GPT-5.2 Pro",
+      provider: "openai",
+      price: { input: 21, output: 168, search: 10 },
+      config: {
+        web_search: true,
+        // TODO
+        reasoning: null,
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 128_000,
+    },
+    {
+      // final
+      id: "openai/gpt-5.2",
+      name: "GPT-5.2",
+      provider: "openai",
+      price: { input: 1.75, output: 14, search: 10 },
+      config: {
+        web_search: true,
+        /** can be disabled only with the "none" value */
+        reasoning: ["none", "low", "medium", "high", "xhigh"],
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 128_000,
+    },
+    {
+      // final
+      id: "openai/gpt-5.1",
+      name: "GPT-5.1",
+      provider: "openai",
+      price: { input: 1.25, output: 10, search: 10 },
+      config: {
+        web_search: true,
+        /** reasoning can be disabled only by giving the `none` effort */
+        reasoning: ["none", "low", "medium", "high"],
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 128_000,
+    },
+    {
+      // final except for todo
+      id: "openai/gpt-5-pro",
+      name: "GPT-5 Pro",
+      provider: "openai",
+      price: { input: 15, output: 120, search: 10 },
+      config: {
+        web_search: true,
+        // TODO
+        reasoning: null,
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 272_000,
+    },
+    {
+      // final
+      id: "openai/gpt-5",
+      name: "GPT-5",
+      provider: "openai",
+      price: { input: 1.25, output: 10, search: 10 },
+      config: {
+        web_search: true,
+        // cant be disabled, only set to minimal
+        reasoning: ["minimal", "low", "medium", "high"],
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 128_000,
+    },
+    {
+      // final
+      id: "openai/gpt-5-mini",
+      name: "GPT-5 Mini",
+      provider: "openai",
+      price: { input: 0.25, output: 2, search: 10 },
+      config: {
+        web_search: true,
+        /** reasoning cannot be turned off */
+        reasoning: ["minimal", "low", "medium", "high"],
+      },
+      byok: true,
+      stream_cancel: true,
+      context: 400_000,
+      max_output: 128_000,
+    },
+    {
+      // final
+      id: "openai/gpt-oss-120b",
+      name: "gpt-oss-120b",
+      provider: "deepinfra/fp4",
+      price: { input: 0.039, output: 0.19 },
+      config: {
+        web_search: false,
+        // Cant be turned off
+        reasoning: ["low", "medium", "high"]
+      },
+      context: 131_072,
+      max_output: 131_072,
+      stream_cancel: true,
+      // for deepinfra, not openai
+      byok: true
+    },
+  ],
+  xai: [
+    // BUG: The models can do web search but only via tools.
+    // Should be easy to add.
+    // https://docs.x.ai/docs/guides/tools/search-tools
+    {
+      // final
+      id: "x-ai/grok-4",
+      name: "Grok 4",
+      provider: "xai",
+      price: { input: 3, output: 15 },
+      config: {
+        web_search: false,
+        // indidcate in the UI that it is thiking by default
+        // TODO: could make a list with models that think by default and check if the model falls in that list and just render the icon
+        /** reasoning is not exposed, reasoning cannot be disabled, and the reasoning effort cannot be specified */
+        reasoning: null,
+      },
+      // NOTE: Actually up to 2_000_000 but then the pricing is higher.
+      context: 128_000,
+      max_output: 256_000,
+      stream_cancel: true,
+      byok: true,
+    },
+    {
+      // final
+      id: "x-ai/grok-4.1-fast",
+      name: "Grok 4.1 Fast",
+      price: { input: 0.2, output: 0.5 },
+      provider: "xai",
+      config: {
+        web_search: false,
+        // only toggle via enabled true/false, cant set effort
+        reasoning: "toggle"
+      },
+      // NOTE: Actually up to 2_000_000 but then the pricing is higher.
+      context: 128_000,
+      max_output: 30_000,
+      stream_cancel: true,
+      byok: true,
+    },
+  ],
+  xiaomi: [
+    {
+      // fiinal
+      // TODO: free expires on new years eve
+      // https://platform.xiaomimimo.com/#/docs/quick-start/model-hyperparameters
+      // say to put temperature to 1 for math, top_p 0.95
+      id: "xiaomi/mimo-v2-flash:free",
+      name: "MiMo V2 Flash",
+      provider: "xiaomi/fp8",
+      // TODO: infer "free tag" from 0 price
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      context: 256_000,
+      max_output: 128_00,
+      stream_cancel: false,
+      byok: true,
+    }
+  ],
+  zai: [
+    // final
+    {
+      id: "z-ai/glm-4.7",
+      name: "GLM 4.7",
+      provider: "z-ai",
+      price: { input: 0.6, output: 2.2 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      context: 200_000,
+      max_output: 128_000,
+      stream_cancel: true,
+      byok: true,
+    }
+  ]
+} as const satisfies Record<Provider, readonly Model[]>
 
-// TODO Refactor this Models thing a bit
+type Models = typeof models[keyof typeof models][number]
 
-const keys = <T extends Record<string, any>>(obj: T) =>
-  Object.keys(obj) as (keyof T)[]
+/** Maps model `id` to its `reasoning_effort` config */
+type ModelReasoningMap = {
+  [Model in Models as Model["id"]]: Model["config"]["reasoning"]
+}
+/** Maps model `id` to its `web_search` config */
+type ModelWebSearchMap = {
+  [Model in Models as Model["id"]]: Model["config"]["web_search"]
+}
 
-export const SmartModels = z.enum(keys(LLMModelsMap.smart));
-export const SummarizerModels = z.enum(keys(LLMModelsMap.summarizer));
+/** Type of all defined OpenRouter model ids */
+export type ModelID = Models["id"]
+
+/**
+ * The value type for reasoning_effort in config
+ * - effort levels – `ReasoningEffort`
+ * - toggle – `boolean`
+ * - no-control – `null`
+ */
+export type ReasoningEffortValue = ReasoningEffort | boolean | null
+
+/**
+ * Creates a type-safe model with validated reasoning and web search options.
+ * @param config - configuration options constrained by model definition
+ * @returns object containing model id and its configuration
+ */
+export function choose_model<ID extends ModelID>(
+  id: ID,
+  config: {
+    reasoning_effort: ModelReasoningMap[ID] extends readonly (infer Effort)[]
+      ? Effort
+      : ModelReasoningMap[ID] extends "toggle"
+        ? boolean
+        : null,
+    web_search: ModelWebSearchMap[ID] extends true ? boolean : false,
+  }
+) {
+  return { id, config }
+}
+
+/**
+ * @param id of model to get
+ * @returns model details if model exists, else `null`
+ */
+export function get_model_by_id(id: ModelID) {
+  for (const provider_models of Object.values(models)) {
+    const found = provider_models.find(m => m.id === id)
+    if (found) return found
+  }
+  return null
+}
+
+export const ModelConfig = z.object({
+  id: z.enum(
+    Object.values(models)
+      .flat()
+      .map(model => model.id)
+  ),
+  config: z.object({
+    reasoning_effort: z.enum(reasoning_efforts).or(z.boolean()).or(z.null()),
+    web_search: z.boolean(),
+  }),
+}).superRefine((data, ctx) => {
+  const model = get_model_by_id(data.id)
+  if (model) {
+    const { reasoning_effort, web_search } = data.config
+
+    const supports_web_search = model.config.web_search
+
+    const reasoning_config = model.config.reasoning
+    const model_is_no_control = reasoning_config === null
+    const model_is_toggle = reasoning_config === "toggle"
+    const model_is_effort = Array.isArray(reasoning_config)
+
+    if (model_is_no_control) {
+      // no control -> only `null` is valid
+      if (reasoning_effort !== null) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Model "${data.id}" does not support reasoning configuration. Set reasoning to null.`,
+          // TODO: rename reasoning_effort to simply reasoning
+          path: ["config", "reasoning_effort"],
+        })
+      }
+    } else if (model_is_toggle) {
+      // toggle -> only `boolean` is valid
+      if (typeof reasoning_effort !== "boolean") {
+        ctx.addIssue({
+          code: "custom",
+          message: `For model "${data.id}" you must either enable (true) or disable (false) reasoning.`,
+          path: ["config", "reasoning_effort"],
+        })
+      }
+    } else if (model_is_effort) {
+      // effort -> must be a valid effort level
+      if (!(reasoning_config).includes(reasoning_effort)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Model "${data.id}" only supports effort levels: [${(reasoning_config).join(", ")}]`,
+          path: ["config", "reasoning_effort"],
+        })
+      }
+    } else {
+      ctx.addIssue({
+        code: "custom",
+        message: "Unhandled model reasoning config. Please contact a human.",
+        path: ["config", "reasoning_effort"],
+      })
+    }
+
+    if (!supports_web_search && web_search) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Model "${data.id}" does not support web search.`,
+        path: ["config", "web_search"],
+      })
+    }
+  } else {
+    ctx.addIssue({
+      code: "custom",
+      message: `Model "${data.id}" doesn't exist.`,
+      path: ["id"],
+    })
+  }
+})
+
 
 export const MaxProversPerRound = 10
 export const MaxRoundsPerResearch = 10
@@ -66,14 +556,14 @@ export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsP
 
 export const VerifierConfigSchema = z.object({
   advice: z.string(),
-  model: SmartModels,
+  model: ModelConfig,
   prompt: z.string().min(20),
 })
 export type VerifierConfig = z.infer<typeof VerifierConfigSchema>
 
 export const SummarizerConfigSchema = z.object({
   prompt: z.string().min(20),
-  model: SummarizerModels,
+  model: ModelConfig,
 })
 export type SummarizerConfig = z.infer<typeof SummarizerConfigSchema>
 
@@ -86,7 +576,7 @@ export const NewStandardResearch = z.object({
     provers: z.array(
       z.object({
         advice: z.string().optional(),
-        model: SmartModels,
+        model: ModelConfig,
       })
     ).min(1).max(MaxProversPerRound),
     prompt: z.string().min(20),

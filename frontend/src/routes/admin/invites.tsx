@@ -1,13 +1,31 @@
 import { useRef, useState, useEffect } from "react"
-import { styled } from "@linaria/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  Button,
+  AlertDialog,
+  TextField,
+  NumberField,
+  Label,
+  Input,
+  FieldError,
+  Form,
+  Spinner,
+  Alert,
+  Description,
+  Tooltip,
+  Link
+} from "@heroui/react"
+
 import { get_all_invites, create_invite, revoke_invite } from "../../api/admin/invites"
-import type { CreateInviteParams } from "@shared/admin/invites"
+import type { Invite, CreateInviteParams } from "@shared/admin/invites"
+import { invite_schema, INVITE_CREDIT_MIN, INVITE_CREDIT_MAX } from "@shared/admin/invites"
 
 import * as Breadcrumb from "../../components/ui/Breadcrumb"
 import { Table, TableBody, TableHeader, TableRow, TableCell } from "../../components/ui/Table"
-import { Form, FormField, FormInput, FormLabel } from "../../styles/Form"
+import { Icon } from "@iconify/react"
 
 export const Route = createFileRoute("/admin/invites")({
   component: AdminInvitesPage,
@@ -15,13 +33,16 @@ export const Route = createFileRoute("/admin/invites")({
 
 function AdminInvitesPage() {
   const query_client = useQueryClient()
-  const [show_create_modal, setShowCreateModal] = useState(false)
+
+  const [show_create, setShowCreate] = useState(false)
   const [created_invite, setCreatedInvite] = useState<{
     code: string,
     recipient_name: string
   } | null>(null)
 
-  const { data, isError, isPending, error } = useQuery({
+  const [revoke_target, setRevokeTarget] = useState<string | null>(null)
+
+  const { data, isError, isPending, error, isRefetching } = useQuery({
     queryKey: ["admin", "invites"],
     queryFn: get_all_invites,
   })
@@ -30,7 +51,10 @@ function AdminInvitesPage() {
     mutationFn: create_invite,
     onSuccess: (result) => {
       if (result.invite) {
-        setCreatedInvite({ code: result.invite.code, recipient_name: result.invite.recipient_name })
+        setCreatedInvite({
+          code: result.invite.code,
+          recipient_name: result.invite.recipient_name
+        })
       }
       query_client.invalidateQueries({ queryKey: ["admin", "invites"] })
     },
@@ -39,21 +63,39 @@ function AdminInvitesPage() {
   const revoke_mutation = useMutation({
     mutationFn: revoke_invite,
     onSuccess: () => {
+      setRevokeTarget(null)
       query_client.invalidateQueries({ queryKey: ["admin", "invites"] })
     },
   })
 
+  function handle_revoke_click(invite_id: string) {
+    setRevokeTarget(invite_id)
+    revoke_mutation.reset()
+  }
+
+  function confirm_revoke() {
+    if (revoke_target) {
+      revoke_mutation.mutate(revoke_target)
+    }
+  }
+
+  function close_create_dialog() {
+    setShowCreate(false)
+    setCreatedInvite(null)
+    create_mutation.reset()
+  }
+
   if (isPending) return (
-    <MainContent className="align-center justify-center gap-1">
-      <div className="spinner"></div>
+    <main className="flex-1 flex flex-col items-center justify-center gap-4">
+      <Spinner/>
       <span>Loading invites...</span>
-    </MainContent>
+    </main>
   )
 
   if (isError) return (
-    <MainContent className="align-center justify-center gap-1">
-      <p>❌ Error loading invites: {error.message}</p>
-    </MainContent>
+    <main className="flex-1 flex-center">
+      <p>Error loading invites: {error.message}</p>
+    </main>
   )
 
   const invites = data.invites
@@ -63,24 +105,19 @@ function AdminInvitesPage() {
     redeemed: invites.filter(i => i.status === "redeemed").length,
   }
 
-  function handle_create(params: CreateInviteParams) {
-    create_mutation.mutate(params)
-  }
+  const invite_stat__block = "flex flex-col justify-between items-center py-3 px-4 bg-beta rounded-lg min-w-25"
+  const invite_stat__value = "text-2xl font-bold"
+  const invite_stat__label = "kode uppercase font-semibold text-sm"
 
-  function handle_revoke(invite_id: string) {
-    if (confirm("Are you sure you want to revoke this invite? The provisioned API key will be deleted.")) {
-      revoke_mutation.mutate(invite_id)
-    }
-  }
-
-  function close_modals() {
-    setShowCreateModal(false)
-    setCreatedInvite(null)
-  }
+  const total_allocated_credits = invites.reduce(
+    (acc, invite) => acc + invite.credit_limit,
+    0
+  )
+  const missing_credits = data.admin_balance - total_allocated_credits
 
   return (
-    <MainContent>
-      <header className="flex space-between pad-1">
+    <main className="flex-1 flex flex-col p-4 pt-2 gap-4">
+      <header className="flex justify-between">
         <div>
           <Breadcrumb.default>
             <Breadcrumb.Item to="/admin">Administration</Breadcrumb.Item>
@@ -89,424 +126,397 @@ function AdminInvitesPage() {
           </Breadcrumb.default>
           <h1>Invite Management</h1>
         </div>
-        <div>
-          <CreateButton onClick={() => setShowCreateModal(true)}>
-            + Create Invite
-          </CreateButton>
-        </div>
+
+        <Button onPress={() => setShowCreate(true)}>
+          <Icon icon="gravity-ui:person-plus"/>
+          New Invite
+        </Button>
+
+        <AlertDialog isOpen={show_create}
+          onOpenChange={(open) => !open && close_create_dialog()}>
+          <AlertDialog.Backdrop>
+            <AlertDialog.Container>
+              <AlertDialog.Dialog className="max-w-sm">
+                <AlertDialog.CloseTrigger/>
+                {created_invite ? (
+                  <NewInviteCreated
+                    code={created_invite.code}
+                    recipient_name={created_invite.recipient_name}/>
+                ) : (
+                  <CreateInviteForm
+                    onSubmit={new_invite => create_mutation.mutate(new_invite)}
+                    is_submitting={create_mutation.isPending}
+                    mutation_error={create_mutation.isError
+                      ? create_mutation.error.message
+                      : null}
+                    admin_balance={data.admin_balance}/>
+                )}
+              </AlertDialog.Dialog>
+            </AlertDialog.Container>
+          </AlertDialog.Backdrop>
+        </AlertDialog>
       </header>
 
-      <section className="flex-col gap-1 pad-1">
+      <section className="flex flex-col gap-2">
         <h2>Summary</h2>
-        <section className="flex gap-1">
-          <Statistic>
-            <p>{stats.total}</p>
-            <p>Total</p>
-          </Statistic>
-          <Statistic>
-            <p className="pending">{stats.pending}</p>
-            <p>Pending</p>
-            </Statistic>
-          <Statistic>
-            <p className="redeemed">{stats.redeemed}</p>
-            <p>Redeemed</p>
-            </Statistic>
-        </section>
+        <div className="flex gap-4">
+          <div className={invite_stat__block}>
+            <p className={invite_stat__value}>{stats.total}</p>
+            <p className={invite_stat__label}>Total</p>
+          </div>
+          <div className={invite_stat__block}>
+            <p className={`${invite_stat__value} text-warn`}>{stats.pending}</p>
+            <p className={invite_stat__label}>Pending</p>
+          </div>
+          <div className={invite_stat__block}>
+            <p className={`${invite_stat__value} text-ok`}>{stats.redeemed}</p>
+            <p className={invite_stat__label}>Redeemed</p>
+          </div>
+          <div className={invite_stat__block}>
+            <p className={`${invite_stat__value} text-brand`}>${total_allocated_credits}</p>
+            <p className={invite_stat__label + " after:content-['*'] after:font-sans"}>Allocated</p>
+          </div>
+        </div>
+        <p className="text-sm before:content-['*']">
+          To provide for all invites, {" "}
+          <Link href="https://openrouter.ai/settings/credits"
+            target="_blank">
+            OpenRouter balance
+            <Link.Icon/>
+          </Link>
+          {" "}needs to be at least ${total_allocated_credits}.
+          <br/>
+          Current balance is ${data.admin_balance.toFixed(3)} -&gt;{" "}
+          {missing_credits >= 0 ? (
+            <span className="font-medium text-ink-2">You're all set!</span>
+          ) : (
+            <>
+              <span className="text-error font-medium underline">Please add more credits!</span>{" "}
+              Missing credits ${Math.abs(missing_credits).toFixed(3)}
+            </>
+          )}
+        </p>
       </section>
 
-      <section className="flex-col flex-1 pad-1 gap-05">
+      <section className="flex-1 flex flex-col gap-2">
         <h2>All Invites</h2>
-
-        <Table $columns="1fr 8rem 8rem 6rem 6rem 7rem 10rem 6rem">
-          <TableHeader>
-            <TableCell>Recipient</TableCell>
-            <TableCell $align="center">Status</TableCell>
-            <TableCell>Code</TableCell>
-            <TableCell $align="right">Usage</TableCell>
-            <TableCell $align="right">Limit</TableCell>
-            <TableCell $align="center">Own Key?</TableCell>
-            <TableCell>Invited By</TableCell>
-            <TableCell $align="center">Actions</TableCell>
-          </TableHeader>
-
-          <TableBody>
-            {invites.length === 0 ? (
-              <TableRow>
-                <TableCell>No invites yet. Click "Create Invite" to get started.</TableCell>
-              </TableRow>
-            ) : invites.map(invite => (
-              <TableRow>
-                <TableCell>
-                  <div className="flex-col">
-                    <p className="text-beta w-500">{invite.recipient_name}</p>
-                    {invite.redeemed_by && (
-                      <p className="size-09">{invite.redeemed_by.email}</p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell $align="center"
-                  $cols={invite.status !== "pending" ? 2 : undefined}>
-                  <Badge className={invite.status}>
-                    {invite.status === "pending" && "⏳ Pending"}
-                    {invite.status === "redeemed" && "✓ Redeemed"}
-                  </Badge>
-                </TableCell>
-                {invite.status === "pending" && (
-                  <TableCell>
-                    <Badge>{invite.code}</Badge>
-                  </TableCell>
-                )}
-                <TableCell $align="right">
-                  {invite.usage ? (
-                    <p><span className="kode">{invite.usage.usage.toFixed(2)}</span>$</p>
-                  ) :  "-"}
-                </TableCell>
-                <TableCell $align="right">
-                  <p><span className="kode">{invite.credit_limit.toFixed(2)}</span>$</p>
-                </TableCell>
-                <TableCell $align="center">
-                  {invite.status === "redeemed" ? (
-                    invite.user_switched_to_own_key ? (
-                      <Badge className="redeemed">✓ Switched</Badge>
-                    ) : (
-                      <Badge>No</Badge>
-                    )
-                  ) : "-"}
-                </TableCell>
-                <TableCell>
-                  <p style={{
-                    textOverflow: "ellipsis",
-                    overflow: "hidden",
-                    whiteSpace: "nowrap",
-                    display: "block"
-                  }}>
-                    {invite.created_by}
-                  </p>
-                </TableCell>
-                <TableCell $align="center">
-                  {invite.status === "pending" ? (
-                    <RevokeButton onClick={() => handle_revoke(invite.id)}
-                      disabled={revoke_mutation.isPending}>
-                      {revoke_mutation.isPending ? "..." : "Revoke"}
-                    </RevokeButton>
-                  ) : (
-                    <p>-</p>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        {/* TODO: Make this below the ROW */}
-        {revoke_mutation.isError && (
-          <ErrorMessage>
-            Failed to revoke: {revoke_mutation.error?.message || "Unknown error"}
-          </ErrorMessage>
-        )}
+        <InviteTable
+          invites={invites}
+          onRevoke={handle_revoke_click}
+          is_revoking={revoke_mutation.isPending || isRefetching}/>
       </section>
 
-      {show_create_modal && !created_invite && (
-        <Modal>
-          <section>
-            <CreateInviteForm
-              onSubmit={handle_create}
-              onCancel={close_modals}
-              is_submitting={create_mutation.isPending}
-              error={create_mutation.isError ? create_mutation.error.message : null}/>
-          </section>
-        </Modal>
-      )}
+      <AlertDialog isOpen={!!revoke_target}
+        onOpenChange={open => !open && setRevokeTarget(null)}>
+        <AlertDialog.Backdrop>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog className="max-w-sm">
+              <AlertDialog.CloseTrigger/>
+              <AlertDialog.Header>
+                <AlertDialog.Icon status="danger"/>
+                <AlertDialog.Heading className="font-sans">Revoke Invite?</AlertDialog.Heading>
+              </AlertDialog.Header>
 
-      {created_invite && (
-        <Modal>
-          <section>
-            <SuccessModal
-              code={created_invite.code}
-              recipient_name={created_invite.recipient_name}
-              on_close={close_modals}/>
-          </section>
-        </Modal>
-      )}
-    </MainContent>
+              <AlertDialog.Body className="flex flex-col gap-4 p-1">
+                <p>
+                  This action will remove the invite created for{" "}
+                  <span className="font-medium text-ink-2">
+                    {invites.find(invite => invite.id === revoke_target)?.recipient_name}
+                  </span>
+                </p>
+
+                {revoke_mutation.isError && (
+                  <Alert status="danger">
+                    <Alert.Indicator/>
+                    <Alert.Content>
+                      {/* BUG/TODO: proper error */}
+                      <Alert.Title>Failed to revoke invite</Alert.Title>
+                    </Alert.Content>
+                  </Alert>
+                )}
+              </AlertDialog.Body>
+
+              <AlertDialog.Footer>
+                <Button variant="ghost"
+                  slot="close">No, keep it</Button>
+                <Button variant="danger"
+                  onPress={confirm_revoke}
+                  isPending={revoke_mutation.isPending}
+                  className="w-34">
+                  {revoke_mutation.isPending ? (
+                    <>
+                      <Spinner color="current" size="sm"/>
+                      Removing&hellip;
+                    </>
+                  ) : "Yes, remove"}
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+    </main>
+  )
+}
+
+interface InviteTableProps {
+  invites: Invite[],
+  is_revoking: boolean,
+  onRevoke: (id: string) => void,
+}
+
+function InviteTable({ invites, is_revoking, onRevoke }: InviteTableProps) {
+  const badge = "kode text-xs px-1.5 py-0.5 rounded-sm font-semibold"
+  return (
+    <Table $columns="1fr 8rem 8rem 6rem 6rem 7rem 10rem 6rem">
+      <TableHeader>
+        <TableCell>Recipient</TableCell>
+        <TableCell $align="center">Status</TableCell>
+        <TableCell $align="center">Code</TableCell>
+        <TableCell $align="right">Usage</TableCell>
+        <TableCell $align="right">Limit</TableCell>
+        <TableCell $align="center">Own Key?</TableCell>
+        <TableCell>Invited By</TableCell>
+        <TableCell $align="center">Actions</TableCell>
+      </TableHeader>
+
+      <TableBody>
+        {invites.length === 0 ? (
+          <TableRow>
+            <TableCell>
+              <p>No invites yet.</p>
+            </TableCell>
+          </TableRow>
+        ) : invites.map(invite => (
+          <TableRow key={invite.id}>
+            <TableCell>
+              <div className="flex flex-col">
+                <p className="text-beta font-medium"
+                  // TODO: better tooltip? link to profile? 
+                  title={invite.redeemed_by?.email}>{invite.recipient_name}</p>
+              </div>
+            </TableCell>
+
+            <TableCell $align="center"
+              $cols={invite.status !== "pending" ? 2 : undefined}>
+              <p className={` flex gap-[4px] items-center
+                  ${badge} ${invite.status === "pending" ? "bg-warn/20 " : "bg-ok/20 text-ok" }
+                `}>
+                {invite.status === "pending" ? "Pending" : (
+                  <>
+                    <Icon icon="gravity-ui:check"/>
+                    Redeemed
+                  </>
+                  )}
+              </p>
+            </TableCell>
+            {invite.status === "pending" && (
+              <TableCell $align="center">
+                <p className={badge + " bg-beta normal-case!"}>{invite.code}</p>
+              </TableCell>
+            )}
+
+            <TableCell $align="space-between">
+              {invite.usage ? (
+                <>
+                  <span>$</span>
+                  <p className="text-ink-2">{invite.usage.usage.toFixed(2)}</p>
+                </>
+              ) : "-"}
+            </TableCell>
+
+            <TableCell $align="space-between">
+              <span>$</span>
+              <p className="text-ink-2">{invite.credit_limit}</p>
+            </TableCell>
+
+            <TableCell $align="center">
+              {invite.status === "redeemed" ? (
+                invite.user_switched_to_own_key ? (
+                  <p className={badge + " flex items-center gap-[4px] bg-ok/20 text-ok"}>
+                    <Icon icon="gravity-ui:check"/>
+                    Switched
+                  </p>
+                ) : (
+                  <p className={badge + " bg-beta"}>No</p>
+                )
+              ) : "-"}
+            </TableCell>
+
+            <TableCell>
+              <p className="truncate">{invite.created_by}</p>
+            </TableCell>
+
+            <TableCell $align="center">
+              {invite.status === "pending" ? (
+                <Button size="sm"
+                  variant="danger-soft"
+                  onPress={() => onRevoke(invite.id)}
+                  isDisabled={is_revoking}
+                  className="h-6 px-2 text-xs">
+                  <Icon icon="gravity-ui:trash-bin"/>
+                  Revoke
+                </Button>
+              ) : "-"}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
 interface CreateInviteFormProps {
   onSubmit: (params: CreateInviteParams) => void
-  onCancel: () => void
-  is_submitting: boolean
-  error: string | null
+  is_submitting: boolean,
+  admin_balance: number,
+  mutation_error: string | null,
 }
 
-function CreateInviteForm({ onSubmit, onCancel, is_submitting, error }: CreateInviteFormProps) {
-  const [name, setName] = useState("")
-  const [limit, setLimit] = useState(10)
-
-  function handle_submit(e: React.FormEvent) {
-    e.preventDefault()
-    onSubmit({
-      recipient_name: name,
-      credit_limit: limit,
-    })
-  }
+function CreateInviteForm({ onSubmit, is_submitting, mutation_error, admin_balance }: CreateInviteFormProps) {
+  const { register, handleSubmit, formState: { errors }, control } = useForm({
+    defaultValues: { recipient_name: "", credit_limit: 10 },
+    resolver: zodResolver(invite_schema),
+  })
 
   return (
-    <Form onSubmit={handle_submit}>
-      <h2>Create New Invite</h2>
-      {/* TODO: Remake this to react-form-hook */}
-      <FormField style={{
-        marginLeft: "-1rem"
-      }}>
-        <FormLabel>Recipient Name</FormLabel>
-        <FormInput
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Jára Cimrman"
-          required
-          minLength={2}/>
-      </FormField>
+    <>
+      <AlertDialog.Header>
+        <AlertDialog.Heading className="font-sans">Create New Invite</AlertDialog.Heading>
+      </AlertDialog.Header>
 
-      <FormField style={{
-        marginLeft: "-1rem"
-      }}>
-        <FormLabel>Credit Limit [$]</FormLabel>
-        <FormInput
-          type="number"
-          value={limit}
-          onChange={e => setLimit(Number(e.target.value))}
-          min={1}
-          max={100}/>
-      </FormField>
+      <AlertDialog.Body className="p-1">
+        <Form onSubmit={handleSubmit(onSubmit)}
+          id="create-invite-form"
+          className="flex flex-col gap-4">
+          <TextField isInvalid={!!errors.recipient_name}>
+            <Label>Recipient Name</Label>
+            <Input {...register("recipient_name")}
+              placeholder="Jára Cimrman"/>
+            <FieldError>{errors.recipient_name?.message}</FieldError>
+          </TextField>
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
+          <Controller name="credit_limit"
+            control={control}
+            render={({ field }) => (
+              <NumberField value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                minValue={INVITE_CREDIT_MIN}
+                maxValue={INVITE_CREDIT_MAX}
+                isInvalid={!!errors.credit_limit}
+                formatOptions={{ maximumFractionDigits: 0 }}>
+                <Label>Credit Limit</Label>
+                <NumberField.Group>
+                  <NumberField.DecrementButton/>
+                  <p className="pl-3 text-ink-1 -mr-2">$</p>
+                  <NumberField.Input/>
+                  <NumberField.IncrementButton/>
+                </NumberField.Group>
+                <Description>
+                  Ensure sufficient balance on OpenRouter account to cover user usage.
+                </Description>
+                <Description>
+                  {/* TODO */}
+                  Current balance: $
+                  <span className="text-ink-2">{admin_balance.toFixed(3)}</span>
+                </Description>
+                <FieldError>{errors.credit_limit?.message}</FieldError>
+              </NumberField>
+            )}/>
 
-      <ButtonRow>
-        <button type="button" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="primary" disabled={!name || is_submitting}>
-          {is_submitting ? "Creating..." : "Create Invite"}
-        </button>
-      </ButtonRow>
-    </Form>
+          {/* BUG/TODO: proper error handling */}
+          {mutation_error && (
+            <Alert status="danger">
+              <Alert.Indicator/>
+              <Alert.Content>
+                <Alert.Title>{mutation_error}</Alert.Title>
+              </Alert.Content>
+            </Alert>
+          )}
+        </Form>
+      </AlertDialog.Body>
+
+      <AlertDialog.Footer>
+        <Button variant="tertiary"
+          slot="close">Cancel</Button>
+        <Button form="create-invite-form"
+          type="submit"
+          isPending={is_submitting}
+          className="w-32">
+          {is_submitting ? (
+            <>
+              <Spinner color="current" size="sm"/>
+              Creating&hellip;
+            </>
+          ) : "Create Invite"}
+        </Button>
+      </AlertDialog.Footer>
+    </>
   )
 }
 
-interface SuccessModalProps {
-  code: string
-  recipient_name: string
-  on_close: () => void
+interface NewInviteCreatedProps {
+  code: string,
+  recipient_name: string,
 }
 
-function SuccessModal({ code, recipient_name, on_close }: SuccessModalProps) {
+function NewInviteCreated({ code, recipient_name }: NewInviteCreatedProps) {
   const [copied, setCopied] = useState(false)
-  const timeoutRef = useRef<number | null>(null)
+  const timeout_ref = useRef<number | null>(null)
 
   function copy_code() {
     navigator.clipboard.writeText(code)
     setCopied(true)
-
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-
-    timeoutRef.current = window.setTimeout(() => {
+    if (timeout_ref.current) clearTimeout(timeout_ref.current)
+    timeout_ref.current = window.setTimeout(() => {
       setCopied(false)
-      timeoutRef.current = null
+      timeout_ref.current = null
     }, 2000)
   }
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      if (timeout_ref.current) clearTimeout(timeout_ref.current)
     }
   }, [])
 
   return (
-    <SuccessModalContent>
-      <h2>Invite Created!</h2>
-      <p>Share this code with <strong>{recipient_name}</strong>:</p>
+    <>
+      <AlertDialog.CloseTrigger/>
+      <AlertDialog.Header>
+        <AlertDialog.Icon status="success"/>
+        <AlertDialog.Heading className="font-sans">Invite Created!</AlertDialog.Heading>
+      </AlertDialog.Header>
 
-      <InviteCodeDisplay>
-        <span>{code}</span>
-        <button onClick={copy_code}>
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </InviteCodeDisplay>
+      <AlertDialog.Body className="p-1 flex flex-col gap-3">
+        <p>Share this code with <span className="font-medium text-ink-2">{recipient_name}</span>:</p>
 
-      <p>They can redeem it in Settings after signing up.</p>
+        <div className="flex justify-center relative p-4 bg-beta rounded-full">
+          <span className="font-kode text-2xl font-bold tracking-widest">{code}</span>
+          <Tooltip delay={0}
+            closeDelay={0}
+            shouldCloseOnPress={false}>
+            <Button isIconOnly
+              variant="tertiary"
+              size="sm"
+              onPress={copy_code}
+              className="bg-gamma absolute right-4">
+              <Icon icon="gravity-ui:copy"/>
+            </Button>
+            <Tooltip.Content>
+              <p className="font-medium">{copied ? "Copied!" : "Copy"}</p>
+            </Tooltip.Content>
 
-      <ButtonRow>
-        <button onClick={on_close} className="primary">Done</button>
-      </ButtonRow>
-    </SuccessModalContent>
+          </Tooltip>
+        </div>
+
+        <p>They can redeem it in Settings after signing up.</p>
+      </AlertDialog.Body>
+
+      <AlertDialog.Footer>
+        <Button slot="close">Done</Button>
+      </AlertDialog.Footer>
+    </>
   )
 }
-
-const MainContent = styled.main`
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-`
-
-const CreateButton = styled.button`
-  padding: 0.5rem .75rem;
-  background: var(--accent-alpha);
-  color: var(--bg-alpha);
-  border-radius: .3rem;
-  font-weight: 600;
-  cursor: pointer;
-  &:hover {
-    opacity: 0.9;
-  }
-`
-
-const Statistic = styled.div<{ $color?: string }>`
-  display: flex;
-  flex-flow: column;
-  gap: 0.2rem;
-  background: var(--bg-beta);
-  border: var(--border-alpha);
-  border-radius: .3rem;
-  padding: .5rem 1rem;
-  & p:first-child {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--accent-alpha);
-    text-align: center;
-    &.pending {
-      color: var(--color-queued);
-    }
-    &.redeemed {
-      color: var(--color-finished);
-    }
-  }
-  & p:last-child {
-    font-family: kode;
-    text-transform: uppercase;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-gamma);
-  }
-`
-
-const Badge = styled.p`
-  font-family: var(--font-kode);
-  font-size: 0.8rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.2rem;
-  font-weight: 500;
-  background: var(--bg-gamma);
-  &.pending {
-    background: rgba(250, 150, 10, .1);
-    color: var(--color-queued);
-  }
-  &.redeemed {
-    background: rgba(30, 190, 100, .1);
-    color: var(--color-finished);
-  }
-`
-
-const RevokeButton = styled.button`
-  padding: 0.2rem 0.4rem;
-  font-size: 0.8rem;
-  background: transparent;
-  background: rgba(220, 30, 30, .15);
-  font-weight: 500;
-  border-radius: 0.2rem;
-  color: var(--color-failed);
-  cursor: pointer;
-  &:hover:not(:disabled) {
-    background: rgba(220, 30, 30, 0.1);
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`
-
-const Modal = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  & > section {
-    background: var(--bg-alpha);
-    border: var(--border-alpha);
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    min-width: 400px;
-    max-width: 500px;
-  }
-`
-
-const ButtonRow = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  width: 100%;
-  margin-top: 0.5rem;
-  & button {
-    padding: 0.5rem 1rem;
-    border: var(--border-alpha);
-    border-radius: 0.25rem;
-    background: var(--bg-beta);
-    color: var(--text-alpha);
-    cursor: pointer;
-    &:hover:not(:disabled):not(.primary) {
-      background: var(--bg-gamma);
-    }
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    &.primary {
-      background: var(--accent-alpha);
-      color: var(--bg-alpha);
-      border: none;
-      &:hover {
-        opacity: .9;
-      }
-    }
-  }
-`
-
-const SuccessModalContent = styled.div`
-  display: flex;
-  flex-flow: column;
-  gap: 1rem;
-  text-align: center;
-  & h2 {
-    color: var(--color-finished);
-  }
-`
-
-const InviteCodeDisplay = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background: var(--bg-beta);
-  border-radius: 0.2rem;
-  & span {
-    font-family: var(--font-kode);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-  }
-  & button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    border: var(--border-alpha);
-    border-radius: 0.2rem;
-    background: var(--bg-gamma);
-    cursor: pointer;
-  }
-`
-
-const ErrorMessage = styled.p`
-  color: var(--color-failed);
-  font-size: 0.9rem;
-`

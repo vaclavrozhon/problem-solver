@@ -1,14 +1,14 @@
 import { styled } from "@linaria/react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { get_job_details } from "../../../api/admin/jobs"
+import { Icon } from "@iconify/react"
 
 import * as Breadcrumb from "../../../components/ui/Breadcrumb"
 import UpdatedAt from "@frontend/components/ui/UpdatedAt"
 import JSONViewer from "../../../components/JSONViewer"
-import LeftArrowSVG from "@frontend/components/svg/LeftArrow"
 import { ElapsedTime, format_duration } from "@frontend/components/admin/jobs/ElapsedTime"
 
+import { get_job_details } from "../../../api/admin/jobs"
 import { format_name, JobStatusIcon, Job } from "@shared/admin/jobs"
 import type { QueueName } from "@backend/jobs"
 
@@ -28,14 +28,14 @@ function JobDetailPage() {
   })
 
   if (isPending) return (
-    <MainContent className="flex-center gap-1">
+    <MainContent className="flex-center gap-4">
       <div className="spinner"></div>
       <span>Loading job details...</span>
     </MainContent>
   )
 
   if (error) return (
-    <MainContent className="flex-center gap-1">
+    <MainContent className="flex-center gap-4">
       <p>Error loading job: {(error as Error).message}</p>
     </MainContent>
   )
@@ -44,7 +44,7 @@ function JobDetailPage() {
 
   return (
     <MainContent>
-      <header className="flex space-between pad-1">
+      <header className="flex justify-between p-4">
         <div>
           <Breadcrumb.default>
             <Breadcrumb.Item to="/admin">Administration</Breadcrumb.Item>
@@ -67,11 +67,11 @@ function JobDetailPage() {
       <section className="flex">
         <Sidebar>
           <BackButton to="/admin/jobs">
-            <LeftArrowSVG/>
+            <Icon icon="ph:arrow-left-bold"/>
             <span>Back to Jobs</span>
           </BackButton>
 
-          <div className="flex-col pad-1 gap-05">
+          <div className="flex flex-col p-4 gap-2">
             <DotLeader>
               <p>Job ID</p>
               <p>{job.id}</p>
@@ -137,13 +137,13 @@ function JobDetailPage() {
           </div>
         </Sidebar>
 
-        <section className="flex-col">
+        <section className="flex flex-col">
           {job.problem && (
             <Detail>
               <h2>Problem</h2>
               <ProblemLink to="/problem/$problem_id" params={{ problem_id: job.problem.id }}>
                 <span>{job.problem.name}</span>
-                <LeftArrowSVG/>
+                <Icon icon="ph:arrow-right-bold"/>
               </ProblemLink>
             </Detail>
           )}
@@ -207,17 +207,17 @@ function JobDetailPage() {
           )}
 
           {job.error && (
-            <Detail className="no-pad no-gap">
-              <h2 className="pad-1">❌ Error Details</h2>
-              <HeightScroll className="flex-col gap-05">
-                <h3 className="pad-left-1">Latest Error Message</h3>
-                <pre className="pad-1">{job.error.message}</pre>
-                <h3 className="pad-left-1">Stacktrace</h3>
-                <div className="flex-col">
+            <Detail className="p-0! gap-0!">
+              <h2 className="p-4">Error Details</h2>
+              <HeightScroll className="flex flex-col gap-2">
+                <h3 className="pl-4">Latest Error Message</h3>
+                <pre className="p-4">{job.error.message}</pre>
+                <h3 className="pl-4">Stacktrace</h3>
+                <div className="flex flex-col">
                   {job.error.stacktrace.map((stacktrace, i) => (
                     <>
-                      <h4 className="pad-left-1">Failure {i + 1}</h4>
-                      <pre className="pad-1">{stacktrace}</pre>
+                      <h4 className="pl-4">Failure {i + 1}</h4>
+                      <pre className="p-4">{stacktrace}</pre>
                     </>
                   ))}
                 </div>
@@ -225,8 +225,8 @@ function JobDetailPage() {
             </Detail>
           )}
 
-          <Detail className="no-pad no-gap">
-            <h2 className="pad-1">Raw Job Payload</h2>
+          <Detail className="p-0! gap-0!">
+            <h2 className="p-4">Raw Job Payload</h2>
             <HeightScroll>
               <JSONViewer raw_json={job.data}/>
             </HeightScroll>
@@ -411,11 +411,6 @@ const ProblemLink = styled(Link)`
   &:hover {
     background: var(--bg-gamma);
     color: var(--accent-alpha);
-  }
-  & svg {
-    width: 1rem;
-    height: 1rem;
-    transform: rotate(180deg);
   }
 `
 

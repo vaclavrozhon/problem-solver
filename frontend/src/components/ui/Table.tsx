@@ -58,7 +58,7 @@ export const TableRow = styled(BaseRow) <TableRowProps>`
 `
 
 interface TableCellProps {
-  $align?: "left" | "right" | "center"
+  $align?: "left" | "right" | "center" | "space-between"
   $sortable?: boolean
   $active?: boolean
   $cols?: number,
@@ -68,7 +68,13 @@ export const TableCell = styled.div<TableCellProps>`
   display: flex;
   align-items: center;
   padding: .3rem .6rem;
-  justify-content: ${({ $align }) => $align === "right" ? "flex-end" : $align === "center" ? "center" : "flex-start"};
+  justify-content: ${({ $align }) => $align === "right"
+    ? "flex-end"
+    : $align === "center"
+      ? "center"
+      : $align === "space-between"
+        ? "space-between"
+        : "flex-start"};
   overflow: hidden;
   grid-column: ${({ $cols }) => $cols === undefined ? "auto" : `span ${$cols}`};
 

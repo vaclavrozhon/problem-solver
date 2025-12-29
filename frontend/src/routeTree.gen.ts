@@ -16,7 +16,6 @@ import { Route as LoginRouteImport } from "./routes/login"
 import { Route as CreateRouteImport } from "./routes/create"
 import { Route as AdminRouteImport } from "./routes/admin"
 import { Route as IndexRouteImport } from "./routes/index"
-import { Route as AdminIndexRouteImport } from "./routes/admin/index"
 import { Route as AuthCallbackRouteImport } from "./routes/auth/callback"
 import { Route as AdminUsersRouteImport } from "./routes/admin/users"
 import { Route as AdminJobsRouteImport } from "./routes/admin/jobs"
@@ -62,11 +61,6 @@ const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: "/",
-  path: "/",
-  getParentRoute: () => AdminRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: "/auth/callback",
@@ -135,7 +129,6 @@ export interface FileRoutesByFullPath {
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
   "/auth/callback": typeof AuthCallbackRoute
-  "/admin/": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -144,6 +137,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
+  "/admin": typeof AdminRouteWithChildren
   "/create": typeof CreateRoute
   "/login": typeof LoginRoute
   "/settings": typeof SettingsRoute
@@ -154,7 +148,6 @@ export interface FileRoutesByTo {
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
   "/auth/callback": typeof AuthCallbackRoute
-  "/admin": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -175,7 +168,6 @@ export interface FileRoutesById {
   "/admin/jobs": typeof AdminJobsRoute
   "/admin/users": typeof AdminUsersRoute
   "/auth/callback": typeof AuthCallbackRoute
-  "/admin/": typeof AdminIndexRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -197,7 +189,6 @@ export interface FileRouteTypes {
     | "/admin/jobs"
     | "/admin/users"
     | "/auth/callback"
-    | "/admin/"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -206,6 +197,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
+    | "/admin"
     | "/create"
     | "/login"
     | "/settings"
@@ -216,7 +208,6 @@ export interface FileRouteTypes {
     | "/admin/jobs"
     | "/admin/users"
     | "/auth/callback"
-    | "/admin"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -236,7 +227,6 @@ export interface FileRouteTypes {
     | "/admin/jobs"
     | "/admin/users"
     | "/auth/callback"
-    | "/admin/"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -309,13 +299,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    "/admin/": {
-      id: "/admin/"
-      path: "/"
-      fullPath: "/admin/"
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
     }
     "/auth/callback": {
       id: "/auth/callback"
@@ -395,7 +378,6 @@ interface AdminRouteChildren {
   AdminInvitesRoute: typeof AdminInvitesRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminUsersRoute: typeof AdminUsersRoute
-  AdminIndexRoute: typeof AdminIndexRoute
   AdminJobQueue_nameJob_idRoute: typeof AdminJobQueue_nameJob_idRoute
 }
 
@@ -404,7 +386,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminInvitesRoute: AdminInvitesRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminUsersRoute: AdminUsersRoute,
-  AdminIndexRoute: AdminIndexRoute,
   AdminJobQueue_nameJob_idRoute: AdminJobQueue_nameJob_idRoute,
 }
 

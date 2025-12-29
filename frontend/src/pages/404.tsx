@@ -1,26 +1,20 @@
 import { useLocation } from "@tanstack/react-router"
-import { styled } from "@linaria/react"
 
 export default function PageNotFound() {
   const pathname = useLocation().pathname
+
   return (
-    <MainContent>
-      <p>Page <span>{pathname}</span> was not found!</p>
-    </MainContent>
+    <main className="flex-1 flex-center flex-col gap-5">
+      <h1 className="font-kode text-9xl font-bold leading-none -tracking-wider text-brand">
+        404
+      </h1> 
+      <p className="px-10">
+        Page
+        <span className="p-1 mx-1 bg-beta rounded-sm box-decoration-clone font-medium">
+          {pathname}
+        </span>
+        doesn't exist.
+      </p>
+    </main>
   )
 }
-
-const MainContent = styled.main`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-flow: column;
-  gap: 1rem;
-  & p {
-    font-weight: 500;
-    & span {
-      font-style: italic;
-      font-weight: 400;
-    }
-  }
-`

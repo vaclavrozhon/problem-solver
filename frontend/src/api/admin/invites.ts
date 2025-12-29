@@ -6,7 +6,7 @@ import type { Invite, CreateInviteParams, CreateInviteResult } from "@shared/adm
  * 
  * List all invites
  */
-export const get_all_invites = async (): Promise<{ invites: Invite[] }> => {
+export const get_all_invites = async () => {
   const response = await api.admin.invites.all.get()
   if (response.error) throw response.error
   return response.data

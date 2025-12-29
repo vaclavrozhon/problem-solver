@@ -26,15 +26,15 @@ function JobManagerDashboardPage() {
   })
 
   if (isPending) return (
-    <MainContent className="align-center justify-center gap-1">
+    <MainContent className="items-center justify-center gap-4">
       <div className="spinner"></div>
       <span>Initializing Dashboard...</span>
     </MainContent>
   )
 
   if (isError) return (
-    <MainContent className="align-center justify-center gap-1">
-      <p>❌ Error loading Job Dashboard: {error.message}</p>
+    <MainContent className="items-center justify-center gap-4">
+      <p>Error loading Job Dashboard: {error.message}</p>
     </MainContent>
   )
 
@@ -56,7 +56,7 @@ function JobManagerDashboardPage() {
 
   return (
     <MainContent>
-      <header className="flex space-between pad-1">
+      <header className="flex justify-between p-4">
         <div>
           <Breadcrumb.default>
             <Breadcrumb.Item to="/admin">Administration</Breadcrumb.Item>
@@ -72,8 +72,8 @@ function JobManagerDashboardPage() {
         </div>
       </header>
 
-      <section className="flex-col gap-1">
-        <h2 className="pad-0-1">Summary Across Queues</h2>
+      <section className="flex-col gap-4">
+        <h2 className="px-4">Summary Across Queues</h2>
 
         <JobsSummary>
           <JobStatistic>
@@ -98,7 +98,7 @@ function JobManagerDashboardPage() {
       </section>
 
       <section className="flex-col flex-1">
-        <div className="pad-1">
+        <div className="p-4">
           <h2>Queues</h2>
         </div>
         {queue_names.length > 0 ? (

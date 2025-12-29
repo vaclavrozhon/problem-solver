@@ -4,6 +4,7 @@ import { styled } from "@linaria/react"
 import { useQuery } from "@tanstack/react-query"
 
 import BracketLink from "../components/action/BracketLink"
+import { Spinner } from "@heroui/react"
 import { Table, TableBody, TableHeader, TableRow, TableCell, SortButton, ClickableTableCell, SortSelect } from "../components/ui/Table"
 import StatusBadge from "../components/ui/StatusBadge"
 import { get_users_problems } from "../api/problems"
@@ -22,11 +23,21 @@ function OverviewPage() {
     queryFn: get_users_problems,
   })
 
-  if (isPending) return <MainContent><p>Loading problems...</p></MainContent>
-  if (isError || !problems) return <MainContent><p>Error occurred: {JSON.stringify(error)}</p></MainContent>
+  if (isPending) return (
+    <main className="flex-1 flex-center flex-col gap-4">
+      <Spinner/>
+      <p>Loading problems...</p>
+    </main>
+  )
+
+  if (isError || !problems) return (
+    <main className="flex-1 flex-center">
+      <p>Error occurred: {error?.message}</p>
+    </main>
+  )
 
   if (problems === 204) return (
-    <MainContent>
+    <main className="flex-1 p-4 pt-2">
       <div>
         <p>No research problems were found.</p>
         <p>
@@ -37,7 +48,7 @@ function OverviewPage() {
           &nbsp;your first research problem!
         </p>
       </div>
-    </MainContent>
+    </main>
   )
 
   const sorted_problems = [...problems].sort((a, b) => {
@@ -46,27 +57,9 @@ function OverviewPage() {
     return sort_direction === "desc" ? b_time - a_time : a_time - b_time
   })
 
-  const currently_running_problems_count = problems.filter(p => p.is_running && p.phase !== "idle").length
-  const total_rounds_count = problems.reduce((sum, p) => sum + (p.current_round ?? 0), 0)
-
   return (
-    <MainContent>
+    <main className="flex-1 flex flex-col p-4 pt-0 gap-4">
       <h1>My Problems</h1>
-
-      {/* <MetricDashboard>
-        <MetricCard>
-          <p className="title">Total Problems</p>
-          <p className="num">{problems.length}</p>
-        </MetricCard>
-        <MetricCard>
-          <p className="title">Currently Running</p>
-          <p className="num">{currently_running_problems_count}</p>
-        </MetricCard>
-        <MetricCard>
-          <p className="title">Total Rounds</p>
-          <p className="num">{total_rounds_count}</p>
-        </MetricCard>
-      </MetricDashboard> */}
 
       <Table $columns="3fr minmax(5rem, .4fr) .8fr minmax(14rem, .9fr)">
         <TableHeader>
@@ -107,38 +100,6 @@ function OverviewPage() {
           ))}
         </TableBody>
       </Table>
-    </MainContent>
+    </main>
   )
 }
-
-const MetricCard = styled.div`
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-  gap: .4rem;
-  padding: 1rem 1.4rem;
-  border-radius: .5rem;
-  border: var(--border-alpha);
-  & p.title {
-    text-transform: uppercase;
-    font-size: .8rem;
-  }
-  & p.num {
-    color: var(--text-beta);
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-`
-
-const MetricDashboard = styled.section`
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-`
-
-const MainContent = styled.main`
-  display: flex;
-  flex-flow: column;
-  gap: 1rem;
-  padding: 1rem;
-`

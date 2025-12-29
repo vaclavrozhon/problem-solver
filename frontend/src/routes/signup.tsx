@@ -1,227 +1,145 @@
-import { useState, FormEvent, FormEventHandler } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { styled } from "@linaria/react"
-import BracketButton from "../components/action/BracketButton"
+import { useMutation } from "@tanstack/react-query"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { signup_schema } from "@shared/auth"
+
+import {
+  Form,
+  TextField,
+  Label,
+  Input,
+  FieldError,
+  Button,
+  Alert,
+  Separator,
+  Spinner
+} from "@heroui/react"
 import BracketLink from "../components/action/BracketLink"
 
 import { supabase } from "../config/supabase"
 import { api } from "../api"
+import { Icon } from "@iconify/react"
 
 export const Route = createFileRoute("/signup")({
-  component: SignupPage
+  component: SignupPage,
 })
-
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const [name, set_name] = useState<string>("")
-  const [email, set_email] = useState<string>("")
-  const [password, set_password] = useState<string>("")
-  const [message, set_message] = useState<string>("")
-  const [is_loading, set_loading] = useState(false)
 
-  // TODO: migrate to react-form-hook
-  const handle_signup = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    set_message("")
-    set_loading(true)
+  const { register, formState: { errors }, handleSubmit } = useForm({
+    defaultValues: { name: "", email: "", password: "" },
+    resolver: zodResolver(signup_schema),
+  })
 
-    try {
-      const { data, error } = await api.auth.signup.post({
-        name,
-        email,
-        password,
+  const sign_up = useMutation({
+    mutationFn: async (form_data: z.infer<typeof signup_schema>) => {
+      const { data, error } = await api.auth.signup.post(form_data)
+      if (error || !data?.session) {
+        throw new Error(error?.value?.message ?? "Sign Up failed")
+      }
+      return data.session
+    },
+    onSuccess: async (session) => {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
       })
+      navigate({ to: "/" })
+    },
+  })
 
-      if (error) {
-        set_message(error.value?.message ?? "Signup failed")
-        set_loading(false)
-        return
-      }
-
-      if (data?.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        })
-        navigate({ to: "/" })
-      } else {
-        navigate({ to: "/login", search: { error: undefined, message: undefined } })
-      }
-    } catch (err) {
-      set_message("Network error - please try again")
-    } finally {
-      set_loading(false)
-    }
-  }
-
-  const handle_google_signup = async () => {
-    set_message("")
-    set_loading(true)
-
-    try {
+  const google_sign_up = useMutation({
+    mutationFn: async () => {
       const { data, error } = await api.auth.oauth.google.get()
-
       if (error || !data?.url) {
-        set_message("Failed to initiate Google sign up")
-        set_loading(false)
-        return
+        throw new Error("Failed to initiate Google Sign Up")
       }
+      return data.url
+    },
+    onSuccess: (url) => {
+      window.location.href = url
+    },
+  })
 
-      window.location.href = data.url
-    } catch (err) {
-      set_message("Network error - please try again")
-      set_loading(false)
-    }
-  }
+  const error = sign_up.error?.message ?? google_sign_up.error?.message
 
   return (
-    <MainContent>
-      <h1>Create Account</h1>
-      <AuthForm onSubmit={handle_signup}>
-        <TextInput name="name" label="YOUR NAME"
-          onInput={e => set_name(e.currentTarget.value)} />
-        <TextInput name="email" label="EMAIL ADDRESS"
-          onInput={e => set_email(e.currentTarget.value)} />
-        <TextInput name="password" label="PASSWORD" type="password"
-          onInput={e => set_password(e.currentTarget.value)} />
-        <BracketButton type="submit" disabled={is_loading}>
-          {is_loading ? "Creating..." : "Create Account"}
-        </BracketButton>
-        {message && (
-          <p className="form-message">
-            <span>ERROR</span>
-            {message}
+    <main className="flex-1 p-6">
+      <div className="max-w-sm flex flex-col gap-6">
+        <h1>Create Account</h1>
+
+        <Form onSubmit={handleSubmit(data => sign_up.mutate(data))}
+          className="flex flex-col gap-4">
+          <TextField isInvalid={!!errors.name}>
+            <Label>Name</Label>
+            <Input type="text"
+              placeholder="Bernard Bolzano"
+              {...register("name")}/>
+            <FieldError>{errors.name?.message}</FieldError>
+          </TextField>
+
+          <TextField isInvalid={!!errors.email}>
+            <Label>Email</Label>
+            <Input type="text"
+              placeholder="bernard@bolzano.app"
+              {...register("email")}/>
+            <FieldError>{errors.email?.message}</FieldError>
+          </TextField>
+
+          <TextField isInvalid={!!errors.password}>
+            <Label>Password</Label>
+            <Input
+              type="password"
+              {...register("password")} />
+            <FieldError>{errors.password?.message}</FieldError>
+          </TextField>
+
+          <Button type="submit"
+            isPending={sign_up.isPending}
+            className="w-1/3">
+            {sign_up.isPending ? (
+              <>
+                <Spinner size="sm" color="current"/>
+                Creating&hellip;
+              </>
+            ) : "Sign Up"}
+          </Button>
+
+          {error && (
+            <Alert status="danger">
+              <Alert.Indicator/>
+              <Alert.Content>
+                <Alert.Title>{error}</Alert.Title>
+              </Alert.Content>
+            </Alert>
+          )}
+        </Form>
+
+        <p className="text-sm">
+          Already have an account?{" "}
+          <BracketLink to="/login">
+            Sign In
+          </BracketLink>
+        </p>
+
+        <div className="relative">
+          <p className="text-sm absolute w-full text-center -top-2.75">
+            <span className="bg-alpha fade-edges px-6">or</span>
           </p>
-        )}
-      </AuthForm>
-      <p>Already have an account? <BracketLink to="/login" search={{ error: undefined, message: undefined }}>Sign In</BracketLink></p>
-      <GoogleSignIn>
-        <p>Or simply</p>
-        <BracketButton onClick={handle_google_signup} disabled={is_loading}>
-          Get In with Google
-        </BracketButton>
-      </GoogleSignIn>
-    </MainContent>
+          <Separator/>
+        </div>
+
+        <Button variant="tertiary"
+          fullWidth
+          onPress={() => google_sign_up.mutate()}
+          isPending={google_sign_up.isPending}>
+          <Icon icon="logos:google-icon"/>
+          Continue with Google
+        </Button>
+      </div>
+    </main>
   )
 }
-
-const GoogleSignIn = styled.div`
-  display: flex;
-  flex-flow: column;
-  align-items: flex-start;
-  width: 100%;
-  gap: 1rem;
-  max-width: 24rem;
-`
-
-const AuthForm = styled.form`
-  display: flex;
-  flex-flow: column;
-  align-items: flex-start;
-  max-width: 24rem;
-  gap: 1rem;
-  border-radius: .4rem;
-  & p.form-message {
-    background: var(--bg-beta);
-    padding: .3rem .6rem;
-    border: var(--border-alpha);
-    border-radius: .2rem;
-    & span {
-      font-weight: 500;
-      color: var(--accent-alpha);
-      margin-right: .2rem;
-      border-right: var(--border-alpha);
-      padding: .3rem 0;
-      margin: -.3rem 0;
-      padding-right: .6rem;
-      margin-right: .6rem;
-    }
-  }
-`
-
-const MainContent = styled.main`
-  display: flex;
-  flex-flow: column;
-  gap: 1rem;
-  padding: 1.5rem;
-`
-
-interface InputProps {
-  name: string,
-  label: string,
-  type?: "text" | "password",
-  onInput: FormEventHandler<HTMLInputElement>,
-}
-
-function TextInput({ name, label, type = "text", onInput }: InputProps) {
-  return (
-    <TextInputStyled>
-      <input
-        id={`input-${name}`}
-        type={type}
-        name={name}
-        placeholder=" "
-        onInput={onInput}
-        autoComplete="off"
-        autoCorrect="off"/>
-      <label htmlFor={name}>{label}</label>
-    </TextInputStyled>
-  )
-}
-
-const TextInputStyled = styled.div`
-position: relative;
-display: flex;
-width: 100%;
-background: var(--bg-beta);
-border-radius: 6px 6px 0 0;
-cursor: text;
-& label {
-  position: absolute;
-  text-transform: uppercase;
-  color: var(--text-alpha);
-  font-weight: 600;
-  font-size: 1.1rem;
-  cursor: text;
-  user-select: none;
-  pointer-events: none;
-  transform: translate(22.5px, 25.5px);
-  transform-origin: top left;
-  transition: all 0.15s ease-out;
-  z-index: 2;
-}
-& input {
-  font-size: 1.1rem;
-  background: var(--bg-beta);
-  color: var(--text-beta);
-  font-weight: 500;
-  border: 0;
-  padding: 36px 22.5px 11px 22.5px;
-  border-bottom: 2px solid var(--text-alpha);
-  width: 100%;
-  &:autofill {
-    -webkit-text-fill-color: var(--text-beta);
-  }
-  &:focus {
-    border-color: var(--accent-alpha);
-    & + label {
-      color: var(--accent-alpha);
-    }
-  }
-  &:focus + label, &:not(:placeholder-shown) + label {
-    transform: translate(22.5px, 12.5px) scale(0.82);
-  }
-}
-& p {
-  display: none;
-  position: absolute;
-  right: 22.5px;
-  color: var(--text-alpha);
-  font-weight: 500;
-  bottom: 13px;
-  font-size: 1.1rem;
-  pointer-events: none;
-  user-select: none;
-}
-`

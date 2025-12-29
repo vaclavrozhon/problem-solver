@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { styled } from "@linaria/react"
+
+import { Spinner } from "@heroui/react"
+import BracketLink from "../components/action/BracketLink"
 
 import { get_openrouter_usage } from "../api/account"
 
@@ -15,80 +17,52 @@ function UsagePage() {
   })
 
   if (isPending) return (
-    <MainContent className="flex-center flex-col gap-1">
-      <div className="spinner"></div>
+    <main className="flex-1 flex-center flex-col gap-4">
+      <Spinner/>
       <p>Loading usage...</p>
-    </MainContent>
+    </main>
   )
 
   if (isError) return (
-    <MainContent>
+    <main className="flex-1 flex-center">
       <p>An error occurred whilst fetching OpenRouter usage data.</p>
-    </MainContent>
+    </main>
   )
 
   return (
-    <MainContent className="flex-col gap-1">
-      <h1>LLM Paid Usage</h1>
+    <main className="flex-1 flex-col gap-4 p-4 pt-0">
+      <h1>LLM Usage</h1>
       {balance === null ? (
-        <p>Add your OpenRouter API key in Settings to see your balance & usage.</p>
+        <p>
+          Add an OpenRouter API key in{" "}
+          <BracketLink to="/settings">Settings</BracketLink>
+          {" "}to see your balance & usage
+        </p>
       ) : (
-        <section className="flex-col gap-1">
+        <section className="flex-col gap-4">
           <h2>OpenRouter</h2>
-          <div className="flex gap-1">
-            <div className="block">
-              <h3>Balance remaining</h3>
-              <p><span>$</span>{balance.balance?.toFixed(3)}</p>
-            </div>
-            <div className="block">
-              <h3>Money spent</h3>
-              <p><span>$</span>{balance.usage.toFixed(3)}</p>
-            </div>
+          <div className="flex gap-4">
+            <MoneyBlock title="Balance remaining"
+              money={balance.balance}/>
+            <MoneyBlock title="Money spent"
+              money={balance.usage}/>
           </div>
-          {/* TODO: Display this messgae only if we check that the key_source is "self" and not "provisioned"... should probably add that tot the API? */}
-          {/* <p>The usage includes all API costs even those made outside of bolzano.app</p> */}
-          {/* TODO: Add estimate for only Bolzano.app usage */}
         </section>
       )}
-    </MainContent>
+    </main>
   )
 }
+interface MoneyBlockProps {
+  title: string,
+  money: number | null,
+}
 
-const MainContent = styled.main`
-  padding: 1rem;
-  & > section {
-    & div.block {
-      display: flex;
-      flex-flow: column;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 1rem;
-      border: var(--border-alpha);
-      border-radius: .8rem;
-      width: 20em;
-      height: 10rem;
-      background: var(--text-gamma);
-      color: var(--bg-alpha);
-      & *::selection {
-        color: var(--text-gamma);
-        background: var(--bg-alpha);
-      }
-      & h3 {
-        font-family: Kode;
-        text-transform: uppercase;
-        color: var(--bg-alpha);
-        font-size: 1.5rem;
-      }
-      & p {
-        font-size: 3rem;
-        font-weight: 600;
-        & span {
-          font-family: Kode;
-          color: var(--accent-beta);
-          user-select: none;
-          margin-right: .15rem;
-        }
-      }
-    }
-  }
-`
+const MoneyBlock = ({ title, money }: MoneyBlockProps) => (
+  <div className="flex flex-col justify-between p-4 rounded-xl w-xs h-40 bg-brand/20">
+    <h3 className="kode uppercase text-2xl font-bold">{title}</h3>
+    <p className="text-5xl font-bold text-ink-2">
+      <span className="kode text-brand mr-0.5 select-none">$</span>
+      {money?.toFixed(3)}
+    </p>
+  </div>
+)

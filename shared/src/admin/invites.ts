@@ -1,3 +1,6 @@
+import { z } from "zod"
+import { user_name_schema } from "@shared/auth"
+
 export const InviteStatusValues = ["pending", "redeemed", "to-be-removed"] as const
 export type InviteStatus = typeof InviteStatusValues[number]
 
@@ -29,6 +32,7 @@ export interface Invite {
 }
 
 
+// TODO: could be derived from invite_schema
 export interface CreateInviteParams {
   recipient_name: string,
   credit_limit: number,
@@ -44,3 +48,13 @@ export interface CreateInviteResult {
     credit_limit: number,
   },
 }
+
+
+// Schemas
+export const INVITE_CREDIT_MIN = 1
+export const INVITE_CREDIT_MAX = 100
+
+export const invite_schema = z.object({
+  recipient_name: user_name_schema,
+  credit_limit: z.int32().min(INVITE_CREDIT_MIN).max(INVITE_CREDIT_MAX),
+})

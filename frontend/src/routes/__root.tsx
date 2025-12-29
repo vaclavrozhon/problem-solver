@@ -1,15 +1,10 @@
-import { createRootRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router"
+import { createRootRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router"
 import { useAuth } from "../auth/hook"
-import PageNotFound from "../pages/404"
-
-import { styled } from "@linaria/react"
-import BracketButton from "../components/action/BracketButton"
-import { BracketLink } from "../components/action/BracketLink"
 import { auth_ready, useAuthStore, select_is_authenticated } from "../auth/store"
 
-import Logo from "../components/svg/Logo"
-import TextLogo from "../components/svg/TextLogo"
-import ThemeSelector from "../components/app/ThemeSelector"
+import PageNotFound from "../pages/404"
+import Header from "../components/app/Header"
+import Footer from "../components/app/Footer"
 
 /**
  * Routes that are public and are related to the auth flow
@@ -50,124 +45,12 @@ function RootLayout() {
     navigate({ to: "/login", search: { error: undefined, message: undefined } })
   }
 
-  if (!is_authenticated) return (
-    <PageContent>
-      <Header>
-        <p className="project_name">
-          <Logo/>
-          <TextLogo lowercase/>
-        </p>
-      </Header>
-
-      <Outlet/>
-
-      <Footer>
-        <div><ThemeSelector/></div>
-        <p>
-          <BracketLink href="https://github.com/vaclavrozhon/problem-solver/tree/dev" target="_blank">Code-&gt;GitHub</BracketLink>
-        </p>
-        <p>
-          Errors, feedback, help? -&gt;
-          <Email href="mailto:human@bolzano.app">human@bolzano.app</Email>
-        </p>
-      </Footer>
-    </PageContent>
-  )
-
   return (
-    <PageContent>
-      <Header>
-        <Link to="/" className="project_name">
-          <Logo/>
-          <TextLogo lowercase/>
-        </Link>
-        <Nav>
-          <Link to="/" preload="intent">My Problems</Link>
-          <Link to="/create" preload="intent">Create Problem</Link>
-          <Link to="/usage" preload="intent">Usage</Link>
-          <Link to="/settings" preload="intent">Settings</Link>
-          {is_admin && <Link to="/admin" preload="intent">Administration</Link>}
-        </Nav>
-      </Header>
-
+    <div className="flex-1 flex flex-col">
+      <Header is_authenticated={is_authenticated}
+        is_admin={is_admin}/>
       <Outlet/>
-
-      <Footer>
-        <div><ThemeSelector/></div>
-        <p>
-          <BracketLink href="https://github.com/vaclavrozhon/problem-solver/tree/dev" target="_blank">Code-&gt;GitHub</BracketLink>
-        </p>
-        <p>
-          Errors, feedback, help? -&gt;
-          <Email href="mailto:human@bolzano.app">human@bolzano.app</Email>
-        </p>
-        <p style={{ marginLeft: "auto" }}>
-          <BracketButton onClick={handle_sign_out}>Sign Out</BracketButton>
-        </p>
-        <p>Logged in as {user?.email}</p>
-      </Footer>
-    </PageContent>
+      <Footer/>
+    </div>
   )
 }
-
-const PageContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-`
-
-const Header = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: .6rem 1rem;
-  border-bottom: var(--border-alpha);
-  & .project_name {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-  }
-`
-
-const Nav = styled.nav`
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  & a {
-    &:hover:not(.active) {
-      text-decoration: underline;
-    }
-    &.active {
-      color: var(--text-beta);
-      font-weight: 600;
-    }
-  }
-`
-
-const Footer = styled.footer`
-  display: flex;
-  border-top: var(--border-alpha);
-  & div {
-    padding: 0 .2rem;
-  }
-  & p {
-    padding: .4rem .6rem;
-  }
-  & div, p {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    &:not(:last-child) {
-      border-right: var(--border-alpha);
-    }
-  }
-`
-
-const Email = styled.a`
-  margin-left: .3rem;
-  font-weight: 500;
-  &:hover {
-    text-decoration: underline;
-  }
-`

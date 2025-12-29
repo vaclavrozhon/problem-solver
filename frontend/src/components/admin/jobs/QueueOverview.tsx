@@ -24,7 +24,7 @@ export function QueueOverview({ name, state }: QueueProps) {
       <JobSchemas schemas={schemas}/>
 
       {Object.values(jobs).flat().length === 0 ? (
-        <div className="pad-1 border-top">
+        <div className="p-4 border-t-2 border-border">
           No jobs have been queued yet.
         </div>
       ) : (
@@ -120,9 +120,9 @@ export function JobsWithStatusTable({
 }: JobsStatusTableProps) {
   return (
     <JobsWithStatus $status={status}
-      className="flex-col gap-1">
+      className="flex-col gap-4">
       <div>
-        <h4 className="flex align-center kode">
+        <h4 className="flex items-center kode">
           <span>
             {JobStatusIcon[status]}
           </span>
@@ -146,7 +146,7 @@ export function JobsWithStatusTable({
                 <TableCell>{job.id}</TableCell>
                 <TableCell>{format_name(job.name)}</TableCell>
                 <TableCell>{job.attempts}</TableCell>
-                <TableCell className="kode size-09">{new Date(job.created_at).toLocaleString("cs-CZ", {
+                <TableCell className="kode text-sm">{new Date(job.created_at).toLocaleString("cs-CZ", {
                   day: "2-digit", month: "2-digit",
                   hour: "2-digit", minute: "2-digit", second: "2-digit"
                 })}</TableCell>

@@ -4,10 +4,8 @@ import { eq, sql, and } from "drizzle-orm"
 import { auth_plugin, drizzle_plugin } from "../plugins"
 import { profiles, invites } from "../../drizzle/schema"
 import { decrypt_api_key, encrypt_api_key } from "../encryption"
-import { is_valid_openrouter_key } from "../openrouter/general"
-import { OpenRouter } from "@openrouter/sdk"
-import { is_admin } from "@shared/auth"
-import type { GetCreditsData } from "@openrouter/sdk/models/operations"
+import { is_valid_openrouter_key, get_openrouter_balance } from "../openrouter/general"
+import { invite_code_schema, user_name_schema, openrouter_api_key_schema } from "@shared/auth"
 
 export const profile_router = new Elysia({ prefix: "/profile" })
   .use(auth_plugin)
@@ -46,8 +44,7 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   }, {
     isAuth: true,
     body: z.object({
-      // BUG: Link UP THIS NAME WITH SIGNUP flow
-      name: z.string().min(1).max(50),
+      name: user_name_schema,
     })
   })
 
@@ -88,8 +85,7 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   }, {
     isAuth: true,
     body: z.object({
-      // TODO: get the structure of the key
-      api_key: z.string().min(10, "API key too short"),
+      api_key: openrouter_api_key_schema,
     })
   })
 
@@ -131,7 +127,7 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   .post("/redeem-invite", async ({ db, body, user, status }) => {
     // (1) Find the invite
     const invite = await db.query.invites.findFirst({
-      where: eq(invites.code, body.code.toUpperCase()),
+      where: eq(invites.code, body.code),
       columns: {
         id: true,
         status: true,
@@ -213,90 +209,23 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   }, {
     isAuth: true,
     body: z.object({
-      // BUG: correct code length
-      code: z.string().min(6).max(12),
+      code: invite_code_schema,
     })
   })
 
   /**
    * [AUTH] GET /profile/balance
    * 
-   * Retrieves OpenRouter balance & usage through linked API key.
+   * Retrieves OpenRouter balance & usage
    * If no key set, returns `204` code.
-   * Usage per key (not total for account)
-   * Balance per key, if no limit and provisioned, returns null
    * 
    * MANUALLY TESTED?: yes, works
    */
   .get("/balance", async ({ db, user, status }) => {
     try {
-      let decrypted_key
-      if (is_admin(user.role)) {
-        decrypted_key = Bun.env.OPENROUTER_API_KEY
-      } else {
-        const api_key = await db.query.profiles.findFirst({
-          where: eq(profiles.id, user.id),
-          columns: {
-            openrouter_key_encrypted: true,
-            openrouter_key_iv: true,
-            encryption_key_version: true,
-          }
-        })
-        if (!api_key) return status(204)
-        if (
-          api_key.encryption_key_version === null
-          || api_key.openrouter_key_encrypted === null
-          || api_key.openrouter_key_iv === null
-        ) return status(204)
-    
-        decrypted_key = decrypt_api_key(
-          api_key.openrouter_key_encrypted,
-          api_key.openrouter_key_iv,
-          user.id,
-          api_key.encryption_key_version
-        )
-      }
-
-      const openrouter = new OpenRouter({ apiKey: decrypted_key })
-
-      // Works for all keys
-      const { data: key_metadata } = await openrouter.apiKeys.getCurrentKeyMetadata()
-
-      // This endpoint works only for non-provisioned keys
-      let credits: GetCreditsData | null = null
-      try {
-        const response = await openrouter.credits.getCredits()
-        credits = response.data
-      } catch (e) {}
-
-      // /credits returns usage for whole account even if current key has no usage
-      // => usage needs to be inherited from key metadata at all times
-      const key_usage = key_metadata.usage
-      
-      /**
-       * if the key is provisioned, openrouter disallows access to /credits
-       * that reveals total account balance -> no way to get actual available
-       * credits for provisioned key – uncertainty whether you can use it or not
-       * => provisioned key: show remaining key limit, if no limit, return null
-       * => manual key:
-       *      -    limit: min{ account_balance, remaining_key_limit }
-       *      - no limit: account balance
-       */
-      let key_balance: number | null
-      if (credits) {
-        const total_account_balance = credits.totalCredits - credits.totalUsage
-        if (key_metadata.limitRemaining) key_balance = Math.min(total_account_balance, key_metadata.limitRemaining)
-        else key_balance = total_account_balance
-      } else {
-        key_balance = key_metadata.limitRemaining
-      }
-
-      return {
-        usage: key_usage,
-        balance: key_balance,
-        // TODO: BYOK UI
-        // byok_usage: key_metadata.byokUsage,
-      }
+      const balance = get_openrouter_balance(db, user)
+      if (balance === null) return status(204)
+      return balance
     } catch (e) {
       console.log("[/profile/balance] failed", e)
       return status(500, {

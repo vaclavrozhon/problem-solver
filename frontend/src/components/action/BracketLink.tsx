@@ -1,5 +1,6 @@
 import React from "react"
-import { createLink, LinkComponent } from "@tanstack/react-router"
+import { createLink } from "@tanstack/react-router"
+import type { LinkComponent } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
 
 const Link = styled.a`

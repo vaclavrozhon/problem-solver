@@ -64,9 +64,12 @@ const Selector = styled.div`
 }
 
 display: flex;
+justify-content: center;
+align-items: center;
 cursor: pointer;
 --scale: .8;
-width: 30px;
+width: calc(30px * var(--scale));
+height: calc(30px * var(--scale));
 
 &.animate {
   animation: rot .52s ease forwards;

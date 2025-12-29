@@ -1,8 +1,9 @@
+import { z } from "zod"
 // Keep shared types independent of backend to avoid cycles.
 // These mirror backend enums/fields used by the frontend.
 
 // Problem status type (mirrors backend problem-status enum)
-// Link this to drizzle defintion
+// TODO: Link this to drizzle defintion
 export type ProblemStatus = "created" | "idle" | "queued" | "running" | "failed" | "completed"
 
 // Initial placeholder content for main files when a problem is created
@@ -95,3 +96,10 @@ export interface ProblemFiles {
     summarizer: File[],
   }[],
 }
+
+// Schemas
+
+export const CreateProblemFormSchema = z.object({
+  problem_name: z.string().nonempty("Problem needs name!").min(5, "Problem Name needs to be at least 5 characters long."),
+  problem_task: z.string().nonempty("Problem needs task description!").min(20, "Problem Task description needs to be at least 20 characters long."),
+})

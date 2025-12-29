@@ -1,6 +1,7 @@
 import { OpenRouter } from "@openrouter/sdk"
 import type { GetKeyResponse, DeleteKeysResponse } from "@openrouter/sdk/models/operations"
 import type { ProvisionedKeyUsage } from "@shared/admin/invites"
+import { INVITE_CODE_LENGTH } from "@shared/auth"
 
 interface ProvisionedKey {
   key: string,
@@ -97,13 +98,12 @@ export async function revoke_provisioned_key(key_hash: string) {
 
 /**
  * Generates a unique invite code.
- * Uses characters that are easy to read and type (no 0, O, 1, I).
+ * Uses characters that are easy to read and type (no 0, O, 1, I, l).
  * @returns {string} generated invite code
  */
 export function generate_invite_code() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-  // TODO: Sync this number
-  const length = 10
+  const chars = "AABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+  const length = INVITE_CODE_LENGTH
   const random_values = new Uint32Array(length)
   crypto.getRandomValues(random_values)
 

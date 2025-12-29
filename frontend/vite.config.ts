@@ -2,6 +2,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import wyw from "@wyw-in-js/vite"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
+import tailwindcss from "@tailwindcss/vite"
 import path from "node:path"
 
 export default defineConfig({
@@ -16,6 +17,7 @@ export default defineConfig({
       }
     }),
     react(),
+    tailwindcss(),
     wyw(),
   ],
   envDir: "../",

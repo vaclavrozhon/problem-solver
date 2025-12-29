@@ -21,15 +21,15 @@ function AdminUsersPage() {
   })
 
   if (isPending) return (
-    <MainContent className="align-center justify-center gap-1">
+    <MainContent className="items-center justify-center gap-4">
       <div className="spinner"></div>
       <span>Loading users...</span>
     </MainContent>
   )
 
   if (isError) return (
-    <MainContent className="align-center justify-center gap-1">
-      <p>❌ Error loading users: {error.message}</p>
+    <MainContent className="items-center justify-center gap-4">
+      <p>Error loading users: {error.message}</p>
     </MainContent>
   )
 
@@ -42,7 +42,7 @@ function AdminUsersPage() {
 
   return (
     <MainContent>
-      <header className="flex space-between pad-1">
+      <header className="flex justify-between p-4">
         <div>
           <Breadcrumb.default>
             <Breadcrumb.Item to="/admin">Administration</Breadcrumb.Item>
@@ -53,9 +53,9 @@ function AdminUsersPage() {
         </div>
       </header>
 
-      <section className="flex-col gap-05 pad-1">
+      <section className="flex-col gap-2 p-4">
         <h2>Summary</h2>
-        <section className="flex gap-1">
+        <section className="flex gap-4">
           <Statistic>
             <p>{stats.total}</p>
             <p>Total Users</p>
@@ -71,7 +71,7 @@ function AdminUsersPage() {
         </section>
       </section>
 
-      <section className="flex-col flex-1 pad-1 gap-05">
+      <section className="flex-col flex-1 p-4 gap-2">
         <h2>All Users</h2>
 
         <Table $columns="1fr 1.5fr 8rem 6rem 8rem">
@@ -89,9 +89,9 @@ function AdminUsersPage() {
                 background: user.id === authorized_user?.id ? "var(--bg-beta)" : "",
                 color: user.id === authorized_user?.id ? "var(--accent-alpha)" : "",
               }}>
-                <TableCell className="gap-05">
+                <TableCell className="gap-2">
                   {user.name}
-                  {(user.id === authorized_user?.id) && <p className="kode size-09">(you)</p>}
+                  {(user.id === authorized_user?.id) && <p className="kode text-sm">(you)</p>}
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell $align="center">{user.role}</TableCell>

@@ -1,6 +1,7 @@
 import { Elysia } from "elysia"
 import { z } from "zod"
 import { eq, desc, and } from "drizzle-orm"
+import { OpenRouter } from "@openrouter/sdk"
 
 import { auth_plugin, drizzle_plugin } from "../plugins"
 import { invites } from "../../drizzle/schema"
@@ -12,6 +13,7 @@ import {
   generate_invite_code
 } from "../openrouter/provision"
 import type { ProvisionedKeyUsage } from "@shared/admin/invites"
+import { invite_schema } from "@shared/admin/invites"
 
 export const invites_router = new Elysia({ prefix: "/invites" })
   .use(auth_plugin)
@@ -24,7 +26,7 @@ export const invites_router = new Elysia({ prefix: "/invites" })
    * 
    * MANUALLY TESTED?: Yes, works
    */
-  .get("/all", async ({ db }) => {
+  .get("/all", async ({ db, admin }) => {
     const all_invites = await db.query.invites.findMany({
       columns: {
         id: true,
@@ -70,6 +72,7 @@ export const invites_router = new Elysia({ prefix: "/invites" })
             user_switched_to_own_key = true
           }
         }
+
         return {
           id: invite.id,
           code: invite.code,
@@ -89,7 +92,16 @@ export const invites_router = new Elysia({ prefix: "/invites" })
       })
     )
 
-    return { invites: invites_with_usage }
+    let { data: admin_openrouter_credits } = await new OpenRouter({
+      apiKey: Bun.env.OPENROUTER_API_KEY
+    }).credits
+      .getCredits()
+
+    return {
+      invites: invites_with_usage,
+      admin_balance: admin_openrouter_credits.totalCredits 
+        - admin_openrouter_credits.totalUsage
+    }
   }, { isAdmin: true })
 
   /**
@@ -152,11 +164,7 @@ export const invites_router = new Elysia({ prefix: "/invites" })
     }
   }, {
     isAdmin: true,
-    body: z.object({
-      // TODO: Sync this body
-      recipient_name: z.string().min(2, "Name required"),
-      credit_limit: z.coerce.number().min(1).max(100),
-    })
+    body: invite_schema,
   })
 
   /**
@@ -225,6 +233,7 @@ export const invites_router = new Elysia({ prefix: "/invites" })
   }, {
     isAdmin: true,
     params: z.object({
+      // TODO: can this potentially be empty?
       invite_id: z.uuid(),
     }),
   })

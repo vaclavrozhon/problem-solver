@@ -110,7 +110,7 @@ function AdminInvitesPage() {
   const invite_stat__label = "kode uppercase font-semibold text-sm"
 
   const total_allocated_credits = invites.reduce(
-    (acc, invite) => acc + invite.credit_limit,
+    (acc, invite) => acc + (invite.usage?.remaining ?? invite.credit_limit),
     0
   )
   const missing_credits = data.admin_balance - total_allocated_credits
@@ -177,7 +177,7 @@ function AdminInvitesPage() {
             <p className={invite_stat__label + " after:content-['*'] after:font-sans"}>Allocated</p>
           </div>
         </div>
-        <p className="text-sm before:content-['*']">
+        <p className="text-sm before:content-['*'] before:align-top">
           To provide for all invites, {" "}
           <Link href="https://openrouter.ai/settings/credits"
             target="_blank">

@@ -71,7 +71,7 @@ function CreateProblem() {
           <div className="flex flex-col px-4 items-start gap-2">
             <p>Feel free to include Markdown formatting and most importantly KaTeX (use only inline math: $...$).</p>
             <Chip className="p-0 py-2 pr-3 leading-none">
-              <span className="rounded-full bg-warn/60 p-2 -my-2 text-xs kode font-semibold leading-none">
+              <span className="rounded-full bg-warn/60 p-2.25 -my-2 text-xs kode font-bold leading-none">
                 NOTE
               </span>
               It is not possible to edit the Problem Name & Task later

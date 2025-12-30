@@ -322,7 +322,9 @@ function InviteTable({ invites, is_revoking, onRevoke }: InviteTableProps) {
                   <span>$</span>
                   <p className="text-ink-2">{invite.usage.usage.toFixed(2)}</p>
                 </>
-              ) : "-"}
+              ) : (
+                <p className="ml-auto">-</p>
+              )}
             </TableCell>
 
             <TableCell $align="space-between">
@@ -417,7 +419,6 @@ function CreateInviteForm({ onSubmit, is_submitting, mutation_error, admin_balan
                   Ensure sufficient balance on OpenRouter account to cover user usage.
                 </Description>
                 <Description>
-                  {/* TODO */}
                   Current balance: $
                   <span className="text-ink-2">{admin_balance.toFixed(3)}</span>
                 </Description>

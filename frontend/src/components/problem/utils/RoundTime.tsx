@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react"
 
-import type { ProblemRoundSumary, Verdict } from "@shared/types/problem"
+import type { ProblemRoundSumary } from "@shared/types/problem"
 import { Table, TableBody, TableHeader, TableRow, TableCell, TableErrorSection } from "../../ui/Table"
 import StatusBadge from "../../ui/StatusBadge"
 
@@ -52,7 +52,10 @@ export default function RoundTime({ round_summaries }: Props) {
                     </VerdictBadge>
                   ) : "-"}
                 </TableCell>
-                <TableCell $align="right">${round.usage.toFixed(3)}</TableCell>
+                <TableCell $align="space-between">
+                  <span>$</span>
+                  <p className="text-ink-2">{round.usage.toFixed(3)}</p>
+                </TableCell>
                 <TableCell $align="right">
                   {total_time(round) !== 0 ? `${total_time(round).toFixed(1)} s` : "-"}
                 </TableCell>

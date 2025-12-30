@@ -3,15 +3,19 @@ import { Select, ListBox, Header, Switch, Button, Separator, Tooltip } from "@he
 import { Icon } from "@iconify/react"
 import { z } from "zod"
 
-import { models, get_model_by_id, reasoning_efforts, provider_details, ModelConfig } from "@shared/types/research"
+import { models, get_model_by_id, provider_details, ModelConfig } from "@shared/types/research"
 import type { ModelID, ReasoningEffort, ReasoningConfig, ReasoningEffortValue, Provider } from "@shared/types/research"
+import ProviderLogo from "@frontend/components/svg/ProviderLogo"
+import ReasoningTag from "@frontend/components/problem/ReasoningTag"
+import WebSearchTag from "@frontend/components/problem/WebSearchTag"
 
 interface ModelSelectProps {
-  selected?: z.infer<typeof ModelConfig>
-  onChange: (value: z.infer<typeof ModelConfig>) => void
+  selected?: z.infer<typeof ModelConfig>,
+  onChange: (value: z.infer<typeof ModelConfig>) => void,
+  trigger_style?: string,
 }
 
-export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
+export default function ModelSelect({ selected, onChange, trigger_style }: ModelSelectProps) {
   const [is_open, setIsOpen] = useState(false)
   const new_model_selected = useRef(false)
 
@@ -75,7 +79,7 @@ export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
       aria-label="Model"
       isOpen={is_open}
       onOpenChange={handle_open_change}>
-      <Select.Trigger>
+      <Select.Trigger className={trigger_style}>
         <Select.Value className="flex justify-between min-w-0">
           <p className="truncate block!">
             {selected_model
@@ -87,20 +91,8 @@ export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
             {selected_reasoning && (
               <Tooltip delay={0} closeDelay={0}>
                 <Tooltip.Trigger>
-                  {selected_reasoning === true ? (
-                    <div className="flex-center w-6 h-6 rounded-sm bg-amber-100 text-amber-700">
-                      <Icon icon="ph:brain-duotone" width={18} height={18}/>
-                    </div>
-                  ) : (
-                    <p className={`py-1 px-1.5 text-xs rounded-sm ${
-                      selected_reasoning === "none"
-                        ? "bg-rose-100 text-rose-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                    >
-                      {selected_reasoning}
-                    </p>
-                  )}
+                  <ReasoningTag reasoning={selected_reasoning}
+                    size="sm"/>
                 </Tooltip.Trigger>
               <Tooltip.Content showArrow
                   className={
@@ -126,9 +118,8 @@ export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
             {selected_web_search && (
               <Tooltip delay={0} closeDelay={0}>
                 <Tooltip.Trigger>
-                  <div className="flex-center w-6 h-6 rounded-sm bg-sky-100 text-sky-900">
-                    <Icon icon="ph:globe-duotone" width={18} height={18}/>
-                  </div>
+                  <WebSearchTag enabled={selected_web_search}
+                    size="sm"/>
                 </Tooltip.Trigger>
                 <Tooltip.Content showArrow
                   className="bg-sky-100 text-sky-900">
@@ -148,9 +139,7 @@ export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
             <ListBox.Section key={provider}>
               {idx > 0 && <Separator className="my-1"/>}
               <Header className="flex gap-1.5 align-center font-semibold">
-                {provider_details[provider as Provider].logo && (
-                  <Icon icon={provider_details[provider as Provider].logo!}/>
-                )}
+                <ProviderLogo model_id={provider}/>
                 {provider_details[provider as Provider].name}
               </Header>
 
@@ -195,7 +184,7 @@ export default function ModelSelect({ selected, onChange }: ModelSelectProps) {
         </ListBox>
         
         {selected && (
-          <div className="px-3 py-2.5 flex flex-col gap-2.5 bg-neutral-100">
+          <div className="px-3 py-2.5 flex flex-col gap-2.5 bg-beta">
             {(supports_reasoning || supports_web_search) && (
               <div className="flex justify-between">
                 {is_toggle_reasoning && (

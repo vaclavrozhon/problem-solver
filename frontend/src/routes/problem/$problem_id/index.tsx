@@ -17,7 +17,7 @@ function ProblemID() {
   const { problem_id } = Route.useParams()
   const { user } = useAuth()
 
-  const { data: problem, error, isError, isPending } = useQuery({
+  const { data: problem, isError, isPending } = useQuery({
     queryKey: ["problem", problem_id],
     queryFn: () => get_problem_overview(problem_id),
   })
@@ -76,7 +76,11 @@ function ProblemID() {
         </div>
 
         <div>
-          <p>To share this problem, simply share the current URL with anyone. They must be signed in to view it.</p>
+          <p>
+            To share this problem, simply share the current URL with anyone.
+            <br/>
+            They must be signed in to view it. Don't worry – no one can run research on your behalf.
+          </p>
         </div>
 
         {/* <div>

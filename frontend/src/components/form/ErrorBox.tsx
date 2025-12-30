@@ -1,83 +1,81 @@
-import { styled } from "@linaria/react"
+/* Written by AI */
+import type { FieldErrors, FieldValues } from "react-hook-form"
 
-interface Props {
-  errors: {
-    [error_name: string]: {
-      message?: string,
-    }
+type ErrorLike = {
+  message?: unknown
+  [key: string]: unknown
+} | undefined
+
+/**
+ * Recursively collects all error messages from a nested react-hook-form error object.
+ */
+function collect_errors(
+  error: ErrorLike,
+  path: string[] = []
+): { path: string[]; message: string }[] {
+  if (!error || typeof error !== "object") {
+    return []
   }
-}
-export default function ErrorBox({ errors }: Props) {
-  if (Object.is(errors, {}) || errors === undefined || Object.entries(errors).length === 0) return
 
-  return (
-    <Box>
-      <p>Errors</p>
-      {/* TODO: Make it properly recursive! */}
-      {/* NOTE: Even though the styling seems funky, it looks kinda good. */}
-      {Object.entries(errors).map(error => (
-        <div key={error[0]}>
-          <p className="error_name">{error[0]}</p>
-          {error[1].message ? error[1].message
-            : (error[1].constructor.name === "Object" && error[1] !== null) ? (
-              <div className="nested_error">
-                {Object.entries(error[1]).map(err => (
-                  <div key={err[0]}>
-                    <p className="error_name">{err[0]}</p>
-                    <p>{err[1].message ? err[1].message : "Somethings really wrong!"}</p>
-                  </div>
-                ))}
-              </div>
-            )
-            : "Somethings wrong!"}
-        </div>
-      ))}
-    </Box>
+  if (typeof error.message === "string") {
+    return [{ path, message: error.message }]
+  }
+
+  // recursive nested error objects
+  const nested_entries = Object.entries(error).filter(
+    ([key, value]) => value
+      && typeof value === "object"
+      /** Keys to skip when traversing react-hook-form error objects */
+      && !["message", "ref", "type", "types", "root"].includes(key)
+  )
+
+  // No nested errors but object exists → generic fallback
+  if (nested_entries.length === 0) {
+    return [{ path, message: "Invalid value" }]
+  }
+
+  return nested_entries.flatMap(([key, value]) =>
+    collect_errors(value as ErrorLike, [...path, key])
   )
 }
 
-const Box = styled.section`
-  align-self: flex-start;
-  position: relative;
-  display: flex;
-  flex-flow: column;
-  align-items: flex-start;
-  padding: .6rem;
-  padding-top: 1.1rem;
-  gap: .4rem;
-  border: 2px solid #e2394f;
-  border-radius: .2rem;
-  margin-top: 1.1rem;
-  & > p {
-    position: absolute;
-    top: -1.1rem;
-    left: .8rem;
-    border-radius: 10rem;
-    padding: .3rem .6rem;
-    background: #e2394f;
-    font-weight: 600;
-    color: #eee;
-  }
-  & div {
-    display: flex;
-    align-items: center;
-    gap: .3rem;
-    width: 100%;
-    &:not(:last-of-type) {
-      border-bottom: var(--border-alpha);
-      padding-bottom: .4rem;
-    }
-    & p.error_name {
-      font-weight: 500;
-      background: var(--bg-beta);
-      padding: .2rem .4rem;
-      border-radius: .2rem;
-    }
-    & div.nested_error {
-      display: flex;
-      flex-flow: column;
+interface ErrorBoxProps<T extends FieldValues = FieldValues> {
+  errors: FieldErrors<T>
+}
 
-    }
-  }
-`
+export default function ErrorBox<T extends FieldValues>({
+  errors,
+}: ErrorBoxProps<T>) {
+  if (!errors || Object.keys(errors).length === 0) return null
 
+  const all_errors = Object.entries(errors).flatMap(([name, error]) =>
+    collect_errors(error as ErrorLike, [name])
+  )
+
+  if (all_errors.length === 0) return null
+
+  /* Designed by human */
+  return (
+    <section className="relative w-fit flex flex-col gap-1.5 p-2.5 mt-3.5 pt-4 border-2 border-red-500 rounded">
+      <p className="absolute -top-4 px-3 py-1 rounded-full bg-red-500 text-sm font-semibold text-white/90">
+        Errors
+      </p>
+
+      {all_errors.map(({ path, message }, i) => (
+        <div key={i}
+          className="flex flex-col gap-1.5 w-full not-last:border-b-2 not-last:border-edge not-last:pb-1.5">
+          <div className="flex flex-wrap items-center gap-[4px]">
+            {path.map((key, j) => (
+              <span key={j}
+                className="px-1.5 py-0.5 text-sm font-medium bg-beta rounded">
+                {key}
+              </span>
+            ))}
+          </div>
+
+          <p className="text-sm">{message}</p>
+        </div>
+      ))}
+    </section>
+  )
+}

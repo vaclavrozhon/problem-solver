@@ -42,7 +42,7 @@ interface ProviderDetails {
 export const provider_details = {
   anthropic: {
     name: "Anthropic",
-    logo: "logos:anthropic-icon",
+    logo: "simple-icons:anthropic",
   },
   deepseek: {
     name: "DeepSeek",
@@ -58,11 +58,11 @@ export const provider_details = {
   },
   google: {
     name: "Google",
-    logo: "logos:google-icon",
+    logo: "devicon-plain:google",
   },
   openai: {
     name: "OpenAI",
-    logo: "logos:openai-icon",
+    logo: "bi:openai",
   },
   xai: {
     name: "xAI",

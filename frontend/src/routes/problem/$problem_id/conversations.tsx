@@ -67,7 +67,9 @@ function ProblemConversations() {
     <ProblemDetailsLayout problem_id={problem_id}
       problem_name={problem_rounds.name}>
       {problem_rounds.rounds.length === 0 ? (
-        <p>No research has been done for this problem yet.</p>
+        <div className="flex-1 flex-center">
+          <p>No research has been done for this problem yet.</p>
+        </div>
       ) : (
         <ProblemRounds
           rounds={problem_rounds.rounds}

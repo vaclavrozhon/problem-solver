@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
+import { Skeleton, Spinner } from "@heroui/react"
+
 import { useAuth } from "../../auth/hook"
 
 interface LayoutProps {
@@ -25,12 +27,14 @@ export default function ProblemDetailsLayout({
   // TODO[RELEASE]: If user doesn't own problem, hide `Run research` tab
 
   return (
-    <MainContent>
-      {problem_name ? (
-        <h1>{problem_name}</h1>
-      ) : (
-        <h1></h1>
-      )}
+    <main className="flex-1 flex flex-col">
+      <header className="px-4 pb-4">
+        {problem_name ? (
+          <h1>{problem_name}</h1>
+        ) : (
+          <Skeleton className="h-12 w-lg"/>
+        )}
+      </header>
 
       <ProblemTabs>
         {tabs.map(tab => (
@@ -42,16 +46,16 @@ export default function ProblemDetailsLayout({
       </ProblemTabs>
 
       {loading ? (
-        <LoadingState>
-          <div className="spinner"/>
+        <section className="flex-1 flex-center flex-col gap-4">
+          <Spinner className="text-brand"/>
           {children}
-        </LoadingState>
+        </section>
       ) : (
         <>
           {children}
         </>
       )}
-    </MainContent>
+    </main>
   )
 }
 
@@ -100,13 +104,4 @@ export const MainContent = styled.main`
   & > p {
     padding: 1rem;
   }
-`
-
-const LoadingState = styled.div`
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
 `

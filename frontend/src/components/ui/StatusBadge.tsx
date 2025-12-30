@@ -64,4 +64,5 @@ const StatusBadgeStyled = styled.span`
   font-size: .85rem;
   text-transform: uppercase;
   font-weight: 600;
+  color: var(--color-ink-2);
 `

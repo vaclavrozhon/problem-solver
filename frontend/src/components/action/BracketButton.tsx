@@ -8,6 +8,7 @@ const Button = styled.button`
   gap: .05rem;
   color: var(--accent-alpha);
   text-wrap: nowrap;
+  cursor: pointer;
   &:hover::after {
       content: "";
       position: absolute;

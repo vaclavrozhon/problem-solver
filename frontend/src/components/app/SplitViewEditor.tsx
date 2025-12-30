@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react"
 import { styled } from "@linaria/react"
 
 import CodeMirror from "@uiw/react-codemirror"
@@ -10,28 +9,22 @@ import Markdown from "../Markdown"
 interface Props {
   md?: string,
   placeholder?: string,
-  onChange?: (new_value: string) => void,
+  onChange: (new_value: string) => void,
 }
+
+/** Initialized outside for prevent heavy re-initializations */
 const code_mirror_extension = [markdown({ base: markdownLanguage }), EditorView.lineWrapping]
+
 export default function SplitViewEditor({ md = "", onChange, placeholder = "" }: Props) {
-  const [editor_content, setEditorContent] = useState(md)
-
-  useEffect(() => {
-    setEditorContent(md)
-  }, [md])
-
   return (
     <SplitViewSection>
       <div className="half">
         <p>Raw Markdown & KaTeX</p>
         {/* TODO: Make KaTeX $ ... $ highlighting */}
         <CodeMirror
-          onChange={val => {
-            if (onChange) onChange(val)
-            else setEditorContent(val)
-          }}
+          onChange={onChange}
           theme={xcodeDark}
-          value={editor_content}
+          value={md}
           extensions={code_mirror_extension}
           placeholder={placeholder || `Please write your Markdown & KaTeX here.
 
@@ -61,7 +54,7 @@ so don't feel forced to use it.
       </div>
       <div className="half">
         <p>Live Preview</p>
-        <Markdown md={editor_content || "Write something in the editor on the left to preview it here."}/>
+        <Markdown md={md || "Write anything in the editor on the left to preview it here."}/>
       </div>
     </SplitViewSection>
   )

@@ -66,7 +66,7 @@ export default function FilesList({
         {sorted_files.map(file => (
           <Link to="/problem/$problem_id/files"
             params={{ problem_id }}
-            search={{ file_id: file.id, round: undefined, main_file: undefined }}
+            search={{ file_id: file.id, round: selected_round, main_file: undefined }}
             key={file.id}
             className={`${file_id === file.id ? "active" : ""} ${get_file_type_class(file.file_name)}`}>
             {get_short_file_name(file.file_name)}

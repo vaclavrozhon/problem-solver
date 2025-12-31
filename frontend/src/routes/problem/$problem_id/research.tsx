@@ -72,23 +72,23 @@ function RunNewResearchPage() {
         count: "1",
         prompt: default_prompts["prover"],
         provers: [{
-          model: choose_model("google/gemini-3-flash-preview", {
-            reasoning_effort: "none",
+          model: choose_model("google/gemini-3-pro-preview", {
+            reasoning_effort: "high",
             web_search: false,
           })
         }],
       },
       verifier: {
         prompt: default_prompts["verifier"],
-        model: choose_model("google/gemini-3-flash-preview", {
-          reasoning_effort: "none",
+        model: choose_model("openai/gpt-5.2", {
+          reasoning_effort: "high",
           web_search: false,
         }),
       },
       summarizer: {
         prompt: default_prompts["summarizer"],
-        model: choose_model("google/gemini-3-flash-preview", {
-          reasoning_effort: "none",
+        model: choose_model("openai/gpt-5-mini", {
+          reasoning_effort: "high",
           web_search: false,
         }),
       }

@@ -3,15 +3,15 @@ import { Select, ListBox, Header, Switch, Button, Separator, Tooltip } from "@he
 import { Icon } from "@iconify/react"
 import { z } from "zod"
 
-import { models, get_model_by_id, provider_details, ModelConfig } from "@shared/types/research"
-import type { ModelID, ReasoningEffort, ReasoningConfig, ReasoningEffortValue, Provider } from "@shared/types/research"
+import { models, get_model_by_id, provider_details } from "@shared/types/research"
+import type { ModelID, ReasoningEffort, ReasoningConfig, ReasoningEffortValue, Provider, ModelConfig } from "@shared/types/research"
 import ProviderLogo from "@frontend/components/svg/ProviderLogo"
 import ReasoningTag from "@frontend/components/problem/ReasoningTag"
 import WebSearchTag from "@frontend/components/problem/WebSearchTag"
 
 interface ModelSelectProps {
-  selected?: z.infer<typeof ModelConfig>,
-  onChange: (value: z.infer<typeof ModelConfig>) => void,
+  selected?: ModelConfig,
+  onChange: (value: ModelConfig) => void,
   trigger_style?: string,
 }
 
@@ -115,7 +115,8 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
                 </Tooltip.Content>
               </Tooltip>
             )}
-            {selected_web_search && (
+            {/* TODO: it's production ready but web_search not implemented in backend */}
+            {/* {selected_web_search && (
               <Tooltip delay={0} closeDelay={0}>
                 <Tooltip.Trigger>
                   <WebSearchTag enabled={selected_web_search}
@@ -127,7 +128,7 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
                   <p>Web Search Enabled</p>
                 </Tooltip.Content>
               </Tooltip>
-            )}
+            )} */}
           </div>
         </Select.Value>
         <Select.Indicator/>
@@ -165,12 +166,13 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
                         in <span className="font-medium">${model.price.input}</span>
                         <span>–</span>
                         out <span className="font-medium">${model.price.output}</span>
-                        {"search" in model.price && (
+                        {/* TODO: it's production ready but web_search not implemented in backend */}
+                        {/* {"search" in model.price && (
                           <>
                             <span>–</span>
                             search <span className="font-medium">${model.price.search}</span>
                           </>
-                        )}
+                        )} */}
                       </p>
                     </div>
                     {is_selected && (
@@ -215,7 +217,8 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
                   </div>
                 )}
 
-                {supports_web_search && (
+                {/* TODO: it's production ready but web_search not implemented in backend */}
+                {/* {supports_web_search && (
                   <div className="flex items-center gap-2">
                     <Switch size="sm"
                       isSelected={selected_web_search}
@@ -226,7 +229,7 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
                       </Switch.Control>
                     </Switch>
                   </div>
-                )}
+                )} */}
               </div>
             )}
 

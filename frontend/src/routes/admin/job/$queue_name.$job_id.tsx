@@ -184,7 +184,7 @@ function JobDetailPage() {
                 <div>
                   {research_config.provers?.map((prover, i) => (
                     <p key={prover.model + i}>
-                      {prover.model}
+                      {JSON.stringify(prover.model)}
                     </p>
                   ))}
                 </div>
@@ -193,14 +193,14 @@ function JobDetailPage() {
               <DetailEntry>
                 <p>Verifier Model</p>
                 <div>
-                  <p>{research_config.verifier_model}</p>
+                  <p>{JSON.stringify(research_config.verifier_model, null, 2)}</p>
                 </div>
               </DetailEntry>
 
               <DetailEntry>
                 <p>Summarizer Model</p>
                 <div>
-                  <p>{research_config.summarizer_model}</p>
+                  <p>{JSON.stringify(research_config.summarizer_model)}</p>
                 </div>
               </DetailEntry>
             </Detail>

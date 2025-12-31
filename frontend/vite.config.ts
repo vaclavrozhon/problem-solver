@@ -30,6 +30,6 @@ export default defineConfig({
     }
   },
   server: {
-    port: import.meta.env.FRONTEND_PORT,
+    port: Number(import.meta.env.FRONTEND_PORT),
   },
 })

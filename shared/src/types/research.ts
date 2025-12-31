@@ -7,7 +7,7 @@ export type ReasoningEffort = typeof reasoning_efforts[number]
 
 /**
  * Reasoning configuration for a model:
- * - `null` – no control possible – model either doesn't reason
+ * - `null` – no control possible – model either reasons or doesn't reason
  * - `"toggle"` – simple on/off switch
  * - `ReasoningEffort[] – effort levels, if `none` then that turns off reasoning
  */
@@ -68,10 +68,6 @@ export const provider_details = {
     name: "xAI",
     logo: null,
   },
-  xiaomi: {
-    name: "Xiaomi",
-    logo: "simple-icons:xiaomi",
-  },
   zai: {
     name: "Z.ai",
     logo: null,
@@ -127,18 +123,18 @@ export const models = {
       // final
       id: "deepseek/deepseek-v3.2",
       name: "DeepSeek V3.2",
-      provider: "deepseek",
-      price: { input: 0.28, output: 0.42 },
+      provider: "siliconflow/fp8",
+      price: { input: 0.27, output: 0.42 },
       config: {
         web_search: false,
         // Correct, only toggle, doesnt react to effort
         // only "enabled": true/false
         reasoning: "toggle",
       },
-      context: 128_000,
-      max_output: 64_000,
-      stream_cancel: true,
-      byok: true,
+      context: 163_840,
+      max_output: 163_840,
+      stream_cancel: false,
+      byok: false,
     }
   ],
   google: [
@@ -210,7 +206,7 @@ export const models = {
       // final
       id: "nvidia/nemotron-3-nano-30b-a3b",
       name: "Nemotron 3 Nano 30B",
-      provider: "deepinfra/bf16",
+      provider: "chutes/bf16",
       price: { input: 0.06, output: 0.24 },
       config: {
         web_search: false,
@@ -219,7 +215,7 @@ export const models = {
       context: 262_144,
       max_output: 262_144,
       stream_cancel: true,
-      // for deepinfra
+      // for chutes
       byok: true,
     }
   ],
@@ -324,8 +320,8 @@ export const models = {
       // final
       id: "openai/gpt-oss-120b",
       name: "gpt-oss-120b",
-      provider: "deepinfra/fp4",
-      price: { input: 0.039, output: 0.19 },
+      provider: "nebius/fp4",
+      price: { input: 0.15, output: 0.6 },
       config: {
         web_search: false,
         // Cant be turned off
@@ -333,8 +329,7 @@ export const models = {
       },
       context: 131_072,
       max_output: 131_072,
-      stream_cancel: true,
-      // for deepinfra, not openai
+      stream_cancel: false,
       byok: true
     },
   ],
@@ -379,39 +374,18 @@ export const models = {
       byok: true,
     },
   ],
-  xiaomi: [
-    {
-      // fiinal
-      // TODO: free expires on new years eve
-      // https://platform.xiaomimimo.com/#/docs/quick-start/model-hyperparameters
-      // say to put temperature to 1 for math, top_p 0.95
-      id: "xiaomi/mimo-v2-flash:free",
-      name: "MiMo V2 Flash",
-      provider: "xiaomi/fp8",
-      // TODO: infer "free tag" from 0 price
-      price: { input: 0, output: 0 },
-      config: {
-        web_search: false,
-        reasoning: "toggle",
-      },
-      context: 256_000,
-      max_output: 128_00,
-      stream_cancel: false,
-      byok: true,
-    }
-  ],
   zai: [
     // final
     {
       id: "z-ai/glm-4.7",
       name: "GLM 4.7",
-      provider: "z-ai",
-      price: { input: 0.6, output: 2.2 },
+      provider: "parasail/fp8",
+      price: { input: 0.45, output: 2.1 },
       config: {
         web_search: false,
         reasoning: "toggle",
       },
-      context: 200_000,
+      context: 128_000,
       max_output: 128_000,
       stream_cancel: true,
       byok: true,
@@ -472,7 +446,7 @@ export function get_model_by_id(id: ModelID) {
   return null
 }
 
-export const ModelConfig = z.object({
+export const ModelConfigSchema = z.object({
   id: z.enum(
     Object.values(models)
       .flat()
@@ -546,6 +520,7 @@ export const ModelConfig = z.object({
   }
 })
 
+export type ModelConfig = z.infer<typeof ModelConfigSchema>
 
 export const MaxProversPerRound = 10
 export const MaxRoundsPerResearch = 10
@@ -556,14 +531,14 @@ export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsP
 
 export const VerifierConfigSchema = z.object({
   advice: z.string(),
-  model: ModelConfig,
+  model: ModelConfigSchema,
   prompt: z.string().min(20),
 })
 export type VerifierConfig = z.infer<typeof VerifierConfigSchema>
 
 export const SummarizerConfigSchema = z.object({
   prompt: z.string().min(20),
-  model: ModelConfig,
+  model: ModelConfigSchema,
 })
 export type SummarizerConfig = z.infer<typeof SummarizerConfigSchema>
 
@@ -576,7 +551,7 @@ export const NewStandardResearch = z.object({
     provers: z.array(
       z.object({
         advice: z.string().optional(),
-        model: ModelConfig,
+        model: ModelConfigSchema,
       })
     ).min(1).max(MaxProversPerRound),
     prompt: z.string().min(20),

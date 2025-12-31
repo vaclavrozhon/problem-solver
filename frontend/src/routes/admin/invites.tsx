@@ -134,7 +134,7 @@ function AdminInvitesPage() {
 
         <AlertDialog isOpen={show_create}
           onOpenChange={(open) => !open && close_create_dialog()}>
-          <AlertDialog.Backdrop>
+          <AlertDialog.Backdrop isDismissable>
             <AlertDialog.Container>
               <AlertDialog.Dialog className="max-w-sm">
                 <AlertDialog.CloseTrigger/>
@@ -208,7 +208,7 @@ function AdminInvitesPage() {
 
       <AlertDialog isOpen={!!revoke_target}
         onOpenChange={open => !open && setRevokeTarget(null)}>
-        <AlertDialog.Backdrop>
+        <AlertDialog.Backdrop isDismissable>
           <AlertDialog.Container>
             <AlertDialog.Dialog className="max-w-sm">
               <AlertDialog.CloseTrigger/>

@@ -2,7 +2,8 @@ import { z } from "zod"
 import { eq, inArray, sql } from "drizzle-orm"
 import { problems, rounds, problem_files } from "../../drizzle/schema"
 import { define_job } from "./job_factory"
-import { NewStandardResearch, get_model_id, VerifierOutputSchema, SummarizerOutputSchema, ProverOutputSchema, ProverOutput, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
+import { NewStandardResearch, ProverOutputSchema, VerifierOutputSchema, SummarizerOutputSchema, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
+import type { ProverOutput } from "@shared/types/research"
 import {
   create_verifier_prompt,
   create_summarizer_prompt,
@@ -101,54 +102,56 @@ export const run_standard_research = define_job("start_research")
 
     // (3) Run all provers in parallel
     const llm_start_time = performance.now()
-    const prover_promises = new_research.prover.provers.map((prover, i) => {
-      const model = get_model_id(prover.model)
-      return generate_llm_response(
+    const prover_promises = new_research.prover.provers.map((prover, i) => (
+      generate_llm_response({
         db,
         openrouter,
-        model,
-        ctx.user_id,
-        [
+        model: prover.model,
+        user_id: ctx.user_id,
+        messages: [
           { role: "system", content: "You are a research mathematician." },
           { role: "user", content: prover_prompts[i] },
         ],
-        ProverOutputSchema,
-        prover_prompt_files_ids[i].id,
-        `prover ${i + 1}`
-      )
-    })
+        schema: ProverOutputSchema,
+        prompt_file_id: prover_prompt_files_ids[i].id,
+        context: `prover ${i + 1}`,
+      })
+    ))
 
-    const results = await Promise.allSettled(prover_promises)
+    const results = await Promise.all(prover_promises)
     // TODO: provers_total_time could possibly be calculated from the results
     // as max from all times
     const provers_total_time = (performance.now() - llm_start_time) / 1000
 
     // (4) Process LLM outputs
-    // The typecasts are required to narrow the filter result
-    // to correct type as TS can't do this on its own yet.
     const successful_results = results
       .map((result, index) => ({ result, index }))
-      .filter(item => item.result.status === "fulfilled") as {
-        result: PromiseFulfilledResult<LLMResponse<ProverOutput>>,
-        index: number
-      }[]
+      .filter(
+        (item): item is {
+          result: Extract<LLMResponse<ProverOutput>, { success: true }>,
+          index: number
+        } => item.result.success === true
+      )
 
     const failed_results = results
       .map((result, index) => ({ result, index }))
-      .filter(item => item.result.status === "rejected") as {
-        result: PromiseRejectedResult,
-        index: number
-      }[]
+      .filter(
+        (item): item is {
+          result: Extract<LLMResponse<ProverOutput>, { success: false }>,
+          index: number
+        } => item.result.success === false
+      )
 
     if (failed_results.length > 0) {
       console.warn(`[job]{standard_research} ${failed_results.length} provers failed.`)
+      
       const failed_file_ids = failed_results.map(f => prover_prompt_files_ids[f.index].id)
-
       await db.delete(problem_files)
         .where(inArray(problem_files.id, failed_file_ids))
+
       console.log(`[job]{standard_research} deleted ${failed_file_ids.length} failed prompt files.`)
 
-      const failed_models = failed_results.map(f => new_research.prover.provers[f.index].model)
+      const failed_models = failed_results.map(f => new_research.prover.provers[f.index].model.id)
       await db.update(rounds)
         .set({
           failed_provers: failed_models,
@@ -164,7 +167,7 @@ export const run_standard_research = define_job("start_research")
     }
 
     const provers_usage_cost = successful_results.reduce((acc, result) =>
-      acc + (result.result.value.usage.cost || 0), 0)
+      acc + (result.result.usage.cost || 0), 0)
 
     await db.update(rounds)
       .set({
@@ -179,26 +182,28 @@ export const run_standard_research = define_job("start_research")
     const files_to_save = []
 
     for (const { result, index } of successful_results) {
-      const { object: content, usage, reasoning, model_id } = result.value
+      const { output, usage, reasoning, model_id } = result
       files_to_save.push({
         problem_id,
         round_id: current_round_id,
         file_type: "prover_output" as FileType,
         file_name: `prover-${index + 1}.output`,
-        content: content.content,
+        content: output.content,
         model_id,
         usage,
       })
-      files_to_save.push({
-        problem_id,
-        round_id: current_round_id,
-        file_type: "prover_reasoning" as FileType,
-        file_name: `prover-${index + 1}.reasoning`,
-        content: JSON.stringify(reasoning, null, 2),
-        model_id,
-      })
+      if (reasoning !== undefined) {
+        files_to_save.push({
+          problem_id,
+          round_id: current_round_id,
+          file_type: "prover_reasoning" as FileType,
+          file_name: `prover-${index + 1}.reasoning`,
+          content: JSON.stringify(reasoning, null, 2),
+          model_id,
+        })
+      }
 
-      prover_output.push(content.content)
+      prover_output.push(output.content)
     }
 
     await save_problem_files(db, files_to_save)
@@ -250,7 +255,7 @@ export const run_standard_verifier = define_job("verifier")
       research.prover_output,
       research.verifier.advice,
     )
-    const model = get_model_id(research.verifier.model)
+    const model_config = research.verifier.model
 
     const [verifier_prompt_file] = await save_problem_files(db, [{
       problem_id: ctx.problem_id,
@@ -261,19 +266,23 @@ export const run_standard_verifier = define_job("verifier")
     }])
 
     // (2) Generate verifier output
-    const { object: verifier_output, usage, reasoning, time, model_id } = await generate_llm_response(
+    const verifier_response = await generate_llm_response({
       db,
       openrouter,
-      model,
-      ctx.user_id,
-      [
+      model: model_config,
+      user_id: ctx.user_id,
+      messages: [
         { role: "system", content: "You are a strict mathematical verifier & research manager." },
         { role: "user", content: verifier_prompt },
       ],
-      VerifierOutputSchema,
-      verifier_prompt_file.id,
-      "Verifier"
-    )
+      schema: VerifierOutputSchema,
+      prompt_file_id: verifier_prompt_file.id,
+      context: "Verifier",
+    })
+
+    if (!verifier_response.success) throw verifier_response.error
+
+    const { output: verifier_output, usage, reasoning, time, model_id } = verifier_response
 
     await db.update(rounds)
       .set({
@@ -284,25 +293,29 @@ export const run_standard_verifier = define_job("verifier")
       .where(eq(rounds.id, ctx.current_round_id))
 
     // (3) Save verifier output
-    await save_problem_files(db, [
+    const verifier_files_to_save = [
       {
         problem_id: ctx.problem_id,
-        file_type: "verifier_output",
+        file_type: "verifier_output" as FileType,
         file_name: "verifier.output",
         content: JSON.stringify(verifier_output, null, 2),
         round_id: ctx.current_round_id,
         model_id,
         usage,
       },
-      {
+    ]
+    if (reasoning !== undefined) {
+      verifier_files_to_save.push({
         problem_id: ctx.problem_id,
-        file_type: "verifier_reasoning",
+        file_type: "verifier_reasoning" as FileType,
         file_name: "verifier.reasoning",
         content: JSON.stringify(reasoning, null, 2),
         round_id: ctx.current_round_id,
         model_id,
-      }
-    ])
+        usage: undefined as any,
+      })
+    }
+    await save_problem_files(db, verifier_files_to_save)
 
     // (4) Update main files
     const notes = files.main_files.find(f => f.file_type === "notes")!
@@ -395,42 +408,51 @@ export const run_standard_summarizer = define_job("summarizer")
     }])
 
     // (2) Generate summarizer output
-    const model = get_model_id(research.summarizer.model)
-    const { object: summarizer_output, usage, reasoning, time, model_id } = await generate_llm_response(
+    const model_config = research.summarizer.model
+    const summarizer_response = await generate_llm_response({
       db,
       openrouter,
-      model,
-      ctx.user_id,
-      [
+      model: model_config,
+      user_id: ctx.user_id,
+      messages: [
         { role: "system", content: "You are a research summarizer." },
         { role: "user", content: summarizer_prompt },
       ],
-      SummarizerOutputSchema,
-      summarizer_prompt_file.id,
-      "Summarizer"
-    )
+      schema: SummarizerOutputSchema,
+      prompt_file_id: summarizer_prompt_file.id,
+      context: "Summarizer",
+    })
+
+    if (!summarizer_response.success) throw summarizer_response.error
+
+    const { output: summarizer_output, usage, reasoning, time, model_id } = summarizer_response
 
     // (3) Save summarizer output & Finalize round
+    const summarizer_files_to_save = [
+      {
+        problem_id: ctx.problem_id,
+        file_type: "summarizer_output" as FileType,
+        file_name: "summarizer.output",
+        content: JSON.stringify(summarizer_output, null, 2),
+        round_id: ctx.current_round_id,
+        model_id,
+        usage
+      },
+    ]
+    if (reasoning !== undefined) {
+      summarizer_files_to_save.push({
+        problem_id: ctx.problem_id,
+        file_type: "summarizer_reasoning" as FileType,
+        file_name: "summarizer.reasoning",
+        content: JSON.stringify(reasoning, null, 2),
+        round_id: ctx.current_round_id,
+        model_id,
+        usage: undefined as any,
+      })
+    }
+
     await db.transaction(async (tx) => {
-      await save_problem_files(tx, [
-        {
-          problem_id: ctx.problem_id,
-          file_type: "summarizer_output",
-          file_name: "summarizer.output",
-          content: JSON.stringify(summarizer_output, null, 2),
-          round_id: ctx.current_round_id,
-          model_id,
-          usage
-        },
-        {
-          problem_id: ctx.problem_id,
-          file_type: "summarizer_reasoning",
-          file_name: "summarizer.reasoning",
-          content: JSON.stringify(reasoning, null, 2),
-          round_id: ctx.current_round_id,
-          model_id,
-        }
-      ])
+      await save_problem_files(tx, summarizer_files_to_save)
 
       await tx.update(rounds)
         .set({

@@ -242,7 +242,7 @@ function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySe
                 <Button variant="danger-soft">
                   Remove Key
                 </Button>
-                <AlertDialog.Backdrop>
+                <AlertDialog.Backdrop isDismissable>
                   <AlertDialog.Container>
                     <AlertDialog.Dialog className="max-w-sm">
                       <AlertDialog.CloseTrigger/>
@@ -331,7 +331,7 @@ function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySe
 
                 <AlertDialog>
                   <Button variant="secondary">Have an invite code?</Button>
-                  <AlertDialog.Backdrop>
+                  <AlertDialog.Backdrop isDismissable>
                     <AlertDialog.Container>
                       <AlertDialog.Dialog className="w-fit gap-2">
                         <AlertDialog.CloseTrigger/>

@@ -2,8 +2,9 @@ import { eq, sql, and, inArray, lt } from "drizzle-orm"
 import { problems, rounds, problem_files, llms, files_types } from "../../drizzle/schema"
 import { OpenRouterProvider, OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
 import { z } from "zod"
-import { generateObject, ModelMessage } from "ai"
-import { AllowedModelsID, VerifierOutputSchema, SummarizerOutputSchema } from "@shared/types/research"
+import { streamText, ModelMessage, Output } from "ai"
+import { ModelConfig, VerifierOutputSchema, SummarizerOutputSchema, get_model_by_id } from "@shared/types/research"
+import type { ModelID } from "@shared/types/research"
 import type { Database } from "../db"
 import { InferSelectModel } from "drizzle-orm"
 
@@ -42,20 +43,27 @@ export type PromptBuildingFiles = {
   all_previous_summarizer_outputs: File[],
 }
 
-export type LLMResponse<T> = {
-  object: T,
-  usage: OpenRouterUsageAccounting,
-  reasoning: any,
-  time: number
-  model_id: AllowedModelsID,
-}
+export type LLMResponse<T> =
+  {
+    success: true,
+    output: T,
+    usage: OpenRouterUsageAccounting,
+    reasoning: any | undefined,
+    request: Awaited<ReturnType<typeof streamText>["request"]>,
+    time: number,
+    model_id: ModelID,
+  } | {
+    success: false,
+    error: Error,
+    model_id: ModelID,
+  }
 
 export interface ResearchContext {
-  db: DbOrTx
-  problem_id: string
-  round_id: string
-  user_id: string
-  round_index: number
+  db: DbOrTx,
+  problem_id: string,
+  round_id: string,
+  user_id: string,
+  round_index: number,
 }
 
 function safe_json_parse<T>(content: string, schema: z.ZodType<T>, context: string): T {
@@ -230,7 +238,7 @@ export async function save_problem_files(
     file_name: string,
     content: string,
     usage?: OpenRouterUsageAccounting,
-    model_id?: AllowedModelsID
+    model_id?: ModelID,
   }[]
 ) {
   if (files.length === 0) return []
@@ -354,57 +362,151 @@ export async function fetch_previous_round_files(
   }
 }
 
-export async function generate_llm_response<T>(
+/**
+ * params for generating LLM response with structured output
+ * @template T expected output type inferred from the zod schema
+ */
+export interface GenerateLLMResponseParams<T> {
   db: DbOrTx,
   openrouter: OpenRouterProvider,
-  model_id: AllowedModelsID,
+  /** model configuration */
+  model: ModelConfig,
+  /** 
+   * user_id` for OpenRouter tracking/usage/stats
+   * 
+   * FUNFACT: leaks internal user ids to OpenRouter
+   * */
   user_id: string,
   messages: ModelMessage[],
+  /** zod schema for validating and typing the structured output */
   schema: z.ZodType<T>,
+  /** UUID of the file that stores the prompt contained in `messages` */
   prompt_file_id: string,
+  /** [dev helper] context for error messages: [prover], [verifier], ... */
   context: string,
-  max_retries: number = 5
-): Promise<LLMResponse<T>> {
-  let llm_start_time = performance.now()
-  let llm_response
+  max_retries?: number,
+  /** save LLM response to DB (default: `true`) */
+  save_to_db?: boolean,
+  /** OpenRouter supporst values `0-2` with default being `1` */
+  temperature?: number,
+}
+
+export async function generate_llm_response<T>({
+  db,
+  openrouter,
+  model,
+  user_id,
+  messages,
+  schema,
+  prompt_file_id,
+  context,
+  max_retries = 5,
+  save_to_db = true,
+  temperature = 1,
+}: GenerateLLMResponseParams<T>): Promise<LLMResponse<T>> {
+  const model_id = model.id
+
   let last_error: Error | null = null
 
   for (let attempt = 1; attempt <= max_retries; attempt++) {
+    const llm_start_time = performance.now()
+
+    // (1) Initialize stream
+    let stream: ReturnType<typeof streamText>
     try {
-      const local_llm_start_time = performance.now()
-      llm_response = await generateObject({
+      stream = streamText({
         model: openrouter(model_id, {
-          // BUG: wanted to do "xhigh" but OpenAI throws error
-          // for gpt-5-mini... reverting back to "high"
-          reasoning: { effort: "high" },
           user: user_id,
           usage: { include: true },
-          plugins: [
-            { id: "response-healing" }
-          ]
+          extraBody: {
+            reasoning: get_reasoning_config(model),
+            plugins: [{ id: "response-healing" }],
+          },
+          provider: {
+            // BUG: is there a way to handle this without the "!"?
+            only: [get_model_by_id(model.id)!.provider],
+          },
         }),
         messages,
-        schema,
+        output: Output.object({ schema }),
+        temperature,
+        onError({ error }: { error: unknown }) {
+          console.log(error)
+          last_error = error instanceof Error ? error : new Error(String(error))
+        }
       })
-      llm_start_time = local_llm_start_time
-      break
     } catch (e) {
-      last_error = e as Error
-      if (attempt < max_retries) {
-        console.warn(`[OpenRouter][${model_id}] Attempt ${attempt}/${max_retries} failed for ${context}: ${last_error.message}. Retrying...`)
+      last_error = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[OpenRouter][${model_id}][${context}][${attempt}/${max_retries}] init failed: ${last_error.message}`)
+      continue
+    }
+
+    // (2) consume stream – don't process chunks, just wait for the end
+    try {
+      // this can throw only network errors
+      // other errors should be handled via the `streamText` function
+      for await (const _ of stream.fullStream) {}
+    } catch (e) {
+      last_error = e instanceof Error ? e : new Error(String(e))
+      console.warn(`[OpenRouter][${model_id}][${context}][${attempt}/${max_retries}] stream failed: ${last_error.message}`)
+      continue
+    }
+
+    // (2a): (3) is gonna potentially overwrite some older errors so we need
+    // to handle errors here and then later again
+    if (last_error) continue
+
+    // (3) await final results
+    try {
+      const output = await stream.output as T
+      const request = await stream.request
+      const provider_metadata = await stream.providerMetadata
+      const usage = provider_metadata?.openrouter?.usage as OpenRouterUsageAccounting
+      const reasoning = provider_metadata?.openrouter?.reasoning_details
+      const time = (performance.now() - llm_start_time) / 1000
+
+      if (save_to_db) {
+        await save_llm_log(db, prompt_file_id, { output, usage, reasoning }, usage, model_id)
       }
+
+      return { success: true, output, usage, reasoning, request, time, model_id }
+    } catch (e) {
+      last_error = e instanceof Error ? e : new Error(String(e))
+      const is_validation = last_error.name === "AI_NoObjectGeneratedError"
+      console.warn(`[OpenRouter][${model_id}][${context}][${attempt}/${max_retries}] ${is_validation ? "validation" : "finalization"} failed: ${last_error.message}`)
+      continue
     }
   }
 
-  if (!llm_response) {
-    throw new Error(`[OpenRouter][${model_id}] LLM generation failed for ${context} after ${max_retries} attempts: ${last_error?.message}`)
+  return {
+    success: false,
+    error: last_error ?? new Error("Unknown error"),
+    model_id,
+  }
+}
+
+/**
+ * @returns valid reasoning request config for OpenRouter API based on model config
+ */
+function get_reasoning_config(model: ModelConfig) {
+  const reasoning = model.config.reasoning_effort
+
+  if (reasoning === null) return undefined
+
+  if (typeof reasoning === "boolean") return {
+    "enabled": reasoning,
   }
 
-  const time = (performance.now() - llm_start_time) / 1000
-  const usage = llm_response.providerMetadata!.openrouter!.usage as OpenRouterUsageAccounting
-  const reasoning = llm_response.providerMetadata!.openrouter!.reasoning_details
+  // This check is for models that support both effort values & turning thinking on/off
+  // and don't support `none` -> instead must be turned of through `enabled`
+  // TODO: make a note somewhere that when adding model, to always also add them here
+  if (reasoning === "none") {
+    if (model.id === "google/gemini-3-flash-preview") return {
+      "enabled": false,
+    }
+  }
 
-  await save_llm_log(db, prompt_file_id, llm_response, usage, model_id)
-
-  return { object: llm_response.object, usage, reasoning, time, model_id }
+  return {
+    "effort": reasoning,
+  }
 }

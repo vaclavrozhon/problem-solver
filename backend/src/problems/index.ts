@@ -5,7 +5,7 @@ import { desc, eq, and, sql, or, inArray } from "drizzle-orm"
 
 import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from "@shared/types/problem"
 import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
-import { CreateProblemFormSchema } from "@shared/types/CreateProblem"
+import { CreateProblemFormSchema } from "@shared/types/problem"
 
 
 export const problems_router = new Elysia({ prefix: "/problems" })

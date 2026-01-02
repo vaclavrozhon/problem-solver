@@ -25,12 +25,15 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * POST /api/auth/signout
    * Clears auth cookies and signs out user.
    * 
-   * Supabase allows only revoking all refresh tokens for user. Access tokens must expire on its own therefore it's recommended to set shorter expiry on them.
+   * Supabase allows only revoking all refresh token for user through
+   * Access tokens must expire on its own
+   * therefore it's recommended to set shorter expiry on them.
    */
   .post("/signout", async ({ cookie, status, sb  }) => {
-      const refresh_token = cookie[COOKIE_CONFIG.refresh_token.name]?.value as string | undefined
-      if (refresh_token) {
-        const { error } = await sb.auth.admin.signOut(refresh_token, "local")
+      const access_token = cookie[COOKIE_CONFIG.access_token.name]?.value as string | undefined
+      if (access_token) {
+        // invalidates access/refresh tokens via active access token
+        const { error } = await sb.auth.admin.signOut(access_token, "local")
         if (!error) {
           clear_auth_cookies(cookie)
           return { type: "success" }
@@ -39,7 +42,7 @@ export const auth_router = new Elysia({ prefix: "/auth" })
 
       return status(500, {
         type: "error",
-        message: "Failed to log user out (invalidate refresh tokens)"
+        message: "Failed to log user out (failed to invalidate refresh token)"
       })
   }, { isAuth: true })
 

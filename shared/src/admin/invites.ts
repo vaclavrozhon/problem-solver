@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { user_name_schema } from "@shared/auth"
+import { user_name_schema } from "../auth"
 
 export const InviteStatusValues = ["pending", "redeemed", "to-be-removed"] as const
 export type InviteStatus = typeof InviteStatusValues[number]

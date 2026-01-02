@@ -530,14 +530,15 @@ export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsP
 // TODO: Set universal minimun prompt length or something
 
 export const VerifierConfigSchema = z.object({
-  advice: z.string(),
   model: ModelConfigSchema,
-  prompt: z.string().min(20),
+  system_prompt: z.string().trim().min(10),
+  prompt: z.string().trim().min(20),
 })
 export type VerifierConfig = z.infer<typeof VerifierConfigSchema>
 
 export const SummarizerConfigSchema = z.object({
   prompt: z.string().min(20),
+  system_prompt: z.string().trim().min(10),
   model: ModelConfigSchema,
 })
 export type SummarizerConfig = z.infer<typeof SummarizerConfigSchema>
@@ -545,16 +546,17 @@ export type SummarizerConfig = z.infer<typeof SummarizerConfigSchema>
 export const NewStandardResearch = z.object({
   problem_id: z.uuid(),
   rounds: RoundsPerResearch,
+  round_instructions: z.string().trim().optional(),
   prover: z.object({
     count: ProversPerRound,
-    general_advice: z.string().optional(),
     provers: z.array(
       z.object({
-        advice: z.string().optional(),
+        instructions: z.string().optional(),
         model: ModelConfigSchema,
       })
     ).min(1).max(MaxProversPerRound),
-    prompt: z.string().min(20),
+    system_prompt: z.string().trim().min(10),
+    prompt: z.string().trim().min(20),
   }),
   verifier: VerifierConfigSchema,
   summarizer: SummarizerConfigSchema

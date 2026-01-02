@@ -6,8 +6,7 @@
   - [ ] Remove account -> what happens with all the content? Invites redeemed by????????
 - [ ] How does job concurrency scale?
 - [ ] Add DB Indexes?
-- [ ] are `isAuth` and `isAdmin` big slowdows?
-- [ ] When switching rounds in File Explorer is it better to keep the current file open or close it when switching rounds?
+- [ ] When switching rounds in File Explorer – Is it better to keep the current file open or close it when switching rounds?
 
 
 # Bugs

@@ -93,6 +93,8 @@ export function format_raw_files_data(files: File[]): ProblemFiles {
     const by_type_in_curr_round = (type: string) =>
       current_round_files.filter(f => f.file_type.startsWith(type))
 
+    const round_instructions = current_round_files.find(f => f.file_type === "round_instructions")
+
     const prover_files = by_type_in_curr_round("prover")
 
     const prover_index = (f: File) => parseInt(f.file_name.match(/[0-9]+/)?.[0] ?? "0")
@@ -105,6 +107,7 @@ export function format_raw_files_data(files: File[]): ProblemFiles {
 
     file_list.rounds.push({
       round_index: round,
+      round_instructions,
       verifier: by_type_in_curr_round("verifier"),
       summarizer: by_type_in_curr_round("summarizer"),
       provers,

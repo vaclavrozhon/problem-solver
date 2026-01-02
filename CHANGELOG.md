@@ -1,6 +1,8 @@
 2026-01-02
 - wrote custom session handling (Bearer Token -> HttpsOnly cookies)
+- replaced advice from research with additional instructions
 frontend
+- made research system prompt editable
 - remove supabase dependency
 - fix flash of previously authed user content during login
 

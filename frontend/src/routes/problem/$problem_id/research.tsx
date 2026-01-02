@@ -16,9 +16,13 @@ import { api } from "../../../api"
 import { get_research_overview } from "../../../api/problems"
 import { NewStandardResearch, MaxProversPerRound, MaxRoundsPerResearch, choose_model, get_model_by_id, ModelConfig } from "@shared/types/research"
 
-import ProverPromptTemplate from "@shared/prompts/prover.md?raw"
-import VerifierPromptTemplate from "@shared/prompts/verifier.md?raw"
-import SummarizerPromptTemplate from "@shared/prompts/summarizer.md?raw"
+import UserPromptProver from "@shared/prompts/user/prover.md?raw"
+import UserPromptVerifier from "@shared/prompts/user/verifier.md?raw"
+import UserPromptSummarizer from "@shared/prompts/user/summarizer.md?raw"
+
+import SystemPromptProver from "@shared/prompts/system/prover.md?raw"
+import SystemPromptVerifier from "@shared/prompts/system/verifier.md?raw"
+import SystemPromptSummarizer from "@shared/prompts/system/summarizer.md?raw"
 
 import SplitViewEditor from "../../../components/app/SplitViewEditor"
 import ModelSelect from "@frontend/components/form/ModelSelect"
@@ -28,22 +32,49 @@ export const Route = createFileRoute("/problem/$problem_id/research")({
   component: RunNewResearchPage,
 })
 
-// TODO: better type
-type PromptTypes = "prover" | "verifier" | "summarizer"
+type EditorSelection =
+  | "round_instructions"
+  | "prover.prompt" | "verifier.prompt" | "summarizer.prompt"
+  | "prover.system_prompt" | "verifier.system_prompt" | "summarizer.system_prompt"
 type NewStandardResearchType = z.infer<typeof NewStandardResearch>
+type EditorCategory = "instructions" | "system_prompts" | "prompts";
+
+type EditorOptions = Record<EditorCategory, { id: EditorSelection, label: string }[]>;
+
+const editor_options = {
+  instructions: [
+    { id: "round_instructions", label: "Additional Instructions" },
+  ],
+  prompts: [
+    { id: "prover.prompt", label: "Prover" },
+    { id: "verifier.prompt", label: "Verifier" },
+    { id: "summarizer.prompt", label: "Summarizer" },
+  ],
+  system_prompts: [
+  { id: "prover.system_prompt", label: "prover" },
+  { id: "verifier.system_prompt", label: "verifier" },
+  { id: "summarizer.system_prompt", label: "summarizer" },
+  ],
+} as const satisfies EditorOptions
+
+const default_prompts = {
+  prover: UserPromptProver,
+  verifier: UserPromptVerifier,
+  summarizer: UserPromptSummarizer,
+}
+
+const default_system_prompts = {
+  prover: SystemPromptProver,
+  verifier: SystemPromptVerifier,
+  summarizer: SystemPromptSummarizer,
+}
 
 function RunNewResearchPage() {
   const { problem_id } = Route.useParams()
   const navigate = useNavigate()
 
-  const [selected_prompt, setSelectedPrompt] = useState<PromptTypes>("prover")
+  const [selected_editor, setSelectedEditor] = useState<EditorSelection>("round_instructions")
   const [pending_data, setPendingData] = useState<NewStandardResearchType | null>(null)
-
-  const default_prompts = {
-    prover: ProverPromptTemplate,
-    verifier: VerifierPromptTemplate,
-    summarizer: SummarizerPromptTemplate,
-  }
 
   const research_modal_controller = useOverlayState()
 
@@ -54,7 +85,6 @@ function RunNewResearchPage() {
 
   const run_research = useMutation({
     mutationFn: async (form_data: NewStandardResearchType) => {
-      // @ts-expect-error Elysia BUG
       const { error } = await api.research["run-standard-research"].post(form_data)
       // @ts-expect-error Elysia BUG
       if (error) throw new Error(error.value?.message ?? "Failed to start research")
@@ -68,9 +98,11 @@ function RunNewResearchPage() {
   const { register, handleSubmit, formState: { errors }, control } = useForm({
     defaultValues: {
       rounds: "1",
+      round_instructions: "",
       prover: {
         count: "1",
         prompt: default_prompts["prover"],
+        system_prompt: default_system_prompts["prover"],
         provers: [{
           model: choose_model("google/gemini-3-pro-preview", {
             reasoning_effort: "high",
@@ -80,6 +112,7 @@ function RunNewResearchPage() {
       },
       verifier: {
         prompt: default_prompts["verifier"],
+        system_prompt: default_system_prompts["verifier"],
         model: choose_model("openai/gpt-5.2", {
           reasoning_effort: "high",
           web_search: false,
@@ -87,6 +120,7 @@ function RunNewResearchPage() {
       },
       summarizer: {
         prompt: default_prompts["summarizer"],
+        system_prompt: default_system_prompts["summarizer"],
         model: choose_model("openai/gpt-5-mini", {
           reasoning_effort: "high",
           web_search: false,
@@ -193,23 +227,10 @@ function RunNewResearchPage() {
           <section>
             <h3>Provers config</h3>
 
-            <TextField>
-              <Label>General Advice (optional)</Label>
-              <TextArea {...register("prover.general_advice")}
-                placeholder="Give all the provers some expert advice..."
-                rows={1}/>
-              <Description>
-                The General Advice is included in prompt for all provers. Additionally, you can give each prover some indiviual advice on top of the General Advice. (So that each prover focuses on something else – or leave it empty.){" "}
-                <strong>
-                  Both advices will be included in the prompt.
-                </strong>
-              </Description>
-            </TextField>
-
             <section className="flex flex-col">
               <div className="grid grid-cols-[calc(7.5rem+2px)_1fr_16rem] divide-x-2 divide-edge border-edge border-2 *:px-2 *:py-1.5 *:bg-beta *:text-ink-2 *:font-bold *:kode *:text-sm">
                 <p>Prover #</p>
-                <p>Advice for the prover (optional)</p>
+                <p>Instructions for this prover (optional)</p>
                 <p>Model</p>
               </div>
               {provers.map((prover, i) => (
@@ -218,7 +239,7 @@ function RunNewResearchPage() {
                   <p className="px-2 flex items-center">Prover {i + 1}</p>
                   <Separator orientation="vertical"
                     className="w-1 bg-edge rounded-none"/>
-                  <TextArea {...register(`prover.provers.${i}.advice`)}
+                  <TextArea {...register(`prover.provers.${i}.instructions`)}
                     placeholder="Describe what this prover should focus on..."
                     rows={1}
                     className="rounded-none bg-alpha px-2 placeholder:text-ink-1/50"/>
@@ -235,17 +256,12 @@ function RunNewResearchPage() {
                 </div>
               ))}
             </section>
+
+            <p className="text-sm">Per-prover instructions will be appended to prover's prompt automatically during processing in the backend.</p>
           </section>
 
           <section>
             <h3>Verifier config</h3>
-            <TextField className="flex flex-row items-center gap-4">
-              <Label>Advice</Label>
-              <TextArea {...register("verifier.advice")}
-                placeholder="Describe what the verifier should focus on..."
-                rows={1}
-                className="w-full"/>
-            </TextField>
             <div className="flex items-center gap-4">
               <Label>Model</Label>
               <Controller
@@ -275,46 +291,73 @@ function RunNewResearchPage() {
 
         </section>
 
-        <section className="flex flex-col border-t-6 border-double border-edge">
-          <h3 className="p-4">Prompts</h3>
-          <div className="flex items-center p-4 pt-0 gap-4">
-            <p>Edit/preview the:</p>
-            <TagGroup selectionMode="single"
-              aria-label="Prompt Selection"
-              selectedKeys={selected_prompt}
-              onSelectionChange={key => setSelectedPrompt(Array.from(key)[0] as PromptTypes)}>
-              <TagGroup.List className="gap-2">
-                {(Object.keys(default_prompts) as PromptTypes[]).map(prompt_name => (
-                  <Tag key={prompt_name}
-                    id={prompt_name}
-                    className={`
-                      px-3 py-1 text-sm text-ink-1
-                      ${selected_prompt === prompt_name ? "text-ink-2 bg-brand/20 pointer-events-none" : ""}
-                    `}>
-                    {prompt_name}.prompt
-                  </Tag>
-                ))}
-              </TagGroup.List>
-            </TagGroup>
+        <section className="flex flex-col border-t-6 border-double border-edge gap-4">
+          <h3 className="p-4 pb-0">Prompts & Instructions</h3>
+
+          <div className="flex flex-col px-4 gap-2">
+            <EditorTagSection title="Task"
+              aria_label="Task Instructions Selection"
+              options={editor_options["instructions"]}
+              selectedEditor={selected_editor}
+              onChange={setSelectedEditor}/>
+
+            <Separator/>
+
+            <EditorTagSection title="System Prompts"
+              aria_label="System Prompt Selection"
+              options={editor_options["system_prompts"]}
+              selectedEditor={selected_editor}
+              onChange={setSelectedEditor}/>
+
+            <Separator/>
+
+            <EditorTagSection title="User Prompts"
+              aria_label="User Prompt Selection"
+              options={editor_options["prompts"]}
+              selectedEditor={selected_editor}
+              onChange={setSelectedEditor}/>
+
+            <Separator/>
+
+            <div className="flex flex-col text-sm gap-2">
+              <h4>
+                Explanation for{" "}
+                <span className="px-1.5 py-0.5 bg-beta rounded">{selected_editor}</span>
+              </h4>
+
+              {selected_editor === "round_instructions" && (
+                <p>
+                  Round Instructions are included in prompts for <strong>all agents</strong> (provers, verifier, summarizer).
+                  <br/>
+                  Use this for research-wide guidance when the task needs clarification or you want to steer the research direction.
+                </p>
+              )}
+              {selected_editor !== "round_instructions" && (
+                <>
+                  <p><strong>System Prompt</strong> should give the LLM an identity.</p>
+                  <p><strong>User Prompt</strong> should simply define the task. All User Prompts undergo additional edits during backend processing – previous round results, task definition, proofs, notes, etc. are all appended.</p>
+                </>
+              )}
+              <p><strong>Don't</strong> specify output structure. That's handled automatically in the backend.</p>
+            </div>
           </div>
-          <Controller key={selected_prompt}
-            name={`${selected_prompt}.prompt`}
+
+          <Controller key={selected_editor}
+            name={selected_editor}
             control={control}
             render={({ field }) => (
               <SplitViewEditor
                 md={field.value}
                 onChange={field.onChange}/>
             )}/>
-
-          <div className="flex flex-col p-4 text-sm gap-2">
-            <p>Generald Advice & Individual Advice for provers will be appended to the prompt automatically during processing in the backend.</p>
-            <p><strong>Don't</strong> specify output JSON structure. That's handled automatically in the backend. But you can specify what the output should look like it's drafted in the prompt template.</p>
-          </div>
         </section>
 
         <section className="flex flex-col p-4 gap-4">
+          <p className="text-sm">Be aware it's not possible to stop running research.</p>
+
           <Button type="submit"
             form="new_research_form">Confirm Research</Button>
+
           <ConfirmResearchRun research={pending_data}
             isPending={run_research.isPending}
             onRunResearch={() => {
@@ -437,4 +480,49 @@ function ModelList({ label, models }: ModelListProps) {
       </div>
     </div>
   )
+}
+interface EditorTagSectionProps {
+  title: string,
+  aria_label: string,
+  options: {
+    id: EditorSelection,
+    label: string,
+  }[],
+  selectedEditor: EditorSelection,
+  onChange: (value: EditorSelection) => void,
+}
+
+export function EditorTagSection({
+  title,
+  aria_label,
+  options,
+  selectedEditor,
+  onChange,
+}: EditorTagSectionProps) {
+  return (
+    <div className="grid grid-cols-[9rem_1fr] items-center">
+      <p className="text-sm kode font-semibold">{title}</p>
+
+      <TagGroup
+        selectionMode="single"
+        aria-label={aria_label}
+        selectedKeys={[selectedEditor]}
+        onSelectionChange={keys =>
+          onChange(Array.from(keys)[0] as EditorSelection)
+        }>
+        <TagGroup.List className="gap-2">
+          {options.map(option => (
+              <Tag key={option.id}
+                id={option.id}
+                className={`
+                  px-3 py-1 text-sm text-ink-1
+                  ${selectedEditor === option.id ? "text-ink-2 bg-brand/20 pointer-events-none" : ""}
+                `}>
+                {option.label}
+              </Tag>
+            ))}
+        </TagGroup.List>
+      </TagGroup>
+    </div>
+  );
 }

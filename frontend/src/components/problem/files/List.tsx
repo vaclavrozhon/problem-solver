@@ -66,7 +66,11 @@ export default function FilesList({
         {sorted_files.map(file => (
           <Link to="/problem/$problem_id/files"
             params={{ problem_id }}
-            search={{ file_id: file.id, round: selected_round, main_file: undefined }}
+            search={{
+              file_id: file.id,
+              round: selected_round,
+              main_file: undefined
+            }}
             key={file.id}
             className={`${file_id === file.id ? "active" : ""} ${get_file_type_class(file.file_name)}`}>
             {get_short_file_name(file.file_name)}
@@ -142,9 +146,27 @@ export default function FilesList({
         </FileButtons>
       </FilesGroup>
 
-      {/* Round Files - prover/verifier/summarizer */}
+      {/* Round Files - round_instructions/prover/verifier/summarizer */}
       {has_round_files && selected_round > 0 && (
         <FilesGroup>
+          {files.rounds[round_files_index].round_instructions && (
+            <AgentGroup className="round-instructions">
+              <h3>Round Instructions</h3>
+              <FileButtons>
+                <Link
+                  to="/problem/$problem_id/files"
+                  params={{ problem_id }}
+                  search={{
+                    file_id: files.rounds[round_files_index].round_instructions.id,
+                    round: selected_round,
+                    main_file: undefined
+                  }}
+                  className={file_id === files.rounds[round_files_index].round_instructions.id ? "active" : ""}>
+                  Instructions
+                </Link>
+              </FileButtons>
+            </AgentGroup>
+          )}
           {files.rounds[round_files_index].provers.length > 0 && (
             <AgentGroup className="prover">
               <div className="flex-col">

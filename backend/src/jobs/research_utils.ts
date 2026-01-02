@@ -83,8 +83,8 @@ function safe_json_parse<T>(content: string, schema: z.ZodType<T>, context: stri
 
 /**
  * The prover should receive
- * - general advice
- * - per_prover advice
+ * - round instructions (shared across all agents)
+ * - per_prover instructions
  * - verifier from previous (only) round (summary & feedback),
  * - summarizer from all previous rounds
  * - notes.md
@@ -94,18 +94,23 @@ function safe_json_parse<T>(content: string, schema: z.ZodType<T>, context: stri
  * - TODO: in the future: papers
  */
 export function create_prover_prompt(
-  prompt: string, 
+  prompt: string,
   {
     main_files,
     previous_verifier_output,
     all_previous_summarizer_outputs
   }: PromptBuildingFiles,
-  general_advice?: string,
-  advice?: string
+  round_instructions?: string,
+  prover_instructions?: string
 ) {
-  if (general_advice || advice) prompt += "\n\n=== PERSONALIZED INSTRUCTIONS ===\n"
-  if (general_advice) prompt += "\n" + general_advice
-  if (advice) prompt += "\n" + advice
+  if (round_instructions) {
+    prompt += "\n\n=== ADDITIONAL INSTRUCTIONS ===\n"
+    prompt += round_instructions
+  }
+  if (prover_instructions) {
+    prompt += "\n\n=== IMPORTANT INSTRUCTIONS ===\n"
+    prompt += prover_instructions
+  }
 
   if (previous_verifier_output.length === 1) {
     prompt += "\n\n=== VERIFIER OUTPUT FROM PREVIOUS ROUND ===\n"
@@ -146,17 +151,18 @@ export function create_prover_prompt(
 
 /**
  * VERIFIER PROMPT
- * - specific advice
+ * - round instructions (shared across all agents)
  * - verifier from previous (only) round (summary & feedback),
  * - summarizer from all previous rounds
  * - notes.md
  * - proofs.md
  * - output.md
  * - the task
+ * - prover outputs
  * - TODO: in the future: papers?
  */
-export function create_verifier_prompt(prompt: string, files: PromptBuildingFiles, prover_output: string[], advice?: string,) {
-  let prompt_1 = create_prover_prompt(prompt, files, undefined, advice)
+export function create_verifier_prompt(prompt: string, files: PromptBuildingFiles, prover_output: string[], round_instructions?: string) {
+  let prompt_1 = create_prover_prompt(prompt, files, round_instructions, undefined)
   for (let [i, output] of prover_output.entries()) {
     prompt_1 += `\n\n=== PROVER-${i + 1} OUTPUT ===\n`
     prompt_1 += output
@@ -168,9 +174,16 @@ export function create_summarizer_prompt(
   base_prompt: string,
   verifier_output: string,
   all_previous_summarizer_outputs: File[],
-  new_main_files: { notes: string, proofs: string, output: string, task: string }
+  new_main_files: { notes: string, proofs: string, output: string, task: string },
+  round_instructions?: string
 ) {
   let prompt = base_prompt
+
+  if (round_instructions) {
+    prompt += "\n\n=== ADDITIONAL INSTRUCTIONS ===\n"
+    prompt += round_instructions
+  }
+
   prompt += "\n\n=== VERIFIER OUTPUT ===\n"
   prompt += verifier_output
 

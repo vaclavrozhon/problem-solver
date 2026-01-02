@@ -1,0 +1,1 @@
+ALTER TYPE "main"."files-types" ADD VALUE 'round_instructions' BEFORE 'prover_prompt';

@@ -80,12 +80,22 @@ export const run_standard_research = define_job("start_research")
     // (2) Prepare prover prompts
     const files = await fetch_previous_round_files(db, problem_id, current_round_index)
 
+    if (new_research.round_instructions) {
+      await save_problem_files(db, [{
+        problem_id,
+        round_id: current_round_id,
+        file_type: "round_instructions",
+        file_name: "round_instructions.md",
+        content: new_research.round_instructions,
+      }])
+    }
+
     const prover_prompts = new_research.prover.provers.map(prover =>
       create_prover_prompt(
         new_research.prover.prompt,
         files,
-        new_research.prover.general_advice,
-        prover.advice,
+        new_research.round_instructions,
+        prover.instructions,
       )
     )
 
@@ -253,7 +263,7 @@ export const run_standard_verifier = define_job("verifier")
       research.verifier.prompt,
       files,
       research.prover_output,
-      research.verifier.advice,
+      ctx.research_config.round_instructions,
     )
     const model_config = research.verifier.model
 
@@ -396,7 +406,8 @@ export const run_standard_summarizer = define_job("summarizer")
       research.summarizer.prompt,
       research.verifier_output,
       prev_summarizer_outputs,
-      files.new_main_files
+      files.new_main_files,
+      ctx.research_config.round_instructions
     )
 
     const [summarizer_prompt_file] = await save_problem_files(db, [{

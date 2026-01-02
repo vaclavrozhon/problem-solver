@@ -10,6 +10,7 @@ export const main = pgSchema("main")
 
 export const files_types = main.enum("files-types", [
   "task", "proofs", "notes", "output",
+  "round_instructions",
   "prover_prompt", "verifier_prompt", "summarizer_prompt",
   "prover_reasoning", "verifier_reasoning", "summarizer_reasoning",
   "prover_output", "verifier_output", "summarizer_output",

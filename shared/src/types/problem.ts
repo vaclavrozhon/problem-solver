@@ -21,6 +21,7 @@ export type RoundPhase =
 
 export type FileType =
   | "task" | "proofs" | "notes" | "output"
+  | "round_instructions"
   | "prover_prompt" | "verifier_prompt" | "summarizer_prompt"
   | "prover_reasoning" | "verifier_reasoning" | "summarizer_reasoning"
   | "prover_output" | "verifier_output" | "summarizer_output"
@@ -91,6 +92,7 @@ export interface ProblemFiles {
   },
   rounds: {
     round_index: number,
+    round_instructions?: File,
     provers: File[][],
     verifier: File[],
     summarizer: File[],

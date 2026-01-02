@@ -26,6 +26,10 @@
 - [ ] The LLM is currently prompted to return only valid KaTeX but still sometimes returns invalid KaTeX syntax. Since it doesn’t understand what KaTeX is, it might be better to prompt it like “Return Math in LaTeX syntax. Do not use any other LaTeX features.”
   - [ ] It’s possible to render all possible LaTeX math with MathJax which is slower than KaTeX… should we just stop using KaTex and use only MathJax and deal with the few hundred milliseconds slowness? Should probably just use MathJax?
 
+# Job Manger
+- [ ] Make it run in separate process so that we can update frontend/backend without interrupting the jobs.
+
+
 # Backend
 - [ ] Add rate-limiting to API
 - [ ] WRITE TESTS!!!
@@ -51,9 +55,6 @@
 - [ ] aAd new page that contains some details for the project that will be both accessible during logged in and logged off stage
 - [ ] RESPONSIVE DESIGN
 - [ ] Add pagination to tables across the app!
-
-## Auth
-- [ ] On Sign out invalidate Tanstack Query Cache (e.g. sign in/sign up another/new account cache shows previous state for a while)
 
 ## `/$problem_id`
 - [ ] If user doesn't own the problem, hide `Run research` tab. Though in the app, you can only find problems created by you, therefore this is no harm yet. But if users share the problems, we want to hide this tab. How to do it though? It depends on Auth that takes time so we probably have to hide even the navigation and everything and then display all of that when we know the auth state.

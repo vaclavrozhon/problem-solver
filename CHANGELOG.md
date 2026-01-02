@@ -2,6 +2,7 @@
 - wrote custom session handling (Bearer Token -> HttpsOnly cookies)
 frontend
 - remove supabase dependency
+- fix flash of previously authed user content during login
 
 2025-12-31
 backend

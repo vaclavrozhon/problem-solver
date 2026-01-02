@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/signup")({
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const query_client = useQueryClient()
 
   const { register, formState: { errors }, handleSubmit } = useForm({
     defaultValues: { name: "", email: "", password: "" },
@@ -42,6 +43,8 @@ export default function SignupPage() {
       }
     },
     onSuccess: async () => {
+      // removes flash of content from previously authed user
+      await query_client.resetQueries()
       // cookie is set by backend, just refresh auth state
       await useAuthStore.getState().check_auth()
       navigate({ to: "/" })

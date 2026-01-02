@@ -1,22 +1,56 @@
 import { Elysia } from "elysia"
 import { z } from "zod"
 import { eq } from "drizzle-orm"
-import { drizzle_plugin } from "../plugins"
+import { drizzle_plugin, auth_plugin, supabase_plugin } from "../plugins"
 import { profiles } from "../../drizzle/schema"
-import { get_supabase_admin } from "../db"
+import { COOKIE_CONFIG, set_auth_cookies, clear_auth_cookies } from "./cookies"
+import { get_server_url } from "@backend/server"
+import { login_schema, signup_schema } from "@shared/auth"
 
 export const auth_router = new Elysia({ prefix: "/auth" })
   .use(drizzle_plugin)
+  .use(auth_plugin)
+  .use(supabase_plugin)
+
+  /**
+   * GET /api/auth/me
+   * Returns current user's profile based on cookie auth.
+   * Auto-refreshes tokens via auth_plugin's resolve_auth.
+   */
+  .get("/me", ({ user }) => {
+    return { type: "success", user }
+  }, { isAuth: true })
+
+  /**
+   * POST /api/auth/signout
+   * Clears auth cookies and signs out user.
+   * 
+   * Supabase allows only revoking all refresh tokens for user. Access tokens must expire on its own therefore it's recommended to set shorter expiry on them.
+   */
+  .post("/signout", async ({ cookie, status, sb  }) => {
+      const refresh_token = cookie[COOKIE_CONFIG.refresh_token.name]?.value as string | undefined
+      if (refresh_token) {
+        const { error } = await sb.auth.admin.signOut(refresh_token, "local")
+        if (!error) {
+          clear_auth_cookies(cookie)
+          return { type: "success" }
+        }
+      }
+
+      return status(500, {
+        type: "error",
+        message: "Failed to log user out (invalidate refresh tokens)"
+      })
+  }, { isAuth: true })
 
   /**
    * POST /api/auth/signup
    * Creates a new user with email/password and profile.
+   * Sets HttpOnly cookies on success.
    */
-  .post("/signup", async ({ db, body, status }) => {
-    const supabase_admin = get_supabase_admin()
-
+  .post("/signup", async ({ db, body, cookie, status, sb }) => {
     // (1) Create user in Supabase Auth using admin SDK
-    const { data: auth_data, error: auth_error } = await supabase_admin.auth.admin.createUser({
+    const { data: auth_data, error: auth_error } = await sb.auth.admin.createUser({
       email: body.email,
       password: body.password,
       email_confirm: true,
@@ -44,7 +78,7 @@ export const auth_router = new Elysia({ prefix: "/auth" })
     } catch (profile_error) {
       // Rollback: delete the auth user if profile creation fails
       console.error("[auth/signup] Profile creation failed:", profile_error)
-      await supabase_admin.auth.admin.deleteUser(auth_data.user.id)
+      await sb.auth.admin.deleteUser(auth_data.user.id)
       return status(500, {
         type: "error",
         message: "Failed to create user profile."
@@ -52,7 +86,7 @@ export const auth_router = new Elysia({ prefix: "/auth" })
     }
 
     // (3) Sign in the user to get session tokens
-    const { data: session_data, error: session_error } = await supabase_admin.auth.signInWithPassword({
+    const { data: session_data, error: session_error } = await sb.auth.signInWithPassword({
       email: body.email,
       password: body.password,
     })
@@ -62,37 +96,30 @@ export const auth_router = new Elysia({ prefix: "/auth" })
       return {
         type: "success",
         message: "Account created. Please sign in.",
-        session: null,
       }
     }
+
+    set_auth_cookies(
+      cookie,
+      session_data.session.access_token,
+      session_data.session.refresh_token
+    )
 
     return {
       type: "success",
       message: "Account created successfully.",
-      session: {
-        access_token: session_data.session.access_token,
-        refresh_token: session_data.session.refresh_token,
-        expires_in: session_data.session.expires_in,
-        expires_at: session_data.session.expires_at,
-      },
     }
   }, {
-    // SYNC THESE
-    body: z.object({
-      email: z.email("Invalid email address."),
-      password: z.string().min(8, "Password must be at least 8 characters."),
-      name: z.string().min(2, "Name is required.").max(50, "Name too long."),
-    })
+    body: signup_schema,
   })
 
   /**
    * POST /api/auth/signin
    * Signs in existing user with email/password.
+   * Sets HttpOnly cookies on success.
    */
-  .post("/signin", async ({ body, status }) => {
-    const supabase_admin = get_supabase_admin()
-
-    const { data, error } = await supabase_admin.auth.signInWithPassword({
+  .post("/signin", async ({ body, cookie, status, sb }) => {
+    const { data, error } = await sb.auth.signInWithPassword({
       email: body.email,
       password: body.password,
     })
@@ -104,21 +131,15 @@ export const auth_router = new Elysia({ prefix: "/auth" })
       })
     }
 
-    return {
-      type: "success",
-      session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_in: data.session.expires_in,
-        expires_at: data.session.expires_at,
-      }
-    }
+    set_auth_cookies(
+      cookie,
+      data.session.access_token,
+      data.session.refresh_token
+    )
+
+    return { type: "success" }
   }, {
-    // TODO: sync theses
-    body: z.object({
-      email: z.email(),
-      password: z.string().min(8),
-    })
+    body: login_schema,
   })
 
   /**
@@ -126,18 +147,11 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * Initiates Google OAuth flow.
    * @returns OAuth URL for frontend to redirect to
    */
-  .get("/oauth/google", async ({ status }) => {
-    const supabase_admin = get_supabase_admin()
-
-    // TODO: make this external reusable function
-    const backend_url = Bun.env.NODE_ENV === "production"
-      ? `https://${Bun.env.RAILWAY_PUBLIC_DOMAIN}`
-      : `http://localhost:${Bun.env.BACKEND_PORT}`
-
-    const { data, error } = await supabase_admin.auth.signInWithOAuth({
+  .get("/oauth/google", async ({ status, sb }) => {
+    const { data, error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${backend_url}/api/auth/callback`,
+        redirectTo: `${get_server_url("backend")}/api/auth/callback`,
         skipBrowserRedirect: true,
         queryParams: {
           access_type: "offline",
@@ -159,21 +173,16 @@ export const auth_router = new Elysia({ prefix: "/auth" })
   /**
    * GET /api/auth/callback
    * Handles OAuth callback from Supabase/Google.
-   * Exchanges code for session and creates profile if needed.
+   * Exchanges code for session, sets cookies, and redirects to frontend.
    */
-  .get("/callback", async ({ query, db, redirect }) => {
-    const supabase_admin = get_supabase_admin()
-
+  .get("/callback", async ({ query, db, cookie, redirect, sb }) => {
     const code = query.code
     const error = query.error
     const error_description = query.error_description
 
     console.log(code, error, error_description)
 
-    // TODO: move external
-    const frontend_url = Bun.env.NODE_ENV === "production"
-      ? `https://${Bun.env.RAILWAY_PUBLIC_DOMAIN}`
-      : `http://localhost:${Bun.env.FRONTEND_PORT}`
+    const frontend_url = get_server_url("frontend")
 
     // Handle OAuth errors
     if (error) {
@@ -185,7 +194,10 @@ export const auth_router = new Elysia({ prefix: "/auth" })
 
     try {
       // Exchange the code for session tokens
-      const { data: session_data, error: session_error } = await supabase_admin.auth.exchangeCodeForSession(code)
+      const {
+        data: session_data,
+        error: session_error,
+      } = await sb.auth.exchangeCodeForSession(code)
 
       if (session_error || !session_data.session || !session_data.user) {
         console.error("[auth/callback] Code exchange failed:", session_error)
@@ -218,12 +230,13 @@ export const auth_router = new Elysia({ prefix: "/auth" })
         })
       }
 
-      // Redirect to frontend with tokens in URL fragment (hash)
-      // Tokens in fragment are not sent to server in HTTP requests
-      const redirect_url = new URL(`${frontend_url}/auth/callback`)
-      redirect_url.hash = `access_token=${session.access_token}&refresh_token=${session.refresh_token}&expires_in=${session.expires_in}&token_type=bearer`
+      set_auth_cookies(
+        cookie,
+        session.access_token,
+        session.refresh_token,
+      )
 
-      return redirect(redirect_url.toString())
+      return redirect(frontend_url)
     } catch (e) {
       console.error("[auth/callback] Unexpected error:", e)
       return redirect(`${frontend_url}/login?error=server_error`)

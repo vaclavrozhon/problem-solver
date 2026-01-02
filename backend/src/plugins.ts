@@ -1,10 +1,11 @@
-import { Elysia } from "elysia"
+import { Cookie, Elysia, t } from "elysia"
 import { eq } from "drizzle-orm"
 
 import { profiles } from "../drizzle/schema"
-import { is_admin, auth_headers } from "@shared/auth"
-import type { AuthHeaders, User } from "@shared/auth"
-import { get_db, get_supabase } from "./db"
+import { is_admin } from "@shared/auth"
+import type { User } from "@shared/auth"
+import { get_db, get_supabase_admin } from "./db"
+import { COOKIE_CONFIG, set_auth_cookies, clear_auth_cookies } from "./auth/cookies"
 
 /**
  * This plugin injects every request with acccess to DB through `Drizzle`.
@@ -18,30 +19,68 @@ export const drizzle_plugin = new Elysia({ name: "drizzle-plugin" })
  * In this project, `SupabaseSDK` is used only for `auth` purposes.
  */
 export const supabase_plugin = new Elysia({ name: "supabase-plugin" })
-  .decorate("supabase", get_supabase())
+  .decorate("sb", get_supabase_admin())
 
 /**
  * Shared auth check logic. Used by both `isAuth` and `isAdmin` macros.
+ * Auto-refreshes tokens if access token expired but refresh token valid.
  */
-async function resolve_auth({ headers }: {
-  headers: AuthHeaders,
+async function resolve_auth({ cookie }: {
+  cookie: Record<string, Cookie<unknown>>,
 }) {
   const db = get_db()
-  const supabase  = get_supabase()
+  const supabase = get_supabase_admin()
 
-  // (1) Validate JWT
-  const jwt_token = headers.authorization.split(" ")[1]
-  const {
-    data: { user: supabase_user }
-  } = await supabase.auth.getUser(jwt_token)
+  // (1) Get tokens from cookies
+  const access_token = cookie[COOKIE_CONFIG.access_token.name]?.value as string | undefined
+  const refresh_token = cookie[COOKIE_CONFIG.refresh_token.name]?.value as string | undefined
 
-  if (!supabase_user) return {
-    error: { type: "error", message: "Invalid Bearer token. Access denied." },
+  if (!access_token && !refresh_token) return {
+    error: { type: "error", message: "Not authenticated." },
     error_code: 401,
     user: null,
   }
 
-  // (2) Load profile (profiles.id = auth.users.id)
+  // (2) Try access token first
+  let supabase_user = null
+  if (access_token) {
+    const { data } = await supabase.auth.getUser(access_token)
+    supabase_user = data.user
+  }
+
+  // (3) Access token invalid/expired - try refresh
+  if (!supabase_user && refresh_token) {
+    const { data: refresh_data, error: refresh_error } = await supabase.auth.refreshSession({
+      refresh_token
+    })
+
+    if (refresh_error || !refresh_data.session) {
+      clear_auth_cookies(cookie)
+      return {
+        error: { type: "error", message: "Session expired." },
+        error_code: 401,
+        user: null,
+      }
+    }
+
+    set_auth_cookies(
+      cookie,
+      refresh_data.session.access_token,
+      refresh_data.session.refresh_token
+    )
+    supabase_user = refresh_data.user
+  }
+
+  if (!supabase_user) {
+    clear_auth_cookies(cookie)
+    return {
+      error: { type: "error", message: "Invalid session. Access denied." },
+      error_code: 401,
+      user: null,
+    }
+  }
+
+  // (4) Load profile (profiles.id = auth.users.id)
   const profile = await db.query.profiles.findFirst({
     where: eq(profiles.id, supabase_user.id),
     columns: {
@@ -64,7 +103,7 @@ async function resolve_auth({ headers }: {
     user: null,
   }
 
-  // (3) Build user object
+  // (5) Build user object
   const user: User = {
     id: profile.id,
     email: profile.email,
@@ -91,7 +130,7 @@ async function resolve_auth({ headers }: {
 export const auth_plugin = new Elysia({ name: "auth-plugin" })
   .macro({
     /**
-     * Checks if user is properly authorized with Bearer token & the user exists.
+     * Checks if user is properly authorized via HttpOnly cookie
      * 
      * Injects context with `user`: `User`
      */
@@ -100,15 +139,11 @@ export const auth_plugin = new Elysia({ name: "auth-plugin" })
         let path = new URL(request.url).pathname
         console.log("[auth route]: ", path)
       },
-      headers: auth_headers,
-      resolve: async ({ headers, status }) => {
-        const result = await resolve_auth({ headers: headers as AuthHeaders })
-        // BUG: This is perfectly valid code, but bugs out in elysia eden
-        // it actually works but broken type-hinting -> investigate, create issue
-        // if (result.user === null) return status(result.error_code, result.error)
+      resolve: async ({ cookie, status }) => {
+        const result = await resolve_auth({ cookie })
         if (result.user === null) return status(401)
         return { user: result.user }
-      }
+      },
     },
 
     /**
@@ -121,11 +156,8 @@ export const auth_plugin = new Elysia({ name: "auth-plugin" })
         let path = new URL(request.url).pathname
         console.log("[admin route]: ", path)
       },
-      headers: auth_headers,
-      resolve: async ({ headers, status }) => {
-        const result = await resolve_auth({ headers: headers as AuthHeaders })
-        // BUG!!
-        // if (result.user === null) return status(result.error_code, result.error)
+      resolve: async ({ cookie, status }) => {
+        const result = await resolve_auth({ cookie })
         if (result.user === null) return status(401)
 
         if (!is_admin(result.user.role)) return status(403, {

@@ -17,13 +17,6 @@ export interface User {
   key_source: KeySource
 }
 
-export const auth_headers = z.object({
-  authorization: z.string("Please provide Authorization Bearer token in HTTP headers.")
-    .startsWith("Bearer ")
-    .min(8, "Authorization header should contain Bearer token."),
-})
-export type AuthHeaders = z.infer<typeof auth_headers>
-
 /**
  * Check if user is admin.
  */
@@ -39,8 +32,10 @@ export const user_name_schema = z.string().trim()
 
 export const login_schema = z.object({
   // TODO: constrain the email?
-  email: z.email("Please enter a valid email"),
+  email: z.email("Please enter a valid email").trim()
+    .nonempty("Email is required"),
   password: z.string().trim()
+    .nonempty("Password is required")
     .min(8, "Password must be at least 8 characters")
     // NOTE: Supabase imposed limit
     .max(72, "Password must be less than 73 characters"),

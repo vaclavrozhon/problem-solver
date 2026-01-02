@@ -8,7 +8,6 @@ type DBSchema = typeof schema & typeof relations
 export type Database = PostgresJsDatabase<DBSchema>
 
 let db_client: Database | null = null
-let supabase_client: SupabaseClient | null = null
 let supabase_admin_client: SupabaseClient | null = null
 
 /**
@@ -38,18 +37,6 @@ export function get_db_connection_string() {
     "[DATABASE_PASSWORD]",
     encodeURIComponent(process.env.DATABASE_PASSWORD)
   )
-}
-
-/**
- * @returns `SupabaseSDK` client built from `SUPABASE_PUBLISHABLE_KEY`
- */
-export function get_supabase() {
-  if (supabase_client) return supabase_client
-  supabase_client = createClient(
-    Bun.env.SUPABASE_URL,
-    Bun.env.SUPABASE_PUBLISHABLE_KEY
-  )
-  return supabase_client
 }
 
 /**

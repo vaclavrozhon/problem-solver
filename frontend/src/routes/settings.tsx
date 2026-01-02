@@ -29,6 +29,7 @@ import {
   Link
 } from "@heroui/react"
 import { Icon } from "@iconify/react"
+import { SignOut } from "../components/auth/SignOut"
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -54,8 +55,8 @@ function SettingsPage() {
   )
 
   return (
-    <main className="flex-1 flex flex-col gap-4 p-4 pt-0">
-      <h1>Settings</h1>
+    <main className="flex-1 flex flex-col gap-10 p-4 pt-0">
+      <h1 className="-mb-6">Settings</h1>
 
       <ProfileSection profile={profile}/>
 
@@ -63,6 +64,11 @@ function SettingsPage() {
         has_key={profile.has_openrouter_key}
         key_source={profile.key_source}
         is_admin={profile.role === "admin"}/>
+
+      <section className="flex flex-col gap-4 max-w-lg">
+        <h2>Account</h2>
+        <SignOut/>
+      </section>
     </main>
   )
 }
@@ -216,7 +222,7 @@ function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySe
   }
 
   return (
-    <section className="flex flex-col gap-4 max-w-lg mt-6">
+    <section className="flex flex-col gap-4 max-w-lg">
       <h2>OpenRouter API Key</h2>
 
       {is_admin && (

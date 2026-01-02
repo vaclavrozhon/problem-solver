@@ -15,6 +15,11 @@ export const profile_router = new Elysia({ prefix: "/profile" })
    * [AUTH] GET /profile/me
    * Returns current user's profile.
    * 
+   * This endpoint exists even though it's the same as /auth/me
+   * because in the future, we might want to extend it to accommodate
+   * new requirements and it'd have to re-created. Therefore, it's better
+   * to keep it rather than delete it now and re-introduce it later
+   * 
    * MANUALLY TESTED?: YES, works.
    */
   .get("/me", async ({ user }) => {

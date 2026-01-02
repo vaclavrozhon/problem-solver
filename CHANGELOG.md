@@ -1,3 +1,8 @@
+2026-01-02
+- wrote custom session handling (Bearer Token -> HttpsOnly cookies)
+frontend
+- remove supabase dependency
+
 2025-12-31
 backend
 - reworked the generating llms a bit

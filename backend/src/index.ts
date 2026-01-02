@@ -8,6 +8,7 @@ import { profile_router } from "./profile"
 import { auth_router } from "./auth"
 
 import { jobs } from "./jobs"
+import { get_server_url } from "@backend/server"
 
 const api_router = new Elysia({ prefix: "/api" })
   .get("/health", { status: "ok" })
@@ -19,9 +20,7 @@ const api_router = new Elysia({ prefix: "/api" })
 
 const backend = new Elysia({ name: "backend" })
   .use(cors({
-    origin: Bun.env.NODE_ENV === "production"
-      ? `https://${Bun.env.RAILWAY_PUBLIC_DOMAIN}`
-      : `http://localhost:${Bun.env.FRONTEND_PORT}`,
+    origin: get_server_url("frontend"),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   }))
@@ -75,7 +74,6 @@ process.on("SIGTERM", () => handle_shutdown())
 declare module "bun" {
   interface Env {
     SUPABASE_URL: string,
-    SUPABASE_PUBLISHABLE_KEY: string,
     SUPABASE_SECRET_KEY: string,
 
     BACKEND_PORT: number,

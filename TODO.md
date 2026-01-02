@@ -54,7 +54,6 @@
 
 ## Auth
 - [ ] On Sign out invalidate Tanstack Query Cache (e.g. sign in/sign up another/new account cache shows previous state for a while)
-- [ ] Replace Supabase SDK session getter with custom getter (all other auth is still routed through Supabase but handled only via backend)
 
 ## `/$problem_id`
 - [ ] If user doesn't own the problem, hide `Run research` tab. Though in the app, you can only find problems created by you, therefore this is no harm yet. But if users share the problems, we want to hide this tab. How to do it though? It depends on Auth that takes time so we probably have to hide even the navigation and everything and then display all of that when we know the auth state.

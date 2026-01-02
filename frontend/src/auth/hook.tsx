@@ -7,7 +7,6 @@ import { useAuthStore, select_is_authenticated, select_is_admin } from "./store"
 export function useAuth() {
   return useAuthStore(
     useShallow((s) => ({
-      user: s.user,
       profile: s.profile,
       is_loading: s.is_loading,
       error: s.error,

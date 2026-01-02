@@ -18,8 +18,8 @@ import {
 } from "@heroui/react"
 import BracketLink from "../components/action/BracketLink"
 
-import { supabase } from "../config/supabase"
 import { api } from "../api"
+import { useAuthStore } from "../auth/store"
 import { Icon } from "@iconify/react"
 
 export const Route = createFileRoute("/login")({
@@ -36,17 +36,14 @@ export default function LoginPage() {
 
   const sign_in = useMutation({
     mutationFn: async (form_data: z.infer<typeof login_schema>) => {
-      const { data, error } = await api.auth.signin.post(form_data)
-      if (error || !data?.session) {
+      const { error } = await api.auth.signin.post(form_data)
+      if (error) {
         throw new Error(error?.value?.message ?? "Sign In failed")
       }
-      return data.session
     },
-    onSuccess: async (session) => {
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      })
+    onSuccess: async () => {
+      // cookie is set by backend, just refresh auth state
+      await useAuthStore.getState().check_auth()
       navigate({ to: "/" })
     },
   })

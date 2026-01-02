@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router"
+import { createRootRoute, Outlet, redirect } from "@tanstack/react-router"
 import { useAuth } from "../auth/hook"
 import { auth_ready, useAuthStore, select_is_authenticated } from "../auth/store"
 
@@ -33,17 +33,7 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
-  const { user, sign_out, is_authenticated, is_admin } = useAuth()
-  const navigate = useNavigate()
-
-  async function handle_sign_out() {
-    const { error } = await sign_out()
-    if (error) {
-      console.error("Sign out failed:", error)
-      return
-    }
-    navigate({ to: "/login", search: { error: undefined, message: undefined } })
-  }
+  const { is_authenticated, is_admin } = useAuth()
 
   return (
     <div className="flex-1 flex flex-col">

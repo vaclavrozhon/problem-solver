@@ -1,5 +1,4 @@
 # Questions
-- [ ] Move darkmode from footer to settings page?
 - [ ] Implement `estimated_usage` for given round when starting research? (It's already present in the DB but not implemented yet.)
   - [ ] It'd be lovely to see a preview of how much the usage could cost.
 - [ ] Account:
@@ -11,6 +10,7 @@
 
 # Bugs
 - [ ] Failed provers bug the UI in Conversations
+- [ ] No OpenRouter API key set bug in Usage.
 - [ ] User sets his own OpenRouter key, its valid, working, then removes the OpenRouter key from OpenRouter (invalidates it), then starts reserach -> CRASH.
   - [ ] If user removes OpenRouter key, remove all his queued jobs? Or prevent him from removing the key if jobs are queued?
   - [ ] Right now, if jobs are queued, key is removed, job starts executing and it crashes cuz user has no key so nothing bad happens in the end.
@@ -20,8 +20,7 @@
 - [ ] Add support for PDF upload.
 - [ ] Implement Web Search
 - [ ] Implement Temperature setting
-  - [ ] Needs to be per model **config**
-- [ ] Add the option to fill in custom SYSTEM prompt for each prover/verifier/summarizer with prefilled default.
+  - [ ] Needs to be per model config
 - [ ] The LLM is currently prompted to return only valid KaTeX but still sometimes returns invalid KaTeX syntax. Since it doesn’t understand what KaTeX is, it might be better to prompt it like “Return Math in LaTeX syntax. Do not use any other LaTeX features.”
   - [ ] It’s possible to render all possible LaTeX math with MathJax which is slower than KaTeX… should we just stop using KaTex and use only MathJax and deal with the few hundred milliseconds slowness? Should probably just use MathJax?
 
@@ -65,7 +64,6 @@
 - [ ] Add DELETE problem button
 
 ### Run Research
-- [ ] Right now, prover general advice text area is 1-line only. I don't bother with implementing cleaner look for longer input because I'd like to remake the advice system.
 - [ ] Right now, main files are reconstructed from history by what the verfier decided – append, replace etc. This seems suboptimal and in the further if we decide to change how this appending/replacing works, it will cause trouble. Therefore, its in our best interest to also store the main files per round and not just in round 0.
 
 ### Conversations

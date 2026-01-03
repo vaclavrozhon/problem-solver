@@ -25,24 +25,61 @@ const MarkdownContent = styled.article`
   font-family: SourceSerif;
   display: flex;
   flex-flow: column;
-  gap: 15px;
+  gap: 1rem;
   padding: 1rem;
+  color: var(--fg-alpha);
+
   & > section:not([class]) {
     display: flex;
     flex-flow: column;
-    gap: 15px;
+    gap: 1rem;
   }
+
   & h1 {
     font-size: 1.1rem;
   }
-  & ul, ol {
-    padding-left: 1.75rem;
+
+  & h2 {
+    font-size: 1.1rem;
+    padding: .25rem 0;
+    position: relative;
+    &:only-child {
+      display: none;
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--bg-gamma);
+    }
   }
+
+  & h3 {
+    font-size: .95rem;
+    font-weight: 700;
+    font-family: Kode;
+    text-transform: uppercase;
+    margin-top: .25rem;
+  }
+
+  & h4 {
+    font-size: .9rem;
+    font-weight: 600;
+  }
+
   & p, a, li {
     font-size: 1rem;
-    line-height: 1.6;
-    letter-spacing: -.01rem
+    line-height: 1.7;
+    letter-spacing: -.025rem;
   }
+
+  & p + p {
+    margin-top: -.3rem;
+  }
+
   & p a:not([class]) {
     padding: 0 2px;
     position: relative;
@@ -60,38 +97,44 @@ const MarkdownContent = styled.article`
       background-size: 110% 110%;
     }
   }
-  & h2 {
-    font-size: 1.1rem;
-    padding: .25rem 0 .25rem 0;
-    position: relative;
-    &:only-child {
-      display: none;
-    }
-    &::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: 2px;
-      background: var(--bg-gamma);
+
+  & ul, ol {
+    padding-left: 1.5rem;
+    display: flex;
+    flex-flow: column;
+    gap: .3rem;
+  }
+  & ul {
+    list-style: disc;
+    & ul {
+      list-style: circle;
+      margin-top: .3rem;
     }
   }
-  & h3 {
-    font-size: 1rem;
-    font-family: Kode;
-    text-transform: uppercase;
-    margin-top: .15rem;
+  & ol {
+    list-style: decimal;
   }
-  & img {
-    max-width: 100%;
+  & li {
+    padding-left: .1rem;
   }
+
   & code {
-    padding: .1rem .2rem;
+    font-family: Kode;
+    padding: .1rem .15rem;
     border: 1px solid var(--border-alpha-color);
-    border-radius: .2rem;
+    border-radius: .25rem;
     background: var(--bg-beta);
-    color: var(--accent-alpha);
-    font-size: .9rem;
+    color: var(--color-brand);
+    font-size: .8rem;
+  }
+
+  pre {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    font-size: .8rem;
+  }
+
+  & strong {
+    font-weight: 600;
   }
 `

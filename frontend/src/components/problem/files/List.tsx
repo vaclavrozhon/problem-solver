@@ -71,8 +71,7 @@ export default function FilesList({
               round: selected_round,
               main_file: undefined
             }}
-            key={file.id}
-            className={`${file_id === file.id ? "active" : ""} ${get_file_type_class(file.file_name)}`}>
+            key={file.id}>
             {get_short_file_name(file.file_name)}
           </Link>
         ))}
@@ -82,8 +81,7 @@ export default function FilesList({
 
   function MainFileLink({ file_type, label }: { file_type: string; label: string }) {
     return (
-      <Link
-        to="/problem/$problem_id/files"
+      <Link to="/problem/$problem_id/files"
         params={{ problem_id }}
         search={{ file_id: undefined, round: selected_round, main_file: file_type }}>
         {label}
@@ -151,22 +149,21 @@ export default function FilesList({
         <FilesGroup>
           {files.rounds[round_files_index].round_instructions && (
             <AgentGroup className="round-instructions">
-              <h3>Round Instructions</h3>
               <FileButtons>
-                <Link
-                  to="/problem/$problem_id/files"
+                <Link to="/problem/$problem_id/files"
                   params={{ problem_id }}
                   search={{
                     file_id: files.rounds[round_files_index].round_instructions.id,
                     round: selected_round,
                     main_file: undefined
                   }}
-                  className={file_id === files.rounds[round_files_index].round_instructions.id ? "active" : ""}>
-                  Instructions
+                  className="border-t-0!">
+                  Additional Instructions
                 </Link>
               </FileButtons>
             </AgentGroup>
           )}
+
           {files.rounds[round_files_index].provers.length > 0 && (
             <AgentGroup className="prover">
               <div className="flex-col">
@@ -188,12 +185,14 @@ export default function FilesList({
               <ShowFiles files={files.rounds[round_files_index].provers[curr_prover]}/>
             </AgentGroup>
           )}
+
           {files.rounds[round_files_index].verifier.length > 0 && (
             <AgentGroup className="verifier">
               <h3>Verifier</h3>
               <ShowFiles files={files.rounds[round_files_index].verifier}/>
             </AgentGroup>
           )}
+
           {files.rounds[round_files_index].summarizer.length > 0 && (
             <AgentGroup className="summarizer">
               <h3>Summarizer</h3>

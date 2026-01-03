@@ -105,7 +105,11 @@ export const run_standard_research = define_job("start_research")
         problem_id,
         file_type: "prover_prompt",
         file_name: `prover-${i + 1}.prompt`,
-        content: prompt,
+        content: JSON.stringify({
+          version: 1,
+          system_prompt: new_research.prover.system_prompt,
+          user_prompt: prompt,
+        }, null, 2),
         round_id: current_round_id
       }))
     )
@@ -119,7 +123,7 @@ export const run_standard_research = define_job("start_research")
         model: prover.model,
         user_id: ctx.user_id,
         messages: [
-          { role: "system", content: "You are a research mathematician." },
+          { role: "system", content: new_research.prover.system_prompt },
           { role: "user", content: prover_prompts[i] },
         ],
         schema: ProverOutputSchema,
@@ -271,7 +275,11 @@ export const run_standard_verifier = define_job("verifier")
       problem_id: ctx.problem_id,
       file_type: "verifier_prompt",
       file_name: "verifier.prompt",
-      content: verifier_prompt,
+      content: JSON.stringify({
+        version: 1,
+        system_prompt: research.verifier.system_prompt,
+        user_prompt: verifier_prompt,
+      }, null, 2),
       round_id: ctx.current_round_id
     }])
 
@@ -282,7 +290,7 @@ export const run_standard_verifier = define_job("verifier")
       model: model_config,
       user_id: ctx.user_id,
       messages: [
-        { role: "system", content: "You are a strict mathematical verifier & research manager." },
+        { role: "system", content: research.verifier.system_prompt },
         { role: "user", content: verifier_prompt },
       ],
       schema: VerifierOutputSchema,
@@ -414,7 +422,11 @@ export const run_standard_summarizer = define_job("summarizer")
       problem_id: ctx.problem_id,
       file_type: "summarizer_prompt",
       file_name: "summarizer.prompt",
-      content: summarizer_prompt,
+      content: JSON.stringify({
+        version: 1,
+        system_prompt: research.summarizer.system_prompt,
+        user_prompt: summarizer_prompt,
+      }, null, 2),
       round_id: ctx.current_round_id
     }])
 
@@ -426,7 +438,7 @@ export const run_standard_summarizer = define_job("summarizer")
       model: model_config,
       user_id: ctx.user_id,
       messages: [
-        { role: "system", content: "You are a research summarizer." },
+        { role: "system", content: research.summarizer.system_prompt },
         { role: "user", content: summarizer_prompt },
       ],
       schema: SummarizerOutputSchema,

@@ -1,152 +1,144 @@
-import { useMemo, useState } from "react"
-import { styled } from "@linaria/react"
+import { useEffect, useMemo, useState } from "react"
+import { Tabs } from "@heroui/react"
 
 import Markdown from "../../../components/Markdown"
 import JSONViewer from "../../../components/JSONViewer"
+import { is_versioned_prompt, type PromptFileContent } from "@shared/types/problem"
 
-interface Props {
-  name: string
-  content: string
-  subtitle?: string
-  model_id?: string
-  cost?: number
-}
+type ParseResult =
+  | { type: "versioned_prompt", data: PromptFileContent }
+  | { type: "json", data: unknown }
+  | { type: "plaintext" }
 
-function try_parse_json(content: string): { is_json: boolean, parsed: unknown } {
-  if (!content) return { is_json: false, parsed: null }
+function parse_content(content: string): ParseResult {
+  if (!content) return { type: "plaintext" }
   const trimmed = content.trim()
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-    return { is_json: false, parsed: null }
+    return { type: "plaintext" }
   }
   try {
     const parsed = JSON.parse(trimmed)
-    return { is_json: true, parsed }
+    if (is_versioned_prompt(parsed)) {
+      return { type: "versioned_prompt", data: parsed }
+    }
+    return { type: "json", data: parsed }
   } catch {
-    return { is_json: false, parsed: null }
+    return { type: "plaintext" }
   }
 }
 
-export default function FileContentViewer({ name, content, subtitle, model_id, cost }: Props) {
-  const [curr_view, setCurrView] = useState<"formatted" | "raw">("formatted")
+interface ToggleOption<T extends string> {
+  value: T,
+  label: string,
+}
 
-  const { is_json, parsed } = useMemo(() => try_parse_json(content), [content])
+interface ToggleGroupProps<T extends string> {
+  options: ToggleOption<T>[],
+  value: T,
+  onChange: (value: T) => void,
+  aria_label: string,
+}
 
+function ToggleGroup<T extends string>({ options, value, onChange, aria_label }: ToggleGroupProps<T>) {
   return (
-    <Viewer>
-      <Header>
-        <h2>{name}</h2>
-
-        {!is_json && (
-          <ViewToggle>
-            <button
-              className={curr_view === "formatted" ? "active" : ""}
-              onClick={() => setCurrView("formatted")}>
-              Formatted
-            </button>
-            <button
-              className={curr_view === "raw" ? "active" : ""}
-              onClick={() => setCurrView("raw")}>
-              Raw
-            </button>
-          </ViewToggle>
-        )}
-
-        {(model_id || cost !== undefined) && (
-          <>
-            {model_id && <span>{model_id}</span>}
-            {cost !== undefined && <span>${cost.toFixed(3)}</span>}
-          </>
-        )}
-      </Header>
-      <Content>
-        {is_json
-          ? <JSONViewer raw_json={parsed}/>
-          : curr_view === "formatted"
-            ? <Markdown md={content || "--THIS FILE IS EMPTY--"}/>
-            : <pre className="raw">{content || "--THIS FILE IS EMPTY--"}</pre>
-        }
-      </Content>
-    </Viewer>
+    <Tabs
+      selectedKey={value}
+      onSelectionChange={(key) => onChange(key as T)}>
+      <Tabs.ListContainer>
+        <Tabs.List aria-label={aria_label}
+          className="*:w-fit *:h-6 *:px-3 *:py-1.5 py-0.75 *:text-xs *:font-semibold bg-gamma *:data-[selected=true]:text-brand *:data-[selected=true]:pointer-events-none">
+          {options.map(opt => (
+            <Tabs.Tab key={opt.value} id={opt.value}>
+              {opt.label}
+              <Tabs.Indicator className="bg-brand/20"/>  
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs.ListContainer>
+    </Tabs>
   )
 }
 
-const ViewToggle = styled.div`
-  display: flex;
-  border: var(--border-alpha);
-  border-radius: .25rem;
-  overflow: hidden;
-  & > button {
-    padding: .3rem .6rem;
-    font-size: .85rem;
-    font-weight: 500;
-    background: transparent;
-    color: var(--text-gamma);
-    transition: all .15s ease;
-    text-transform: uppercase;
-    &:not(:last-child) {
-      border-right: var(--border-alpha);
-    }
-    &:hover:not(.active) {
-      background: var(--bg-alpha);
-      color: var(--text-beta);
-    }
-    &.active {
-      background: var(--bg-gamma);
-      color: var(--text-alpha);
-      pointer-events: none;
-    }
-  }
-`
+type ContentViewFormat = "formatted" | "raw"
 
-const Header = styled.header`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .75rem;
-  padding: .6rem 1rem;
-  background: var(--bg-beta);
-  border-bottom: var(--border-alpha);
-  height: 3.5rem;
-  & > h2 {
-    font-family: Kode;
-    font-size: 1rem;
-    text-transform: uppercase;
-    color: var(--accent-alpha);
-    margin-right: auto;
-  }
-  & > span {
-    font-family: Kode;
-    font-size: .8rem;
-    color: var(--text-gamma);
-    padding: .2rem .5rem;
-    border-radius: .2rem;
-    background: var(--bg-alpha);
-    border: var(--border-alpha);
-    & > span.currency {
-      color: var(--accent-alpha);
-    }
-  }
-`
+function TextContent({ text, view, empty_msg = "--EMPTY--" }: {
+  text: string,
+  view: ContentViewFormat,
+  empty_msg?: string,
+}) {
+  const display = text || empty_msg
+  return view === "formatted"
+    ? <Markdown md={display}/>
+    : <pre className="p-4 text-sm whitespace-pre-wrap wrap-break-word">{display}</pre>
+}
 
-const Content = styled.div`
-  flex: 1;
-  & > pre.raw {
-    padding: 1rem;
-    font-size: .8rem;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    background: var(--bg-alpha);
-  }
-`
+interface FileContentViewerProps {
+  name: string,
+  content: string,
+  subtitle?: string,
+  model_id?: string,
+  cost?: number,
+}
 
-export const Viewer = styled.section`
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-  overflow: hidden;
-  &.center {
-    align-items: center;
-    justify-content: center;
-  }
-`
+export default function FileContentViewer({ name, content, model_id, cost }: FileContentViewerProps) {
+  const default_view = name.includes(".prompt") ? "raw" : "formatted"
+  const [view, setView] = useState<ContentViewFormat>(default_view)
+  const [prompt_tab, setPromptTab] = useState<"system" | "user">("user")
+
+  useEffect(() => setView(default_view), [default_view])
+
+  const parsed = useMemo(() => parse_content(content), [content])
+  const is_versioned = parsed.type === "versioned_prompt"
+  const show_content_view_toggle = parsed.type !== "json"
+
+  const display_content = parsed.type === "versioned_prompt"
+    ? prompt_tab === "system"
+      ? parsed.data.system_prompt
+      : parsed.data.user_prompt
+    : content
+
+  return (
+    <section key={name}
+      className="flex-1 flex flex-col overflow-x-hidden">
+      <header className="flex items-center gap-2 px-4 h-14 border-b-2 border-edge bg-beta">
+        <h2 className="kode text-base text-brand mr-auto">{name}</h2>
+
+        {is_versioned && (
+          <ToggleGroup aria_label="Prompt type toggle"
+            options={[
+              { value: "user", label: "User prompt" },
+              { value: "system", label: "System prompt" },
+            ]}
+            value={prompt_tab}
+            onChange={setPromptTab}/>
+        )}
+
+        {show_content_view_toggle && (
+          <ToggleGroup aria_label="Formatting toggle"
+            options={[
+              { value: "formatted", label: "Formatted" },
+              { value: "raw", label: "Raw" },
+            ]}
+            value={view}
+            onChange={setView}/>
+        )}
+
+        {model_id && (
+          <p className="text-xs px-2 py-1 rounded-full bg-gamma">
+            {model_id}
+          </p>
+        )}
+        {cost !== undefined && (
+          <p className="text-xs px-2 py-1 rounded-full bg-gamma">
+            ${cost.toFixed(3)}
+          </p>
+        )}
+      </header>
+
+      {parsed.type === "json"
+        ? <JSONViewer raw_json={parsed.data}/>
+        : <TextContent text={display_content} view={view}/>
+      }
+    </section>
+  )
+}

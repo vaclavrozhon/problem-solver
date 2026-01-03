@@ -101,6 +101,31 @@ export interface ProblemFiles {
 
 // Schemas
 
+/**
+ * versioned prompt file format 
+ * - v1: system_prompt and user_prompt fields
+ * - legacy (no version field): plaintext user prompts
+ */
+export interface PromptFileContent {
+  version: 1
+  system_prompt: string
+  user_prompt: string
+}
+
+/**
+ * detects whether prompt is using versioning
+ */
+export function is_versioned_prompt(content: unknown): content is PromptFileContent {
+  return (
+    typeof content === "object"
+      && content !== null
+      && "version" in content
+      && (content as Record<string, unknown>).version === 1
+      && "system_prompt" in content
+      && "user_prompt" in content
+  )
+}
+
 export const CreateProblemFormSchema = z.object({
   problem_name: z.string().trim()
     .nonempty("Problem name is required")

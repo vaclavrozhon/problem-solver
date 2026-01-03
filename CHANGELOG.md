@@ -1,3 +1,8 @@
+2026-01-03
+- system prompt editing implemented
+- introduced prompt file versioning
+
+
 2026-01-02
 - wrote custom session handling (Bearer Token -> HttpsOnly cookies)
 - replaced advice from research with additional instructions

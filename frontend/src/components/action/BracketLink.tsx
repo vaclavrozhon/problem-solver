@@ -1,27 +1,7 @@
 import React from "react"
 import { createLink } from "@tanstack/react-router"
 import type { LinkComponent } from "@tanstack/react-router"
-import { styled } from "@linaria/react"
-
-const Link = styled.a`
-  position: relative;
-  display: inline-flex;
-  font-weight: 500;
-  gap: .05rem;
-  color: var(--accent-alpha);
-  &:hover::after {
-      content: "";
-      position: absolute;
-      bottom: .055rem;
-      left: .425rem;
-      width: calc(100% - .85rem);
-      height: 1px;
-      background: var(--accent-alpha);
-  }
-  & span {
-    font-weight: 600;
-  }
-`
+import { bracket_base_styles } from "./bracket-styles"
 
 interface LinkProps extends
   React.AnchorHTMLAttributes<HTMLAnchorElement>,
@@ -29,12 +9,14 @@ interface LinkProps extends
 
 export const BracketLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
   (props, ref) => {
+    const { className, children, ...rest } = props
     return (
-      <Link ref={ref} {...props}>
-        <span>[</span>
-        {props.children}
-        <span>]</span>
-      </Link>
+      <a ref={ref}
+        className={`${bracket_base_styles} ${className ?? ""}`} {...rest}>
+        <span className="font-semibold">[</span>
+        {children}
+        <span className="font-semibold">]</span>
+      </a>
     )
   },
 )
@@ -42,7 +24,7 @@ export const BracketLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
 const BracketLinkComponent = createLink(BracketLink)
 
 const CustomLink: LinkComponent<typeof BracketLink> = (props) => {
-  return <BracketLinkComponent preload={"intent"} {...props} />
+  return <BracketLinkComponent preload={"intent"} {...props}/>
 }
 
 export default CustomLink

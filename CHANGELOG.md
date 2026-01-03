@@ -1,6 +1,8 @@
 2026-01-03
 - system prompt editing implemented
 - introduced prompt file versioning
+backend
+- fix usage retrieval bug when no key set
 
 
 2026-01-02

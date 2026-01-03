@@ -228,7 +228,7 @@ export const profile_router = new Elysia({ prefix: "/profile" })
    */
   .get("/balance", async ({ db, user, status }) => {
     try {
-      const balance = get_openrouter_balance(db, user)
+      const balance = await get_openrouter_balance(db, user)
       if (balance === null) return status(204)
       return balance
     } catch (e) {

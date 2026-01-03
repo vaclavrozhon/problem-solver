@@ -13,7 +13,7 @@ export const Route = createFileRoute("/usage")({
 function UsagePage() {
   const { data: balance, isError, isPending } = useQuery({
     queryKey: ["openrouter-usage-api"],
-    queryFn: () => get_openrouter_usage()
+    queryFn: get_openrouter_usage,
   })
 
   if (isPending) return (

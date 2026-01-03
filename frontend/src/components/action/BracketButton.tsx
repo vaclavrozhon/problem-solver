@@ -1,54 +1,28 @@
 import React from "react"
-import { styled } from "@linaria/react"
-
-const Button = styled.button`
-  position: relative;
-  display: inline-flex;
-  font-weight: 500;
-  gap: .05rem;
-  color: var(--accent-alpha);
-  text-wrap: nowrap;
-  cursor: pointer;
-  &:hover::after {
-      content: "";
-      position: absolute;
-      bottom: .055rem;
-      left: .425rem;
-      width: calc(100% - .85rem);
-      height: 1px;
-      background: var(--accent-alpha);
-  }
-  &[disabled] {
-    color: var(--text-alpha);
-    pointer-events: none;
-    &:hover::after {
-      content: unset;
-    }
-  }
-  &.hidden {
-    display: none;
-  }
-  & span {
-    font-weight: 600
-  }
-`
+import { bracket_base_styles } from "./bracket-styles"
 
 interface Props extends React.PropsWithChildren {
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>,
   disabled?: boolean,
   type?: "button" | "submit",
   hidden?: boolean,
+  className?: string,
 }
 
-export default function BracketButton({ onClick, children, disabled = false, type = "button", hidden = false }: Props) {
+export default function BracketButton({ onClick, children, disabled = false, type = "button", hidden = false, className }: Props) {
   return (
-    <Button onClick={onClick}
+    <button onClick={onClick}
       disabled={disabled}
-      className={hidden ? "hidden" : ""}
-      type={type}>
-      <span>[</span>
+      type={type}
+      className={`
+        ${bracket_base_styles}
+        whitespace-nowrap cursor-pointer
+        disabled:text-(--text-alpha) disabled:pointer-events-none disabled:hover:after:content-none
+        ${hidden ? "hidden" : ""} ${className ?? ""}
+      `}>
+      <span className="font-semibold">[</span>
       {children}
-      <span>]</span>
-    </Button>
+      <span className="font-semibold">]</span>
+    </button>
   )
 }

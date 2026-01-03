@@ -113,9 +113,10 @@ export default function Conversation({
 
 function Header({ title, expanded, onExpand, onShrink }: { title: string, expanded?: boolean, onExpand?: () => void, onShrink?: () => void }) {
   return (
-    <ConversationRow className="header">
+    <ConversationRow className="conversation--header">
       <h3>{title}</h3>
-      <BracketButton onClick={expanded ? onShrink : onExpand}>
+      <BracketButton onClick={expanded ? onShrink : onExpand}
+        className="text-sm">
         {expanded ? "Shrink" : "Expand"}
       </BracketButton>
     </ConversationRow>
@@ -132,11 +133,13 @@ function SettingsHeader({ raw, math_renderer, onSwitchFormatting, onSwitchMathRe
     <ConversationRow className="space-between">
       <span>⚙️ Settings</span>
       {!raw && (
-        <BracketButton onClick={onSwitchMathRendering}>
+        <BracketButton onClick={onSwitchMathRendering}
+          className="text-sm">
           Switch to {math_renderer === "KaTeX" ? "MathJax" : "KaTeX"}
         </BracketButton>
       )}
-      <BracketButton onClick={onSwitchFormatting}>
+      <BracketButton onClick={onSwitchFormatting}
+        className="text-sm">
         {raw ? "Formatted" : "RAW"}
       </BracketButton>
     </ConversationRow>
@@ -251,7 +254,7 @@ const ConversationRow = styled.div`
   padding: .4rem .6rem;
   gap: .4rem;
   border-bottom: var(--border-alpha);
-  &.header {
+  &.conversation--header {
     border-bottom: 2px dashed var(--border-alpha-color);
     & h3 {
       margin-right: auto;

@@ -196,7 +196,7 @@ export const run_standard_research = define_job("start_research")
     const files_to_save = []
 
     for (const { result, index } of successful_results) {
-      const { output, usage, reasoning, model_id } = result
+      const { output, usage, model_id } = result
       files_to_save.push({
         problem_id,
         round_id: current_round_id,
@@ -206,16 +206,6 @@ export const run_standard_research = define_job("start_research")
         model_id,
         usage,
       })
-      if (reasoning !== undefined) {
-        files_to_save.push({
-          problem_id,
-          round_id: current_round_id,
-          file_type: "prover_reasoning" as FileType,
-          file_name: `prover-${index + 1}.reasoning`,
-          content: JSON.stringify(reasoning, null, 2),
-          model_id,
-        })
-      }
 
       prover_output.push(output.content)
     }
@@ -300,7 +290,7 @@ export const run_standard_verifier = define_job("verifier")
 
     if (!verifier_response.success) throw verifier_response.error
 
-    const { output: verifier_output, usage, reasoning, time, model_id } = verifier_response
+    const { output: verifier_output, usage, time, model_id } = verifier_response
 
     await db.update(rounds)
       .set({
@@ -311,29 +301,15 @@ export const run_standard_verifier = define_job("verifier")
       .where(eq(rounds.id, ctx.current_round_id))
 
     // (3) Save verifier output
-    const verifier_files_to_save = [
-      {
-        problem_id: ctx.problem_id,
-        file_type: "verifier_output" as FileType,
-        file_name: "verifier.output",
-        content: JSON.stringify(verifier_output, null, 2),
-        round_id: ctx.current_round_id,
-        model_id,
-        usage,
-      },
-    ]
-    if (reasoning !== undefined) {
-      verifier_files_to_save.push({
-        problem_id: ctx.problem_id,
-        file_type: "verifier_reasoning" as FileType,
-        file_name: "verifier.reasoning",
-        content: JSON.stringify(reasoning, null, 2),
-        round_id: ctx.current_round_id,
-        model_id,
-        usage: undefined as any,
-      })
-    }
-    await save_problem_files(db, verifier_files_to_save)
+    await save_problem_files(db, [{
+      problem_id: ctx.problem_id,
+      file_type: "verifier_output" as FileType,
+      file_name: "verifier.output",
+      content: JSON.stringify(verifier_output, null, 2),
+      round_id: ctx.current_round_id,
+      model_id,
+      usage,
+    }])
 
     // (4) Update main files
     const notes = files.main_files.find(f => f.file_type === "notes")!
@@ -448,7 +424,7 @@ export const run_standard_summarizer = define_job("summarizer")
 
     if (!summarizer_response.success) throw summarizer_response.error
 
-    const { output: summarizer_output, usage, reasoning, time, model_id } = summarizer_response
+    const { output: summarizer_output, usage, time, model_id } = summarizer_response
 
     // (3) Save summarizer output & Finalize round
     const summarizer_files_to_save = [
@@ -462,17 +438,6 @@ export const run_standard_summarizer = define_job("summarizer")
         usage
       },
     ]
-    if (reasoning !== undefined) {
-      summarizer_files_to_save.push({
-        problem_id: ctx.problem_id,
-        file_type: "summarizer_reasoning" as FileType,
-        file_name: "summarizer.reasoning",
-        content: JSON.stringify(reasoning, null, 2),
-        round_id: ctx.current_round_id,
-        model_id,
-        usage: undefined as any,
-      })
-    }
 
     await db.transaction(async (tx) => {
       await save_problem_files(tx, summarizer_files_to_save)

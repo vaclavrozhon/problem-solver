@@ -184,8 +184,8 @@ export const models = {
       // final
       id: "moonshotai/kimi-k2-thinking",
       name: "Kimi K2 Thinking",
-      provider: "nebius/fp8",
-      price: { input: 0.6, output: 2.5 },
+      provider: "siliconflow/fp8",
+      price: { input: 0.55, output: 2.5 },
       config: {
         web_search: false,
         // I feel like it doesnt react to effort levels and cant be turned off, is on by default
@@ -197,8 +197,7 @@ export const models = {
       context: 262_144,
       max_output: 262_144,
       stream_cancel: false,
-      // for nebius
-      byok: true,
+      byok: false,
     },
   ],
   nvidia: [

@@ -3,6 +3,7 @@
 - introduced prompt file versioning
 backend
 - fix usage retrieval bug when no key set
+- removed saving reasoning because closed-source models return mainly encrypted reasoning (the unencrypted part is too vague) & open-source models reasoning doesn't work with streaming in `ai-sdk@6`
 
 
 2026-01-02

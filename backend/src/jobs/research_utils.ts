@@ -48,7 +48,6 @@ export type LLMResponse<T> =
     success: true,
     output: T,
     usage: OpenRouterUsageAccounting,
-    reasoning: any | undefined,
     request: Awaited<ReturnType<typeof streamText>["request"]>,
     time: number,
     model_id: ModelID,
@@ -433,7 +432,9 @@ export async function generate_llm_response<T>({
           usage: { include: true },
           extraBody: {
             reasoning: get_reasoning_config(model),
-            plugins: [{ id: "response-healing" }],
+            plugins: [
+              { id: "response-healing" },
+            ],
           },
           provider: {
             // BUG: is there a way to handle this without the "!"?
@@ -475,14 +476,13 @@ export async function generate_llm_response<T>({
       const request = await stream.request
       const provider_metadata = await stream.providerMetadata
       const usage = provider_metadata?.openrouter?.usage as OpenRouterUsageAccounting
-      const reasoning = provider_metadata?.openrouter?.reasoning_details
       const time = (performance.now() - llm_start_time) / 1000
 
       if (save_to_db) {
-        await save_llm_log(db, prompt_file_id, { output, usage, reasoning }, usage, model_id)
+        await save_llm_log(db, prompt_file_id, output, usage, model_id)
       }
 
-      return { success: true, output, usage, reasoning, request, time, model_id }
+      return { success: true, output, usage, request, time, model_id }
     } catch (e) {
       last_error = e instanceof Error ? e : new Error(String(e))
       const is_validation = last_error.name === "AI_NoObjectGeneratedError"

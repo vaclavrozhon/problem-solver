@@ -228,7 +228,7 @@ export const models = {
       config: {
         web_search: true,
         // TODO
-        reasoning: null,
+        reasoning: ["none", "low", "medium", "high", "xhigh"],
       },
       byok: true,
       stream_cancel: true,
@@ -276,7 +276,7 @@ export const models = {
       config: {
         web_search: true,
         // TODO
-        reasoning: null,
+        reasoning: ["low", "medium", "high"],
       },
       byok: true,
       stream_cancel: true,

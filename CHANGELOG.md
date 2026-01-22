@@ -1,6 +1,7 @@
 2026-01-22
 - frontend
   - made research problems accessible to anyone with the link
+  - admin: added invite money allocation to `/usage`
 - backend
   - job queue manager concurrency set to `100`
 

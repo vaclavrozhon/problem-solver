@@ -26,6 +26,7 @@ import { invite_schema, INVITE_CREDIT_MIN, INVITE_CREDIT_MAX } from "@shared/adm
 import * as Breadcrumb from "../../components/ui/Breadcrumb"
 import { Table, TableBody, TableHeader, TableRow, TableCell } from "../../components/ui/Table"
 import { Icon } from "@iconify/react"
+import { calculate_allocated_money_for_invites } from "@frontend/utils/admin"
 
 export const Route = createFileRoute("/admin/invites")({
   component: AdminInvitesPage,
@@ -109,10 +110,7 @@ function AdminInvitesPage() {
   const invite_stat__value = "text-2xl font-bold"
   const invite_stat__label = "kode uppercase font-semibold text-sm"
 
-  const total_allocated_credits = invites.reduce(
-    (acc, invite) => acc + (invite.usage?.remaining ?? invite.credit_limit),
-    0
-  )
+  const total_allocated_credits = calculate_allocated_money_for_invites(invites)
   const missing_credits = data.admin_balance - total_allocated_credits
 
   return (
@@ -173,7 +171,7 @@ function AdminInvitesPage() {
             <p className={invite_stat__label}>Redeemed</p>
           </div>
           <div className={invite_stat__block}>
-            <p className={`${invite_stat__value} text-brand`}>${total_allocated_credits}</p>
+            <p className={`${invite_stat__value} text-brand`}>${total_allocated_credits.toFixed(1)}</p>
             <p className={invite_stat__label + " after:content-['*'] after:font-sans"}>Allocated</p>
           </div>
         </div>
@@ -184,9 +182,9 @@ function AdminInvitesPage() {
             OpenRouter balance
             <Link.Icon/>
           </Link>
-          {" "}needs to be at least ${total_allocated_credits}.
+          {" "}needs to be at least ${total_allocated_credits.toFixed(1)}.
           <br/>
-          Current balance is ${data.admin_balance.toFixed(3)} -&gt;{" "}
+          Current balance is ${data.admin_balance.toFixed(1)} -&gt;{" "}
           {missing_credits >= 0 ? (
             <span className="font-medium text-ink-2">You're all set!</span>
           ) : (

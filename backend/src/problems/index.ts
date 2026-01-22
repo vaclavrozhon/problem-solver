@@ -67,6 +67,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem. Could be implementd via macro so that we dont repeat ourselves.
    * MANUALLY TESTED?: Yes, but needs new breaking features.
    */
+   // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/overview/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db.query.problems.findFirst({
@@ -167,7 +168,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve Overview for problem with id: '${problem_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] GET /problems/research_overview/:problem_id
@@ -202,6 +203,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
    * MANUALLY TESTED?: NO.
    */
+  // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/conversations/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db
@@ -291,7 +293,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve Conversations for problem with id: '${problem_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] GET /problems/files/:problem_id
@@ -300,6 +302,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
    * MANUALLY TESTED?: NO.
    */
+  // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/files/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
     } catch (e) {
@@ -308,7 +311,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve list of files for problem with ID: '${problem_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] GET /problems/main_files_history/:problem_id
@@ -317,6 +320,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
    * MANUALLY TESTED?: NO.
    */
+  // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/main_files_history/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const history = await reconstruct_main_files_history(db, problem_id)
@@ -328,7 +332,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve main files history for problem with ID: '${problem_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] GET /problems/file_by_id/:file_id
@@ -337,6 +341,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
    * MANUALLY TESTED?: NO.
    */
+  // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/file_by_id/:file_id", async ({ db, params: { file_id }, status }) => {
     try {
       const result = await db
@@ -352,7 +357,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve file with ID: '${file_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] GET /problems/all_files/:problem_id
@@ -360,6 +365,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    * TODO: Implement problem sharing. Default behavior should be that this problem can only be viewed by ADMIN/OWNER of the problem.
    * MANUALLY TESTED?: NO.
    */
+  // BUG: Quick workaround to allow problem viewing for unauthroized users
   .get("/all_files/:problem_id", async ({ db, params: { problem_id }, status }) => {
     try {
       const result = await db.query.problem_files.findMany({
@@ -398,7 +404,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve files for problem with ID: '${problem_id}'.`
       })
     }
-  }, { isAuth: true })
+  })
 
   /**
    * [AUTH] POST /problems/create-new-problem

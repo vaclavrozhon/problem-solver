@@ -1,6 +1,8 @@
 2026-01-22
 - frontend
   - made research problems accessible to anyone with the link
+- backend
+  - job queue manager concurrency set to `100`
 
 2026-01-03
 - system prompt editing implemented

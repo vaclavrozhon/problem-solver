@@ -5,7 +5,7 @@ import type { OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 import { QueueState, JobInputSchema, JobStatus } from "../admin/jobs"
 
 const DEFAULT_QUEUE = "jobs"
-const DEFAULT_CONCURRENCY = 25
+const DEFAULT_CONCURRENCY = 100
 
 type RedisConfig = ReturnType<typeof parse_redis_url>
 

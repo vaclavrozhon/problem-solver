@@ -28,6 +28,8 @@ import SplitViewEditor from "../../../components/app/SplitViewEditor"
 import ModelSelect from "@frontend/components/form/ModelSelect"
 import ProviderLogo from "@frontend/components/svg/ProviderLogo"
 
+import { useAuthStore } from "@frontend/auth/store"
+
 export const Route = createFileRoute("/problem/$problem_id/research")({
   component: RunNewResearchPage,
 })
@@ -72,6 +74,14 @@ const default_system_prompts = {
 function RunNewResearchPage() {
   const { problem_id } = Route.useParams()
   const navigate = useNavigate()
+  const { profile, is_loading } = useAuthStore()
+  // BUG: quick workaround for nona-uth personas viewing reserach problem
+  if (!is_loading) {
+    if (!profile) navigate({
+      to: "/problem/$problem_id",
+      params: { problem_id },
+    })
+  }
 
   const [selected_editor, setSelectedEditor] = useState<EditorSelection>("round_instructions")
   const [pending_data, setPendingData] = useState<NewStandardResearchType | null>(null)

@@ -1,3 +1,7 @@
+2026-01-22
+- frontend
+  - made research problems accessible to anyone with the link
+
 2026-01-03
 - system prompt editing implemented
 - introduced prompt file versioning

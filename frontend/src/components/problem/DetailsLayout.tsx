@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
 import { Skeleton, Spinner } from "@heroui/react"
 
-import { useAuth } from "../../auth/hook"
+import { useAuthStore } from "@frontend/auth/store"
 
 interface LayoutProps {
   problem_id: string,
@@ -17,13 +17,7 @@ export default function ProblemDetailsLayout({
   children,
   loading = false,
 }: LayoutProps) {
-  const tabs = [
-    { name: "Overview", link: "/problem/$problem_id", index: true },
-    { name: "Run research", link: "/problem/$problem_id/research" },
-    { name: "Conversations", link: "/problem/$problem_id/conversations" },
-    { name: "Files", link: "/problem/$problem_id/files" },
-  ]
-  const { user } = useAuth()
+  const { profile } = useAuthStore()
   // TODO[RELEASE]: If user doesn't own problem, hide `Run research` tab
 
   return (
@@ -37,12 +31,22 @@ export default function ProblemDetailsLayout({
       </header>
 
       <ProblemTabs>
-        {tabs.map(tab => (
-          <Link to={tab.link}
-            params={{ problem_id }}
-            activeOptions={{ exact: !!tab.index }}
-            key={tab.link}>{tab.name}</Link>
-        ))}
+        <Link to="/problem/$problem_id"
+          params={{ problem_id }}
+          activeOptions={{ exact: true }}>Overview</Link>
+        {profile && (
+          <Link to="/problem/$problem_id/research"
+            params={{ problem_id }}>Run research</Link>
+        )}
+        <Link to="/problem/$problem_id/conversations"
+          params={{ problem_id }}>Conversations</Link>
+        <Link to="/problem/$problem_id/files"
+          params={{ problem_id }}
+          search={{
+            file_id: undefined,
+            main_file: undefined,
+            round: undefined,
+          }}>Files</Link>
       </ProblemTabs>
 
       {loading ? (

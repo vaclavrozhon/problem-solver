@@ -23,6 +23,9 @@ export const Route = createRootRoute({
 
     const is_login_route = LOGIN_ROUTES.has(location.pathname)
 
+    // BUG: Quick workaround to allow problem viewing for unauthroized users
+    if (location.href.includes("/problem/")) return
+
     if (is_login_route && is_authenticated) throw redirect({ to: "/" })
 
     if (!is_login_route && !is_authenticated) throw redirect({

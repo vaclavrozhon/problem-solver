@@ -21,10 +21,12 @@ export default function Header({ is_authenticated, is_admin }: HeaderProps) {
 
   if (!is_authenticated) return (
     <header className={header}>
-      <div className="flex items-center gap-2">
+      <Link to="/"
+        preload="intent"
+        className="flex items-center gap-2">
         <Logo/>
-        <TextLogo lowercase/>
-      </div>
+        <TextLogo/>
+      </Link>
     </header>
   )
 
@@ -34,7 +36,7 @@ export default function Header({ is_authenticated, is_admin }: HeaderProps) {
         preload="intent"
         className="flex items-center gap-2">
         <Logo/>
-        <TextLogo lowercase/>
+        <TextLogo/>
       </Link>
       <nav>
         <Link to="/"

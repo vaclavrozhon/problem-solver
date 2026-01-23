@@ -12,13 +12,14 @@ import {
   update_main_files,
   update_problem_status,
   fetch_previous_round_files,
-  generate_llm_response,
   PromptBuildingFiles,
-  LLMResponse,
   zod_file,
   FileType,
   File,
 } from "./research_utils"
+
+import { generate_llm_response } from "./generate_llm_response"
+import type { LLMStructuredResponse, LLMTextResponse } from "./generate_llm_response"
 
 const StandardResearchContext = z.object({
   problem_id: z.uuid(),
@@ -38,12 +39,10 @@ export const run_standard_research = define_job("start_research")
       current_relative_round_index: z.number().default(1),
     }),
   }))
-  .work(async ({ new_research, ctx }, { db, get_openrouter }) => {
+  .work(async ({ new_research, ctx }, { db }) => {
     const problem_id = new_research.problem_id
 
     console.log(`[job]{standard_research} started for round ${ctx.current_relative_round_index}/${new_research.rounds}`)
-
-    const openrouter = await get_openrouter(ctx.user_id)
 
     // (1) Create new round we're going to be working on
     const [current_round_id, current_round_index] = await db.transaction(async (tx) => {
@@ -118,7 +117,6 @@ export const run_standard_research = define_job("start_research")
     const prover_promises = new_research.prover.provers.map((prover, i) => (
       generate_llm_response({
         db,
-        openrouter,
         model: prover.model,
         user_id: ctx.user_id,
         messages: [
@@ -140,7 +138,7 @@ export const run_standard_research = define_job("start_research")
       .map((result, index) => ({ result, index }))
       .filter(
         (item): item is {
-          result: Extract<LLMResponse<string>, { success: true }>,
+          result: Extract<LLMTextResponse, { success: true }>,
           index: number
         } => item.result.success === true
       )
@@ -149,7 +147,7 @@ export const run_standard_research = define_job("start_research")
       .map((result, index) => ({ result, index }))
       .filter(
         (item): item is {
-          result: Extract<LLMResponse<string>, { success: false }>,
+          result: Extract<LLMTextResponse, { success: false }>,
           index: number
         } => item.result.success === false
       )
@@ -242,9 +240,8 @@ export const run_standard_verifier = define_job("verifier")
       all_previous_summarizer_outputs: z.array(zod_file(["summarizer_output"])),
     })
   }))
-  .work(async (research, { db, get_openrouter }) => {
+  .work(async (research, { db }) => {
     const ctx = research.ctx
-    const openrouter = await get_openrouter(ctx.user_id)
 
     await update_round_phase(db, ctx.current_round_id, "verifier_working")
 
@@ -274,7 +271,6 @@ export const run_standard_verifier = define_job("verifier")
     // (2) Generate verifier output
     const verifier_response = await generate_llm_response({
       db,
-      openrouter,
       model: model_config,
       user_id: ctx.user_id,
       messages: [
@@ -374,10 +370,9 @@ export const run_standard_summarizer = define_job("summarizer")
     }),
     summarizer: SummarizerConfigSchema,
   }))
-  .work(async (research, { db, get_openrouter }) => {
+  .work(async (research, { db }) => {
     const ctx = research.ctx
     const files = research.files
-    const openrouter = await get_openrouter(ctx.user_id)
 
     await update_round_phase(db, ctx.current_round_id, "summarizer_working")
 
@@ -408,7 +403,6 @@ export const run_standard_summarizer = define_job("summarizer")
     const model_config = research.summarizer.model
     const summarizer_response = await generate_llm_response({
       db,
-      openrouter,
       model: model_config,
       user_id: ctx.user_id,
       messages: [

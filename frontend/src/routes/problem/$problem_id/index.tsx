@@ -73,12 +73,12 @@ function ProblemID() {
 
         {profile && (
           <>
-            <div>
+            <div className="text-sm">
               <p>This problem was last updated at {format_date(problem.updated_at)}</p>
               <p>This problem was created at {format_date(problem.created_at)}</p>
             </div>
             
-            <div>
+            <div className="text-sm">
               <p>
                 To share this problem, simply share the current URL with anyone.
                 <br/>

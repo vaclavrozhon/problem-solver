@@ -1,3 +1,14 @@
+# TODAY TODO
+- [x] add to /usage allocated invites
+- [x] fix the prover reliability
+- [x] add more concurrent jobs in queue
+- [ ] to problem overview add problem task and main file output
+- [ ] have a simple look at prompts
+- [x] research problem accesssible
+- [ ] create one file with all PARAMETER_VAR_CONFIG
+- [ ] fix the code links, the footer and the settings encryption
+- [ ] insufficient balance error message
+
 # Questions
 - [ ] Implement `estimated_usage` for given round when starting research? (It's already present in the DB but not implemented yet.)
   - [ ] It'd be lovely to see a preview of how much the usage could cost.

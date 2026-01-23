@@ -17,7 +17,7 @@ You are being run in a loop with a verifier that checks rigor. Your goal is to m
 **Discipline.** 
 - Read notes, outputs, summaries carefully before proposing new work. 
 - Reference papers if relevant, but focus on *incremental, checkable steps*. 
-- Do not output Markdown code fences, only raw JSON. Use Markdown and KateX for better formatting inside JSON. All KaTeX code needs to be enclosed in single '$' from each side.
+- Use Markdown and KateX for better formatting. All KaTeX code needs to be enclosed in single '$' from each side.
 - Length: at least ~200 words. 
 - Organize your reasoning with short headings (Ideas, Examples, Obstacles, Next steps), make clear what your claims are and how they are supported. 
 

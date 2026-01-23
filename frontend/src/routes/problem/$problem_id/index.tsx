@@ -8,6 +8,7 @@ import { get_problem_overview } from "../../../api/problems"
 
 import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 import RoundTime from "../../../components/problem/utils/RoundTime"
+import { useAuthStore } from "@frontend/auth/store"
 
 export const Route = createFileRoute("/problem/$problem_id/")({
   component: ProblemID
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/problem/$problem_id/")({
 
 function ProblemID() {
   const { problem_id } = Route.useParams()
-  const { user } = useAuth()
+  const { profile } = useAuthStore()
 
   const { data: problem, isError, isPending } = useQuery({
     queryKey: ["problem", problem_id],
@@ -54,7 +55,7 @@ function ProblemID() {
             <p>Total price</p>
             <p className="value">${total_cost.toFixed(3)}</p>
           </div>
-          {problem.owner.id === user?.id ? (
+          {problem.owner.id === profile?.id ? (
             <div>
               <p className="value">You are the author of this problem</p>
             </div>
@@ -70,18 +71,22 @@ function ProblemID() {
           <RoundTime round_summaries={problem.round_summaries}/>
         </div>
 
-        <div>
-          <p>This problem was last updated at {format_date(problem.updated_at)}</p>
-          <p>This problem was created at {format_date(problem.created_at)}</p>
-        </div>
-
-        <div>
-          <p>
-            To share this problem, simply share the current URL with anyone.
-            <br/>
-            They must be signed in to view it. Don't worry – no one can run research on your behalf.
-          </p>
-        </div>
+        {profile && (
+          <>
+            <div>
+              <p>This problem was last updated at {format_date(problem.updated_at)}</p>
+              <p>This problem was created at {format_date(problem.created_at)}</p>
+            </div>
+            
+            <div>
+              <p>
+                To share this problem, simply share the current URL with anyone.
+                <br/>
+                They must be signed in to view it. Don't worry – no one can run research on your behalf.
+              </p>
+            </div>
+          </>
+        )}
 
         {/* <div>
           TODO: danger zone (actions like remove the problem etc. or stop the research for now if running)

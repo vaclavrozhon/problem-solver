@@ -117,7 +117,7 @@ function RunNewResearchPage() {
           model: choose_model("google/gemini-3-pro-preview", {
             reasoning_effort: "high",
             web_search: false,
-          })
+          }, "prover")
         }],
       },
       verifier: {
@@ -126,7 +126,7 @@ function RunNewResearchPage() {
         model: choose_model("openai/gpt-5.2", {
           reasoning_effort: "high",
           web_search: false,
-        }),
+        }, "verifier"),
       },
       summarizer: {
         prompt: default_prompts["summarizer"],
@@ -134,7 +134,7 @@ function RunNewResearchPage() {
         model: choose_model("openai/gpt-5-mini", {
           reasoning_effort: "high",
           web_search: false,
-        }),
+        }, "summarizer"),
       }
     },
     resolver: zodResolver(NewStandardResearch)
@@ -259,6 +259,7 @@ function RunNewResearchPage() {
                     control={control}
                     render={({ field }) => (
                       <ModelSelect trigger_style="rounded-none h-full flex-center bg-alpha shadow-none pl-2"
+                        role="prover"
                         selected={field.value}
                         onChange={field.onChange}/>
                     )}
@@ -278,7 +279,7 @@ function RunNewResearchPage() {
                 name="verifier.model"
                 control={control}
                 render={({ field }) => (
-                  <ModelSelect
+                  <ModelSelect role="verifier"
                     selected={field.value}
                     onChange={field.onChange}/>
                 )}/>
@@ -292,7 +293,7 @@ function RunNewResearchPage() {
               <Controller name="summarizer.model"
                 control={control}
                 render={({ field }) => (
-                  <ModelSelect
+                  <ModelSelect role="summarizer"
                     selected={field.value}
                     onChange={field.onChange}/>
                 )}/>

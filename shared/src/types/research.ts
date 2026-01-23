@@ -20,17 +20,21 @@ interface Model {
   price: {
     input: number,
     output: number,
-    search?: number,
   },
   config: {
+    // TODO: remove web_search config
     /** `true` if the model supports searching the web, else `false` */
     web_search: boolean,
     reasoning: ReasoningConfig,
   },
-  context: number,
-  max_output: number,
-  stream_cancel: boolean,
-  byok: boolean,
+  /**
+   * Even though many models & providers support structured output, it's not always reliable
+   * and often the generation fails whereas when generating only text ouput, it works fine.
+   * Therefore, it seems reasonable to allow strucuted output generation only for the flagship models
+   * that seem to be reliable. In Bolzano, it means only flagship models can be used for Verifier & Summarizer.
+   * Provers generate only text, therefore pretty much any model can be used.
+   */
+  structured_output: boolean,
 }
 
 interface ProviderDetails {
@@ -81,11 +85,10 @@ export type Provider = keyof typeof provider_details
 export const models = {
   anthropic: [
     {
-      //final
       id: "anthropic/claude-opus-4.5",
       name: "Claude Opus 4.5",
       provider: "anthropic",
-      price: { input: 5, output: 25, search: 10 },
+      price: { input: 5, output: 25 },
       config: {
         web_search: true,
         // reasponds to "enabled" toggle
@@ -94,15 +97,11 @@ export const models = {
         // but it looks like you need to give them some beta header else it doesnt seem to work
         reasoning: "toggle",
       },
-      context: 200_000,
-      max_output: 64_000,
-      stream_cancel: true,
-      byok: true,
+      structured_output: true,
     }
   ],
   deepseek: [
     {
-      // final
       id: "deepseek/deepseek-v3.2-speciale",
       name: "DeepSeek V3.2 Speciale",
       provider: "parasail/fp8",
@@ -113,14 +112,9 @@ export const models = {
         // ofc doesnt react to effort
         reasoning: null,
       },
-      context: 163_840,
-      max_output: 163_840,
-      stream_cancel: true,
-      // BYOK for Parasail!
-      byok: true
+      structured_output: false,
     },
     {
-      // final
       id: "deepseek/deepseek-v3.2",
       name: "DeepSeek V3.2",
       provider: "siliconflow/fp8",
@@ -131,15 +125,11 @@ export const models = {
         // only "enabled": true/false
         reasoning: "toggle",
       },
-      context: 163_840,
-      max_output: 163_840,
-      stream_cancel: false,
-      byok: false,
+      structured_output: false,
     }
   ],
   google: [
     {
-      // final
       id: "google/gemini-3-pro-preview",
       name: "Gemini 3 Pro Preview",
       provider: "google-vertex",
@@ -149,18 +139,9 @@ export const models = {
         // REASONING CAN'T BE DISABLED
         reasoning: ["low", "high"],
       },
-      /**
-       * NOTE: Context is actually 1_048_576 but after 200K tokens
-       * the pricing gets higher. Our app shouldn't really get to 200k tokens
-       * therefore I feel like there's no need to mention the higher pricing.
-       */
-      context: 200_000,
-      max_output: 65_536,
-      byok: true,
-      stream_cancel: false,
+      structured_output: true,
     },
     {
-      // final
       id: "google/gemini-3-flash-preview",
       name: "Gemini 3 Flash Preview",
       provider: "google-vertex",
@@ -173,15 +154,11 @@ export const models = {
         // but only for specific endpoints
         reasoning: ["none", "minimal", "low", "medium", "high"],
       },
-      context: 1_048_576,
-      max_output: 65_536,
-      stream_cancel: false,
-      byok: true,
+      structured_output: true,
     },
   ],
   moonshotai: [
     {
-      // final
       id: "moonshotai/kimi-k2-thinking",
       name: "Kimi K2 Thinking",
       provider: "siliconflow/fp8",
@@ -194,10 +171,7 @@ export const models = {
         // also proposes to stream the response?
         reasoning: null,
       },
-      context: 262_144,
-      max_output: 262_144,
-      stream_cancel: false,
-      byok: false,
+      structured_output: false,
     },
   ],
   nvidia: [
@@ -211,112 +185,71 @@ export const models = {
         web_search: false,
         reasoning: "toggle",
       },
-      context: 262_144,
-      max_output: 262_144,
-      stream_cancel: true,
-      // for chutes
-      byok: true,
+      structured_output: false,
     }
   ],
   openai: [
     {
-      // final except for todo
       id: "openai/gpt-5.2-pro",
       name: "GPT-5.2 Pro",
       provider: "openai",
-      price: { input: 21, output: 168, search: 10 },
+      price: { input: 21, output: 168 },
       config: {
         web_search: true,
-        // TODO
-        reasoning: ["none", "low", "medium", "high", "xhigh"],
+        reasoning: ["low", "medium", "high", "xhigh"],
       },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 128_000,
+      structured_output: true,
     },
     {
       // final
       id: "openai/gpt-5.2",
       name: "GPT-5.2",
       provider: "openai",
-      price: { input: 1.75, output: 14, search: 10 },
+      price: { input: 1.75, output: 14 },
       config: {
         web_search: true,
         /** can be disabled only with the "none" value */
         reasoning: ["none", "low", "medium", "high", "xhigh"],
       },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 128_000,
+      structured_output: true,
     },
     {
-      // final
       id: "openai/gpt-5.1",
       name: "GPT-5.1",
       provider: "openai",
-      price: { input: 1.25, output: 10, search: 10 },
+      price: { input: 1.25, output: 10 },
       config: {
         web_search: true,
         /** reasoning can be disabled only by giving the `none` effort */
         reasoning: ["none", "low", "medium", "high"],
       },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 128_000,
+      structured_output: true,
     },
     {
-      // final except for todo
-      id: "openai/gpt-5-pro",
-      name: "GPT-5 Pro",
-      provider: "openai",
-      price: { input: 15, output: 120, search: 10 },
-      config: {
-        web_search: true,
-        // TODO
-        reasoning: ["low", "medium", "high"],
-      },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 272_000,
-    },
-    {
-      // final
       id: "openai/gpt-5",
       name: "GPT-5",
       provider: "openai",
-      price: { input: 1.25, output: 10, search: 10 },
+      price: { input: 1.25, output: 10 },
       config: {
         web_search: true,
         // cant be disabled, only set to minimal
         reasoning: ["minimal", "low", "medium", "high"],
       },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 128_000,
+      structured_output: true,
     },
     {
-      // final
       id: "openai/gpt-5-mini",
       name: "GPT-5 Mini",
       provider: "openai",
-      price: { input: 0.25, output: 2, search: 10 },
+      price: { input: 0.25, output: 2 },
       config: {
         web_search: true,
         /** reasoning cannot be turned off */
         reasoning: ["minimal", "low", "medium", "high"],
       },
-      byok: true,
-      stream_cancel: true,
-      context: 400_000,
-      max_output: 128_000,
+      structured_output: true,
     },
     {
-      // final
       id: "openai/gpt-oss-120b",
       name: "gpt-oss-120b",
       provider: "nebius/fp4",
@@ -326,18 +259,23 @@ export const models = {
         // Cant be turned off
         reasoning: ["low", "medium", "high"]
       },
-      context: 131_072,
-      max_output: 131_072,
-      stream_cancel: false,
-      byok: true
+      structured_output: false,
     },
   ],
   xai: [
-    // BUG: The models can do web search but only via tools.
-    // Should be easy to add.
-    // https://docs.x.ai/docs/guides/tools/search-tools
     {
-      // final
+      id: "x-ai/grok-4.1-fast",
+      name: "Grok 4.1 Fast",
+      price: { input: 0.2, output: 0.5 },
+      provider: "xai",
+      config: {
+        web_search: false,
+        // only toggle via enabled true/false, cant set effort
+        reasoning: "toggle"
+      },
+      structured_output: true,
+    },
+    {
       id: "x-ai/grok-4",
       name: "Grok 4",
       provider: "xai",
@@ -349,32 +287,10 @@ export const models = {
         /** reasoning is not exposed, reasoning cannot be disabled, and the reasoning effort cannot be specified */
         reasoning: null,
       },
-      // NOTE: Actually up to 2_000_000 but then the pricing is higher.
-      context: 128_000,
-      max_output: 256_000,
-      stream_cancel: true,
-      byok: true,
-    },
-    {
-      // final
-      id: "x-ai/grok-4.1-fast",
-      name: "Grok 4.1 Fast",
-      price: { input: 0.2, output: 0.5 },
-      provider: "xai",
-      config: {
-        web_search: false,
-        // only toggle via enabled true/false, cant set effort
-        reasoning: "toggle"
-      },
-      // NOTE: Actually up to 2_000_000 but then the pricing is higher.
-      context: 128_000,
-      max_output: 30_000,
-      stream_cancel: true,
-      byok: true,
+      structured_output: true,
     },
   ],
   zai: [
-    // final
     {
       id: "z-ai/glm-4.7",
       name: "GLM 4.7",
@@ -384,10 +300,7 @@ export const models = {
         web_search: false,
         reasoning: "toggle",
       },
-      context: 128_000,
-      max_output: 128_000,
-      stream_cancel: true,
-      byok: true,
+      structured_output: false,
     }
   ]
 } as const satisfies Record<Provider, readonly Model[]>
@@ -428,9 +341,10 @@ export function choose_model<ID extends ModelID>(
         ? boolean
         : null,
     web_search: ModelWebSearchMap[ID] extends true ? boolean : false,
-  }
+  },
+  role: "prover" | "verifier" | "summarizer"
 ) {
-  return { id, config }
+  return { id, config, role }
 }
 
 /**
@@ -445,7 +359,7 @@ export function get_model_by_id(id: ModelID) {
   return null
 }
 
-export const ModelConfigSchema = z.object({
+export const ModelConfigSchema = (role: string) => z.object({
   id: z.enum(
     Object.values(models)
       .flat()
@@ -455,6 +369,7 @@ export const ModelConfigSchema = z.object({
     reasoning_effort: z.enum(reasoning_efforts).or(z.boolean()).or(z.null()),
     web_search: z.boolean(),
   }),
+  role: z.literal(role),
 }).superRefine((data, ctx) => {
   const model = get_model_by_id(data.id)
   if (model) {
@@ -510,6 +425,15 @@ export const ModelConfigSchema = z.object({
         path: ["config", "web_search"],
       })
     }
+
+    //Check if role allows structured data
+    if (data.role !== "prover" && !model.structured_output) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Model "${data.id}" does not support strucuted output – can be used only for prover.`,
+        path: ["id"],
+      })
+    }
   } else {
     ctx.addIssue({
       code: "custom",
@@ -519,7 +443,8 @@ export const ModelConfigSchema = z.object({
   }
 })
 
-export type ModelConfig = z.infer<typeof ModelConfigSchema>
+const GeneralModelConfigSchema = ModelConfigSchema("")
+export type ModelConfig = z.infer<typeof GeneralModelConfigSchema>
 
 export const MaxProversPerRound = 10
 export const MaxRoundsPerResearch = 10
@@ -529,7 +454,7 @@ export const RoundsPerResearch = z.coerce.number<string>().min(1).max(MaxRoundsP
 // TODO: Set universal minimun prompt length or something
 
 export const VerifierConfigSchema = z.object({
-  model: ModelConfigSchema,
+  model: ModelConfigSchema("verifier"),
   system_prompt: z.string().trim().min(10),
   prompt: z.string().trim().min(20),
 })
@@ -538,7 +463,7 @@ export type VerifierConfig = z.infer<typeof VerifierConfigSchema>
 export const SummarizerConfigSchema = z.object({
   prompt: z.string().min(20),
   system_prompt: z.string().trim().min(10),
-  model: ModelConfigSchema,
+  model: ModelConfigSchema("summarizer"),
 })
 export type SummarizerConfig = z.infer<typeof SummarizerConfigSchema>
 
@@ -551,7 +476,7 @@ export const NewStandardResearch = z.object({
     provers: z.array(
       z.object({
         instructions: z.string().optional(),
-        model: ModelConfigSchema,
+        model: ModelConfigSchema("prover"),
       })
     ).min(1).max(MaxProversPerRound),
     system_prompt: z.string().trim().min(10),
@@ -563,10 +488,6 @@ export const NewStandardResearch = z.object({
 
 // Output Schemas
 
-export const ProverOutputSchema = z.object({
-  content: z.string().describe("Your complete analysis in Markdown (KaTeX allowed, all KaTeX code needs to be enclosed in single '$' from each side). Include reasoning, examples, proofs, failed attempts, intuitions - everything for the verifier to review.")
-})
-export type ProverOutput = z.infer<typeof ProverOutputSchema>
 
 export const VerifierOutputSchema = z.object({
   feedback_md: z.string().describe("Detailed critique of prover outputs (≥200 words). Include concrete next-step suggestions. Use Markdown (GFM enabled) & KaTeX for better readability. All KaTeX code needs to be enclosed in single '$' from each side."),

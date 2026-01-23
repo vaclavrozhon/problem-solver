@@ -1,6 +1,8 @@
 2026-01-23
 backend
   - update llm generating response stream no schema request and wait non-streaming for schema structured outputs
+frontend
+  - model selector now respects llm options for prover/verifier/summarizer (structured output diffs)
 
 2026-01-22
 - frontend

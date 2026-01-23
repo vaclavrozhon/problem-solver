@@ -13,9 +13,10 @@ interface ModelSelectProps {
   selected?: ModelConfig,
   onChange: (value: ModelConfig) => void,
   trigger_style?: string,
+  role: "prover" | "verifier" | "summarizer",
 }
 
-export default function ModelSelect({ selected, onChange, trigger_style }: ModelSelectProps) {
+export default function ModelSelect({ selected, onChange, trigger_style, role }: ModelSelectProps) {
   const [is_open, setIsOpen] = useState(false)
   const new_model_selected = useRef(false)
 
@@ -40,6 +41,7 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
         reasoning_effort: get_default_reasoning(new_reasoning_config),
         web_search: false,
       },
+      role,
     })
   }
 
@@ -136,7 +138,7 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
 
       <Select.Popover className="flex flex-col w-xs">
         <ListBox className="overflow-y-auto">
-          {Object.entries(models).map(([provider, provider_models], idx) => (
+          {Object.entries(models).map(([provider, provider_models], idx) => (role === "prover" || provider_models.filter(model => model.structured_output).length > 0) && (
             <ListBox.Section key={provider}>
               {idx > 0 && <Separator className="my-1"/>}
               <Header className="flex gap-1.5 align-center font-semibold">
@@ -146,7 +148,8 @@ export default function ModelSelect({ selected, onChange, trigger_style }: Model
 
               {provider_models.map(model => {
                 const is_selected = selected?.id === model.id
-                return (
+                const show_model = (role === "prover") || (model.structured_output)
+                return show_model && (
                   <ListBox.Item
                     key={model.id}
                     id={model.id}

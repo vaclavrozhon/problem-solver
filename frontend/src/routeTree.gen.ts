@@ -125,7 +125,7 @@ export interface FileRoutesByFullPath {
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
-  "/problem/$problem_id": typeof ProblemProblem_idIndexRoute
+  "/problem/$problem_id/": typeof ProblemProblem_idIndexRoute
   "/admin/job/$queue_name/$job_id": typeof AdminJobQueue_nameJob_idRoute
 }
 export interface FileRoutesByTo {
@@ -182,7 +182,7 @@ export interface FileRouteTypes {
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
-    | "/problem/$problem_id"
+    | "/problem/$problem_id/"
     | "/admin/job/$queue_name/$job_id"
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -318,7 +318,7 @@ declare module "@tanstack/react-router" {
     "/problem/$problem_id/": {
       id: "/problem/$problem_id/"
       path: "/problem/$problem_id"
-      fullPath: "/problem/$problem_id"
+      fullPath: "/problem/$problem_id/"
       preLoaderRoute: typeof ProblemProblem_idIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

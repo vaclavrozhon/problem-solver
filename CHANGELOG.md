@@ -1,3 +1,7 @@
+2026-01-23
+backend
+  - update llm generating response stream no schema request and wait non-streaming for schema structured outputs
+
 2026-01-22
 - frontend
   - made research problems accessible to anyone with the link

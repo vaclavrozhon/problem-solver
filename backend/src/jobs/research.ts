@@ -2,8 +2,7 @@ import { z } from "zod"
 import { eq, inArray, sql } from "drizzle-orm"
 import { problems, rounds, problem_files } from "../../drizzle/schema"
 import { define_job } from "./job_factory"
-import { NewStandardResearch, ProverOutputSchema, VerifierOutputSchema, SummarizerOutputSchema, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
-import type { ProverOutput } from "@shared/types/research"
+import { NewStandardResearch, VerifierOutputSchema, SummarizerOutputSchema, VerifierConfigSchema, SummarizerConfigSchema } from "@shared/types/research"
 import {
   create_verifier_prompt,
   create_summarizer_prompt,
@@ -126,7 +125,6 @@ export const run_standard_research = define_job("start_research")
           { role: "system", content: new_research.prover.system_prompt },
           { role: "user", content: prover_prompts[i] },
         ],
-        schema: ProverOutputSchema,
         prompt_file_id: prover_prompt_files_ids[i].id,
         context: `prover ${i + 1}`,
       })
@@ -142,7 +140,7 @@ export const run_standard_research = define_job("start_research")
       .map((result, index) => ({ result, index }))
       .filter(
         (item): item is {
-          result: Extract<LLMResponse<ProverOutput>, { success: true }>,
+          result: Extract<LLMResponse<string>, { success: true }>,
           index: number
         } => item.result.success === true
       )
@@ -151,7 +149,7 @@ export const run_standard_research = define_job("start_research")
       .map((result, index) => ({ result, index }))
       .filter(
         (item): item is {
-          result: Extract<LLMResponse<ProverOutput>, { success: false }>,
+          result: Extract<LLMResponse<string>, { success: false }>,
           index: number
         } => item.result.success === false
       )
@@ -202,12 +200,12 @@ export const run_standard_research = define_job("start_research")
         round_id: current_round_id,
         file_type: "prover_output" as FileType,
         file_name: `prover-${index + 1}.output`,
-        content: output.content,
+        content: output,
         model_id,
         usage,
       })
 
-      prover_output.push(output.content)
+      prover_output.push(output)
     }
 
     await save_problem_files(db, files_to_save)

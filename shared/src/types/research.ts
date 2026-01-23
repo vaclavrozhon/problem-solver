@@ -209,7 +209,7 @@ export const models = {
       config: {
         web_search: true,
         /** can be disabled only with the "none" value */
-        reasoning: ["none", "low", "medium", "high", "xhigh"],
+        reasoning: ["none", "low", "medium", "high"],
       },
       structured_output: true,
     },

@@ -257,5 +257,6 @@ export default function ModelSelect({ selected, onChange, trigger_style, role }:
 function get_default_reasoning(config: ReasoningConfig): ReasoningEffortValue {
   if (config === null) return null
   if (config === "toggle") return true
+  if (config.includes("xhigh")) return "high"
   return config[config.length - 1]
 }

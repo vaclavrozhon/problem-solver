@@ -35,6 +35,7 @@ interface Model {
    * Provers generate only text, therefore pretty much any model can be used.
    */
   structured_output: boolean,
+  max_output_tokens: number | null,
 }
 
 interface ProviderDetails {
@@ -98,6 +99,7 @@ export const models = {
         reasoning: "toggle",
       },
       structured_output: true,
+      max_output_tokens: null,
     }
   ],
   deepseek: [
@@ -105,7 +107,7 @@ export const models = {
       id: "deepseek/deepseek-v3.2-speciale",
       name: "DeepSeek V3.2 Speciale",
       provider: "parasail/fp8",
-      price: { input: 0.4, output: 0.5 },
+      price: { input: 0.4, output: 1.2 },
       config: {
         web_search: false,
         // thinking by default, cant be turned off
@@ -113,6 +115,7 @@ export const models = {
         reasoning: null,
       },
       structured_output: false,
+      max_output_tokens: 120_000,
     },
     {
       id: "deepseek/deepseek-v3.2",
@@ -126,6 +129,7 @@ export const models = {
         reasoning: "toggle",
       },
       structured_output: false,
+      max_output_tokens: null,
     }
   ],
   google: [
@@ -140,6 +144,7 @@ export const models = {
         reasoning: ["low", "high"],
       },
       structured_output: true,
+      max_output_tokens: null,
     },
     {
       id: "google/gemini-3-flash-preview",
@@ -155,6 +160,7 @@ export const models = {
         reasoning: ["none", "minimal", "low", "medium", "high"],
       },
       structured_output: true,
+      max_output_tokens: null,
     },
   ],
   moonshotai: [
@@ -172,6 +178,7 @@ export const models = {
         reasoning: null,
       },
       structured_output: false,
+      max_output_tokens: null,
     },
   ],
   nvidia: [
@@ -186,6 +193,7 @@ export const models = {
         reasoning: "toggle",
       },
       structured_output: false,
+      max_output_tokens: null,
     }
   ],
   openai: [
@@ -199,6 +207,7 @@ export const models = {
         reasoning: ["low", "medium", "high", "xhigh"],
       },
       structured_output: true,
+      max_output_tokens: 128_000,
     },
     {
       // final
@@ -212,6 +221,7 @@ export const models = {
         reasoning: ["none", "low", "medium", "high"],
       },
       structured_output: true,
+      max_output_tokens: 128_000,
     },
     {
       id: "openai/gpt-5.1",
@@ -224,6 +234,7 @@ export const models = {
         reasoning: ["none", "low", "medium", "high"],
       },
       structured_output: true,
+      max_output_tokens: null,
     },
     {
       id: "openai/gpt-5",
@@ -236,6 +247,7 @@ export const models = {
         reasoning: ["minimal", "low", "medium", "high"],
       },
       structured_output: true,
+      max_output_tokens: null,
     },
     {
       id: "openai/gpt-5-mini",
@@ -248,6 +260,7 @@ export const models = {
         reasoning: ["minimal", "low", "medium", "high"],
       },
       structured_output: true,
+      max_output_tokens: null,
     },
     {
       id: "openai/gpt-oss-120b",
@@ -260,6 +273,7 @@ export const models = {
         reasoning: ["low", "medium", "high"]
       },
       structured_output: false,
+      max_output_tokens: null,
     },
   ],
   xai: [
@@ -274,6 +288,7 @@ export const models = {
         reasoning: "toggle"
       },
       structured_output: true,
+      max_output_tokens: null,
     },
     {
       id: "x-ai/grok-4",
@@ -288,6 +303,7 @@ export const models = {
         reasoning: null,
       },
       structured_output: true,
+      max_output_tokens: null,
     },
   ],
   zai: [
@@ -301,6 +317,7 @@ export const models = {
         reasoning: "toggle",
       },
       structured_output: false,
+      max_output_tokens: null,
     }
   ]
 } as const satisfies Record<Provider, readonly Model[]>

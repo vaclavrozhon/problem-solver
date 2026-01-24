@@ -115,7 +115,8 @@ interface OpenRouterRequestBody {
       name: string,
       schema: any,
     }
-  }
+  },
+  max_output_tokens?: number,
 }
 
 /**
@@ -212,7 +213,7 @@ export async function generate_llm_response<T>(
 
   const log_prefix = `[OpenRouter][${model.id}][${context}]`
   const model_id = model.id
-  const model_info = get_model_by_id(model_id)
+  const model_info = get_model_by_id(model_id)!
 
   const api_key = await get_user_openrouter_key(db, user_id)
 
@@ -231,7 +232,7 @@ export async function generate_llm_response<T>(
     temperature,
     reasoning: get_reasoning_config(model),
     provider: {
-      only: [model_info!.provider],
+      only: [model_info.provider],
     },
     user: user_id,
     text: {
@@ -249,6 +250,9 @@ export async function generate_llm_response<T>(
       name: `${context}-schema`,
       schema: schema.toJSONSchema(),
     }
+  }
+  if (model_info.max_output_tokens) {
+    request_body["max_output_tokens"] = model_info.max_output_tokens
   }
 
   for (let attempt = 1; attempt <= max_retries; attempt++) {

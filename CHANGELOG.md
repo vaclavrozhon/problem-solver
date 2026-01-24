@@ -1,3 +1,7 @@
+2026-01-24
+backend
+  - got rid of `ai` package in favor of custom written function to generate llm responses from OpenRouter simply using the `fetch` function
+
 2026-01-23
 backend
   - update llm generating response stream no schema request and wait non-streaming for schema structured outputs

@@ -1,6 +1,7 @@
 2026-01-24
 backend
   - got rid of `ai` package in favor of custom written function to generate llm responses from OpenRouter simply using the `fetch` function
+  - tune down default reasoning for gpt-5.2 pro from `xhigh` to `high`
 
 2026-01-23
 backend

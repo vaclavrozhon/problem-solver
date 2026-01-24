@@ -204,7 +204,7 @@ export const models = {
       price: { input: 21, output: 168 },
       config: {
         web_search: true,
-        reasoning: ["low", "medium", "high", "xhigh"],
+        reasoning: ["medium", "high", "xhigh"],
       },
       structured_output: true,
       max_output_tokens: 128_000,

@@ -1,5 +1,3 @@
-Summarize this *last round only* for a human log.
-
 Include:
 - 3–7 bullet **Highlights** (facts learned, reductions, counterexamples, partial bounds).
 - 1–3 **Open questions / TODOs** for the next round.

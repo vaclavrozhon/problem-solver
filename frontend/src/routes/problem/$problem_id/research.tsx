@@ -364,6 +364,7 @@ function RunNewResearchPage() {
         </section>
 
         <section className="flex flex-col p-4 gap-4">
+          <p className="text-sm">Currently, GPT-5.2 Pro is the state-of-the-art model with reasoning set to <span className="font-kode font-bold">xhigh</span> but it manages to successfully return a response only in ~30 % of requests. Therefore, the default reasoning setting in Bolzano for GPT-5.2 Pro is set to <span className="font-kode font-bold">high</span> only as it's way more reliable. If you require the best performance, switch the reasoning to <span className="font-kode font-bold">xhigh</span> in the model selector yourself.</p>
           <p className="text-sm">Be aware it's not possible to stop running research.</p>
 
           <Button type="submit"

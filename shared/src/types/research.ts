@@ -165,6 +165,18 @@ export const models = {
   ],
   moonshotai: [
     {
+      id: "moonshotai/kimi-k2.5",
+      name: "Kimi K2.5",
+      provider: "moonshotai",
+      price: { input: 0.6, output: 3 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      structured_output: false,
+      max_output_tokens: 128_000,
+    },
+    {
       id: "moonshotai/kimi-k2-thinking",
       name: "Kimi K2 Thinking",
       provider: "siliconflow/fp8",

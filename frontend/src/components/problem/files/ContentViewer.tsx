@@ -139,7 +139,7 @@ export default function FileContentViewer({ name, content, model_id, cost, file_
         <Tooltip delay={0} closeDelay={0}>
           <Tooltip.Trigger className="bg-gamma p-2 rounded-full">
             <a href={`/api/problems/download/file/${file_id}`}
-              target="_blank">
+              download>
               <Icon icon="gravity-ui:arrow-down-to-square"/>
             </a>
           </Tooltip.Trigger>

@@ -1,3 +1,8 @@
+2026-02-02
+- user can now export single file, files for given round or all files related to the problem
+frontend
+  - fix github links
+
 2026-01-24
 backend
   - got rid of `ai` package in favor of custom written function to generate llm responses from OpenRouter simply using the `fetch` function

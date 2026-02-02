@@ -2,9 +2,12 @@ import { Elysia } from "elysia"
 import { drizzle_plugin, auth_plugin } from "../plugins"
 import { problems, problem_files, rounds, profiles } from "../../drizzle/schema"
 import { desc, eq, and, sql, or, inArray } from "drizzle-orm"
+import { z } from "zod"
+import slugify from "slugify"
 
 import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from "@shared/types/problem"
 import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
+import { create_zip, divide_files_into_rounds } from "@backend/problems/download.utils"
 import { CreateProblemFormSchema } from "@shared/types/problem"
 
 
@@ -357,6 +360,219 @@ export const problems_router = new Elysia({ prefix: "/problems" })
         message: `Failed to retrieve file with ID: '${file_id}'.`
       })
     }
+  })
+
+  /**
+   * GET /problems/download/file/:file_id
+   * 
+   * Returns a single file as a download attachment.
+   * 
+   * MANUALLY TESTED?: YES, works!
+   */
+  .get("/download/file/:file_id", async ({ db, params: { file_id }, status }) => {
+    try {
+      let file
+      if (file_id.startsWith("problem_id--")) {
+        let problem_id = file_id.split("&main_file--")[0].split("problem_id--")[1]
+        let query = file_id.split("&main_file--")[1]
+        if (query.length === 0 || !problem_id) return status(204)
+        let main_file = query.split("-")[0]
+        let round = Number(query.split("-")[1])
+        if (!["notes", "output", "proofs"].includes(main_file) || round < 0) return status(204)
+        // Check whether problem with given `problem_id` exists
+        const result = await db.query.problems.findFirst({
+          columns: {
+            id: true,
+          },
+          where: eq(problems.id, problem_id)
+        })
+        if (!result) return status(204)
+        
+        let main_files = await reconstruct_main_files_history(db, problem_id)
+        let main_file_round = main_files.find(f => f.round_index === round)
+        if (!main_file_round) return status(204)
+        file = {
+          file_name: main_file,
+          content: main_file_round[main_file as "notes" | "output" | "proofs"],
+        }
+      } else {
+        file = await db.query.problem_files.findFirst({
+          columns: {
+            file_name: true,
+            content: true,
+          },
+          where: eq(problem_files.id, file_id),
+        })
+      }
+      if (!file) return status(204)
+      
+      
+      let extension, content_type
+      try {
+        JSON.parse(file.content)
+        content_type = "application/json; charset=utf-8"
+        extension = "json"
+      } catch (_) {
+        content_type = "text/markdown; charset=utf-8"
+        extension = "md"
+      }
+
+      return new Response(file.content, {
+        headers: {
+          "Content-Type": content_type,
+          "Content-Disposition": `attachment; filename="${file.file_name.split(".")[0]}.${extension}"`,
+        },
+      })
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: `Failed to download file with ID: '${file_id}'.`
+      })
+    }
+  }, {
+    params: z.object({
+      file_id: z.xor([
+        z.uuid(),
+        z.string().startsWith("problem_id--").includes("&main_file--")
+      ])
+    })
+  })
+
+  /**
+   * GET /problems/download/round/:problem_id/:round_index
+   * 
+   * Returns all files for a specific round as a zip download.
+   * 
+   * Only for `round > 0`
+   * 
+   * MANUALLY TESTED?: Yes, works.
+   */
+  .get("/download/round/:problem_id/:round_index", async ({ db, params, status }) => {
+    try {
+      const problem = await db.query.problems.findFirst({
+        columns: {
+          name: true,
+        },
+        where: eq(problems.id, params.problem_id),
+      })
+      if (!problem) return status(204)
+      
+      const round = await db.query.rounds.findFirst({
+        columns: {
+          id: true,
+          index: true,
+        },
+        where: and(
+          eq(rounds.problem_id, params.problem_id),
+          eq(rounds.index, params.round_index)
+        ),
+      })
+      if (!round) return status(204)
+
+      const files = await db.query.problem_files.findMany({
+        columns: {
+          file_name: true,
+          file_type: true,
+          content: true,
+          created_at: true,
+        },
+        with: {
+          round: {
+            columns: {
+              index: true,
+            }
+          }
+        },
+        where: eq(problem_files.round_id, round.id),
+      })
+      if (files.length === 0) return status(204)
+      
+      let main_files = await reconstruct_main_files_history(db, params.problem_id)
+      let formatted_files = divide_files_into_rounds(
+        files,
+        main_files.filter(f => f.round_index === params.round_index)
+      )
+      
+      const zip = await create_zip(formatted_files)
+      const download_name = `${slugify(problem.name)}-round-${params.round_index}.zip`
+
+      return new Response(zip, {
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${download_name}"`,
+        },
+      })
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: `Failed to download round files for problem with ID: '${params.problem_id}'.`
+      })
+    }
+  }, {
+    params: z.object({
+      problem_id: z.uuid(),
+      round_index: z.coerce.number().min(1),
+    })
+  })
+
+  /**
+   * [AUTH] GET /problems/download/all/:problem_id
+   * 
+   * Returns all files for a given problem as a zip download.
+   * 
+   * MANUALLY TESTED?: NO.
+   */
+  .get("/download/all/:problem_id", async ({ db, params: { problem_id }, status }) => {
+    try {
+      const problem = await db.query.problems.findFirst({
+        columns: {
+          name: true,
+        },
+        where: eq(problems.id, problem_id),
+      })
+      if (!problem) return status(204)
+
+      const files = await db.query.problem_files.findMany({
+        columns: {
+          file_name: true,
+          file_type: true,
+          content: true,
+          created_at: true,
+        },
+        with: {
+          round: {
+            columns: {
+              index: true,
+            }
+          }
+        },
+        where: eq(problem_files.problem_id, problem_id),
+      })
+      if (files.length === 0) return status(204)
+
+      let main_files = (await reconstruct_main_files_history(db, problem_id))
+        .filter(f => f.round_index !== 0)
+      let formatted_files = divide_files_into_rounds(files, main_files)
+
+      const zip = await create_zip(formatted_files)
+      const download_name = `${slugify(problem.name)}-everything.zip`
+
+      return new Response(zip, {
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${download_name}"`,
+        },
+      })
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: `Failed to download files for problem with ID: '${problem_id}'.`
+      })
+    }
+  }, {
+    params: z.object({
+      problem_id: z.uuid(),
+    })
   })
 
   /**

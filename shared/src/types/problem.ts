@@ -107,9 +107,9 @@ export interface ProblemFiles {
  * - legacy (no version field): plaintext user prompts
  */
 export interface PromptFileContent {
-  version: 1
-  system_prompt: string
-  user_prompt: string
+  version: 1,
+  system_prompt: string,
+  user_prompt: string,
 }
 
 /**

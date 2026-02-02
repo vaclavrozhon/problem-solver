@@ -78,8 +78,8 @@
 - [ ] Right now, main files are reconstructed from history by what the verfier decided – append, replace etc. This seems suboptimal and in the further if we decide to change how this appending/replacing works, it will cause trouble. Therefore, its in our best interest to also store the main files per round and not just in round 0.
 
 ### Conversations
-- [ ] If REASONING in conversations contains `proofs.md` inline code the font is too big.
 - [ ] Show ADVICE given to prover in conversations more (similar to Reasoning) (I want to remake the advice system for the more custom text field that allows customizing even the task later in research etc)
+  - [ ] Additional instructions are currently shown in File Explorer but could easily be added to the conversatoins as well
 
 ## `/usage`
 - [ ] Add estimate for Bolzano.app usage only.

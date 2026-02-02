@@ -70,7 +70,7 @@ function ProblemFilesInitial() {
           selected_main_file={main_file}/>
 
         {main_file && history_entry ? (
-          <FileContentViewer
+          <FileContentViewer file_id={`problem_id--${problem_id}&main_file--${main_file}-${selected_round}`}
             key={`${main_file}-${selected_round}`}
             name={`${main_file}.md`}
             content={history_entry[main_file as keyof typeof history_entry] as string}

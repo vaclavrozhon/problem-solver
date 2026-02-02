@@ -5,10 +5,10 @@ import { problem_files, rounds } from "../../drizzle/schema"
 import { eq, and, asc } from "drizzle-orm"
 
 export type MainFilesHistory = {
-  round_index: number
-  notes: string
-  proofs: string
-  output: string
+  round_index: number,
+  notes: string,
+  proofs: string,
+  output: string,
 }[]
 
 export async function reconstruct_main_files_history(

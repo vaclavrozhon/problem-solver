@@ -35,7 +35,7 @@ export default function FileViewer({ file_id }: Props) {
   )
 
   return (
-    <FileContentViewer
+    <FileContentViewer file_id={file_id}
       name={file.file_name}
       content={file.content}
       model_id={file.model_id ?? undefined}

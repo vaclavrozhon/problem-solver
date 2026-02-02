@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { Tabs } from "@heroui/react"
+import { Tabs, Tooltip } from "@heroui/react"
+import { Icon } from "@iconify/react"
 
 import Markdown from "../../../components/Markdown"
 import JSONViewer from "../../../components/JSONViewer"
@@ -73,6 +74,7 @@ function TextContent({ text, view, empty_msg = "--EMPTY--" }: {
 }
 
 interface FileContentViewerProps {
+  file_id: string,
   name: string,
   content: string,
   subtitle?: string,
@@ -80,7 +82,7 @@ interface FileContentViewerProps {
   cost?: number,
 }
 
-export default function FileContentViewer({ name, content, model_id, cost }: FileContentViewerProps) {
+export default function FileContentViewer({ name, content, model_id, cost, file_id }: FileContentViewerProps) {
   const default_view = name.includes(".prompt") ? "raw" : "formatted"
   const [view, setView] = useState<ContentViewFormat>(default_view)
   const [prompt_tab, setPromptTab] = useState<"system" | "user">("user")
@@ -133,6 +135,19 @@ export default function FileContentViewer({ name, content, model_id, cost }: Fil
             ${cost.toFixed(3)}
           </p>
         )}
+        
+        <Tooltip delay={0} closeDelay={0}>
+          <Tooltip.Trigger className="bg-gamma p-2 rounded-full">
+            <a href={`/api/problems/download/file/${file_id}`}
+              target="_blank">
+              <Icon icon="gravity-ui:arrow-down-to-square"/>
+            </a>
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <Tooltip.Arrow/>
+            <p>Download current file</p>
+          </Tooltip.Content>
+        </Tooltip>
       </header>
 
       {parsed.type === "json"

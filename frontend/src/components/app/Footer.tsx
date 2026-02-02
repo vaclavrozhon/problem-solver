@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="flex flex-wrap items-center text-sm px-4 py-1.5 gap-4
     border-t-2 border-t-gamma">
-      <BracketLink href="https://github.com/vaclavrozhon/problem-solver/tree/dev"
+      <BracketLink href="https://github.com/vaclavrozhon/problem-solver/"
         target="_blank">
         Code-&gt;GitHub
       </BracketLink>

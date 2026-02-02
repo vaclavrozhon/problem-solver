@@ -420,7 +420,7 @@ function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySe
 const APIKeyEncryptionNote = () => (
   <>
     Your API key is encrypted{" "}
-    <Link href="https://github.com/vaclavrozhon/problem-solver/blob/dev/backend/src/profile/index.ts#L70"
+    <Link href="https://github.com/vaclavrozhon/problem-solver/blob/main/backend/src/profile/index.ts#L72"
       target="_blank"
       className="text-xs">
       at rest

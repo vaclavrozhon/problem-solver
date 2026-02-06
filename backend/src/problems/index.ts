@@ -9,6 +9,7 @@ import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from 
 import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
 import { create_zip, divide_files_into_rounds } from "@backend/problems/download.utils"
 import { CreateProblemFormSchema } from "@shared/types/problem"
+import { run_experimental_research } from "@backend/jobs/v2/experimental_research"
 
 
 export const problems_router = new Elysia({ prefix: "/problems" })
@@ -677,6 +678,13 @@ export const problems_router = new Elysia({ prefix: "/problems" })
               file_name: "output.md",
               content: INITIAL_MAIN_FILES.output,
             },
+            {
+              problem_id: new_problem.id,
+              round_id: round_zero.id,
+              file_type: "todo",
+              file_name: "todo.md",
+              content: INITIAL_MAIN_FILES.todo,
+            },
           ])
         return new_problem.id
       })
@@ -719,3 +727,20 @@ export const problems_router = new Elysia({ prefix: "/problems" })
       .leftJoin(profiles, eq(problems.owner_id, profiles.id))
       .orderBy(desc(problems.created_at))
   }, { isAdmin: true })
+  
+  // V2 EXPERIMENTAL
+  .get("/v2/:problem_id", async ({ db, params: { problem_id } }) => {
+    run_experimental_research.emit({
+      problem_id,
+      rounds: 4,
+      current_round_index: 1,
+      instructions: "",
+      provers: [],
+      verifiers: [],
+    })
+  }, {
+    params: z.object({
+      problem_id: z.uuid(),
+    }),
+    isAdmin: true,
+  })

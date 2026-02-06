@@ -2,7 +2,7 @@ import { Elysia } from "elysia"
 import { JobManager, QueueNameUnion } from "@shared/jobs/manager"
 import { get_db } from "../db"
 import { research_jobs } from "./research"
-import { experimental_research_jobs } from "./experimental_research"
+import { experimental_research_jobs } from "./v2/experimental_research"
 import { get_openrouter_for_user } from "../openrouter/provider"
 import type { Database } from "../db"
 

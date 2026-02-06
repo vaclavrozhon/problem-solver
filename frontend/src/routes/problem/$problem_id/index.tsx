@@ -9,6 +9,8 @@ import { get_problem_overview } from "../../../api/problems"
 import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 import RoundTime from "../../../components/problem/utils/RoundTime"
 import { useAuthStore } from "@frontend/auth/store"
+import { is_admin } from "@shared/auth"
+import { Button } from "@heroui/react"
 
 export const Route = createFileRoute("/problem/$problem_id/")({
   component: ProblemID
@@ -22,6 +24,16 @@ function ProblemID() {
     queryKey: ["problem", problem_id],
     queryFn: () => get_problem_overview(problem_id),
   })
+  
+  // ---- TEMPORARY v2 research
+  const [v2_response, setResponse] = useState("")
+
+  async function send_request() {
+    const response = await fetch(`https://bolzano.app/api/problems/v2/${problem_id}`)
+    const res = await response.text()
+    setResponse(res)
+  }
+  // -----
 
 
   if (isPending) return (
@@ -87,6 +99,26 @@ function ProblemID() {
             </div>
           </>
         )}
+        
+        {/*-------V2 EPRIEMNTAL -----*/}
+        {profile && is_admin(profile.role) && (
+          <div className="flex flex-col">
+            <p className="font-extrabold bg-yellow-200 text-ink-3">Please only run v2 research on FRESH problems!</p>
+            <p>Just press this button and it will start running.</p>
+            <p>Something will probably break – let me know!</p>
+            <p>The problem will run for 4 rounds, 4 provers (all gpt-5.2), 2 verifiers (both gemini 3 pro)</p>
+            <p>Only NOTES, PROOFS, TODO can be preview in Files section. No other files are being saved as of now.</p>
+            {problem.phase === "running" ? (
+              <p>Research is running!</p>
+            ): (  
+              <Button onClick={send_request}>Run v2 for this problem</Button>
+            )}
+            {v2_response && (
+              <p>{v2_response}</p>
+            )}
+          </div>
+        )}
+        {/*----------*/}
 
         {/* <div>
           TODO: danger zone (actions like remove the problem etc. or stop the research for now if running)

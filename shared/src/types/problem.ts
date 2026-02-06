@@ -8,9 +8,10 @@ export type ProblemStatus = "created" | "idle" | "queued" | "running" | "failed"
 
 // Initial placeholder content for main files when a problem is created
 export const INITIAL_MAIN_FILES = {
-  notes: "# Research Notes",
-  proofs: "# Rigorous Proofs",
+  notes: "No notes yet.",
+  proofs: "No proofs yet.",
   output: "# Main Results",
+  todo: "No TODO yet.",
 } as const
 
 export type RoundPhase =
@@ -96,6 +97,11 @@ export interface ProblemFiles {
     provers: File[][],
     verifier: File[],
     summarizer: File[],
+    // --- V2 Experimental
+    todo: File[],
+    notes: File[],
+    proofs: File[],
+    // -------
   }[],
 }
 

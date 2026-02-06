@@ -9,7 +9,8 @@ import { InviteStatusValues } from "../../shared/src/admin/invites"
 export const main = pgSchema("main")
 
 export const files_types = main.enum("files-types", [
-  "task", "proofs", "notes", "output",
+  "task", "proofs", "notes", "todo",
+  "output", // v1-only
   "round_instructions",
   "prover_prompt", "verifier_prompt", "summarizer_prompt",
   "prover_reasoning", "verifier_reasoning", "summarizer_reasoning",
@@ -43,7 +44,7 @@ export const problem_files = main.table("problem_files", {
 
 // TODO: could actually make this dynamic and import them dynamically based on
 // queue defintions in job manager?
-export const research_type = main.enum("research-type", ["standard"])
+export const research_type = main.enum("research-type", ["standard", "v2"])
 
 export const run_phase = main.enum("run-phase", [
   "prover_working", "prover_finished", "prover_failed",

@@ -6,6 +6,8 @@ import { Icon } from "@iconify/react"
 
 import type { File, ProblemFiles } from "@shared/types/problem"
 import BracketButton from "../../../components/action/BracketButton"
+import { is_admin } from "@shared/auth"
+import { useAuthStore } from "@frontend/auth/store"
 
 interface Props {
   files: ProblemFiles
@@ -24,6 +26,10 @@ export default function FilesList({
 }: Props) {
   const navigate = useNavigate()
   const [curr_prover, setCurrProver] = useState(0)
+  
+  // V2 Expeirmental------
+  const { profile } = useAuthStore()
+  // -----
 
   const total_rounds = files.rounds.length
 
@@ -179,6 +185,44 @@ export default function FilesList({
             <MainFileLink file_type="output" label="output"/>
           </FileButtons>
         </FilesGroup>
+        
+        {/* ------- V2 Experimental ------*/}
+        {profile && is_admin(profile.role) && (files.rounds[round_files_index]?.todo.length > 0 || files.rounds[round_files_index]?.notes.length > 0 || files.rounds[round_files_index]?.proofs.length > 0) && (
+          <div className="bg-cyan-100 flex flex-col py-2 px-4 font-bold gap-2">
+            <p>V2 FILES ONLY HERE</p>
+            <Link to="/problem/$problem_id/files"
+              params={{ problem_id }}
+              search={{
+                file_id: files.rounds[round_files_index].todo[0].id,
+                round: selected_round,
+                main_file: undefined
+              }}
+              className="border-2 border-ink-2 px-2 py-1">
+              TODO
+            </Link>
+            <Link to="/problem/$problem_id/files"
+              params={{ problem_id }}
+              search={{
+                file_id: files.rounds[round_files_index].notes[0].id,
+                round: selected_round,
+                main_file: undefined
+              }}
+              className="border-2 border-ink-2 px-2 py-1">
+              NOTES
+            </Link>
+            <Link to="/problem/$problem_id/files"
+              params={{ problem_id }}
+              search={{
+                file_id: files.rounds[round_files_index].proofs[0]?.id,
+                round: selected_round,
+                main_file: undefined
+              }}
+              className="border-2 border-ink-2 px-2 py-1">
+              PROOFS
+            </Link>
+          </div>
+        )}
+        {/*-----------*/}
   
         {/* Round Files - round_instructions/prover/verifier/summarizer */}
         {has_round_files && selected_round > 0 && (

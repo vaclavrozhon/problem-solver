@@ -356,6 +356,11 @@ export type ModelID = Models["id"]
  */
 export type ReasoningEffortValue = ReasoningEffort | boolean | null
 
+/** Roles of available agents */
+type AgentRole =
+      "prover" | "verifier" | "summarizer"
+    | "manager"
+
 /**
  * Creates a type-safe model with validated reasoning and web search options.
  * @param config - configuration options constrained by model definition
@@ -371,7 +376,7 @@ export function choose_model<ID extends ModelID>(
         : null,
     web_search: ModelWebSearchMap[ID] extends true ? boolean : false,
   },
-  role: "prover" | "verifier" | "summarizer"
+  role: AgentRole,
 ) {
   return { id, config, role }
 }
@@ -388,7 +393,7 @@ export function get_model_by_id(id: ModelID) {
   return null
 }
 
-export const ModelConfigSchema = (role: string) => z.object({
+export const ModelConfigSchema = (role: AgentRole | "") => z.object({
   id: z.enum(
     Object.values(models)
       .flat()

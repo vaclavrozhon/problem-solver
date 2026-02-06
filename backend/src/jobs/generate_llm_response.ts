@@ -31,12 +31,12 @@ interface LLMSuccessResponse {
 }
 
 /** Success response for text output (no schema provided) */
-interface LLMTextSuccessResponse extends LLMSuccessResponse{
+export interface LLMTextSuccessResponse extends LLMSuccessResponse{
   output: string
 }
 
 /** Success response for structured output (schema provided) */
-interface LLMStructuredSuccessResponse<T> extends LLMSuccessResponse {
+export interface LLMStructuredSuccessResponse<T> extends LLMSuccessResponse {
   output: T,
 }
 

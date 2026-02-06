@@ -111,6 +111,11 @@ export function format_raw_files_data(files: File[]): ProblemFiles {
       verifier: by_type_in_curr_round("verifier"),
       summarizer: by_type_in_curr_round("summarizer"),
       provers,
+      // ------- V2 Experiemntal
+      todo: by_type_in_curr_round("todo"),
+      notes: by_type_in_curr_round("notes"),
+      proofs: by_type_in_curr_round("proofs"),
+      // ------
     })
   }
 

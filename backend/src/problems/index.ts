@@ -10,6 +10,7 @@ import { format_raw_files_data, reconstruct_main_files_history } from "@backend/
 import { create_zip, divide_files_into_rounds } from "@backend/problems/download.utils"
 import { CreateProblemFormSchema } from "@shared/types/problem"
 import { run_experimental_research } from "@backend/jobs/v2/experimental_research"
+import { choose_model } from "@shared/types/research"
 
 
 export const problems_router = new Elysia({ prefix: "/problems" })
@@ -735,8 +736,18 @@ export const problems_router = new Elysia({ prefix: "/problems" })
       rounds: 4,
       current_round_index: 1,
       instructions: "",
-      provers: [],
-      verifiers: [],
+      provers: [
+        choose_model("google/gemini-3-flash-preview", {
+          reasoning_effort: "minimal",
+          web_search: false,
+        }, "prover")
+      ],
+      verifiers: [
+        choose_model("google/gemini-3-flash-preview", {
+          reasoning_effort: "minimal",
+          web_search: false,
+        }, "verifier")
+      ],
     })
   }, {
     params: z.object({

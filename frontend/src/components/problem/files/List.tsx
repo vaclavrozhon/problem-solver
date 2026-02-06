@@ -193,7 +193,7 @@ export default function FilesList({
             <Link to="/problem/$problem_id/files"
               params={{ problem_id }}
               search={{
-                file_id: files.rounds[round_files_index].todo[0].id,
+                file_id: files.rounds[round_files_index].todo[0]?.id,
                 round: selected_round,
                 main_file: undefined
               }}
@@ -203,7 +203,7 @@ export default function FilesList({
             <Link to="/problem/$problem_id/files"
               params={{ problem_id }}
               search={{
-                file_id: files.rounds[round_files_index].notes[0].id,
+                file_id: files.rounds[round_files_index].notes[0]?.id,
                 round: selected_round,
                 main_file: undefined
               }}

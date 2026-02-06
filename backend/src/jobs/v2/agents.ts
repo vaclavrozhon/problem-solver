@@ -75,7 +75,7 @@ export async function run_manager_agent(
       ]).describe("Either a report summary of final reseach answer or `null` if research still requires work.")
     }),
 
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     // TODO these 2 properties need to be changed before [PROD]
     save_to_db: false,
     prompt_file_id: "BUG-no-id",
@@ -148,7 +148,7 @@ export async function run_prover_agents(
         }
       ],
       
-      user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+      user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
       save_to_db: false,
       prompt_file_id: "BUG-no-id"
     }))
@@ -220,7 +220,7 @@ export async function run_improver_agents(
       }
     ],
     
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     save_to_db: false,
     prompt_file_id: "BUG-no-id"
   }))
@@ -309,7 +309,7 @@ export async function run_verifier_agents(
       }
     ],
     
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     save_to_db: false,
     prompt_file_id: "BUG-no-id",
   }))
@@ -420,7 +420,7 @@ export async function run_notetaker_agent(
     }).describe("Expected object containing note editing actions"),
     
     save_to_db: false,
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     prompt_file_id: "BUG-no-id",
   })
   
@@ -495,7 +495,7 @@ export async function run_q_decider_agent(
     
     // BUGS
     save_to_db: false,
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     prompt_file_id: "BUG-no-id",
   })
   
@@ -592,7 +592,7 @@ export async function run_q_agent(
     
     // BUGs
     save_to_db: false,
-    user_id: "5437f822-f7b1-4e6a-ba56-ee0227592d4d",
+    user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     prompt_file_id: "BUG-no-id",
   })
   

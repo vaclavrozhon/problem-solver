@@ -40,8 +40,8 @@ export async function run_manager_agent(
   const manager_response = await generate_llm_response({
     db,
     context: "Manager",
-    model: choose_model("google/gemini-3-pro-preview", {
-      reasoning_effort: "high",
+    model: choose_model("google/gemini-3-flash-preview", {
+      reasoning_effort: "minimal",
       web_search: false,
     }, "manager"),    
     messages: [
@@ -133,8 +133,8 @@ export async function run_prover_agents(
     .map((task, i) => generate_llm_response({
       db,
       context: `Prover ${i + 1}`,
-      model: choose_model("openai/gpt-5.2", {
-        reasoning_effort: "high",
+      model: choose_model("google/gemini-3-flash-preview", {
+        reasoning_effort: "minimal",
         web_search: false,
       }, "prover"),
       messages: [
@@ -205,8 +205,8 @@ export async function run_improver_agents(
   const improver_requests = prover_outputs.map((output, i) => generate_llm_response({
     db,
     context: `Improver ${i}`,
-    model: choose_model("google/gemini-3-pro-preview", {
-      reasoning_effort: "high",
+    model: choose_model("google/gemini-3-flash-preview", {
+      reasoning_effort: "minimal",
       web_search: false,
     }, "prover"),
     messages: [
@@ -294,8 +294,8 @@ export async function run_verifier_agents(
   const verifier_requests = [0, 1].map(i => generate_llm_response({
     db,
     context: `Verifier ${i + 1}`,
-    model: choose_model("google/gemini-3-pro-preview", {
-      reasoning_effort: "high",
+    model: choose_model("google/gemini-3-flash-preview", {
+      reasoning_effort: "minimal",
       web_search: false,
     }, "verifier"),
     messages: [
@@ -388,7 +388,7 @@ export async function run_notetaker_agent(
   const notetaker_response = await generate_llm_response({
     db,
     context: "Notetaker",
-    model: choose_model("openai/gpt-5.2", {
+    model: choose_model("google/gemini-3-flash-preview", {
       reasoning_effort: "high",
       web_search: false,
     }, "verifier"),
@@ -417,14 +417,17 @@ export async function run_notetaker_agent(
             .describe("Content of how the `NOTES.md` file should be edited."),
         }).describe("Action for editing `NOTES.md` file.")
       ).describe("List of actions for editing `NOTES.md` file with."),
-    }).describe("Expected object containing note editing actions"),
+    }).describe("Expected object containing `note_actions` key with note editing actions"),
     
     save_to_db: false,
     user_id: "67605855-2b3f-4199-99ef-da021d79a35d",
     prompt_file_id: "BUG-no-id",
   })
   
-  if (!notetaker_response.success) throw new Error("TODO/BUG FAILED")
+  if (!notetaker_response.success) {
+    console.log(notetaker_response.error.message)
+    throw new Error("TODO/BUG Notetaker failed")
+  }
   
   let new_notes = notes_file
   for (let action of notetaker_response.output.note_actions) {
@@ -460,8 +463,8 @@ export async function run_q_decider_agent(
   const q_decider_response = await generate_llm_response({
     db,
     context: "Q_Decider",
-    model: choose_model("google/gemini-3-pro-preview", {
-      reasoning_effort: "high",
+    model: choose_model("google/gemini-3-flash-preview", {
+      reasoning_effort: "minimal",
       web_search: false,
     }, "verifier"), // bug verifier incorrect
     messages: [
@@ -558,7 +561,7 @@ export async function run_q_agent(
   const q_response = await generate_llm_response({
     db,
     context: "Q",
-    model: choose_model("openai/gpt-5.2", {
+    model: choose_model("google/gemini-3-flash-preview", {
       reasoning_effort: "high",
       web_search: false,
     }, "verifier"),

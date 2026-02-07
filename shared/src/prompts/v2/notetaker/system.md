@@ -45,6 +45,6 @@ Given the latest materials, update `NOTES.md` to reflect what was learned.
 </inputs>
 
 <output>
-  Your JSON must be a list of edit actions that transform `NOTES.md`.
-  <format>Return strictly JSON Array (no extra text). Inside strings use Markdown for better readability. Write math using LaTeX syntax only as $...$ or $$...$$ inside strings. Don't use any other LaTex features! Escape all required characters for JSON output.</format>
+  Your JSON must be an object containing a list of edit actions that transform `NOTES.md`.
+  <format>Return strictly JSON (no extra text). Inside strings use Markdown for better readability. Write math using LaTeX syntax only as $...$ or $$...$$ inside strings. Don't use any other LaTex features! Escape all required characters for JSON output.</format>
 </output>

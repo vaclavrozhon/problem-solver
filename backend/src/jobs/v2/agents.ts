@@ -40,8 +40,8 @@ export async function run_manager_agent(
   const manager_response = await generate_llm_response({
     db,
     context: "Manager",
-    model: choose_model("google/gemini-3-flash-preview", {
-      reasoning_effort: "minimal",
+    model: choose_model("google/gemini-3-pro-preview", {
+      reasoning_effort: "high",
       web_search: false,
     }, "manager"),    
     messages: [

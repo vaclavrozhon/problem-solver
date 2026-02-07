@@ -1,6 +1,6 @@
 import { $ } from "bun"
 
-const SRC = "../shared/prompts"
+const SRC = "../shared/src/prompts/v2"
 const DEST = "./dist"
 
 const FOLDERS = [

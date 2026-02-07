@@ -409,7 +409,7 @@ export async function run_notetaker_agent(
         z.object({
           type: z.enum(["replace", "append", "patch"])
             .describe("Action to edit the `NOTES.md` file with ne wcontents."),
-          old_value: z.xor([
+          old_value: z.union([
             z.null().describe("Choose `null` only if action is NOT  `type=patch`."),
             z.string().describe("Choose `string` with old value of the file to be later replaced only if action is of `type=patch`"),
           ]),
@@ -580,7 +580,7 @@ export async function run_q_agent(
         z.object({
           type: z.enum(["append", "patch"])
             .describe("Type of action to edit `PROOFS.md`"),
-          old_value: z.xor([
+          old_value: z.union([
             z.null().describe("Choose `null` if `type=append`."),
             z.string().describe("Choose `string` and set its value to the content you want patched if `type=patch`"),
           ]),

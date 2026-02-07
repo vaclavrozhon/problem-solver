@@ -133,8 +133,8 @@ export async function run_prover_agents(
     .map((task, i) => generate_llm_response({
       db,
       context: `Prover ${i + 1}`,
-      model: choose_model("google/gemini-3-flash-preview", {
-        reasoning_effort: "minimal",
+      model: choose_model("google/gemini-3-pro-preview", {
+        reasoning_effort: "high",
         web_search: false,
       }, "prover"),
       messages: [
@@ -205,8 +205,8 @@ export async function run_improver_agents(
   const improver_requests = prover_outputs.map((output, i) => generate_llm_response({
     db,
     context: `Improver ${i}`,
-    model: choose_model("google/gemini-3-flash-preview", {
-      reasoning_effort: "minimal",
+    model: choose_model("openai/gpt-5.2", {
+      reasoning_effort: "high",
       web_search: false,
     }, "prover"),
     messages: [
@@ -294,8 +294,8 @@ export async function run_verifier_agents(
   const verifier_requests = [0, 1].map(i => generate_llm_response({
     db,
     context: `Verifier ${i + 1}`,
-    model: choose_model("google/gemini-3-flash-preview", {
-      reasoning_effort: "minimal",
+    model: choose_model("google/gemini-3-pro-preview", {
+      reasoning_effort: "high",
       web_search: false,
     }, "verifier"),
     messages: [
@@ -388,7 +388,7 @@ export async function run_notetaker_agent(
   const notetaker_response = await generate_llm_response({
     db,
     context: "Notetaker",
-    model: choose_model("google/gemini-3-flash-preview", {
+    model: choose_model("openai/gpt-5.2", {
       reasoning_effort: "high",
       web_search: false,
     }, "verifier"),
@@ -463,8 +463,8 @@ export async function run_q_decider_agent(
   const q_decider_response = await generate_llm_response({
     db,
     context: "Q_Decider",
-    model: choose_model("google/gemini-3-flash-preview", {
-      reasoning_effort: "minimal",
+    model: choose_model("google/gemini-3-pro-preview", {
+      reasoning_effort: "high",
       web_search: false,
     }, "verifier"), // bug verifier incorrect
     messages: [
@@ -561,7 +561,7 @@ export async function run_q_agent(
   const q_response = await generate_llm_response({
     db,
     context: "Q",
-    model: choose_model("google/gemini-3-flash-preview", {
+    model: choose_model("openai/gpt-5.2", {
       reasoning_effort: "high",
       web_search: false,
     }, "verifier"),

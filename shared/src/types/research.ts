@@ -86,6 +86,21 @@ export type Provider = keyof typeof provider_details
 export const models = {
   anthropic: [
     {
+      id: "anthropic/claude-opus-4.6",
+      name: "Claude Opus 4.6",
+      provider: "anthropic",
+      price: { input: 5, output: 25 },
+      config: {
+        web_search: false,
+        // opus 4.6 introduces adaptive thinking – no budget token nor effort level
+        // if reasoning enabled, it decides how much it wants to think on its own
+        // but can be explicitly turned off
+        reasoning: "toggle",
+      },
+      structured_output: true,
+      max_output_tokens: 128_000,
+    },
+    {
       id: "anthropic/claude-opus-4.5",
       name: "Claude Opus 4.5",
       provider: "anthropic",
@@ -100,7 +115,7 @@ export const models = {
       },
       structured_output: true,
       max_output_tokens: null,
-    }
+    },
   ],
   deepseek: [
     {

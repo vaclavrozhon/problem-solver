@@ -17,6 +17,7 @@ import { Route as CreateRouteImport } from "./routes/create"
 import { Route as AdminRouteImport } from "./routes/admin"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as AdminUsersRouteImport } from "./routes/admin/users"
+import { Route as AdminModelsRouteImport } from "./routes/admin/models"
 import { Route as AdminJobsRouteImport } from "./routes/admin/jobs"
 import { Route as AdminInvitesRouteImport } from "./routes/admin/invites"
 import { Route as AdminArchiveRouteImport } from "./routes/admin/archive"
@@ -24,6 +25,7 @@ import { Route as ProblemProblem_idIndexRouteImport } from "./routes/problem/$pr
 import { Route as ProblemProblem_idResearchRouteImport } from "./routes/problem/$problem_id/research"
 import { Route as ProblemProblem_idFilesRouteImport } from "./routes/problem/$problem_id/files"
 import { Route as ProblemProblem_idConversationsRouteImport } from "./routes/problem/$problem_id/conversations"
+import { Route as ProblemProblem_idChatRouteImport } from "./routes/problem/$problem_id/chat"
 import { Route as AdminJobQueue_nameJob_idRouteImport } from "./routes/admin/job/$queue_name.$job_id"
 
 const UsageRoute = UsageRouteImport.update({
@@ -66,6 +68,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: "/users",
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: "/models",
+  path: "/models",
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminJobsRoute = AdminJobsRouteImport.update({
   id: "/jobs",
   path: "/jobs",
@@ -103,6 +110,11 @@ const ProblemProblem_idConversationsRoute =
     path: "/problem/$problem_id/conversations",
     getParentRoute: () => rootRouteImport,
   } as any)
+const ProblemProblem_idChatRoute = ProblemProblem_idChatRouteImport.update({
+  id: "/problem/$problem_id/chat",
+  path: "/problem/$problem_id/chat",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminJobQueue_nameJob_idRoute =
   AdminJobQueue_nameJob_idRouteImport.update({
     id: "/job/$queue_name/$job_id",
@@ -121,7 +133,9 @@ export interface FileRoutesByFullPath {
   "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/models": typeof AdminModelsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/problem/$problem_id/chat": typeof ProblemProblem_idChatRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -139,7 +153,9 @@ export interface FileRoutesByTo {
   "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/models": typeof AdminModelsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/problem/$problem_id/chat": typeof ProblemProblem_idChatRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -158,7 +174,9 @@ export interface FileRoutesById {
   "/admin/archive": typeof AdminArchiveRoute
   "/admin/invites": typeof AdminInvitesRoute
   "/admin/jobs": typeof AdminJobsRoute
+  "/admin/models": typeof AdminModelsRoute
   "/admin/users": typeof AdminUsersRoute
+  "/problem/$problem_id/chat": typeof ProblemProblem_idChatRoute
   "/problem/$problem_id/conversations": typeof ProblemProblem_idConversationsRoute
   "/problem/$problem_id/files": typeof ProblemProblem_idFilesRoute
   "/problem/$problem_id/research": typeof ProblemProblem_idResearchRoute
@@ -178,7 +196,9 @@ export interface FileRouteTypes {
     | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/models"
     | "/admin/users"
+    | "/problem/$problem_id/chat"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -196,7 +216,9 @@ export interface FileRouteTypes {
     | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/models"
     | "/admin/users"
+    | "/problem/$problem_id/chat"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -214,7 +236,9 @@ export interface FileRouteTypes {
     | "/admin/archive"
     | "/admin/invites"
     | "/admin/jobs"
+    | "/admin/models"
     | "/admin/users"
+    | "/problem/$problem_id/chat"
     | "/problem/$problem_id/conversations"
     | "/problem/$problem_id/files"
     | "/problem/$problem_id/research"
@@ -230,6 +254,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   UsageRoute: typeof UsageRoute
+  ProblemProblem_idChatRoute: typeof ProblemProblem_idChatRoute
   ProblemProblem_idConversationsRoute: typeof ProblemProblem_idConversationsRoute
   ProblemProblem_idFilesRoute: typeof ProblemProblem_idFilesRoute
   ProblemProblem_idResearchRoute: typeof ProblemProblem_idResearchRoute
@@ -294,6 +319,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    "/admin/models": {
+      id: "/admin/models"
+      path: "/models"
+      fullPath: "/admin/models"
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     "/admin/jobs": {
       id: "/admin/jobs"
       path: "/jobs"
@@ -343,6 +375,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ProblemProblem_idConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/problem/$problem_id/chat": {
+      id: "/problem/$problem_id/chat"
+      path: "/problem/$problem_id/chat"
+      fullPath: "/problem/$problem_id/chat"
+      preLoaderRoute: typeof ProblemProblem_idChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/admin/job/$queue_name/$job_id": {
       id: "/admin/job/$queue_name/$job_id"
       path: "/job/$queue_name/$job_id"
@@ -357,6 +396,7 @@ interface AdminRouteChildren {
   AdminArchiveRoute: typeof AdminArchiveRoute
   AdminInvitesRoute: typeof AdminInvitesRoute
   AdminJobsRoute: typeof AdminJobsRoute
+  AdminModelsRoute: typeof AdminModelsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminJobQueue_nameJob_idRoute: typeof AdminJobQueue_nameJob_idRoute
 }
@@ -365,6 +405,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminArchiveRoute: AdminArchiveRoute,
   AdminInvitesRoute: AdminInvitesRoute,
   AdminJobsRoute: AdminJobsRoute,
+  AdminModelsRoute: AdminModelsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminJobQueue_nameJob_idRoute: AdminJobQueue_nameJob_idRoute,
 }
@@ -379,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   UsageRoute: UsageRoute,
+  ProblemProblem_idChatRoute: ProblemProblem_idChatRoute,
   ProblemProblem_idConversationsRoute: ProblemProblem_idConversationsRoute,
   ProblemProblem_idFilesRoute: ProblemProblem_idFilesRoute,
   ProblemProblem_idResearchRoute: ProblemProblem_idResearchRoute,

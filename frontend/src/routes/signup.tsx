@@ -27,6 +27,7 @@ export const Route = createFileRoute("/signup")({
 })
 
 export default function SignupPage() {
+  const is_local_auth = import.meta.env.VITE_AUTH_MODE === "local"
   const navigate = useNavigate()
   const query_client = useQueryClient()
 
@@ -65,6 +66,16 @@ export default function SignupPage() {
   })
 
   const error = sign_up.error?.message ?? google_sign_up.error?.message
+
+  if (is_local_auth) return (
+    <main className="flex-1 p-6">
+      <div className="max-w-sm flex flex-col gap-4">
+        <h1>Sign Up Disabled</h1>
+        <p>This instance uses local single-user auth.</p>
+        <BracketLink to="/login">Go to Sign In</BracketLink>
+      </div>
+    </main>
+  )
 
   return (
     <main className="flex-1 p-6">

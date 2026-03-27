@@ -1,16 +1,19 @@
 import { Elysia } from "elysia"
 import { drizzle_plugin, auth_plugin } from "../plugins"
-import { problems, problem_files, rounds, profiles } from "../../drizzle/schema"
+import { problems, problem_files, rounds, profiles, llms } from "../../drizzle/schema"
 import { desc, eq, and, sql, or, inArray } from "drizzle-orm"
 import { z } from "zod"
 import slugify from "slugify"
 
 import { INITIAL_MAIN_FILES, type ProblemRoundSumary, type ResearchRound } from "@shared/types/problem"
+import { ProblemChatRequestSchema } from "@shared/types/chat"
+import { generate_problem_chat_reply } from "@backend/problems/chat"
 import { format_raw_files_data, reconstruct_main_files_history } from "@backend/problems/index.utils"
 import { create_zip, divide_files_into_rounds } from "@backend/problems/download.utils"
 import { CreateProblemFormSchema } from "@shared/types/problem"
 import { run_experimental_research } from "@backend/jobs/v2/experimental_research"
 import { choose_model } from "@shared/types/research"
+import { sync_problem_main_files, sync_problem_round } from "@backend/mirror/output_mirror"
 
 
 export const problems_router = new Elysia({ prefix: "/problems" })
@@ -98,6 +101,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
               index: true,
               phase: true,
               error_message: true,
+              warning_message: true,
               prover_time: true,
               verifier_time: true,
               summarizer_time: true,
@@ -146,7 +150,8 @@ export const problems_router = new Elysia({ prefix: "/problems" })
           },
           usage: round.usage,
           estimated_usage: round.estimated_usage,
-          error: null
+          error: null,
+          warning_message: round.warning_message,
         }
         if (round.error_message || round.failed_provers) round_summary.error = {
           message: round.error_message,
@@ -625,6 +630,56 @@ export const problems_router = new Elysia({ prefix: "/problems" })
   })
 
   /**
+   * [AUTH] POST /problems/chat/:problem_id
+   *
+   * Generates a no-tool-call chat reply from packed problem context.
+   */
+  .post("/chat/:problem_id", async ({ db, user, params: { problem_id }, body, status }) => {
+    try {
+      const problem = await db.query.problems.findFirst({
+        columns: {
+          id: true,
+          owner_id: true,
+        },
+        where: eq(problems.id, problem_id),
+      })
+
+      if (!problem) return status(404, {
+        type: "error",
+        message: "Problem not found.",
+      })
+
+      if (problem.owner_id !== user.id && user.role !== "admin") {
+        return status(403, {
+          type: "error",
+          message: "You can only chat with your own problems.",
+        })
+      }
+
+      const reply = await generate_problem_chat_reply(db, user.id, problem_id, body)
+      if (!reply) return status(404, {
+        type: "error",
+        message: "Problem not found.",
+      })
+
+      return reply
+    } catch (error) {
+      return status(500, {
+        type: "error",
+        message: error instanceof Error
+          ? error.message
+          : "Failed to generate problem chat reply.",
+      })
+    }
+  }, {
+    isAuth: true,
+    body: ProblemChatRequestSchema,
+    params: z.object({
+      problem_id: z.uuid(),
+    }),
+  })
+
+  /**
    * [AUTH] POST /problems/create-new-problem
    * 
    * TODO: Write tests.
@@ -633,7 +688,7 @@ export const problems_router = new Elysia({ prefix: "/problems" })
    */
   .post("/create-new-problem", async ({ db, user, body, status }) => {
     try {
-      let new_problem_id = await db.transaction(async (tx) => {
+      const created_problem = await db.transaction(async (tx) => {
         const [new_problem] = await tx.insert(problems)
           .values({
             owner_id: user.id,
@@ -687,13 +742,26 @@ export const problems_router = new Elysia({ prefix: "/problems" })
               content: INITIAL_MAIN_FILES.todo,
             },
           ])
-        return new_problem.id
+        return {
+          problem_id: new_problem.id,
+          round_zero_id: round_zero.id,
+        }
       })
+
+      try {
+        await sync_problem_main_files(db, created_problem.problem_id)
+        await sync_problem_round(db, created_problem.problem_id, created_problem.round_zero_id)
+      } catch (error) {
+        console.warn(
+          `[mirror] failed to initialize mirror for problem=${created_problem.problem_id}: ` +
+          `${(error as Error).message}`
+        )
+      }
       return {
         type: "success",
         message: "New problem created successfully!",
         data: {
-          problem_id: new_problem_id,
+          problem_id: created_problem.problem_id,
         }
       }
     } catch (e) {
@@ -704,6 +772,88 @@ export const problems_router = new Elysia({ prefix: "/problems" })
     }
   }, {
     body: CreateProblemFormSchema,
+    isAuth: true,
+  })
+
+  /**
+   * [AUTH] DELETE /problems/:problem_id
+   *
+   * Deletes a problem and all of its associated research data.
+   */
+  .delete("/:problem_id", async ({ db, user, params: { problem_id }, status }) => {
+    try {
+      const problem = await db.query.problems.findFirst({
+        columns: {
+          id: true,
+          owner_id: true,
+          status: true,
+        },
+        where: eq(problems.id, problem_id),
+      })
+      if (!problem) {
+        return status(404, {
+          type: "error",
+          message: "Problem not found.",
+        })
+      }
+
+      if (problem.owner_id !== user.id) {
+        return status(403, {
+          type: "error",
+          message: "You can only delete your own problem.",
+        })
+      }
+
+      if (problem.status === "running" || problem.status === "queued") {
+        return status(409, {
+          type: "error",
+          message: "Can't delete problem while research is running. Force-fail it first.",
+        })
+      }
+
+      await db.transaction(async (tx) => {
+        const problem_rounds = await tx
+          .select({ id: rounds.id })
+          .from(rounds)
+          .where(eq(rounds.problem_id, problem_id))
+        const round_ids = problem_rounds.map((round) => round.id)
+
+        const prompt_file_ids = await tx
+          .select({ id: problem_files.id })
+          .from(problem_files)
+          .where(eq(problem_files.problem_id, problem_id))
+
+        if (prompt_file_ids.length > 0) {
+          await tx.delete(llms)
+            .where(inArray(llms.prompt_file_id, prompt_file_ids.map((f) => f.id)))
+        }
+
+        await tx.delete(problem_files)
+          .where(eq(problem_files.problem_id, problem_id))
+
+        if (round_ids.length > 0) {
+          await tx.delete(rounds)
+            .where(eq(rounds.problem_id, problem_id))
+        }
+
+        await tx.delete(problems)
+          .where(eq(problems.id, problem_id))
+      })
+
+      return {
+        type: "success",
+        message: "Problem deleted.",
+      }
+    } catch (e) {
+      return status(500, {
+        type: "error",
+        message: "Failed to delete problem.",
+      })
+    }
+  }, {
+    params: z.object({
+      problem_id: z.uuid(),
+    }),
     isAuth: true,
   })
 

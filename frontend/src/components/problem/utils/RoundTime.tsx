@@ -87,6 +87,14 @@ export default function RoundTime({ round_summaries }: Props) {
                   )}
                 </TableErrorSection>
               )}
+              {round.warning_message && (
+                <TableErrorSection>
+                  <p>
+                    ⚠️ Warning:
+                    <span className="error-message">{round.warning_message}</span>
+                  </p>
+                </TableErrorSection>
+              )}
             </RoundRow>
           ))}
         </TableBody>

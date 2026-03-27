@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm, Controller } from "react-hook-form"
@@ -6,13 +6,17 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
   get_my_profile,
+  get_model_visibility,
   update_my_profile,
   set_openrouter_key,
   delete_openrouter_key,
+  set_metacentrum_key,
+  delete_metacentrum_key,
   redeem_invite,
 } from "../api/profile"
-import { is_admin, user_name_schema, openrouter_api_key_schema, INVITE_CODE_LENGTH } from "@shared/auth"
+import { is_admin, user_name_schema, openrouter_api_key_schema, metacentrum_api_key_schema, INVITE_CODE_LENGTH } from "@shared/auth"
 import type { KeySource, User } from "@shared/auth"
+import type { ModelVisibility } from "@shared/admin/models"
 import {
   Form,
   TextField,
@@ -26,10 +30,19 @@ import {
   InputOTP,
   Separator,
   Description,
-  Link
+  Link,
+  Switch,
 } from "@heroui/react"
 import { Icon } from "@iconify/react"
 import { SignOut } from "../components/auth/SignOut"
+import BracketLink from "@frontend/components/action/BracketLink"
+import ModelSelect from "@frontend/components/form/ModelSelect"
+import {
+  load_research_ui_preferences,
+  normalize_research_ui_preferences,
+  save_research_ui_preferences,
+  type ResearchUIPreferences,
+} from "@frontend/utils/research_preferences"
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -40,17 +53,26 @@ function SettingsPage() {
     queryKey: ["profile", "me"],
     queryFn: get_my_profile,
   })
+  const {
+    data: model_settings,
+    error: model_settings_error,
+    isError: model_settings_is_error,
+    isPending: model_settings_is_pending,
+  } = useQuery({
+    queryKey: ["profile", "model-visibility"],
+    queryFn: get_model_visibility,
+  })
 
-  if (isPending) return (
+  if (isPending || model_settings_is_pending) return (
     <main className="flex-1 flex-center flex-col gap-4">
       <Spinner/>
       <span>Loading settings...</span>
     </main>
   )
 
-  if (isError) return (
+  if (isError || model_settings_is_error || !model_settings) return (
     <main className="flex-1 flex-center">
-      <p>Error loading settings: {error?.message}</p>
+      <p>Error loading settings: {error?.message ?? model_settings_error?.message}</p>
     </main>
   )
 
@@ -65,12 +87,28 @@ function SettingsPage() {
         key_source={profile.key_source}
         is_admin={profile.role === "admin"}/>
 
+      <MetaCentrumKeySection
+        has_key={profile.has_metacentrum_key}/>
+
+      <ResearchDefaultsSection
+        model_visibility={model_settings.model_visibility}
+        is_admin_user={profile.role === "admin"}/>
+
       <section className="flex flex-col gap-4 max-w-lg">
         <h2>Account</h2>
         <SignOut/>
       </section>
     </main>
   )
+}
+
+function get_api_error_message(error: unknown, fallback: string) {
+  if (error && typeof error === "object") {
+    const maybe = error as { message?: unknown, value?: { message?: unknown } }
+    if (typeof maybe.message === "string" && maybe.message.length > 0) return maybe.message
+    if (typeof maybe.value?.message === "string" && maybe.value.message.length > 0) return maybe.value.message
+  }
+  return fallback
 }
 
 interface ProfileSectionProps {
@@ -177,6 +215,105 @@ interface OpenRouterKeySectionProps {
   is_admin: boolean,
 }
 
+function MetaCentrumKeySection({ has_key }: { has_key: boolean }) {
+  const query_client = useQueryClient()
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+    defaultValues: { api_key: "" },
+    resolver: zodResolver(z.object({
+      api_key: metacentrum_api_key_schema
+    })),
+  })
+
+  const save_mutation = useMutation({
+    mutationFn: set_metacentrum_key,
+    onSuccess: () => {
+      query_client.invalidateQueries({ queryKey: ["profile", "me"] })
+      reset()
+    },
+  })
+
+  const delete_mutation = useMutation({
+    mutationFn: delete_metacentrum_key,
+    onSuccess: () => {
+      query_client.invalidateQueries({ queryKey: ["profile", "me"] })
+    },
+  })
+
+  return (
+    <section className="flex flex-col gap-4 max-w-lg">
+      <h2>MetaCentrum API Key</h2>
+
+      <section className="flex flex-col gap-4">
+        {has_key ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-beta text-sm">
+              <Icon icon="gravity-ui:circle-check-fill" className="text-success"/>
+              <span className="text-success font-medium">API key configured</span>
+            </div>
+
+            <AlertDialog>
+              <Button variant="danger-soft">Remove Key</Button>
+              <AlertDialog.Backdrop isDismissable>
+                <AlertDialog.Container>
+                  <AlertDialog.Dialog className="max-w-sm">
+                    <AlertDialog.CloseTrigger/>
+                    <AlertDialog.Header>
+                      <AlertDialog.Icon status="danger"/>
+                      <AlertDialog.Heading className="font-sans">Remove MetaCentrum key?</AlertDialog.Heading>
+                    </AlertDialog.Header>
+                    <AlertDialog.Body className="flex flex-col gap-4 p-1">
+                      <p>This will disable MetaCentrum models in new runs.</p>
+                    </AlertDialog.Body>
+                    <AlertDialog.Footer>
+                      <Button variant="ghost" slot="close" isDisabled={delete_mutation.isPending}>
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="danger"
+                        isDisabled={delete_mutation.isPending}
+                        isPending={delete_mutation.isPending}
+                        onPress={() => delete_mutation.mutate()}>
+                        Remove
+                      </Button>
+                    </AlertDialog.Footer>
+                  </AlertDialog.Dialog>
+                </AlertDialog.Container>
+              </AlertDialog.Backdrop>
+            </AlertDialog>
+          </>
+        ) : (
+          <Form onSubmit={handleSubmit(data => save_mutation.mutate(data.api_key))}
+            className="flex flex-col gap-4">
+            <TextField isInvalid={!!errors.api_key}>
+              <Label>MetaCentrum API Key</Label>
+              <Input type="password" {...register("api_key")} />
+              <FieldError>{errors.api_key?.message}</FieldError>
+            </TextField>
+
+            {save_mutation.isError && (
+              <Alert status="danger">
+                <Alert.Indicator/>
+                <Alert.Content>
+                  <Alert.Title>Failed to save MetaCentrum API key</Alert.Title>
+                  <Alert.Description>
+                    {get_api_error_message(save_mutation.error, "Failed to save MetaCentrum API key.")}
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert>
+            )}
+
+            <Button type="submit"
+              isPending={save_mutation.isPending}
+              isDisabled={save_mutation.isPending}>
+              Save Key
+            </Button>
+          </Form>
+        )}
+      </section>
+    </section>
+  )
+}
+
 function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySectionProps) {
   const query_client = useQueryClient()
   const [invite_code, setInviteCode] = useState("")
@@ -228,7 +365,7 @@ function OpenRouterKeySection({ has_key, key_source, is_admin }: OpenRouterKeySe
       {is_admin && (
         <p className="text-sm">
           <span className="text-brand font-medium">[ADMIN]</span>{" "}
-          You use the system API key for research by default.
+          Admin can use a system OpenRouter key when one is configured on the backend.
         </p>
       )}
 
@@ -435,3 +572,73 @@ const APIKeyEncryptionNote = () => (
     </Link>.
   </>
 )
+
+interface ResearchDefaultsSectionProps {
+  model_visibility: ModelVisibility,
+  is_admin_user: boolean,
+}
+
+function ResearchDefaultsSection({ model_visibility, is_admin_user }: ResearchDefaultsSectionProps) {
+  const [preferences, setPreferences] = useState<ResearchUIPreferences>(() => load_research_ui_preferences(model_visibility))
+
+  useEffect(() => {
+    setPreferences(load_research_ui_preferences(model_visibility))
+  }, [model_visibility])
+
+  const update_preferences = (next: ResearchUIPreferences) => {
+    const normalized = normalize_research_ui_preferences(next, model_visibility)
+    setPreferences(normalized)
+    save_research_ui_preferences(normalized, model_visibility)
+  }
+
+  return (
+    <section className="flex flex-col gap-4 max-w-2xl">
+      <h2>Research Defaults</h2>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm">Default models for new research runs</p>
+        {is_admin_user && (
+          <p className="text-sm text-ink-2">
+            Model availability is managed globally in <BracketLink to="/admin/models">Admin Models</BracketLink>.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-[6rem_1fr] items-center gap-2">
+        <Label>Prover</Label>
+        <ModelSelect
+          role="prover"
+          selected={preferences.default_models.prover}
+          model_visibility={model_visibility}
+          onChange={(model) => update_preferences({
+            ...preferences,
+            default_models: { ...preferences.default_models, prover: model },
+          })}/>
+      </div>
+
+      <div className="grid grid-cols-[6rem_1fr] items-center gap-2">
+        <Label>Verifier</Label>
+        <ModelSelect
+          role="verifier"
+          selected={preferences.default_models.verifier}
+          model_visibility={model_visibility}
+          onChange={(model) => update_preferences({
+            ...preferences,
+            default_models: { ...preferences.default_models, verifier: model },
+          })}/>
+      </div>
+
+      <div className="grid grid-cols-[6rem_1fr] items-center gap-2">
+        <Label>Summarizer</Label>
+        <ModelSelect
+          role="summarizer"
+          selected={preferences.default_models.summarizer}
+          model_visibility={model_visibility}
+          onChange={(model) => update_preferences({
+            ...preferences,
+            default_models: { ...preferences.default_models, summarizer: model },
+          })}/>
+      </div>
+    </section>
+  )
+}

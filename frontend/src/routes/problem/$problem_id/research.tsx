@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { Button, Spinner, Alert, AlertDialog, TextField, TextArea, NumberField, Label, Separator, Description, TagGroup, Tag, useOverlayState , UseOverlayStateReturn} from "@heroui/react"
 
@@ -14,7 +14,7 @@ import { useForm, Controller, useFieldArray } from "react-hook-form"
 import ErrorBox from "../../../components/form/ErrorBox"
 import { api } from "../../../api"
 import { get_research_overview } from "../../../api/problems"
-import { NewStandardResearch, MaxProversPerRound, MaxRoundsPerResearch, choose_model, get_model_by_id, ModelConfig } from "@shared/types/research"
+import { NewStandardResearch, MaxProversPerRound, MaxRoundsPerResearch, get_model_by_id, ModelConfig } from "@shared/types/research"
 
 import UserPromptProver from "@shared/prompts/user/prover.md?raw"
 import UserPromptVerifier from "@shared/prompts/user/verifier.md?raw"
@@ -29,6 +29,9 @@ import ModelSelect from "@frontend/components/form/ModelSelect"
 import ProviderLogo from "@frontend/components/svg/ProviderLogo"
 
 import { useAuthStore } from "@frontend/auth/store"
+import { get_model_visibility } from "@frontend/api/profile"
+import type { ModelVisibility } from "@shared/admin/models"
+import { load_research_ui_preferences } from "@frontend/utils/research_preferences"
 
 export const Route = createFileRoute("/problem/$problem_id/research")({
   component: RunNewResearchPage,
@@ -73,7 +76,39 @@ const default_system_prompts = {
 
 function RunNewResearchPage() {
   const { problem_id } = Route.useParams()
+  const {
+    data: model_settings,
+    isPending,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["profile", "model-visibility"],
+    queryFn: get_model_visibility,
+  })
+
+  if (isPending) return (
+    <ProblemDetailsLayout problem_id={problem_id} problem_name="" loading>
+      <p>Loading research run config...</p>
+    </ProblemDetailsLayout>
+  )
+
+  if (isError || !model_settings) return (
+    <main className="flex-1 flex-center">
+      <p>Failed to load model visibility: {error?.message}</p>
+    </main>
+  )
+
+  return <RunNewResearchPageContent model_visibility={model_settings.model_visibility}/>
+}
+
+interface RunNewResearchPageContentProps {
+  model_visibility: ModelVisibility,
+}
+
+function RunNewResearchPageContent({ model_visibility }: RunNewResearchPageContentProps) {
+  const { problem_id } = Route.useParams()
   const navigate = useNavigate()
+  const query_client = useQueryClient()
   const { profile, is_loading } = useAuthStore()
   // BUG: quick workaround for nona-uth personas viewing reserach problem
   if (!is_loading) {
@@ -85,6 +120,10 @@ function RunNewResearchPage() {
 
   const [selected_editor, setSelectedEditor] = useState<EditorSelection>("round_instructions")
   const [pending_data, setPendingData] = useState<NewStandardResearchType | null>(null)
+  const research_ui_preferences = useMemo(
+    () => load_research_ui_preferences(model_visibility),
+    [model_visibility]
+  )
 
   const research_modal_controller = useOverlayState()
 
@@ -105,6 +144,18 @@ function RunNewResearchPage() {
     }),
   })
 
+  const force_fail = useMutation({
+    mutationFn: async () => {
+      const response = await api.research["force-fail"]({ problem_id }).post()
+      // @ts-expect-error Elysia BUG
+      if (response.error) throw new Error(response.error.value?.message ?? "Failed to force-fail problem")
+      return response.data
+    },
+    onSuccess: async () => {
+      await query_client.invalidateQueries({ queryKey: ["problem-research"] })
+    },
+  })
+
   const { register, handleSubmit, formState: { errors }, control } = useForm({
     defaultValues: {
       rounds: "1",
@@ -114,27 +165,18 @@ function RunNewResearchPage() {
         prompt: default_prompts["prover"],
         system_prompt: default_system_prompts["prover"],
         provers: [{
-          model: choose_model("google/gemini-3-pro-preview", {
-            reasoning_effort: "high",
-            web_search: false,
-          }, "prover")
+          model: research_ui_preferences.default_models.prover
         }],
       },
       verifier: {
         prompt: default_prompts["verifier"],
         system_prompt: default_system_prompts["verifier"],
-        model: choose_model("openai/gpt-5.2", {
-          reasoning_effort: "high",
-          web_search: false,
-        }, "verifier"),
+        model: research_ui_preferences.default_models.verifier,
       },
       summarizer: {
         prompt: default_prompts["summarizer"],
         system_prompt: default_system_prompts["summarizer"],
-        model: choose_model("openai/gpt-5-mini", {
-          reasoning_effort: "high",
-          web_search: false,
-        }, "summarizer"),
+        model: research_ui_preferences.default_models.summarizer,
       }
     },
     resolver: zodResolver(NewStandardResearch)
@@ -149,7 +191,7 @@ function RunNewResearchPage() {
     const current_count = provers.length
     if (new_prover_count > current_count) {
       for (let i = current_count; i < new_prover_count; i++) {
-        append({ model: undefined } as any)
+        append({ model: research_ui_preferences.default_models.prover } as any)
       }
     } else if (new_prover_count < current_count) {
       for (let i = current_count - 1; i >= new_prover_count; i--) {
@@ -174,7 +216,19 @@ function RunNewResearchPage() {
     <ProblemDetailsLayout problem_id={problem_id}
       problem_name={problem.name}>
       <div className="flex-1 flex-center">
-        <p>Active research running – can't run anything else for now</p>
+        <div className="flex flex-col gap-3 items-center">
+          <p>Active research running – can't run anything else for now</p>
+          <Button color="danger"
+            onPress={() => force_fail.mutate()}
+            isLoading={force_fail.isPending}>
+            Force Mark Failed
+          </Button>
+          {force_fail.isError && (
+            <Alert status="danger">
+              <p>{force_fail.error.message}</p>
+            </Alert>
+          )}
+        </div>
       </div>
     </ProblemDetailsLayout>
   )
@@ -260,6 +314,7 @@ function RunNewResearchPage() {
                     render={({ field }) => (
                       <ModelSelect trigger_style="rounded-none h-full flex-center bg-alpha shadow-none pl-2"
                         role="prover"
+                        model_visibility={model_visibility}
                         selected={field.value}
                         onChange={field.onChange}/>
                     )}
@@ -280,6 +335,7 @@ function RunNewResearchPage() {
                 control={control}
                 render={({ field }) => (
                   <ModelSelect role="verifier"
+                    model_visibility={model_visibility}
                     selected={field.value}
                     onChange={field.onChange}/>
                 )}/>
@@ -294,6 +350,7 @@ function RunNewResearchPage() {
                 control={control}
                 render={({ field }) => (
                   <ModelSelect role="summarizer"
+                    model_visibility={model_visibility}
                     selected={field.value}
                     onChange={field.onChange}/>
                 )}/>
@@ -364,7 +421,7 @@ function RunNewResearchPage() {
         </section>
 
         <section className="flex flex-col p-4 gap-4">
-          <p className="text-sm">Currently, GPT-5.2 Pro is the state-of-the-art model with reasoning set to <span className="font-kode font-bold">xhigh</span> but it manages to successfully return a response only in ~30 % of requests. Therefore, the default reasoning setting in Bolzano for GPT-5.2 Pro is set to <span className="font-kode font-bold">high</span> only as it's way more reliable. If you require the best performance, switch the reasoning to <span className="font-kode font-bold">xhigh</span> in the model selector yourself.</p>
+          <p className="text-sm">Default models and visible transports are configured in <span className="font-kode font-bold">Settings → Research UI</span>.</p>
           <p className="text-sm">Be aware it's not possible to stop running research.</p>
 
           <Button type="submit"

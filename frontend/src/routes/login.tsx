@@ -27,11 +27,12 @@ export const Route = createFileRoute("/login")({
 })
 
 export default function LoginPage() {
+  const is_local_auth = import.meta.env.VITE_AUTH_MODE === "local"
   const navigate = useNavigate()
   const query_client = useQueryClient()
 
   const { register, formState: { errors }, handleSubmit } = useForm({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
     resolver: zodResolver(login_schema),
   })
 
@@ -70,15 +71,18 @@ export default function LoginPage() {
     <main className="flex-1 p-6">
       <div className="max-w-sm flex flex-col gap-6">
         <h1>Sign In</h1>
+        {is_local_auth && (
+          <p className="text-sm text-ink-2">Default local credentials: <span className="font-kode font-bold">admin / admin</span></p>
+        )}
 
         <Form onSubmit={handleSubmit(data => sign_in.mutate(data))}
           className="flex flex-col gap-4">
-          <TextField isInvalid={!!errors.email}>
-            <Label>Email</Label>
+          <TextField isInvalid={!!errors.identifier}>
+            <Label>Username or Email</Label>
             <Input type="text"
-              placeholder="bernard@bolzano.app"
-              {...register("email")}/>
-            <FieldError>{errors.email?.message}</FieldError>
+              placeholder={is_local_auth ? "admin" : "bernard@bolzano.app"}
+              {...register("identifier")}/>
+            <FieldError>{errors.identifier?.message}</FieldError>
           </TextField>
 
           <TextField
@@ -111,27 +115,31 @@ export default function LoginPage() {
           )}
         </Form>
 
-        <p className="text-sm">
-          Don't have an account?{" "}
-          <BracketLink to="/signup">
-            Create one
-          </BracketLink>
-        </p>
+        {!is_local_auth && (
+          <>
+            <p className="text-sm">
+              Don't have an account?{" "}
+              <BracketLink to="/signup">
+                Create one
+              </BracketLink>
+            </p>
 
-        <div className="relative">
-          <p className="text-sm absolute w-full text-center -top-2.75">
-            <span className="bg-alpha fade-edges px-6">or</span>
-          </p>
-          <Separator/>
-        </div>
+            <div className="relative">
+              <p className="text-sm absolute w-full text-center -top-2.75">
+                <span className="bg-alpha fade-edges px-6">or</span>
+              </p>
+              <Separator/>
+            </div>
 
-        <Button variant="tertiary"
-          fullWidth
-          onPress={() => google_sign_in.mutate()}
-          isPending={google_sign_in.isPending}>
-          <Icon icon="logos:google-icon"/>
-          Continue with Google
-        </Button>
+            <Button variant="tertiary"
+              fullWidth
+              onPress={() => google_sign_in.mutate()}
+              isPending={google_sign_in.isPending}>
+              <Icon icon="logos:google-icon"/>
+              Continue with Google
+            </Button>
+          </>
+        )}
       </div>
     </main>
   )

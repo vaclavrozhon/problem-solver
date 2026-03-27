@@ -1,16 +1,15 @@
 import { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { styled } from "@linaria/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { useAuth } from "../../../auth/hook"
-import { get_problem_overview } from "../../../api/problems"
+import { delete_problem, get_problem_overview } from "../../../api/problems"
 
 import ProblemDetailsLayout, { MainContent } from "../../../components/problem/DetailsLayout"
 import RoundTime from "../../../components/problem/utils/RoundTime"
 import { useAuthStore } from "@frontend/auth/store"
 import { is_admin } from "@shared/auth"
-import { Button } from "@heroui/react"
+import { Alert, AlertDialog, Button, Spinner } from "@heroui/react"
 
 export const Route = createFileRoute("/problem/$problem_id/")({
   component: ProblemID
@@ -18,11 +17,21 @@ export const Route = createFileRoute("/problem/$problem_id/")({
 
 function ProblemID() {
   const { problem_id } = Route.useParams()
+  const navigate = useNavigate()
+  const query_client = useQueryClient()
   const { profile } = useAuthStore()
 
   const { data: problem, isError, isPending } = useQuery({
     queryKey: ["problem", problem_id],
     queryFn: () => get_problem_overview(problem_id),
+  })
+
+  const delete_problem_mutation = useMutation({
+    mutationFn: () => delete_problem(problem_id),
+    onSuccess: async () => {
+      await query_client.invalidateQueries({ queryKey: ["my_problems"] })
+      await navigate({ to: "/" })
+    },
   })
   
   // ---- TEMPORARY v2 research
@@ -120,9 +129,57 @@ function ProblemID() {
         )}
         {/*----------*/}
 
-        {/* <div>
-          TODO: danger zone (actions like remove the problem etc. or stop the research for now if running)
-        </div> */}
+        {problem.owner.id === profile?.id && (
+          <DangerZone>
+            <p className="title">Danger zone</p>
+            <p className="text-sm">Delete this project and all its rounds/files permanently.</p>
+
+            <AlertDialog>
+              <Button variant="danger-soft">
+                Delete Project
+              </Button>
+              <AlertDialog.Backdrop isDismissable>
+                <AlertDialog.Container>
+                  <AlertDialog.Dialog className="max-w-lg">
+                    <AlertDialog.CloseTrigger/>
+                    <AlertDialog.Header>
+                      <AlertDialog.Icon status="danger"/>
+                      <AlertDialog.Heading className="font-sans">Delete this project?</AlertDialog.Heading>
+                    </AlertDialog.Header>
+                    <AlertDialog.Body className="flex flex-col gap-4 p-1">
+                      <p>This removes the project, all rounds, and all generated files. This cannot be undone.</p>
+                      {delete_problem_mutation.isError && (
+                        <Alert status="danger">
+                          <Alert.Indicator/>
+                          <Alert.Content>
+                            <Alert.Title>Failed to delete project</Alert.Title>
+                            <Alert.Description>{format_error_message(delete_problem_mutation.error)}</Alert.Description>
+                          </Alert.Content>
+                        </Alert>
+                      )}
+                    </AlertDialog.Body>
+                    <AlertDialog.Footer>
+                      <Button variant="ghost" slot="close">Cancel</Button>
+                      <Button variant="danger"
+                        onPress={() => delete_problem_mutation.mutate()}
+                        isPending={delete_problem_mutation.isPending}
+                        className="w-42">
+                        {delete_problem_mutation.isPending ? (
+                          <>
+                            <Spinner color="current" size="sm"/>
+                            Deleting...
+                          </>
+                        ) : (
+                          "Yes, delete project"
+                        )}
+                      </Button>
+                    </AlertDialog.Footer>
+                  </AlertDialog.Dialog>
+                </AlertDialog.Container>
+              </AlertDialog.Backdrop>
+            </AlertDialog>
+          </DangerZone>
+        )}
       </Overview>
     </ProblemDetailsLayout>
   )
@@ -175,6 +232,32 @@ const Overview = styled.section`
   padding: 1rem;
 `
 
+const DangerZone = styled.section`
+  display: flex;
+  flex-flow: column;
+  gap: .75rem;
+  align-items: flex-start;
+  border: var(--border-alpha);
+  border-color: #c63f3f;
+  padding: 1rem;
+  border-radius: .5rem;
+  & .title {
+    color: #c63f3f;
+    font-weight: 700;
+  }
+`
+
 function format_date(date: string) {
   return (new Date(date)).toLocaleString("cs-CZ")
+}
+
+function format_error_message(error: unknown) {
+  if (error instanceof Error && error.message && error.message !== "[object Object]") return error.message
+  if (error && typeof error === "object") {
+    const maybe_error = error as { message?: string, value?: { message?: string }, cause?: { message?: string } }
+    if (typeof maybe_error.value?.message === "string") return maybe_error.value.message
+    if (typeof maybe_error.cause?.message === "string") return maybe_error.cause.message
+    if (typeof maybe_error.message === "string" && maybe_error.message !== "[object Object]") return maybe_error.message
+  }
+  return "Unexpected error."
 }

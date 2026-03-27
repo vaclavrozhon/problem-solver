@@ -5,7 +5,83 @@ import { auth_plugin, drizzle_plugin } from "../plugins"
 import { profiles, invites } from "../../drizzle/schema"
 import { decrypt_api_key, encrypt_api_key } from "../encryption"
 import { is_valid_openrouter_key, get_openrouter_balance } from "../openrouter/general"
-import { invite_code_schema, user_name_schema, openrouter_api_key_schema } from "@shared/auth"
+import { is_valid_metacentrum_key } from "../metacentrum/provider"
+import { invite_code_schema, user_name_schema, openrouter_api_key_schema, metacentrum_api_key_schema } from "@shared/auth"
+import { get_enabled_transports } from "@shared/admin/models"
+import type {
+  ClaudeUsageSnapshot,
+  CodexUsageSnapshot,
+  GeminiUsageSnapshot,
+  ProviderUsagePayload,
+} from "@shared/profile/provider_usage"
+import { get_admin_model_settings, get_admin_model_visibility } from "../app_settings"
+import { cached_claude_usage_snapshot, refresh_claude_usage_snapshot } from "../usage/claude"
+import { read_live_codex_usage_snapshot } from "../usage/codex"
+import { read_live_gemini_usage_snapshot } from "../usage/gemini"
+
+function disabled_codex_snapshot(error: string | null = null): CodexUsageSnapshot {
+  return {
+    available: false,
+    captured_at: null,
+    weekly: null,
+    five_hour: null,
+    limit_id: null,
+    limit_name: null,
+    plan_type: null,
+    error,
+  }
+}
+
+function disabled_gemini_snapshot(error: string | null = null): GeminiUsageSnapshot {
+  return {
+    available: false,
+    captured_at: null,
+    profiles: {
+      pro: null,
+      flash: null,
+    },
+    pooled: null,
+    error,
+  }
+}
+
+function disabled_claude_snapshot(error: string | null = null): ClaudeUsageSnapshot {
+  return {
+    available: false,
+    refreshed: false,
+    captured_at: null,
+    weekly: null,
+    session: null,
+    overage: null,
+    error,
+  }
+}
+
+async function build_provider_usage_payload(db: Parameters<typeof get_admin_model_visibility>[0]): Promise<ProviderUsagePayload> {
+  const model_visibility = await get_admin_model_visibility(db)
+  const transports = get_enabled_transports(model_visibility)
+  const [codex, gemini] = await Promise.all([
+    transports.codex_cli
+      ? read_live_codex_usage_snapshot()
+      : Promise.resolve(disabled_codex_snapshot("Codex transport is disabled in admin model settings.")),
+    transports.gemini_cli
+      ? read_live_gemini_usage_snapshot()
+      : Promise.resolve(disabled_gemini_snapshot("Gemini transport is disabled in admin model settings.")),
+  ])
+
+  return {
+    enabled_transports: {
+      codex_cli: transports.codex_cli,
+      gemini_cli: transports.gemini_cli,
+      claude_cli: transports.claude_cli,
+    },
+    codex,
+    gemini,
+    claude: transports.claude_cli
+      ? cached_claude_usage_snapshot()
+      : disabled_claude_snapshot("Claude transport is disabled in admin model settings."),
+  }
+}
 
 export const profile_router = new Elysia({ prefix: "/profile" })
   .use(auth_plugin)
@@ -121,6 +197,69 @@ export const profile_router = new Elysia({ prefix: "/profile" })
   }, { isAuth: true })
 
   /**
+   * POST /profile/metacentrum-key
+   * Sets encrypted MetaCentrum API key.
+   */
+  .post("/metacentrum-key", async ({ user, db, body, status }) => {
+    try {
+      const is_valid = await is_valid_metacentrum_key(body.api_key)
+      if (!is_valid) return status(401, {
+        type: "error",
+        message: "Invalid MetaCentrum API key or unable to verify."
+      })
+
+      const { encrypted, iv, version } = encrypt_api_key(body.api_key, user.id)
+      await db.update(profiles)
+        .set({
+          metacentrum_key_encrypted: encrypted,
+          metacentrum_key_iv: iv,
+          metacentrum_encryption_key_version: version,
+          updated_at: sql`NOW()`,
+        })
+        .where(eq(profiles.id, user.id))
+
+      return { type: "success", message: "MetaCentrum API key saved securely." }
+    } catch (e) {
+      console.error("[profile] Failed to process MetaCentrum API key:", e)
+      const error_message = e instanceof Error ? e.message : String(e)
+      if (error_message.includes("ENCRYPTION_MASTER_KEY_V")) {
+        return status(500, {
+          type: "error",
+          message: "Server encryption key is not configured (`ENCRYPTION_MASTER_KEY_V1`). Please set it in .env and restart backend."
+        })
+      }
+      return status(500, { type: "error", message: "Failed to process MetaCentrum API key!" })
+    }
+  }, {
+    isAuth: true,
+    body: z.object({
+      api_key: metacentrum_api_key_schema,
+    })
+  })
+
+  /**
+   * [AUTH] DELETE /profile/metacentrum-key
+   * Removes MetaCentrum API key.
+   */
+  .delete("/metacentrum-key", async ({ user, db, status }) => {
+    try {
+      await db.update(profiles)
+        .set({
+          metacentrum_key_encrypted: null,
+          metacentrum_key_iv: null,
+          metacentrum_encryption_key_version: null,
+          updated_at: sql`NOW()`,
+        })
+        .where(eq(profiles.id, user.id))
+
+      return { type: "success", message: "MetaCentrum API key removed." }
+    } catch (e) {
+      console.error("[profile] Failed to remove MetaCentrum API key:", e)
+      return status(500, { type: "error", message: "Failed to remove MetaCentrum API key." })
+    }
+  }, { isAuth: true })
+
+  /**
    * POST /profile/redeem-invite
    * 
    * Redeems an invite code and assigns the provisioned key to user.
@@ -217,6 +356,38 @@ export const profile_router = new Elysia({ prefix: "/profile" })
       code: invite_code_schema,
     })
   })
+
+  /**
+   * [AUTH] GET /profile/model-visibility
+   *
+   * Returns admin-managed model visibility for model selectors.
+   */
+  .get("/model-visibility", async ({ db }) => {
+    return get_admin_model_settings(db)
+  }, { isAuth: true })
+
+  /**
+   * [AUTH] GET /profile/provider-usage
+   *
+   * Returns compact provider usage data for enabled local transports.
+   */
+  .get("/provider-usage", async ({ db }) => {
+    return build_provider_usage_payload(db)
+  }, { isAuth: true })
+
+  /**
+   * [AUTH] POST /profile/provider-usage/claude-refresh
+   *
+   * Manual-only Claude usage refresh.
+   */
+  .post("/provider-usage/claude-refresh", async ({ db }) => {
+    const model_visibility = await get_admin_model_visibility(db)
+    const transports = get_enabled_transports(model_visibility)
+    if (!transports.claude_cli) {
+      return disabled_claude_snapshot("Claude transport is disabled in admin model settings.")
+    }
+    return await refresh_claude_usage_snapshot()
+  }, { isAuth: true })
 
   /**
    * [AUTH] GET /profile/balance

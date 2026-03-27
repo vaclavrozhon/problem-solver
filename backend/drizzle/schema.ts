@@ -1,8 +1,9 @@
 import { pgSchema, foreignKey, uuid, timestamp, integer, text, jsonb, json, numeric } from "drizzle-orm/pg-core"
 
-import type { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
+import type { LLMUsage } from "../src/jobs/generate_llm_response"
 import { UserRoleValues, KeySourceValues } from "../../shared/src/auth"
 import { InviteStatusValues } from "../../shared/src/admin/invites"
+import type { ModelVisibility } from "../../shared/src/admin/models"
 
 // TODO: convert all "json" to "jsonb"?
 
@@ -26,7 +27,7 @@ export const problem_files = main.table("problem_files", {
   file_name: text().notNull(),
   content: text().notNull(),
 
-  usage: json().$type<OpenRouterUsageAccounting>(),
+  usage: json().$type<LLMUsage>(),
   model_id: text()
 
 }, (table) => [
@@ -76,6 +77,7 @@ export const rounds = main.table("research_rounds", {
   completed_at: timestamp({ withTimezone: true, mode: "string" }),
 
   error_message: text(),
+  warning_message: text(),
 
   // This shall be used when resuming failed research
   research_config: json(),
@@ -111,13 +113,7 @@ export const problems = main.table("problems", {
    */
   active_round_id: uuid(),
   current_round: integer().default(0).notNull(),
-}, (table) => [
-  foreignKey({
-    columns: [table.owner_id],
-    foreignColumns: [users.id],
-    name: "problems_owner_id_fkey"
-  }),
-])
+})
 
 /**
  * The purpose of this table is to store all LLM responses in extra place
@@ -127,7 +123,7 @@ export const llms = main.table("llms", {
   id: uuid().defaultRandom().primaryKey().notNull(),
   created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
   response: text().notNull(),
-  usage: json().$type<OpenRouterUsageAccounting>().notNull(),
+  usage: json().$type<LLMUsage>().notNull(),
   // BUG/TODO: Need to add .notNull() to prompt_file_id
   // its optional for now because twe just testing
   prompt_file_id: uuid(),
@@ -161,7 +157,6 @@ export const users = auth_schema.table("users", {
 })
 
 export const profiles = main.table("profiles", {
-  // Primary key = auth.users.id (1:1 relationship, same UUID)
   id: uuid().primaryKey().notNull(),
 
   name: text().notNull(),
@@ -172,6 +167,9 @@ export const profiles = main.table("profiles", {
   openrouter_key_encrypted: text(),
   openrouter_key_iv: text(),
   encryption_key_version: integer(),
+  metacentrum_key_encrypted: text(),
+  metacentrum_key_iv: text(),
+  metacentrum_encryption_key_version: integer(),
 
   key_source: key_source(),
   // FK to invites.id if key was provisioned
@@ -180,13 +178,14 @@ export const profiles = main.table("profiles", {
 
   created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
   updated_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
-}, (table) => [
-  foreignKey({
-    columns: [table.id],
-    foreignColumns: [users.id],
-    name: "profiles_id_fkey"
-  }),
-])
+})
+
+export const app_settings = main.table("app_settings", {
+  id: text().primaryKey().notNull(),
+  model_visibility: jsonb().$type<ModelVisibility>().notNull().default({} as ModelVisibility),
+  created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+  updated_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
+})
 
 export const invites = main.table("invites", {
   id: uuid().defaultRandom().primaryKey().notNull(),

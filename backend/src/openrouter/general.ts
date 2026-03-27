@@ -36,6 +36,7 @@ export async function get_openrouter_balance(db: Database, user: User) {
   let decrypted_key
   if (is_admin(user.role)) {
     decrypted_key = Bun.env.OPENROUTER_API_KEY
+    if (!decrypted_key) return null
   } else {
     const api_key = await db.query.profiles.findFirst({
       where: eq(profiles.id, user.id),

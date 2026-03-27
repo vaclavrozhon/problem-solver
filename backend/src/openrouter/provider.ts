@@ -54,8 +54,8 @@ export async function get_user_openrouter_key(
 
   if (!profile) throw new Error(`[get_openrouter_for_user] User profile not found for id: ${user_id}`)
 
-  // Admin users **ALWAYS** use system key
-  if (is_admin(profile.role)) return Bun.env.OPENROUTER_API_KEY
+  // Admin users use system key if available, otherwise they can use their own stored key.
+  if (is_admin(profile.role) && Bun.env.OPENROUTER_API_KEY) return Bun.env.OPENROUTER_API_KEY
 
   // Regular users must have their own key
   if (!profile.openrouter_key_encrypted || !profile.openrouter_key_iv || !profile.encryption_key_version) throw new Error("You must configure your OpenRouter API key before running research. Go to Profile Settings to add your key.")
@@ -96,8 +96,8 @@ export async function user_has_openrouter_key(
   })
   if (!profile) throw new Error(`[user_has_openrouter_key] Couldn't find user with id: ${user_id}`)
 
-  // Admin always uses system key
-  if (is_admin(profile.role)) return true
+  // Admin may use system key
+  if (is_admin(profile.role) && Bun.env.OPENROUTER_API_KEY) return true
 
   // Regular user needs own key
   if (profile.openrouter_key_encrypted

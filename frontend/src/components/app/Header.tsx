@@ -72,6 +72,10 @@ export default function Header({ is_authenticated, is_admin }: HeaderProps) {
               <Dropdown.Menu>
                 <Dropdown.Section>
                   <DropdownHeader>Problems</DropdownHeader>
+                  <DropdownLink to="/admin/models"
+                    icon="gravity-ui:slider">
+                    Models
+                  </DropdownLink>
                   <DropdownLink to="/admin/archive"
                     icon="gravity-ui:archive">
                     Archive

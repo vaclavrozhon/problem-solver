@@ -1,11 +1,12 @@
 import { eq, sql, and, inArray, lt } from "drizzle-orm"
 import { problems, rounds, problem_files, llms, files_types } from "../../drizzle/schema"
-import type { OpenRouterUsageAccounting } from "@openrouter/ai-sdk-provider"
 import { z } from "zod"
 import { VerifierOutputSchema, SummarizerOutputSchema } from "@shared/types/research"
 import type { ModelID } from "@shared/types/research"
 import type { Database } from "../db"
 import { InferSelectModel } from "drizzle-orm"
+import type { LLMUsage } from "./generate_llm_response"
+import { sync_problem_file, sync_problem_main_files } from "@backend/mirror/output_mirror"
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 export type DbOrTx = Database | Transaction
@@ -214,12 +215,36 @@ export async function update_round_phase(
     .where(eq(rounds.id, round_id))
 }
 
+export async function append_round_warning_messages(
+  db: DbOrTx,
+  round_id: string,
+  warnings: string[]
+) {
+  const unique = [...new Set(warnings.map(w => w.trim()).filter(Boolean))]
+  if (unique.length === 0) return
+
+  const message = unique.join("\n")
+  await db.update(rounds)
+    .set({
+      warning_message: sql`
+        CASE
+          WHEN ${rounds.warning_message} IS NULL OR ${rounds.warning_message} = '' THEN ${message}
+          ELSE ${rounds.warning_message} || E'\n' || ${message}
+        END
+      ` as any,
+      updated_at: sql`NOW()` as any,
+    })
+    .where(eq(rounds.id, round_id))
+}
+
 export async function update_problem_status(db: DbOrTx, problem_id: string, status: ProblemStatus) {
   const update_problem_data: Partial<typeof problems.$inferInsert> = {
     status,
     updated_at: sql`NOW()` as any,
   }
-  if (status === "completed") update_problem_data.active_round_id = sql`NULL` as any
+  if (status === "completed" || status === "failed" || status === "idle") {
+    update_problem_data.active_round_id = sql`NULL` as any
+  }
 
   await db.update(problems)
     .set(update_problem_data)
@@ -234,7 +259,7 @@ export async function save_problem_files(
     file_type: FileType,
     file_name: string,
     content: string,
-    usage?: OpenRouterUsageAccounting,
+    usage?: LLMUsage,
     model_id?: ModelID,
   }[]
 ) {
@@ -242,6 +267,14 @@ export async function save_problem_files(
   const result = await db.insert(problem_files)
     .values(files)
     .returning({ id: problem_files.id })
+
+  for (const inserted of result) {
+    try {
+      await sync_problem_file(db, inserted.id)
+    } catch (error) {
+      console.warn(`[mirror] failed to sync file id=${inserted.id}: ${(error as Error).message}`)
+    }
+  }
   return result
 }
 
@@ -253,7 +286,7 @@ export async function save_llm_log(
   db: DbOrTx,
   prompt_file_id: string,
   response: unknown,
-  usage: OpenRouterUsageAccounting,
+  usage: LLMUsage,
   model: string
 ) {
   await db.insert(llms)
@@ -292,6 +325,12 @@ export async function update_main_files(
         eq(problem_files.file_type, "output")
       ))
   })
+
+  try {
+    await sync_problem_main_files(db, problem_id)
+  } catch (error) {
+    console.warn(`[mirror] failed to sync main files for problem=${problem_id}: ${(error as Error).message}`)
+  }
 }
 
 export async function fetch_previous_round_files(

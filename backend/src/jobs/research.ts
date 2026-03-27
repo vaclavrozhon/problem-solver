@@ -8,6 +8,7 @@ import {
   create_summarizer_prompt,
   create_prover_prompt,
   update_round_phase,
+  append_round_warning_messages,
   save_problem_files,
   update_main_files,
   update_problem_status,
@@ -178,6 +179,7 @@ export const run_standard_research = define_job("start_research")
 
     const provers_usage_cost = successful_results.reduce((acc, result) =>
       acc + (result.result.usage.cost || 0), 0)
+    const prover_warnings = successful_results.flatMap(({ result }) => result.warnings ?? [])
 
     await db.update(rounds)
       .set({
@@ -186,6 +188,8 @@ export const run_standard_research = define_job("start_research")
         updated_at: sql`NOW()`,
       })
       .where(eq(rounds.id, current_round_id))
+
+    await append_round_warning_messages(db, current_round_id, prover_warnings)
 
     // (5) Save successful outputs
     const prover_output = []
@@ -225,6 +229,28 @@ export const run_standard_research = define_job("start_research")
       files: files,
       prover_output,
     })
+  })
+  .on("failed", async ({ db }, job, error) => {
+    const payload = job?.data as { new_research?: { problem_id?: string } } | undefined
+    const problem_id = payload?.new_research?.problem_id
+    if (!problem_id) return
+
+    try {
+      const problem = await db.query.problems.findFirst({
+        columns: {
+          active_round_id: true,
+        },
+        where: eq(problems.id, problem_id),
+      })
+
+      if (problem?.active_round_id) {
+        await update_round_phase(db, problem.active_round_id, "prover_failed", error.message)
+      }
+
+      await update_problem_status(db, problem_id, "failed")
+    } catch (e) {
+      console.error(`[job]{start_research} failure recovery failed for problem=${problem_id}:`, e)
+    }
   })
 
 export const run_standard_verifier = define_job("verifier")
@@ -293,6 +319,8 @@ export const run_standard_verifier = define_job("verifier")
         updated_at: sql`NOW()`,
       })
       .where(eq(rounds.id, ctx.current_round_id))
+
+    await append_round_warning_messages(db, ctx.current_round_id, verifier_response.warnings ?? [])
 
     // (3) Save verifier output
     await save_problem_files(db, [{
@@ -417,6 +445,7 @@ export const run_standard_summarizer = define_job("summarizer")
     if (!summarizer_response.success) throw summarizer_response.error
 
     const { output: summarizer_output, usage, time, model_id } = summarizer_response
+    const summarizer_warnings = summarizer_response.warnings ?? []
 
     // (3) Save summarizer output & Finalize round
     const summarizer_files_to_save = [
@@ -444,6 +473,8 @@ export const run_standard_summarizer = define_job("summarizer")
         })
         .where(eq(rounds.id, ctx.current_round_id))
     })
+
+    await append_round_warning_messages(db, ctx.current_round_id, summarizer_warnings)
 
     // (FINAL) Decide whether to start next round or finish research
     if (ctx.current_relative_round_index < ctx.research_config.rounds) {

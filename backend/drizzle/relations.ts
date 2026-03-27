@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations"
-import { problems, problem_files, rounds, llms, users, profiles, invites } from "./schema"
+import { problems, problem_files, rounds, llms, profiles, invites } from "./schema"
 
 export const problem_files_relations = relations(problem_files, ({ one }) => ({
   problem: one(problems, {
@@ -36,10 +36,6 @@ export const rounds_relations = relations(rounds, ({ one, many }) => ({
   }),
 
   files: many(problem_files),
-}))
-
-export const users_relations = relations(users, ({ many }) => ({
-  problems: many(problems),
 }))
 
 export const llms_relations = relations(llms, ({ one }) => ({

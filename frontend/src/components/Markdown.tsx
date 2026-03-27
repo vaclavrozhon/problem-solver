@@ -2,6 +2,7 @@ import { styled } from "@linaria/react"
 
 import RawMarkdown from "./RawMarkdown"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface Props {
   md: string,
@@ -15,6 +16,7 @@ export default function MathMarkdown({ md, render_math = true }: Props) {
       ) : (
         // em needs to be disallowed becuase ... _ ... _ ... in latex code inside $ ... $ can trigger rendering bug
         <ReactMarkdown children={md}
+          remarkPlugins={[remarkGfm]}
           disallowedElements={["em"]}/>
       )}
     </MarkdownContent>
@@ -132,6 +134,34 @@ const MarkdownContent = styled.article`
     word-wrap: break-word;
     white-space: pre-wrap;
     font-size: .8rem;
+  }
+
+  & table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .25rem 0;
+    font-size: .95rem;
+    line-height: 1.5;
+  }
+
+  & th,
+  & td {
+    border: 1px solid var(--border-alpha-color);
+    padding: .45rem .55rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  & th {
+    font-family: Kode;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    background: var(--bg-beta);
+  }
+
+  & tbody tr:nth-child(even) {
+    background: color-mix(in srgb, var(--bg-beta) 70%, transparent);
   }
 
   & strong {

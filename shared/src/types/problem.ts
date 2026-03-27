@@ -54,6 +54,7 @@ export interface ProblemRoundSumary {
     message: string | null,
     failed_provers: string[] | null,
   } | null,
+  warning_message: string | null,
   usage: number,
   estimated_usage: number | null,
 }

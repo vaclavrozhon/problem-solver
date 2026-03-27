@@ -48,7 +48,7 @@ function UsagePage() {
         <p>
           Add an OpenRouter API key in{" "}
           <BracketLink to="/settings">Settings</BracketLink>
-          {" "}to see your balance & usage
+          {" "}to use OpenRouter models and see OpenRouter balance & usage
         </p>
       ) : (
         <section className="flex-col gap-4">

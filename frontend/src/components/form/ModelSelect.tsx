@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react"
 import { z } from "zod"
 
 import { models, get_model_by_id, provider_details } from "@shared/types/research"
+import type { ModelVisibility } from "@shared/admin/models"
 import type { ModelID, ReasoningEffort, ReasoningConfig, ReasoningEffortValue, Provider, ModelConfig } from "@shared/types/research"
 import ProviderLogo from "@frontend/components/svg/ProviderLogo"
 import ReasoningTag from "@frontend/components/problem/ReasoningTag"
@@ -13,10 +14,25 @@ interface ModelSelectProps {
   selected?: ModelConfig,
   onChange: (value: ModelConfig) => void,
   trigger_style?: string,
-  role: "prover" | "verifier" | "summarizer",
+  role: "prover" | "verifier" | "summarizer" | "chat",
+  model_visibility?: Partial<ModelVisibility>,
 }
 
-export default function ModelSelect({ selected, onChange, trigger_style, role }: ModelSelectProps) {
+export default function ModelSelect({
+  selected,
+  onChange,
+  trigger_style,
+  role,
+  model_visibility = {},
+}: ModelSelectProps) {
+  type ModelEntry = {
+    id: ModelID
+    name: string
+    provider: string
+    structured_output: boolean
+    price: { input: number, output: number }
+  }
+
   const [is_open, setIsOpen] = useState(false)
   const new_model_selected = useRef(false)
 
@@ -138,7 +154,18 @@ export default function ModelSelect({ selected, onChange, trigger_style, role }:
 
       <Select.Popover className="flex flex-col w-xs">
         <ListBox className="overflow-y-auto">
-          {Object.entries(models).map(([provider, provider_models], idx) => (role === "prover" || provider_models.filter(model => model.structured_output).length > 0) && (
+          {(Object.entries(models) as [Provider, readonly ModelEntry[]][])
+            .map(([provider, provider_models]) => {
+              const visible_models = provider_models.filter((model) => {
+                const is_selected = selected?.id === model.id
+                const show_by_role = role === "prover" || role === "chat" || model.structured_output
+                const is_visible = model_visibility[model.id] !== false
+                return show_by_role && (is_visible || is_selected)
+              })
+              return { provider, visible_models }
+            })
+            .filter((group) => group.visible_models.length > 0)
+            .map(({ provider, visible_models }, idx) => (
             <ListBox.Section key={provider}>
               {idx > 0 && <Separator className="my-1"/>}
               <Header className="flex gap-1.5 align-center font-semibold">
@@ -146,10 +173,10 @@ export default function ModelSelect({ selected, onChange, trigger_style, role }:
                 {provider_details[provider as Provider].name}
               </Header>
 
-              {provider_models.map(model => {
+              {visible_models.map(model => {
                 const is_selected = selected?.id === model.id
-                const show_model = (role === "prover") || (model.structured_output)
-                return show_model && (
+                const is_hidden = model_visibility[model.id] === false
+                return (
                   <ListBox.Item
                     key={model.id}
                     id={model.id}
@@ -159,11 +186,16 @@ export default function ModelSelect({ selected, onChange, trigger_style, role }:
                     }`}
                     >
                     <div className="flex flex-col">
-                      <p className={`font-medium ${
+                      <p className={`font-medium flex items-center gap-1.5 ${
                           is_selected ? "text-(--accent-alpha)" : ""
                         }`}
                       >
-                      {model.name}
+                        <span>{model.name}</span>
+                        {is_hidden && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-amber-200 text-amber-800">
+                            hidden
+                          </span>
+                        )}
                       </p>
                       <p className="flex gap-1.5 text-xs">
                         in <span className="font-medium">${model.price.input}</span>

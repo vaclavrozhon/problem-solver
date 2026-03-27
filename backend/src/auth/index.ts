@@ -6,6 +6,11 @@ import { profiles } from "../../drizzle/schema"
 import { COOKIE_CONFIG, set_auth_cookies, clear_auth_cookies } from "./cookies"
 import { get_server_url } from "@backend/server"
 import { login_schema, signup_schema } from "@shared/auth"
+import {
+  is_local_auth_mode,
+  is_valid_local_credentials,
+  get_local_auth_tokens,
+} from "./local"
 
 export const auth_router = new Elysia({ prefix: "/auth" })
   .use(drizzle_plugin)
@@ -30,6 +35,11 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * therefore it's recommended to set shorter expiry on them.
    */
   .post("/signout", async ({ cookie, status, sb  }) => {
+      if (is_local_auth_mode()) {
+        clear_auth_cookies(cookie)
+        return { type: "success" }
+      }
+
       const access_token = cookie[COOKIE_CONFIG.access_token.name]?.value as string | undefined
       if (access_token) {
         // invalidates access/refresh tokens via active access token
@@ -52,6 +62,11 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * Sets HttpOnly cookies on success.
    */
   .post("/signup", async ({ db, body, cookie, status, sb }) => {
+    if (is_local_auth_mode()) return status(405, {
+      type: "error",
+      message: "Signup is disabled in local auth mode.",
+    })
+
     // (1) Create user in Supabase Auth using admin SDK
     const { data: auth_data, error: auth_error } = await sb.auth.admin.createUser({
       email: body.email,
@@ -122,8 +137,19 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * Sets HttpOnly cookies on success.
    */
   .post("/signin", async ({ body, cookie, status, sb }) => {
+    if (is_local_auth_mode()) {
+      const is_valid = is_valid_local_credentials(body.identifier, body.password)
+      if (!is_valid) return status(401, {
+        type: "error",
+        message: "Invalid credentials."
+      })
+      const { access_token, refresh_token } = get_local_auth_tokens()
+      set_auth_cookies(cookie, access_token, refresh_token)
+      return { type: "success" }
+    }
+
     const { data, error } = await sb.auth.signInWithPassword({
-      email: body.email,
+      email: body.identifier,
       password: body.password,
     })
 
@@ -151,6 +177,11 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * @returns OAuth URL for frontend to redirect to
    */
   .get("/oauth/google", async ({ status, sb }) => {
+    if (is_local_auth_mode()) return status(405, {
+      type: "error",
+      message: "Google OAuth is disabled in local auth mode.",
+    })
+
     const { data, error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -179,6 +210,11 @@ export const auth_router = new Elysia({ prefix: "/auth" })
    * Exchanges code for session, sets cookies, and redirects to frontend.
    */
   .get("/callback", async ({ query, db, cookie, redirect, sb }) => {
+    if (is_local_auth_mode()) {
+      const frontend_url = get_server_url("frontend")
+      return redirect(`${frontend_url}/login?error=oauth_disabled`)
+    }
+
     const code = query.code
     const error = query.error
     const error_description = query.error_description

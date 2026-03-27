@@ -6,6 +6,7 @@ import { is_admin } from "@shared/auth"
 import type { User } from "@shared/auth"
 import { get_db, get_supabase_admin } from "./db"
 import { COOKIE_CONFIG, set_auth_cookies, clear_auth_cookies } from "./auth/cookies"
+import { get_local_auth_tokens, get_local_auth_user, is_local_auth_mode } from "./auth/local"
 
 /**
  * This plugin injects every request with acccess to DB through `Drizzle`.
@@ -29,7 +30,6 @@ async function resolve_auth({ cookie }: {
   cookie: Record<string, Cookie<unknown>>,
 }) {
   const db = get_db()
-  const supabase = get_supabase_admin()
 
   // (1) Get tokens from cookies
   const access_token = cookie[COOKIE_CONFIG.access_token.name]?.value as string | undefined
@@ -40,6 +40,67 @@ async function resolve_auth({ cookie }: {
     error_code: 401,
     user: null,
   }
+
+  if (is_local_auth_mode()) {
+    const local_tokens = get_local_auth_tokens()
+    const auth_ok = access_token === local_tokens.access_token
+      || refresh_token === local_tokens.refresh_token
+
+    if (!auth_ok) {
+      clear_auth_cookies(cookie)
+      return {
+        error: { type: "error", message: "Invalid local session." },
+        error_code: 401,
+        user: null,
+      }
+    }
+
+    const local = get_local_auth_user()
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, local.id),
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        openrouter_key_encrypted: true,
+        metacentrum_key_encrypted: true,
+        key_source: true,
+      }
+    })
+
+    if (!profile) return {
+      error: {
+        type: "error",
+        message: "Local profile not found."
+      },
+      error_code: 403,
+      user: null,
+    }
+
+    const user: User = {
+      id: profile.id,
+      email: profile.email,
+      role: profile.role,
+      name: profile.name,
+      has_openrouter_key: !!profile.openrouter_key_encrypted,
+      has_metacentrum_key: !!profile.metacentrum_key_encrypted,
+      key_source: profile.key_source,
+      created_at: profile.created_at,
+    }
+
+    // Refresh local cookies to keep session alive.
+    set_auth_cookies(cookie, local_tokens.access_token, local_tokens.refresh_token)
+
+    return {
+      user,
+      error_code: null,
+      error: null,
+    }
+  }
+
+  const supabase = get_supabase_admin()
 
   // (2) Try access token first
   let supabase_user = null
@@ -90,6 +151,7 @@ async function resolve_auth({ cookie }: {
       role: true,
       created_at: true,
       openrouter_key_encrypted: true,
+      metacentrum_key_encrypted: true,
       key_source: true,
     }
   })
@@ -111,6 +173,7 @@ async function resolve_auth({ cookie }: {
     name: profile.name,
     // NEVER EXPOSE KEY!
     has_openrouter_key: !!profile.openrouter_key_encrypted,
+    has_metacentrum_key: !!profile.metacentrum_key_encrypted,
     key_source: profile.key_source,
     created_at: profile.created_at,
   }

@@ -1,3 +1,18 @@
+**Output contract (strict)**:
+- Return **only** a valid JSON object, with no markdown wrapper and no extra text.
+- Use exactly these top-level keys:
+  - `feedback_md` (string)
+  - `summary_md` (string)
+  - `verdict` (`promising` | `uncertain` | `unlikely`)
+  - `blocking_issues` (array of strings)
+  - `per_prover` (array of `{ prover_id, brief_feedback, score }`)
+  - `notes_update` (object `{ action, content }`)
+  - `proofs_update` (object `{ action, content }`)
+  - `output_update` (object `{ action, content }`)
+- Do not omit required keys.
+- For `notes_update` / `proofs_update` / `output_update`, always return objects, never plain strings.
+- If unsure about any field, still return a valid value of the correct type.
+
 **Inputs**: 
 - task statement
 - outputs of provers

@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react"
-import { Provider, provider_details } from "@shared/types/research"
+import { Provider, provider_details, get_model_by_id } from "@shared/types/research"
 
 import ZAILogo from "@frontend/components/svg/logos/ZAI"
 import XAILogo from "@frontend/components/svg/logos/XAI"
@@ -17,7 +17,8 @@ interface ProviderLogoProps {
 }
 
 export default function ProviderLogo({ model_id, size = 16 }: ProviderLogoProps) {
-  const provider = model_id.split("/")[0]
+  const model = get_model_by_id(model_id as any)
+  const provider = (model?.provider ?? model_id.split("/")[0])
     .replaceAll("-", "") // to handle x-ai et cetera
 
   if (provider in custom_logos) {

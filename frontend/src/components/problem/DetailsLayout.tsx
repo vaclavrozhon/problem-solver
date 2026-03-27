@@ -40,6 +40,8 @@ export default function ProblemDetailsLayout({
         )}
         <Link to="/problem/$problem_id/conversations"
           params={{ problem_id }}>Conversations</Link>
+        <Link to="/problem/$problem_id/chat"
+          params={{ problem_id }}>Chat</Link>
         <Link to="/problem/$problem_id/files"
           params={{ problem_id }}
           search={{

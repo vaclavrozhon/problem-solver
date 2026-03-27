@@ -5,7 +5,9 @@ import type { OpenRouterProvider } from "@openrouter/ai-sdk-provider"
 import { QueueState, JobInputSchema, JobStatus } from "../admin/jobs"
 
 const DEFAULT_QUEUE = "jobs"
-const DEFAULT_CONCURRENCY = 100
+const DEFAULT_CONCURRENCY = read_env_number("BULLMQ_CONCURRENCY", 10)
+const DEFAULT_LOCK_DURATION_MS = read_env_number("BULLMQ_LOCK_DURATION_MS", 30 * 60 * 1000)
+const DEFAULT_STALLED_INTERVAL_MS = read_env_number("BULLMQ_STALLED_INTERVAL_MS", 30 * 1000)
 
 type RedisConfig = ReturnType<typeof parse_redis_url>
 
@@ -14,6 +16,8 @@ type JobManagerObserverOptions = {
   observer_mode: true
   /** Redis connection URL */
   redis_url: string
+  /** Startup recovery policy */
+  startup_recovery_mode?: "none" | "fail_and_purge"
 }
 
 /**
@@ -32,6 +36,8 @@ type JobManagerWorkerOptions<DB> = {
   db: DB
   /** OpenRouter resolver function - called at job execution time with user_id */
   openrouter_resolver: OpenRouterResolver<DB>
+  /** Startup recovery policy */
+  startup_recovery_mode?: "none" | "fail_and_purge"
 }
 
 type JobManagerOptions<DB> = JobManagerObserverOptions | JobManagerWorkerOptions<DB>
@@ -113,6 +119,7 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
   // Options
   private observer_mode: boolean
   private redis_url: string
+  private startup_recovery_mode: "none" | "fail_and_purge"
 
   // Dependencies (not initialized in observer mode)
   private db?: DB
@@ -130,6 +137,7 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
   constructor(options: JobManagerOptions<DB>) {
     this.observer_mode = options.observer_mode ?? false
     this.redis_url = options.redis_url
+    this.startup_recovery_mode = options.startup_recovery_mode ?? "fail_and_purge"
 
     if (!this.observer_mode) {
       const worker_options = options as JobManagerWorkerOptions<DB>
@@ -176,6 +184,16 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
       this.initialize_queue_connection(queue_name)
     }
 
+    if (this.startup_recovery_mode === "fail_and_purge") {
+      const recovery_stats = await this.purge_unfinished_jobs(Array.from(queue_names))
+      for (const [queue_name, counts] of Object.entries(recovery_stats)) {
+        console.log(
+          `[job_manager][startup_recovery] queue=${queue_name} ` +
+          `purged=${counts.purged} remaining=${counts.remaining} states=${JSON.stringify(counts.by_state)}`
+        )
+      }
+    }
+
     if (this.observer_mode) {
       console.log(`👀 [job_manager] started in observer mode with ${queue_names.size} queues.`)
       return
@@ -198,6 +216,62 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
     }
 
     console.log(`👍 [job_manager] started with ${queue_names.size} queues.`)
+  }
+
+  private async purge_unfinished_jobs(queue_names: string[]) {
+    const unfinished_states: JobType[] = ["active", "waiting", "delayed"]
+    const stats: Record<string, { purged: number, remaining: number, by_state: Record<string, number> }> = {}
+
+    for (const queue_name of queue_names) {
+      const queue = this.queues.get(queue_name)
+      if (!queue) continue
+
+      let purged = 0
+      const by_state: Record<string, number> = {}
+      let remaining_jobs: Awaited<ReturnType<typeof queue.getJobs>> = []
+
+      await queue.pause()
+      try {
+        for (const state of unfinished_states) {
+          const jobs = await queue.getJobs([state], 0, -1, true)
+          by_state[state] = jobs.length
+          for (const job of jobs) {
+            try {
+              await job.remove({ removeChildren: true })
+              purged += 1
+            } catch (error) {
+              console.warn(
+                `[job_manager][startup_recovery] queue=${queue_name} failed to remove job=${job.id} state=${state}: ` +
+                `${(error as Error).message}`
+              )
+            }
+          }
+        }
+
+        remaining_jobs = await queue.getJobs(unfinished_states, 0, -1, true)
+        if (remaining_jobs.length > 0) {
+          try {
+            await queue.obliterate({ force: true })
+            remaining_jobs = await queue.getJobs(unfinished_states, 0, -1, true)
+          } catch (error) {
+            console.warn(
+              `[job_manager][startup_recovery] queue=${queue_name} obliterate failed: ` +
+              `${(error as Error).message}`
+            )
+          }
+        }
+      } finally {
+        await queue.resume()
+      }
+
+      stats[queue_name] = {
+        purged,
+        remaining: remaining_jobs.length,
+        by_state,
+      }
+    }
+
+    return stats
   }
 
   /**
@@ -329,9 +403,23 @@ export class JobManager<Builders extends BuildersArray = [], DB = unknown> {
     const worker = new Worker(
       queue_name,
       (job) => this.process_job(queue_name, job),
-      { connection: redis_config, concurrency: DEFAULT_CONCURRENCY }
+      {
+        connection: redis_config,
+        concurrency: DEFAULT_CONCURRENCY,
+        lockDuration: DEFAULT_LOCK_DURATION_MS,
+        stalledInterval: DEFAULT_STALLED_INTERVAL_MS,
+      }
     )
     this.workers.set(queue_name, worker)
+
+    worker.on("error", (error) => {
+      console.error(`[job_manager][${queue_name}] worker error: ${error.message}`)
+    })
+
+    worker.on("lockRenewalFailed" as any, (job_ids: string[] | string) => {
+      const ids = Array.isArray(job_ids) ? job_ids.join(", ") : String(job_ids)
+      console.error(`[job_manager][${queue_name}] lock renewal failed for job(s): ${ids}`)
+    })
 
     // Attach job event listeners
     const jobs_in_queue = this.jobs.filter(j => j.get_queue_name() === queue_name)
@@ -518,6 +606,14 @@ function parse_redis_url(connection_url: string) {
     username: url.username,
     password: url.password,
   }
+}
+
+function read_env_number(name: string, fallback: number) {
+  const bun_env = typeof Bun !== "undefined" ? Bun.env : undefined
+  const value = bun_env?.[name] ?? process.env[name]
+  if (!value) return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
 async function get_job_summaries(queue: Queue, job_status: JobType, count: number, asc?: boolean) {

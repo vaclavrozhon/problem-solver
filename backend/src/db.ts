@@ -43,6 +43,9 @@ export function get_db_connection_string() {
  * @returns `SupabaseSDK` ADMIN client built from `SUPABASE_SECRET_KEY`
  */
 export function get_supabase_admin() {
+  if ((Bun.env.AUTH_MODE ?? "local") === "local") {
+    return {} as SupabaseClient
+  }
   if (supabase_admin_client) return supabase_admin_client
   supabase_admin_client = createClient(
     Bun.env.SUPABASE_URL,

@@ -5,6 +5,7 @@ import { auth_ready, useAuthStore, select_is_authenticated } from "../auth/store
 import PageNotFound from "../pages/404"
 import Header from "../components/app/Header"
 import Footer from "../components/app/Footer"
+import ProviderUsageBar from "../components/app/ProviderUsageBar"
 
 /**
  * Routes that are public and are related to the auth flow
@@ -42,6 +43,7 @@ function RootLayout() {
     <div className="flex-1 flex flex-col">
       <Header is_authenticated={is_authenticated}
         is_admin={is_admin}/>
+      {is_authenticated && <ProviderUsageBar/>}
       <Outlet/>
       <Footer/>
     </div>

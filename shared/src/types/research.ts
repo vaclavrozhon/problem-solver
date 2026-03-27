@@ -17,6 +17,7 @@ interface Model {
   id: string,
   name: string,
   provider: string,
+  transport?: "openrouter" | "codex_cli" | "gemini_cli" | "claude_cli" | "metacentrum_openai",
   price: {
     input: number,
     output: number,
@@ -68,6 +69,22 @@ export const provider_details = {
   openai: {
     name: "OpenAI",
     logo: "bi:openai",
+  },
+  codex: {
+    name: "Codex (Local)",
+    logo: "bi:openai",
+  },
+  claude: {
+    name: "Claude (Local)",
+    logo: "simple-icons:anthropic",
+  },
+  gemini: {
+    name: "Gemini (Local)",
+    logo: "devicon-plain:google",
+  },
+  metacentrum: {
+    name: "MetaCentrum",
+    logo: null,
   },
   xai: {
     name: "xAI",
@@ -208,6 +225,60 @@ export const models = {
       max_output_tokens: null,
     },
   ],
+  metacentrum: [
+    {
+      id: "metacentrum/kimi-k2.5",
+      name: "Kimi K2.5 (MetaCentrum)",
+      provider: "metacentrum",
+      transport: "metacentrum_openai",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "metacentrum/gpt-oss-120b",
+      name: "GPT OSS 120B (MetaCentrum)",
+      provider: "metacentrum",
+      transport: "metacentrum_openai",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high"],
+      },
+      structured_output: false,
+      max_output_tokens: null,
+    },
+    {
+      id: "metacentrum/deepseek-v3.2-thinking",
+      name: "DeepSeek V3.2 Thinking (MetaCentrum)",
+      provider: "metacentrum",
+      transport: "metacentrum_openai",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: null,
+      },
+      structured_output: false,
+      max_output_tokens: null,
+    },
+    {
+      id: "metacentrum/glm-4.7",
+      name: "GLM 4.7 (MetaCentrum)",
+      provider: "metacentrum",
+      transport: "metacentrum_openai",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: "toggle",
+      },
+      structured_output: false,
+      max_output_tokens: null,
+    },
+  ],
   nvidia: [
     {
       // final
@@ -303,6 +374,142 @@ export const models = {
       max_output_tokens: null,
     },
   ],
+  codex: [
+    {
+      id: "gpt-5.1-codex-mini",
+      name: "GPT-5.1 Codex Mini (Local)",
+      provider: "codex",
+      transport: "codex_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "gpt-5.4",
+      name: "GPT-5.4 (Codex Local)",
+      provider: "codex",
+      transport: "codex_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high", "xhigh"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "gpt-5.2",
+      name: "ChatGPT-5.2 (Codex Local)",
+      provider: "codex",
+      transport: "codex_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high", "xhigh"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "gpt-5.3-codex",
+      name: "ChatGPT-5.3 Codex (Local)",
+      provider: "codex",
+      transport: "codex_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high", "xhigh"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "gpt-5.3-codex-spark",
+      name: "GPT-5.3 Codex Spark (Local)",
+      provider: "codex",
+      transport: "codex_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high", "xhigh"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+  ],
+  claude: [
+    {
+      id: "claude/claude-opus-4-6",
+      name: "Claude Opus 4.6 (Local)",
+      provider: "claude",
+      transport: "claude_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "claude/claude-sonnet-4-6",
+      name: "Claude Sonnet 4.6 (Local)",
+      provider: "claude",
+      transport: "claude_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "claude/claude-haiku-4-5",
+      name: "Claude Haiku 4.5 (Local)",
+      provider: "claude",
+      transport: "claude_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "medium", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+  ],
+  gemini: [
+    {
+      id: "gemini/gemini-3-pro-preview",
+      name: "Gemini 3 Pro Preview (Local)",
+      provider: "gemini",
+      transport: "gemini_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["low", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+    {
+      id: "gemini/gemini-3-flash-preview",
+      name: "Gemini 3 Flash Preview (Local)",
+      provider: "gemini",
+      transport: "gemini_cli",
+      price: { input: 0, output: 0 },
+      config: {
+        web_search: false,
+        reasoning: ["none", "minimal", "low", "medium", "high"],
+      },
+      structured_output: true,
+      max_output_tokens: null,
+    },
+  ],
   xai: [
     {
       id: "x-ai/grok-4.1-fast",
@@ -374,7 +581,7 @@ export type ReasoningEffortValue = ReasoningEffort | boolean | null
 /** Roles of available agents */
 type AgentRole =
       "prover" | "verifier" | "summarizer"
-    | "manager"
+    | "manager" | "chat"
 
 /**
  * Creates a type-safe model with validated reasoning and web search options.
@@ -406,6 +613,12 @@ export function get_model_by_id(id: ModelID) {
     if (found) return found
   }
   return null
+}
+
+export function get_model_transport(id: ModelID): "openrouter" | "codex_cli" | "gemini_cli" | "claude_cli" | "metacentrum_openai" {
+  const model = get_model_by_id(id)
+  if (!model) return "openrouter"
+  return ("transport" in model ? model.transport : undefined) ?? "openrouter"
 }
 
 export const ModelConfigSchema = (role: AgentRole | "") => z.object({
@@ -476,10 +689,10 @@ export const ModelConfigSchema = (role: AgentRole | "") => z.object({
     }
 
     //Check if role allows structured data
-    if (data.role !== "prover" && !model.structured_output) {
+    if (data.role !== "prover" && data.role !== "chat" && !model.structured_output) {
       ctx.addIssue({
         code: "custom",
-        message: `Model "${data.id}" does not support strucuted output – can be used only for prover.`,
+        message: `Model "${data.id}" does not support strucuted output - can be used only for prover or chat.`,
         path: ["id"],
       })
     }

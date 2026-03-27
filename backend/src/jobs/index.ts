@@ -8,11 +8,13 @@ import type { Database } from "../db"
 
 const db = get_db()
 const redis_url = Bun.env.REDIS_URL
+const startup_recovery_mode = Bun.env.JOB_STARTUP_RECOVERY_MODE === "none" ? "none" : "fail_and_purge"
 
 export const jobs = new JobManager<[], Database>({
   openrouter_resolver: get_openrouter_for_user,
   redis_url,
   db,
+  startup_recovery_mode,
 }).register(...research_jobs)
   .register(...experimental_research_jobs)
 
